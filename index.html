@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCG Hub — 포켓몬 · 원피스 카드 시세</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
+<style>
+:root {
+  --bg: #fafafa;
+  --bg-soft: #f3f4f6;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
+  --ink: #111;
+  --ink-sub: #6b7280;
+  --ink-mute: #9ca3af;
+  --accent: #06b6d4;
+  --pos: #10b981;
+  --neg: #ef4444;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+  font-size: 14px; color: var(--ink); background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+img { max-width: 100%; height: auto; display: block; }
+
+/* ── 레이아웃 ── */
+.app {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.sidebar {
+  background: #fff;
+  border-right: 1px solid var(--line);
+  padding: 20px 14px;
+  position: sticky; top: 0;
+  height: 100vh; overflow-y: auto;
+}
+.main { min-width: 0; padding-bottom: 20px; }
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(255,255,255,0.9); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 12px;
+}
+.search {
+  flex: 1; max-width: 520px;
+  background: var(--bg-soft); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.search input { flex: 1; border: 0; outline: 0; background: transparent; font-size: 14px; }
+.top-actions { display: flex; gap: 8px; margin-left: auto; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--bg-soft); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+}
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #111; color: #fff; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── 사이드바 브랜드 + 네비 ── */
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px; margin-bottom: 16px;
+  background: linear-gradient(135deg, #fafbff 0%, #eef0ff 100%);
+  border: 1px solid var(--line); border-radius: 14px;
+  cursor: pointer;
+}
+.brand-logo {
+  width: 44px; height: 44px; border-radius: 10px; overflow: hidden;
+  background: #fff; flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+.brand-logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.brand-name { font-weight: 800; font-size: 16px; }
+.brand-sub { font-size: 11px; color: var(--ink-sub); margin-top: 2px; }
+
+.nav-section { font-size: 11px; color: var(--ink-mute); padding: 16px 12px 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.nav-list { display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  font-size: 14px; cursor: pointer; user-select: none;
+  color: #333;
+}
+.nav-item:hover { background: var(--bg-soft); }
+.nav-item.active { background: #111; color: #fff; }
+.nav-item .ic { width: 24px; text-align: center; font-size: 18px; }
+
+/* ── 페이지 표시 (핵심: 단순!) ── */
+.page { display: none; padding: 26px 28px 80px; }
+.page.active { display: block; }
+.page-head { margin-bottom: 22px; }
+.page-title { font-size: 24px; font-weight: 800; margin: 0 0 4px; letter-spacing: -0.3px; }
+.page-sub { font-size: 13px; color: var(--ink-sub); margin: 0; }
+
+/* ── 모바일 하단 네비 ── */
+.mnav {
+  display: none; position: fixed; left: 0; right: 0; bottom: 0;
+  background: #fff; border-top: 1px solid var(--line);
+  padding: 8px 4px calc(10px + env(safe-area-inset-bottom));
+  z-index: 50;
+  grid-template-columns: repeat(7, 1fr);
+}
+.mnav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--ink-sub); padding: 6px 2px;
+  cursor: pointer;
+}
+.mnav-item.active { color: #111; font-weight: 800; }
+.mnav-item .ic { font-size: 18px; }
+
+@media (max-width: 960px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .mnav { display: grid; }
+  .main { padding-bottom: 90px; }
+}
+@media (max-width: 640px) {
+  .page { padding: 18px 16px 100px; }
+  .topbar { padding: 10px 14px; }
+}
+
+/* ── 공통 컴포넌트 ── */
+.btn {
+  padding: 10px 14px; border-radius: 10px;
+  font-size: 13px; font-weight: 600;
+  border: 1px solid var(--line); background: #fff;
+}
+.btn.primary { background: #111; color: #fff; border-color: #111; }
+.btn:hover { border-color: var(--line-strong); }
+
+.card {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden; transition: all 0.15s;
+}
+.card:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+
+.grid { display: grid; gap: 14px; }
+.grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+.grid.auto { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.grid.auto-shop { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+@media (max-width: 720px) { .grid.auto-shop { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+@media (max-width: 460px) { .grid.auto-shop { grid-template-columns: 1fr; } }
+@media (max-width: 768px) {
+  .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .grid.cols-2 { grid-template-columns: 1fr; }
+}
+
+.tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.tab { padding: 10px 14px; font-size: 14px; color: var(--ink-sub); border-bottom: 2px solid transparent; cursor: pointer; }
+.tab.active { color: #111; border-bottom-color: #111; font-weight: 700; }
+
+.tabs.pill { border-bottom: none; gap: 6px; }
+.tabs.pill .tab {
+  padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px;
+  background: #fff; font-size: 13px; color: var(--ink-sub);
+}
+.tabs.pill .tab.active { background: #111; color: #fff; border-color: #111; }
+
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip {
+  padding: 7px 12px; border-radius: 999px; font-size: 12.5px;
+  background: var(--bg-soft); color: #333; cursor: pointer; border: 1px solid transparent;
+}
+.chip.active { background: #111; color: #fff; }
+
+/* ── 홈 ── */
+.hero {
+  padding: 28px; border-radius: 16px; margin-bottom: 24px;
+  background: linear-gradient(135deg, #f5efe5, #faf6ee);
+  border: 1px solid var(--line);
+}
+.hero h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.4px; }
+.hero p { margin: 0 0 16px; font-size: 14px; color: var(--ink-sub); line-height: 1.5; }
+.hero-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.brand-tile {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden; cursor: pointer; transition: all 0.15s;
+}
+.brand-tile:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); border-color: var(--line-strong); }
+.brand-tile-img {
+  aspect-ratio: 16/10; background: #fafafa;
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+}
+.brand-tile-img img { max-width: 80%; max-height: 100%; object-fit: contain; }
+.brand-tile-body { padding: 14px 16px 16px; }
+.brand-tile-name { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.brand-tile-sub { font-size: 12px; color: var(--ink-sub); }
+
+/* ── 시세 페이지 ── */
+.price-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  overflow: hidden; cursor: pointer; transition: all 0.15s;
+}
+.price-card:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+.price-card-img {
+  aspect-ratio: 1/1; background: #fff;
+  display: flex; align-items: center; justify-content: center; padding: 14px;
+  border-bottom: 1px solid var(--bg-soft);
+}
+.price-card-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.price-card-img .ph { font-size: 32px; opacity: 0.3; }
+.price-card-body { padding: 12px 14px; }
+.price-card-name { font-size: 12px; color: var(--ink); line-height: 1.3; min-height: 32px; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.price-card-price { font-size: 18px; font-weight: 800; color: var(--accent); }
+.price-card-krw { font-size: 11px; color: var(--ink-sub); font-weight: 600; margin-top: 2px; }
+.price-card-tag { font-size: 10px; color: var(--ink-mute); margin-top: 4px; }
+
+.price-status { font-size: 12px; color: var(--ink-sub); margin: 8px 0 14px; }
+.pagination { display: flex; justify-content: center; gap: 8px; align-items: center; margin-top: 20px; }
+
+/* ── 카드 정보 (sets) ── */
+.set-tile {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden; transition: all 0.15s;
+}
+.set-tile:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+.set-tile-img {
+  aspect-ratio: 1/1; background: #fafafa;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.set-tile-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.set-tile-body { padding: 12px 14px; border-top: 1px solid var(--bg-soft); }
+.set-tile-code { font-size: 11px; color: var(--ink-sub); font-family: monospace; }
+.set-tile-name { font-size: 14px; font-weight: 700; margin: 4px 0; line-height: 1.3; }
+.set-tile-meta { font-size: 11px; color: var(--ink-mute); }
+
+/* ── 응모 ── */
+.apply-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden;
+}
+.apply-card-thumb {
+  aspect-ratio: 16/9; background: #fafafa;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 48px;
+}
+.apply-card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.apply-card-body { padding: 14px 16px; }
+.apply-card-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.apply-card-meta { font-size: 12px; color: var(--ink-sub); margin-bottom: 10px; }
+.apply-card-btns { display: flex; gap: 6px; }
+.apply-card-btns .btn { flex: 1; }
+
+/* ── 오리파 ── */
+.oripa-tile {
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  padding: 16px; text-align: center;
+}
+.oripa-logo {
+  width: 80px; height: 80px; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 48px;
+}
+
+/* ── 이벤트 ── */
+.event-item {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+}
+.event-date {
+  font-size: 11px; font-weight: 700; color: var(--ink-sub);
+  background: var(--bg-soft); padding: 6px 10px; border-radius: 6px;
+  flex-shrink: 0;
+}
+.event-info { flex: 1; }
+.event-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+.event-meta { font-size: 12px; color: var(--ink-sub); }
+
+/* ── 내 정보 (포트폴리오) ── */
+.pf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+@media (max-width: 768px) { .pf-stats { grid-template-columns: repeat(2, 1fr); } }
+.pf-stat {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px;
+}
+.pf-stat-label { font-size: 11px; color: var(--ink-sub); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+.pf-stat-val { font-size: 22px; font-weight: 800; color: #111; }
+.pf-stat-val.pos { color: var(--pos); }
+.pf-stat-val.neg { color: var(--neg); }
+.pf-stat-sub { font-size: 11px; color: var(--ink-mute); margin-top: 4px; }
+
+.empty {
+  text-align: center; padding: 60px 20px;
+  background: #fafafa; border: 1px dashed var(--line); border-radius: 14px;
+  color: var(--ink-sub);
+}
+.empty-icon { font-size: 48px; opacity: 0.4; margin-bottom: 12px; }
+.empty-title { font-size: 15px; font-weight: 700; color: #374151; margin-bottom: 6px; }
+.empty-sub { font-size: 12px; color: var(--ink-mute); line-height: 1.6; }
+
+/* ── 모달 (라이트박스 / 카드 추가 등) ── */
+.modal {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal.open { display: flex; }
+.modal-box {
+  background: #fff; border-radius: 16px; max-width: 480px; width: 100%;
+  max-height: 85vh; overflow-y: auto;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--line);
+}
+.modal-head h3 { margin: 0; font-size: 16px; }
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px; border: 0;
+  background: var(--bg-soft); font-size: 14px;
+}
+.modal-body { padding: 18px 20px; }
+.modal-foot {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 14px 20px; border-top: 1px solid var(--line);
+}
+
+label { display: block; font-size: 11px; color: var(--ink-sub); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; }
+input, select, textarea {
+  width: 100%; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font-size: 13px; font-family: inherit;
+  background: #fff;
+}
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+.form-row { margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <div class="brand" data-nav="home">
+      <div class="brand-logo">
+        <img src="images/brand-logo.png" alt="" onerror="this.parentElement.textContent='🃏'; this.parentElement.style.cssText='display:flex;align-items:center;justify-content:center;font-size:24px'">
+      </div>
+      <div>
+        <div class="brand-name">TCG Hub</div>
+        <div class="brand-sub">Pokémon · One Piece</div>
+      </div>
+    </div>
+    <div class="nav-section">메뉴</div>
+    <div class="nav-list">
+      <div class="nav-item" data-nav="home"><span class="ic">🏠</span> 홈</div>
+      <div class="nav-item" data-nav="price"><span class="ic">₩</span> 카드 시세</div>
+      <div class="nav-item" data-nav="hub"><span class="ic">📌</span> 정보 허브</div>
+      <div class="nav-item" data-nav="cardinfo"><span class="ic">🃏</span> 카드 정보</div>
+      <div class="nav-item" data-nav="apply"><span class="ic">🎟</span> 응모</div>
+      <div class="nav-item" data-nav="oripa"><span class="ic">🎁</span> 오리파</div>
+      <div class="nav-item" data-nav="events"><span class="ic">✨</span> 이벤트</div>
+    </div>
+    <div class="nav-section">내 정보</div>
+    <div class="nav-list">
+      <div class="nav-item" data-nav="portfolio"><span class="ic">👤</span> 내 정보</div>
+    </div>
+  </aside>
+
+  <!-- 메인 -->
+  <main class="main">
+    <header class="topbar">
+      <div class="search">
+        <span>⌕</span>
+        <input id="globalSearch" placeholder="카드 이름, 확장팩 검색 (예: 리자몽)">
+      </div>
+      <div class="top-actions">
+        <div class="icon-btn" title="알림">🔔</div>
+        <div class="avatar">B</div>
+      </div>
+    </header>
+
+    <!-- 홈 -->
+    <section class="page" data-page="home">
+      <div class="hero">
+        <h2>오늘의 TCG, 한 눈에.</h2>
+        <p>SNKRDUNK · PSA · Hareruya 통합 시세부터 응모, 오리파까지. 포켓몬 · 원피스 카드를 위한 올인원 허브.</p>
+        <div class="hero-btns">
+          <button class="btn primary" data-nav="price">카드 시세 보기 →</button>
+          <button class="btn" data-nav="hub">뉴스 · 샵 →</button>
+        </div>
+      </div>
+
+      <h3 style="margin:0 0 12px; font-size:15px">브랜드별 시세</h3>
+      <div class="grid cols-2">
+        <div class="brand-tile" data-home-brand="pokemon" style="cursor:pointer">
+          <div class="brand-tile-img">
+            <img src="images/pokemon-box.jpg" alt="포켓몬" onerror="this.parentElement.textContent='⚡'; this.parentElement.style.fontSize='64px'">
+          </div>
+          <div class="brand-tile-body">
+            <div class="brand-tile-name">포켓몬 카드</div>
+            <div class="brand-tile-sub" id="homeBrandSubPokemon">인기 TOP 10 시세 ↓</div>
+          </div>
+        </div>
+        <div class="brand-tile" data-home-brand="onepiece" style="cursor:pointer">
+          <div class="brand-tile-img">
+            <img src="images/onepiece-box.jpg" alt="원피스" onerror="this.parentElement.textContent='🏴‍☠️'; this.parentElement.style.fontSize='64px'">
+          </div>
+          <div class="brand-tile-body">
+            <div class="brand-tile-name">원피스 카드</div>
+            <div class="brand-tile-sub" id="homeBrandSubOnepiece">인기 TOP 10 시세 ↓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP 10 인기 카드 (브랜드 타일 클릭 시 펼쳐짐) -->
+      <div id="homeTopBox" style="display:none; margin-top:18px">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
+          <div>
+            <div id="homeTopTitle" style="font-size:15px; font-weight:800; color:#111"></div>
+            <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK · PSA 10 시세 라이브</div>
+          </div>
+          <button class="btn" type="button" id="homeTopMore" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
+        </div>
+        <div id="homeTopList" class="grid auto-shop"></div>
+      </div>
+    </section>
+
+    <!-- 카드 시세 -->
+    <section class="page" data-page="price">
+      <div class="page-head">
+        <h1 class="page-title">카드 시세</h1>
+        <p class="page-sub">SNKRDUNK 라이브 · 24시간 자동 갱신</p>
+      </div>
+
+      <!-- 1차 탭: 브랜드 -->
+      <div class="tabs" id="priceBrandTabs">
+        <div class="tab active" data-brand="pokemon">⚡ 포켓몬</div>
+        <div class="tab" data-brand="onepiece">🏴‍☠️ 원피스</div>
+      </div>
+
+      <!-- 2차 탭: 박스 / 카드 -->
+      <div class="tabs pill" id="priceCatTabs">
+        <div class="tab active" data-cat="box">📦 박스</div>
+        <div class="tab" data-cat="card">🃏 카드</div>
+      </div>
+
+      <!-- 등급 칩 (카드 탭일 때만) -->
+      <div class="chips" id="priceGradeChips" style="display:none">
+        <div class="chip active" data-grade="psa10">PSA 10</div>
+        <div class="chip" data-grade="psa9">PSA 9</div>
+        <div class="chip" data-grade="a">A급</div>
+      </div>
+
+      <div class="price-status" id="priceStatus"></div>
+      <div class="grid auto" id="priceGrid"></div>
+    </section>
+
+    <!-- 정보 허브 -->
+    <section class="page" data-page="hub">
+      <div class="page-head">
+        <h1 class="page-title">📌 정보 허브</h1>
+        <p class="page-sub">카드 뉴스 · 전국 TCG 샵을 한 곳에서</p>
+      </div>
+      <div class="tabs" id="hubTabs">
+        <div class="tab active" data-tab="news">📰 뉴스</div>
+        <div class="tab" data-tab="shops">🏪 공식매장</div>
+      </div>
+      <div data-hubpanel="news"><div id="newsList" class="grid auto"></div></div>
+      <div data-hubpanel="shops" style="display:none">
+        <div class="tabs pill" id="shopBrandTabs" style="margin-bottom:14px">
+          <div class="tab active" data-shop-brand="pokemon">⚡ 포켓몬</div>
+          <div class="tab" data-shop-brand="onepiece">🏴‍☠️ 원피스</div>
+        </div>
+        <div id="shopList" class="grid auto-shop"></div>
+      </div>
+    </section>
+
+    <!-- 카드 정보 -->
+    <section class="page" data-page="cardinfo">
+      <div class="page-head">
+        <h1 class="page-title">🃏 카드 정보</h1>
+        <p class="page-sub">포켓몬 · 원피스 확장팩 목록과 공식 정보</p>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px">
+        <div class="tabs" id="ciTabs" style="margin-bottom:0; flex-shrink:0">
+          <div class="tab active" data-ci="pokemon">포켓몬</div>
+          <div class="tab" data-ci="onepiece">원피스</div>
+        </div>
+        <div id="cardInfoSrc" style="font-size:11px; color:var(--ink-sub)"></div>
+      </div>
+      <div class="grid auto" id="cardInfoList"></div>
+    </section>
+
+    <!-- 응모 -->
+    <section class="page" data-page="apply">
+      <div class="page-head">
+        <h1 class="page-title">🎟 응모</h1>
+        <p class="page-sub">아마존 JP · 포켓몬 센터 JP 등 공식 응모 정보</p>
+      </div>
+      <div class="grid cols-2" id="applyList"></div>
+    </section>
+
+    <!-- 오리파 -->
+    <section class="page" data-page="oripa">
+      <div class="page-head">
+        <h1 class="page-title">🎁 오리파</h1>
+        <p class="page-sub">엄선된 온라인 오리파 서비스</p>
+      </div>
+      <div class="grid cols-2" id="oripaList"></div>
+    </section>
+
+    <!-- 이벤트 -->
+    <section class="page" data-page="events">
+      <div class="page-head">
+        <h1 class="page-title">✨ 이벤트</h1>
+        <p class="page-sub">TCG 관련 최신 이벤트 · 발매 일정</p>
+      </div>
+      <div id="eventList" style="display:flex; flex-direction:column; gap:10px"></div>
+    </section>
+
+    <!-- 내 정보 (포트폴리오 + 관심 카드) -->
+    <section class="page" data-page="portfolio">
+      <div class="page-head">
+        <h1 class="page-title">👤 내 정보</h1>
+        <p class="page-sub">관심 카드 추적 · 보유 카드 손익 (이 브라우저에 저장)</p>
+      </div>
+      <div class="tabs pill" id="myTabs">
+        <div class="tab active" data-mytab="watchlist">🔖 관심 카드</div>
+        <div class="tab" data-mytab="holdings">💼 보유 카드</div>
+      </div>
+
+      <!-- 관심 카드 -->
+      <div data-mypanel="watchlist">
+        <div style="margin-bottom:14px">
+          <button class="btn primary" onclick="alert('관심 카드 추가 기능은 카드 시세 페이지에서 카드 클릭 후 추가 가능합니다')">+ 관심 카드 추가</button>
+        </div>
+        <div class="empty" id="wlEmpty">
+          <div class="empty-icon">🔖</div>
+          <div class="empty-title">관심 카드가 없습니다</div>
+          <div class="empty-sub">카드 시세에서 카드를 클릭한 후 관심 추가하세요</div>
+        </div>
+        <div class="grid auto" id="wlList"></div>
+      </div>
+
+      <!-- 보유 카드 -->
+      <div data-mypanel="holdings" style="display:none">
+        <div class="pf-stats">
+          <div class="pf-stat"><div class="pf-stat-label">총 평가액</div><div class="pf-stat-val" id="pfValue">¥0</div><div class="pf-stat-sub" id="pfQty">0종 / 0장</div></div>
+          <div class="pf-stat"><div class="pf-stat-label">총 매입가</div><div class="pf-stat-val" id="pfCost">¥0</div></div>
+          <div class="pf-stat"><div class="pf-stat-label">손익</div><div class="pf-stat-val" id="pfPnl">¥0</div><div class="pf-stat-sub" id="pfPct">—</div></div>
+          <div class="pf-stat"><div class="pf-stat-label">최고 수익</div><div class="pf-stat-val" id="pfBest">—</div></div>
+        </div>
+        <div style="margin-bottom:14px">
+          <button class="btn primary" onclick="openPfAdd()">+ 보유 카드 추가</button>
+        </div>
+        <div class="empty" id="pfEmpty">
+          <div class="empty-icon">💼</div>
+          <div class="empty-title">등록된 보유 카드가 없습니다</div>
+          <div class="empty-sub">"+ 보유 카드 추가" 버튼으로 시작하세요</div>
+        </div>
+        <div class="grid auto" id="pfList"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 모바일 하단 nav -->
+  <nav class="mnav">
+    <div class="mnav-item" data-nav="home"><div class="ic">🏠</div>홈</div>
+    <div class="mnav-item" data-nav="price"><div class="ic">₩</div>시세</div>
+    <div class="mnav-item" data-nav="hub"><div class="ic">📌</div>허브</div>
+    <div class="mnav-item" data-nav="cardinfo"><div class="ic">🃏</div>정보</div>
+    <div class="mnav-item" data-nav="apply"><div class="ic">🎟</div>응모</div>
+    <div class="mnav-item" data-nav="oripa"><div class="ic">🎁</div>오리파</div>
+    <div class="mnav-item" data-nav="portfolio"><div class="ic">👤</div>내정보</div>
+  </nav>
+</div>
+
+<script>
+"use strict";
+
+/* ────────────────────────────────────
+   1. 라우팅 (단순! 작동 보장)
+   ──────────────────────────────────── */
+function go(page) {
+  // 모든 페이지 숨김
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  // 선택 페이지 표시
+  const target = document.querySelector(`.page[data-page="${page}"]`);
+  if (target) target.classList.add('active');
+  // 네비 활성화 (사이드바 + 모바일)
+  document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.nav === page);
+  });
+  // URL 해시 업데이트
+  if (location.hash !== '#' + page) {
+    history.pushState({page}, '', '#' + page);
+  }
+  // 페이지별 초기화
+  if (page === 'price') initPrice();
+  if (page === 'portfolio') renderWatchlist(), renderHoldings();
+  // 스크롤 맨 위로
+  window.scrollTo({top: 0, behavior: 'instant'});
+}
+
+// data-nav 클릭 → 페이지 전환 (이벤트 위임)
+// ⚠ closest 셀렉터를 특정 클래스로 제한 — content 영역 링크/버튼 클릭 가로채지 않게
+document.addEventListener('click', e => {
+  // 외부링크(target=_blank, http://) 는 절대 가로채지 않음
+  const externalA = e.target.closest('a[target="_blank"], a[href^="http"], a[href^="https"]');
+  if (externalA) return;
+  const navEl = e.target.closest('.nav-item[data-nav], .mnav-item[data-nav], .brand[data-nav], .brand-tile[data-nav], button[data-nav]');
+  if (!navEl) return;
+  const page = navEl.dataset.nav;
+  if (!page) return;
+  e.preventDefault();
+  // 브랜드 타일은 브랜드도 같이 설정
+  if (navEl.dataset.brand) PRICE_BRAND = navEl.dataset.brand;
+  go(page);
+});
+
+// 브라우저 뒤로가기
+window.addEventListener('popstate', e => {
+  const page = (location.hash || '#home').replace('#', '') || 'home';
+  // 라우팅만 (히스토리 push 안 함)
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.querySelector(`.page[data-page="${page}"]`);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.nav === page);
+  });
+  if (page === 'price') initPrice();
+  if (page === 'portfolio') renderWatchlist(), renderHoldings();
+});
+
+/* ────────────────────────────────────
+   2. 환율 (JPY → KRW)
+   ──────────────────────────────────── */
+let JPY_KRW = 9.5;
+(async () => {
+  try {
+    const cached = JSON.parse(localStorage.getItem('fx_jpy_krw') || 'null');
+    if (cached && Date.now() - cached.ts < 86400000) { JPY_KRW = cached.rate; return; }
+    const r = await fetch('https://api.exchangerate-api.com/v4/latest/JPY');
+    const d = await r.json();
+    if (d?.rates?.KRW) {
+      JPY_KRW = d.rates.KRW;
+      localStorage.setItem('fx_jpy_krw', JSON.stringify({rate: JPY_KRW, ts: Date.now()}));
+    }
+  } catch (e) {}
+})();
+const fmtYen = n => n != null ? '¥' + Math.round(n).toLocaleString() : '—';
+const fmtKrw = n => n != null ? '₩' + Math.round(n * JPY_KRW).toLocaleString() : '—';
+
+/* ────────────────────────────────────
+   2.5 홈 — TOP 10 인기 카드 (브랜드 타일 클릭 시 펼쳐짐)
+   ──────────────────────────────────── */
+const HOME_TOP_CACHE = {};   // brand → products
+let HOME_TOP_BRAND = null;   // 현재 펼쳐진 브랜드 (null = 닫힘)
+
+async function loadHomeTop(brand) {
+  // 1) localStorage 24h 캐시 확인
+  const cacheKey = `home_top10_${brand}`;
+  const cached = (() => {
+    try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); }
+    catch { return null; }
+  })();
+  if (cached && Date.now() - cached.ts < 86400000) {
+    console.log('[home-top10]', brand, 'localStorage cache hit');
+    HOME_TOP_CACHE[brand] = cached.products;
+    return cached.products;
+  }
+  // 2) 메모리 캐시
+  if (HOME_TOP_CACHE[brand]) return HOME_TOP_CACHE[brand];
+  // 3) API 호출 — 검증된 /api/snkrdunk 사용 (brand 카테고리 페이지 = 우리가 원하는 그 URL)
+  const fetchUrl = `${location.origin}/api/snkrdunk?brand=${brand}&grade=all&page=1`;
+  console.log('[home-top10] fetching', fetchUrl, 'protocol:', location.protocol);
+  if (location.protocol === 'file:') {
+    throw new Error(`로컬파일 모드(file://)에서는 API 호출 불가. 배포된 사이트(tcgbrogeun.pages.dev)에서 열어주세요.`);
+  }
+  let r;
+  try { r = await fetch(fetchUrl); }
+  catch (netErr) {
+    console.error('[home-top10] network error', netErr);
+    throw new Error(`네트워크 에러 (${netErr.message}) — 광고차단기 / VPN 확인 필요`);
+  }
+  console.log('[home-top10] response status', r.status);
+  const text = await r.text();
+  if (text.trim().startsWith('<')) {
+    throw new Error(`API 가 HTML 반환 (Functions 미배포). 상태: ${r.status}`);
+  }
+  let d;
+  try { d = JSON.parse(text); }
+  catch { throw new Error(`JSON 파싱 실패: ${text.slice(0, 80)}`); }
+  if (!r.ok || !d?.ok) throw new Error(d?.error || `HTTP ${r.status}`);
+  // 가격 있는 상위 10개만 — SNKRDUNK 카테고리 페이지 순서 그대로
+  const products = (d.products || [])
+    .filter(p => p.lastPrice || p.lowestAsk)
+    .slice(0, 10);
+  if (!products.length) throw new Error('상품 데이터 0개 — SNKRDUNK 페이지 구조 변경 가능성');
+  HOME_TOP_CACHE[brand] = products;
+  try { localStorage.setItem(cacheKey, JSON.stringify({ products, ts: Date.now() })); } catch {}
+  return products;
+}
+
+function renderHomeTop(brand, products) {
+  const list = document.getElementById('homeTopList');
+  const brandLabel = brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스';
+  document.getElementById('homeTopTitle').textContent = `${brandLabel} 인기 카드 TOP 10 (PSA 10)`;
+
+  if (!products.length) {
+    list.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--ink-sub); font-size:13px">시세 데이터를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.</div>`;
+    return;
+  }
+  list.innerHTML = products.map((p, i) => {
+    const price = p.lastPrice ?? p.lowestAsk;
+    // SNKRDUNK 이미지 프록시 (referer/CORS 문제 회피)
+    const imgSrc = p.image ? `/api/img?u=${encodeURIComponent(p.image)}` : '';
+    return `
+      <a href="${p.url}" target="_blank" rel="noopener noreferrer"
+         class="card" style="display:block; padding:0; overflow:hidden; text-decoration:none; color:inherit; position:relative">
+        <div style="position:absolute; top:8px; left:8px; background:#111; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:5px; z-index:2">#${i+1}</div>
+        <div style="background:#fafafa; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; padding:14px">
+          ${imgSrc ? `<img src="${imgSrc}" alt="${p.name}" loading="lazy" referrerpolicy="no-referrer"
+                          style="max-width:100%; max-height:100%; object-fit:contain"
+                          onerror="this.onerror=null; this.src='${p.image}';">`
+                   : `<span style="font-size:32px; opacity:0.4">🃏</span>`}
+        </div>
+        <div style="padding:10px 12px">
+          <div style="font-size:11px; font-weight:600; color:#374151; line-height:1.35; margin-bottom:6px;
+                      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:30px">${p.name}</div>
+          <div style="font-size:13px; font-weight:800; color:#111; line-height:1.2">${fmtYen(price)}</div>
+          <div style="font-size:10px; color:var(--ink-sub); margin-top:2px">${fmtKrw(price)}</div>
+        </div>
+      </a>`;
+  }).join('');
+}
+
+function renderHomeTopSkeleton() {
+  document.getElementById('homeTopList').innerHTML = Array.from({length:10}, () => `
+    <div class="card" style="padding:0; overflow:hidden">
+      <div style="background:#f3f4f6; aspect-ratio:1/1"></div>
+      <div style="padding:10px 12px">
+        <div style="background:#f3f4f6; height:10px; border-radius:3px; margin-bottom:6px"></div>
+        <div style="background:#f3f4f6; height:10px; width:60%; border-radius:3px; margin-bottom:8px"></div>
+        <div style="background:#e5e7eb; height:14px; width:50%; border-radius:3px"></div>
+      </div>
+    </div>`).join('');
+}
+
+async function toggleHomeTop(brand) {
+  const box = document.getElementById('homeTopBox');
+  // 같은 브랜드 다시 클릭 → 닫기
+  if (HOME_TOP_BRAND === brand) {
+    box.style.display = 'none';
+    HOME_TOP_BRAND = null;
+    document.getElementById('homeBrandSubPokemon').textContent = '인기 TOP 10 시세 ↓';
+    document.getElementById('homeBrandSubOnepiece').textContent = '인기 TOP 10 시세 ↓';
+    return;
+  }
+  HOME_TOP_BRAND = brand;
+  box.style.display = 'block';
+  document.getElementById('homeBrandSubPokemon').textContent = brand === 'pokemon' ? '인기 TOP 10 펼쳐짐 ↑' : '인기 TOP 10 시세 ↓';
+  document.getElementById('homeBrandSubOnepiece').textContent = brand === 'onepiece' ? '인기 TOP 10 펼쳐짐 ↑' : '인기 TOP 10 시세 ↓';
+
+  // 캐시 있으면 즉시, 없으면 스켈레톤 + 로드
+  if (HOME_TOP_CACHE[brand]) {
+    renderHomeTop(brand, HOME_TOP_CACHE[brand]);
+  } else {
+    renderHomeTopSkeleton();
+    document.getElementById('homeTopTitle').textContent =
+      (brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스') + ' 인기 카드 TOP 10 (PSA 10)';
+    try {
+      const products = await loadHomeTop(brand);
+      if (HOME_TOP_BRAND === brand) renderHomeTop(brand, products);
+    } catch (e) {
+      console.error('[home-top10] error', e);
+      if (HOME_TOP_BRAND === brand) {
+        const msg = String(e.message || e);
+        document.getElementById('homeTopList').innerHTML = `
+          <div style="grid-column:1/-1; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px">
+            <div style="font-weight:700; color:#991b1b; margin-bottom:8px">⚠ 시세 불러오기 실패</div>
+            <div style="color:#7f1d1d; font-size:13px; line-height:1.6; margin-bottom:10px">${msg}</div>
+            <div style="font-size:11px; color:#991b1b; line-height:1.7">
+              <b>진단 절차:</b><br>
+              1. 브라우저 주소창이 <code style="background:#fff;padding:1px 4px;border-radius:3px">https://tcgbrogeun.pages.dev/</code> 인지 확인<br>
+              2. F12 → Console 탭에서 <code style="background:#fff;padding:1px 4px;border-radius:3px">[home-top10]</code> 로그 확인<br>
+              3. <a href="${location.origin}/api/top10?brand=${brand}" target="_blank" style="color:#1d4ed8; text-decoration:underline">/api/top10?brand=${brand}</a> 직접 열어서 JSON 확인
+            </div>
+          </div>`;
+      }
+    }
+  }
+  // 펼쳐진 영역으로 스크롤
+  setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
+
+document.addEventListener('click', e => {
+  const tile = e.target.closest('[data-home-brand]');
+  if (tile) { e.preventDefault(); toggleHomeTop(tile.dataset.homeBrand); return; }
+  const moreBtn = e.target.closest('#homeTopMore');
+  if (moreBtn && HOME_TOP_BRAND) {
+    PRICE_BRAND = HOME_TOP_BRAND;
+    PRICE_CAT = 'card';
+    PRICE_GRADE = 'psa10';
+    go('price');
+  }
+});
+
+/* ────────────────────────────────────
+   3. 카드 시세 (SNKRDUNK)
+   ──────────────────────────────────── */
+let PRICE_BRAND = 'pokemon';
+let PRICE_CAT = 'box';
+let PRICE_GRADE = 'psa10';
+let PRICE_PAGE = 1;
+let PRICE_LOADING = false;
+const PRICE_CACHE = {};
+
+function initPrice() {
+  // 탭 활성화 동기화
+  document.querySelectorAll('#priceBrandTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.brand === PRICE_BRAND));
+  document.querySelectorAll('#priceCatTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.cat === PRICE_CAT));
+  document.getElementById('priceGradeChips').style.display = PRICE_CAT === 'card' ? 'flex' : 'none';
+  loadPriceGrid();
+}
+
+async function loadPriceGrid() {
+  if (PRICE_LOADING) return;
+  PRICE_LOADING = true;
+  const grid = document.getElementById('priceGrid');
+  const status = document.getElementById('priceStatus');
+  const brandLbl = PRICE_BRAND === 'pokemon' ? '포켓몬' : '원피스';
+  const catLbl = PRICE_CAT === 'box' ? '박스' : '카드';
+  status.textContent = `🔄 ${brandLbl} ${catLbl} 불러오는 중...`;
+  grid.innerHTML = `<div class="empty">⏳ 잠시만 기다려주세요</div>`;
+
+  const cacheKey = `${PRICE_BRAND}_${PRICE_CAT}_${PRICE_GRADE}_${PRICE_PAGE}`;
+  if (PRICE_CACHE[cacheKey]) {
+    renderPriceGrid(PRICE_CACHE[cacheKey]);
+    PRICE_LOADING = false;
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({brand: PRICE_BRAND, type: PRICE_CAT, page: String(PRICE_PAGE)});
+    if (PRICE_CAT === 'card') params.set('grade', PRICE_GRADE);
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 10000);
+    const res = await fetch('/api/snkrdunk?' + params, {signal: ctrl.signal});
+    clearTimeout(timeout);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'API error');
+    PRICE_CACHE[cacheKey] = data.products || [];
+    renderPriceGrid(data.products || []);
+    status.textContent = `✓ ${data.products?.length || 0}개 — ${brandLbl} / ${catLbl}`;
+  } catch (e) {
+    status.textContent = `⚠️ 로딩 실패: ${e.message}`;
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">시세 데이터를 불러올 수 없습니다</div><div class="empty-sub">서버 함수가 응답하지 않거나 네트워크 문제일 수 있습니다.<br>잠시 후 다시 시도해주세요.</div></div>`;
+  } finally {
+    PRICE_LOADING = false;
+  }
+}
+
+function renderPriceGrid(products) {
+  const grid = document.getElementById('priceGrid');
+  if (!products.length) {
+    grid.innerHTML = `<div class="empty">데이터 없음</div>`;
+    return;
+  }
+  grid.innerHTML = products.map(p => {
+    const price = p.lowestAsk || p.lastPrice;
+    return `
+      <div class="price-card" onclick="window.open('${(p.url || '').replace(/'/g, '&#39;')}', '_blank')">
+        <div class="price-card-img">
+          ${p.image ? `<img src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="ph">🃏</div>'}
+        </div>
+        <div class="price-card-body">
+          <div class="price-card-name" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.name || '—'}</div>
+          <div class="price-card-price">${fmtYen(price)}</div>
+          <div class="price-card-krw">${fmtKrw(price)}</div>
+          <div class="price-card-tag">SNKRDUNK 최저가</div>
+        </div>
+      </div>`;
+  }).join('') + `
+    <div style="grid-column:1/-1; display:flex; justify-content:center; gap:8px; margin-top:14px">
+      <button class="btn" onclick="changePricePage(-1)" ${PRICE_PAGE === 1 ? 'disabled' : ''}>← 이전</button>
+      <span style="padding:10px 14px; color:var(--ink-sub)">페이지 ${PRICE_PAGE}</span>
+      <button class="btn" onclick="changePricePage(1)">다음 →</button>
+    </div>`;
+}
+
+function changePricePage(d) {
+  PRICE_PAGE = Math.max(1, PRICE_PAGE + d);
+  loadPriceGrid();
+}
+
+// 시세 탭/칩 클릭
+document.addEventListener('click', e => {
+  const brandTab = e.target.closest('#priceBrandTabs .tab');
+  if (brandTab) {
+    PRICE_BRAND = brandTab.dataset.brand;
+    PRICE_PAGE = 1;
+    initPrice();
+  }
+  const catTab = e.target.closest('#priceCatTabs .tab');
+  if (catTab) {
+    PRICE_CAT = catTab.dataset.cat;
+    PRICE_PAGE = 1;
+    initPrice();
+  }
+  const gradeChip = e.target.closest('#priceGradeChips .chip');
+  if (gradeChip) {
+    document.querySelectorAll('#priceGradeChips .chip').forEach(c => c.classList.remove('active'));
+    gradeChip.classList.add('active');
+    PRICE_GRADE = gradeChip.dataset.grade;
+    PRICE_PAGE = 1;
+    loadPriceGrid();
+  }
+});
+
+/* ────────────────────────────────────
+   4. 정보 허브 — 뉴스 + 샵
+   ──────────────────────────────────── */
+const NEWS = [
+  {title: "낙원 드래고나 BOX 발매", date: "2026-04-26", src: "포켓몬센터 공식", link: "https://www.pokemon-card.com/"},
+  {title: "OP-13 三兄弟의 絆 발매 예정", date: "2026-04-25", src: "원피스 공식", link: "https://en.onepiece-cardgame.com/"},
+  {title: "SV12 카드팩 사전 정보 공개", date: "2026-04-22", src: "TCG뉴스", link: "https://www.pokemon-card.com/"},
+];
+/* 공식매장 — 포켓몬 카드 공식 매장 11개 */
+// 매장 정보 — 공식 포스터(pokemonkorea.co.kr) 출처 그대로 반영
+// image = images/market/{영문지역}.JPG (사용자 업로드 로고)
+const SHOPS = {
+  pokemon: [
+    {name: "포켓몬 카드샵 용산",
+     image: "images/market/yongsan.JPG",
+     addr: "서울시 용산구 한강대로23길 55 아이파크몰 리빙파크 8F",
+     hours: "10:30~20:30 / 10:30~21:00 (금·토·공휴일)",
+     map: "https://naver.me/52RwVrCD"},
+
+    {name: "포켓몬 카드샵 카드냥 역삼",
+     image: "images/market/yeoksam.JPG",
+     addr: "서울시 강남구 논현로 77길 9, 태원빌딩 4층",
+     hours: "월·화·목 14:00~19:00 / 수·금 14:00~22:30 / 주말·공휴일 13:00~22:30 (연중무휴)",
+     phone: "02-568-3778",
+     map: "https://naver.me/Gn0JU0zX"},
+
+    {name: "포켓몬 카드샵 카드플래닛 수원",
+     image: "images/market/suwon.JPG",
+     addr: "경기도 수원시 영통구 청명로 73-1 2층",
+     hours: "12:00~22:00 (매주 월요일 휴무)",
+     phone: "070-8777-4264",
+     map: "https://naver.me/GCvi6wlu"},
+
+    {name: "포켓몬 카드샵 카드스페이스 원주",
+     image: "images/market/wonju.JPG",
+     addr: "강원도 원주시 능라동길 42 602호",
+     hours: "12:00~22:00 (매주 월요일 휴무)",
+     phone: "033-745-1444",
+     map: "https://naver.me/xnhZq1bw"},
+
+    {name: "포켓몬 카드샵 카드팝 인천",
+     image: "images/market/incheon.JPG",
+     addr: "인천광역시 부평구 부평동 201-117 4층",
+     hours: "12:00~21:00 (연중무휴)",
+     phone: "032-221-8502",
+     map: "https://naver.me/x9BNIGow"},
+
+    {name: "포켓몬 카드샵 화성스토어TCG 광주",
+     image: "images/market/gwangju.JPG",
+     addr: "광주광역시 동구 중앙로160번길 22, 2층",
+     hours: "12:00~22:00 (연중무휴)",
+     phone: "010-3083-9697",
+     map: "https://naver.me/xyTMMpiC"},
+
+    {name: "포켓몬 카드샵 카드홀릭 평택",
+     image: "images/market/pyeongtaek.JPG",
+     addr: "경기도 평택시 평택2로 16 3층",
+     hours: "12:00~21:00 (매주 월·화 휴무 / 공휴일 정상 영업)",
+     phone: "010-2712-8884",
+     map: "https://naver.me/5D8tEneK"},
+
+    {name: "포켓몬 카드샵 TCG 팩토리 울산",
+     image: "images/market/ulsan.JPG",
+     addr: "울산광역시 중구 번영로 454-1 1층",
+     hours: "12:00~21:00 (연중무휴)",
+     phone: "052-710-4083",
+     map: "https://naver.me/x7ndfqBK"},
+
+    {name: "포켓몬 카드샵 트레이너 스쿨 대구",
+     image: "images/market/daegu.JPG",
+     addr: "대구광역시 달서구 성당동 488-1 2층",
+     hours: "평일 13:00~21:00 / 주말 13:00~22:00",
+     phone: "010-4836-2223",
+     map: "https://naver.me/5BcqbqAh"},
+
+    {name: "포켓몬 카드샵 카드베이스 부산",
+     image: "images/market/busan.JPG",
+     addr: "부산광역시 동래구 명륜로 129번길 54, 4층",
+     hours: "평일 14:00~22:00 / 주말 13:00~22:00",
+     phone: "010-9825-9697",
+     map: "https://naver.me/5r3E3x9l"},
+
+    {name: "포켓몬 카드샵 카드룰 대전",
+     image: "images/market/daejeon.JPG",
+     addr: "대전광역시 서구 둔산로 72, 등오빌딩 5층",
+     hours: "평일 14:00~22:00 / 주말 13:00~21:00",
+     phone: "010-4849-7220",
+     map: "https://naver.me/GSQ6LEoV"},
+  ],
+  onepiece: []  // 원피스 공식 매장 등록 시 추가
+};
+
+document.getElementById('newsList').innerHTML = NEWS.map(n => `
+  <a href="${n.link}" target="_blank" rel="noopener" class="card" style="padding:14px 16px; display:block">
+    <div style="font-size:15px; font-weight:700; margin-bottom:6px">${n.title}</div>
+    <div style="font-size:12px; color:var(--ink-sub)">${n.src} · ${n.date}</div>
+  </a>`).join('');
+let SHOP_BRAND = 'pokemon';
+function renderShops() {
+  const list = SHOPS[SHOP_BRAND] || [];
+  const container = document.getElementById('shopList');
+  if (!list.length) {
+    container.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🏪</div><div class="empty-title">${SHOP_BRAND === 'pokemon' ? '포켓몬' : '원피스'} 공식 매장 정보가 곧 추가됩니다</div></div>`;
+    return;
+  }
+  container.innerHTML = list.map(s => {
+    return `
+    <div class="card" style="padding:0; display:block; overflow:hidden">
+      <!-- 공식 포스터 이미지 -->
+      ${s.image ? `<div style="background:#000; aspect-ratio:16/10; overflow:hidden">
+        <img src="${s.image}" alt="${s.name}" style="width:100%; height:100%; object-fit:cover; display:block"
+             onerror="this.parentElement.style.aspectRatio='auto'; this.parentElement.style.padding='20px'; this.outerHTML='<div style=\\'color:#fff;text-align:center;font-size:13px;font-weight:700\\'>🃏 ${s.name}</div>'">
+      </div>` : ''}
+      <!-- 정보 영역 -->
+      <div style="padding:11px 13px">
+        <div style="font-size:13px; font-weight:800; margin-bottom:3px; color:#111; line-height:1.3">${s.name}</div>
+        <div style="font-size:11px; color:var(--ink-sub); margin-bottom:9px; line-height:1.5">${s.addr}</div>
+        <div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:start; margin-bottom:5px; font-size:11px; line-height:1.5">
+          <span style="text-align:center">🕐</span>
+          <span style="color:#374151">${s.hours}</span>
+        </div>
+        <div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:start; margin-bottom:5px; font-size:11px; line-height:1.5">
+          <span style="text-align:center">🪪</span>
+          <span style="color:#374151">${SHOP_BRAND === 'pokemon' ? '포켓몬 카드 공식 상품' : '원피스 카드 공식 상품'}</span>
+        </div>
+        ${s.phone ? `<div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:center; margin-bottom:9px; font-size:11px; line-height:1.5">
+          <span style="text-align:center">📞</span>
+          <span style="color:#374151">${s.phone}</span>
+        </div>` : '<div style="margin-bottom:9px"></div>'}
+        <a href="${s.map}" target="_blank" rel="noopener noreferrer"
+           class="btn primary"
+           style="display:block; text-align:center; padding:7px 10px; font-size:12px; text-decoration:none">🗺 네이버지도 열기</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+renderShops();
+// 샵 브랜드 탭 클릭
+document.addEventListener('click', e => {
+  const t = e.target.closest('#shopBrandTabs .tab');
+  if (!t) return;
+  document.querySelectorAll('#shopBrandTabs .tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  SHOP_BRAND = t.dataset.shopBrand;
+  renderShops();
+});
+
+// 허브 탭
+document.addEventListener('click', e => {
+  const tab = e.target.closest('#hubTabs .tab');
+  if (!tab) return;
+  document.querySelectorAll('#hubTabs .tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  const which = tab.dataset.tab;
+  document.querySelectorAll('[data-hubpanel]').forEach(p => p.style.display = p.dataset.hubpanel === which ? '' : 'none');
+});
+
+/* ────────────────────────────────────
+   5. 카드 정보 (확장팩)
+   ──────────────────────────────────── */
+const CARDINFO_SOURCE = {
+  pokemon:  { label: "출처: tcgcollector.com/sets/jp", url: "https://www.tcgcollector.com/sets/jp" },
+  onepiece: { label: "출처: onepiece.gg/sets",        url: "https://onepiece.gg/sets" },
+};
+
+const CARDINFO = {
+  pokemon: [
+    // ─── Mega Scarlet & Violet Era ───
+    {code:"M5", name:"어비스아이 (Abyss Eye)", release:"2026.05.22", url:"https://www.tcgcollector.com/sets?releaseDateOrder=newToOld"},
+    {code:"M4", name:"닌자 스페너 (Ninja Spinner)", release:"2026.03.13", url:"https://www.tcgcollector.com/sets/11800/ninja-spinner?setCardCountMode=anyCardVariant"},
+    {code:"M3", name:"무니키스 제로 (Nullifying Zero)", release:"2026.01.23", url:"https://www.tcgcollector.com/sets/11684/nullifying-zero?setCardCountMode=anyCardVariant"},
+    {code:"M2a", name:"메가 드림 ex (MEGA Dream ex)", release:"2025.11.28", url:"https://www.tcgcollector.com/sets/11678/mega-dream-ex?setCardCountMode=anyCardVariant"},
+    {code:"M2", name:"인페르노 X (Inferno X)", release:"2025.09.26", url:"https://www.tcgcollector.com/sets/11675/inferno-x?setCardCountMode=anyCardVariant"},
+    {code:"M1L", name:"메가 브레이브 (Mega Brave)", release:"2025.08.01", url:"https://www.tcgcollector.com/sets/11660/mega-brave?setCardCountMode=anyCardVariant"},
+    {code:"M1S", name:"메가 심포니아 (Mega Symphonia)", release:"2025.08.01", url:"https://www.tcgcollector.com/sets/11661/mega-symphonia?setCardCountMode=anyCardVariant"},
+    // ─── Scarlet & Violet Era ───
+    {code:"SV11B", name:"블랙 볼트 (Black Bolt)", release:"2025.06.06", url:"https://www.tcgcollector.com/sets/11652/black-bolt?setCardCountMode=anyCardVariant"},
+    {code:"SV11W", name:"화이트 플레어 (White Flare)", release:"2025.06.06", url:"https://www.tcgcollector.com/sets/11653/white-flare?setCardCountMode=anyCardVariant"},
+    {code:"SV10", name:"로켓단의 영광 (The Glory of Team Rocket)", release:"2025.04.18", url:"https://www.tcgcollector.com/sets/11649/the-glory-of-team-rocket?setCardCountMode=anyCardVariant"},
+    {code:"SV9a", name:"열풍의 아레나 (Hot Air Arena)", release:"2025.03.14", url:"https://www.tcgcollector.com/sets/11648/hot-air-arena?setCardCountMode=anyCardVariant"},
+    {code:"SV9", name:"배틀 파트너즈 (Battle Partners)", release:"2025.01.24", url:"https://www.tcgcollector.com/sets/11643/battle-partners?setCardCountMode=anyCardVariant"},
+    {code:"SV8a", name:"테라스탈 페스티벌 ex (Terastal Festival ex)", release:"2024.12.06", url:"https://www.tcgcollector.com/sets/11640/terastal-festival-ex?setCardCountMode=anyCardVariant"},
+    {code:"SV8", name:"초전 브레이커 (Super Electric Breaker)", release:"2024.10.18", url:"https://www.tcgcollector.com/sets/11638/super-electric-breaker?setCardCountMode=anyCardVariant"},
+    {code:"SV7a", name:"파라다이스 드래고나 (Paradise Dragona)", release:"2024.09.13", url:"https://www.tcgcollector.com/sets/11635/paradise-dragona?setCardCountMode=anyCardVariant"},
+    {code:"SV7", name:"스텔라 미라클 (Stellar Miracle)", release:"2024.07.19", url:"https://www.tcgcollector.com/sets/11629/stellar-miracle?setCardCountMode=anyCardVariant"},
+    {code:"SV6a", name:"나이트 원더러 (Night Wanderer)", release:"2024.06.07", url:"https://www.tcgcollector.com/sets/11626/night-wanderer?setCardCountMode=anyCardVariant"},
+    {code:"SV6", name:"변환의 가면 (Mask of Change)", release:"2024.04.26", url:"https://www.tcgcollector.com/sets/11624/mask-of-change?setCardCountMode=anyCardVariant"},
+    {code:"SV5a", name:"크림슨 헤이즈 (Crimson Haze)", release:"2024.03.22", url:"https://www.tcgcollector.com/sets/11622/crimson-haze?setCardCountMode=anyCardVariant"},
+    {code:"SV5M", name:"사이버 저지 (Cyber Judge)", release:"2024.01.26", url:"https://www.tcgcollector.com/sets/11604/cyber-judge?setCardCountMode=anyCardVariant"},
+  ],
+  onepiece: [
+    // ─── 신작 (예정) ───
+    {code:"OP16", name:"엑스퍼트 브레이커스 (Expert Breakers)", release:"2026 예정", nolink:true},
+    {code:"EB04", name:"Extra Booster 04", release:"2026 예정", nolink:true},
+    {code:"OP15", name:"OP-15 (신작)", release:"2026 예정", nolink:true},
+    {code:"EB03", name:"Extra Booster 03", release:"2026 예정", nolink:true},
+    {code:"OP14", name:"OP-14 (신작)", release:"2026 예정", nolink:true},
+    // ─── 정식 발매 (onepiece.gg 직링크) ───
+    {code:"OP13", name:"계승된 의지 (Inherited Will)", release:"2025.11.01", url:"https://onepiece.gg/sets/OP13"},
+    {code:"OP12", name:"마스터의 유산 (Legacy of the Master)", release:"2025.08.22", url:"https://onepiece.gg/sets/OP12"},
+    {code:"OP11", name:"신속의 일격 (A Fist of Divine Speed)", release:"2025.06.06", url:"https://onepiece.gg/sets/OP11"},
+    {code:"EB02", name:"애니메이션 25주년 컬렉션 (Anime 25th)", release:"2025.05.09", url:"https://onepiece.gg/sets/EB02"},
+    {code:"OP10", name:"로열 블러드 (Royal Blood)", release:"2025.03.21", url:"https://onepiece.gg/sets/OP10"},
+    {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.12.13", url:"https://onepiece.gg/sets/OP09"},
+    {code:"OP08", name:"투 레전드 (Two Legends)", release:"2024.09.13", url:"https://onepiece.gg/sets/OP08"},
+    {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.06.28", url:"https://onepiece.gg/sets/OP07"},
+    {code:"EB01", name:"메모리얼 컬렉션 (Memorial Collection)", release:"2024.05.03", url:"https://onepiece.gg/sets/EB01"},
+    {code:"OP06", name:"선장의 날개 (Wings of Captain)", release:"2024.03.15", url:"https://onepiece.gg/sets/OP06"},
+    {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", release:"2023.12.01", url:"https://onepiece.gg/sets/OP05"},
+    {code:"OP04", name:"음모의 왕국 (Kingdoms of Intrigue)", release:"2023.09.22", url:"https://onepiece.gg/sets/OP04"},
+    {code:"OP03", name:"힘의 기둥 (Pillars of Strength)", release:"2023.06.30", url:"https://onepiece.gg/sets/OP03"},
+    {code:"OP02", name:"정상 전쟁 (Paramount War)", release:"2023.03.10", url:"https://onepiece.gg/sets/OP02"},
+    {code:"OP01", name:"로맨스 던 (Romance Dawn)", release:"2022.12.02", url:"https://onepiece.gg/sets/OP01"},
+  ],
+};
+let CI_TAB = 'pokemon';
+function renderCardInfo() {
+  const list = CARDINFO[CI_TAB] || [];
+  const src = CARDINFO_SOURCE[CI_TAB];
+  const srcEl = document.getElementById('cardInfoSrc');
+  if (srcEl && src) {
+    srcEl.innerHTML = `<a href="${src.url}" target="_blank" rel="noopener" style="color:var(--ink-sub); text-decoration:underline">${src.label}</a>`;
+  }
+  document.getElementById('cardInfoList').innerHTML = list.map(s => {
+    const isNolink = !!s.nolink;
+    const safeName = (s.name || '').replace(/"/g, '&quot;');
+    if (isNolink) {
+      return `
+        <div class="set-tile" style="opacity:0.7; cursor:default" title="${safeName} (연동 준비 중)">
+          <div class="set-tile-img">
+            <img src="images/sets/${s.code}.jpg" alt="${safeName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:48px;opacity:0.4\\'>🔜</span>'">
+          </div>
+          <div class="set-tile-body">
+            <div class="set-tile-code">${s.code}</div>
+            <div class="set-tile-name">${s.name}</div>
+            <div class="set-tile-meta">${s.release} · 연동 준비 중</div>
+          </div>
+        </div>`;
+    }
+    return `
+      <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="set-tile" style="display:block" title="${safeName} 상세 보기">
+        <div class="set-tile-img">
+          <img src="images/sets/${s.code}.jpg" alt="${safeName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:48px\\'>🃏</span>'">
+        </div>
+        <div class="set-tile-body">
+          <div class="set-tile-code">${s.code}</div>
+          <div class="set-tile-name">${s.name}</div>
+          <div class="set-tile-meta">${s.release}</div>
+        </div>
+      </a>`;
+  }).join('');
+}
+document.addEventListener('click', e => {
+  const tab = e.target.closest('#ciTabs .tab');
+  if (!tab) return;
+  document.querySelectorAll('#ciTabs .tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  CI_TAB = tab.dataset.ci;
+  renderCardInfo();
+});
+renderCardInfo();
+
+/* ────────────────────────────────────
+   6. 응모 / 오리파 / 이벤트 (간단 데이터)
+   ──────────────────────────────────── */
+const APPLIES = [
+  {
+    brand: "포켓몬", platform: "아마존 JP",
+    title: "포켓몬 TCG 「어비스아이」 박스 응모",
+    boxLabelKo: "어비스아이",
+    img: "images/pokemon-box.jpg",
+    link: "https://amzn.to/3QloIxO",
+    prize: "어비스아이 확장팩 박스",
+    method: [
+      "한국인도 응모 가능합니다. 번호 당 1계정, 직배송 가능합니다.",
+      "상품 페이지에서 \"Request invite\" 버튼을 눌러 초대 요청을 제출합니다.",
+      "아마존이 자체 추첨을 진행합니다.",
+      "당첨 시 랜덤 일정으로 메일이 발송됩니다.",
+      "당첨 메일 수신 시 카드 결제를 완료하면 배송이 시작됩니다."
+    ]
+  },
+  {
+    brand: "원피스", platform: "아마존 JP",
+    title: "원피스 TCG 「OP-16」 박스 응모",
+    boxLabelKo: "EXPERT BREAKERS",
+    img: "images/onepiece-box.jpg",
+    link: "https://amzn.to/4mJq3dP",
+    prize: "원피스 카드게임 OP-16 박스",
+    method: [
+      "한국인도 응모 가능합니다. 번호 당 1계정, 직배송 가능합니다.",
+      "상품 페이지에서 \"Request invite\" 버튼을 눌러 초대 요청을 제출합니다.",
+      "아마존이 자체 추첨을 진행합니다.",
+      "당첨 시 랜덤 일정으로 메일이 발송됩니다.",
+      "당첨 메일 수신 시 카드 결제를 완료하면 배송이 시작됩니다."
+    ]
+  },
+  {
+    brand: "포켓몬", platform: "아마존 JP",
+    title: "아마존 JP 포켓몬 TCG 전체 응모 (다중)",
+    boxLabelKo: "7개 상품 일괄",
+    img: "images/pokemon-box.jpg",
+    ribbon: "BUNDLE",
+    prize: "닌자 스페너 · 인페르노X · 무니키스 · 메가심포니아 · 테라크리스탈 · 메가브레이브 · 메가드림",
+    multi: [
+      {label: "닌자 스페너",   url: "https://amzn.to/42m1MB3"},
+      {label: "인페르노 X",    url: "https://amzn.to/4tuug7M"},
+      {label: "무니키스",      url: "https://amzn.to/4tqOeA7"},
+      {label: "메가심포니아",  url: "https://amzn.to/48ACIdp"},
+      {label: "테라크리스탈",  url: "https://amzn.to/4vOTjEg"},
+      {label: "메가브레이브",  url: "https://amzn.to/48ACRgX"},
+      {label: "메가드림",      url: "https://amzn.to/41JP92C"}
+    ],
+    method: [
+      "한국인도 응모 가능합니다. 번호 당 1계정, 직배송 가능합니다.",
+      "각 상품 페이지에서 \"Request invite\" 버튼으로 초대 요청을 제출합니다 (상품마다 별도 응모).",
+      "아마존이 자체 추첨을 진행합니다.",
+      "당첨 시 랜덤 일정으로 메일이 발송됩니다.",
+      "당첨 메일 수신 시 카드 결제를 완료하면 배송이 시작됩니다."
+    ]
+  }
+];
+const ORIPAS = [
+  {
+    name: "Beezie",
+    link: "https://beezie.com/r/R5LTXFI2",
+    bg: "#141414",
+    logo: "images/beezie.svg",
+    hot: true,
+    desc: "미국 기반 TCG·수집품 오리파 플랫폼. 포켓몬/원피스 등 다양한 카드를 취급합니다. 실시간 클로머신(크레인) 스타일 뽑기가 특징.",
+    usage: [
+      "Beezie 사이트 접속 후 이메일 또는 Apple/Google로 회원가입합니다.",
+      "신용카드(Stripe) 또는 암호화폐로 크레딧을 충전합니다.",
+      "메인 화면에서 원하는 Machine(클로머신)을 선택합니다.",
+      "베팅 금액을 정하고 'Drop'/'Open' 버튼으로 뽑기를 실행합니다.",
+      "당첨 카드는 Beezie 계정 Vault에 보관되며, 원할 때 실물 배송(Ship) 또는 재판매(Sell) 신청이 가능합니다."
+    ],
+    tip: "EV 15% 이상일 때 오리파 참여 시, 기대 수익률(Expected Value)이 극대화되어 큰 수익을 노릴 수 있습니다.",
+    helper: { label: "Beezie EV 실시간 계산기", url: "ev-calculator/index.html", embed: true }
+  },
+  {
+    name: "Phygitals",
+    link: "https://phygitals.com/invite/087648",
+    bg: "#141414",
+    logo: "images/phygitals.JPG",
+    desc: "실물 카드와 디지털(NFT) 인증서를 연동한 차세대 오리파 플랫폼. 모든 카드에 진품 인증이 자동 발급됩니다.",
+    usage: [
+      "Phygitals 사이트 접속 후 초대 링크(087648)로 가입하면 보너스가 제공됩니다.",
+      "지갑(MetaMask 등) 연결 또는 이메일 가입 후 USDC/신용카드로 결제합니다.",
+      "원하는 Mystery Pack(오리파 팩)을 선택하고 확률표를 확인합니다.",
+      "뽑기 실행 시 디지털 카드는 즉시 계정에 지급되고, 실물 카드는 별도 배송 신청합니다.",
+      "모든 카드는 QR 코드로 진품/이력 추적이 가능하며, NFT로 언제든 거래할 수 있습니다."
+    ]
+  }
+];
+const EVENTS = [
+  {date: "05.22", title: "어비스아이 (Abyss Eye) 발매", meta: "포켓몬 TCG · M5"},
+  {date: "04.25", title: "三兄弟의 絆 발매", meta: "원피스 TCG · OP-13"},
+  {date: "04.18", title: "로켓단의 영광 발매", meta: "포켓몬 TCG · SV10"},
+];
+
+document.getElementById('applyList').innerHTML = APPLIES.map((a, i) => {
+  const isMulti = !!a.multi && a.multi.length > 0;
+  const ribbon = a.ribbon ? `<div style="position:absolute; top:10px; right:10px; background:#fff; color:#111; font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px; z-index:2">${a.ribbon}</div>` : '';
+  const brandColor = a.brand === '포켓몬' ? '#fef2f2' : '#fff7ed';
+  const brandTextColor = a.brand === '포켓몬' ? '#991b1b' : '#9a3412';
+  return `
+  <div class="apply-card" style="position:relative">
+    ${ribbon}
+    <div class="apply-card-thumb">
+      <img src="${a.img}" alt="${a.title}" onerror="this.parentElement.style.fontSize='48px'; this.parentElement.textContent='🎟'">
+    </div>
+    <div class="apply-card-body">
+      <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap">
+        <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:${brandColor}; color:${brandTextColor}; font-weight:700">${a.brand}</span>
+        <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:var(--bg-soft); color:var(--ink-sub); font-weight:600">${a.platform}</span>
+      </div>
+      <div class="apply-card-title">${a.title}</div>
+      <div class="apply-card-meta">${a.boxLabelKo || ''} · ${a.prize || ''}</div>
+      ${isMulti ? `
+        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:6px; margin:10px 0">
+          ${a.multi.map(m => `<a class="btn" href="${m.url}" target="_blank" rel="noopener noreferrer" style="font-size:11px; padding:8px 10px; text-align:center; cursor:pointer; text-decoration:none; display:block">${m.label} →</a>`).join('')}
+        </div>
+        <button class="btn" type="button" style="width:100%; cursor:pointer" onclick="showApplyMethod(${i})">📖 응모 방법 보기</button>
+      ` : `
+        <div class="apply-card-btns">
+          <a class="btn primary" href="${a.link}" target="_blank" rel="noopener noreferrer" style="cursor:pointer; text-decoration:none; text-align:center; display:flex; align-items:center; justify-content:center">응모 바로가기 →</a>
+          <button class="btn" type="button" style="cursor:pointer" onclick="showApplyMethod(${i})">📖 방법</button>
+        </div>
+      `}
+    </div>
+  </div>`;
+}).join('');
+
+/* 응모 방법 모달 */
+function showApplyMethod(i) {
+  const a = APPLIES[i];
+  if (!a) return;
+  const html = `
+    <div class="modal-head">
+      <h3>${a.title}</h3>
+      <button class="modal-close" onclick="closeAnyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px; color:var(--ink-sub); margin-bottom:14px">
+        <b>${a.brand}</b> · ${a.platform}<br>
+        🎁 ${a.prize || ''}
+      </div>
+      <div style="font-size:14px; font-weight:700; margin-bottom:8px">📖 응모 방법</div>
+      <ol style="margin:0; padding-left:20px; font-size:13px; line-height:1.7; color:#374151">
+        ${(a.method || []).map(m => `<li>${m}</li>`).join('')}
+      </ol>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeAnyModal()" style="cursor:pointer">닫기</button>
+      ${a.link ? `<a class="btn primary" href="${a.link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; cursor:pointer; text-align:center; display:inline-flex; align-items:center; justify-content:center">응모 페이지 열기 →</a>` : ''}
+    </div>`;
+  openAnyModal(html);
+}
+
+// 페이지 상단에 레퍼럴 안내 한 번만 표시
+const oripaList = document.getElementById('oripaList');
+const oripaSection = oripaList.parentElement;
+const refNotice = document.createElement('div');
+refNotice.style.cssText = 'font-size:12px; padding:10px 14px; background:#eff6ff; border:1px solid #dbeafe; border-radius:8px; margin-bottom:18px; color:#1e40af; line-height:1.5';
+refNotice.innerHTML = '💛 레퍼럴 링크 — 이 링크로 가입 시 사이트 운영자에게 소정의 보상이 제공됩니다.';
+oripaSection.insertBefore(refNotice, oripaList);
+
+oripaList.innerHTML = ORIPAS.map((o, i) => `
+  <div class="oripa-tile" style="text-align:left; padding:0; overflow:hidden">
+    <div style="background:${o.bg}; padding:36px 20px; text-align:center; position:relative; min-height:140px; display:flex; align-items:center; justify-content:center">
+      ${o.hot ? '<div style="position:absolute; top:10px; right:10px; background:#ef4444; color:#fff; font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px">🔥 HOT</div>' : ''}
+      ${o.logo
+        ? `<img src="${o.logo}" alt="${o.name}" style="max-width:60%; max-height:80px; height:auto; display:block; object-fit:contain" onerror="this.outerHTML='<div style=\\'font-size:28px;font-weight:900;color:#fff;letter-spacing:-0.5px\\'>${o.name}</div>'">`
+        : `<div style="font-size:32px; font-weight:900; color:#fff; letter-spacing:-0.5px">${o.name}</div>`}
+    </div>
+    <div style="padding:16px">
+      <div style="font-size:13px; color:var(--ink-sub); line-height:1.6; margin-bottom:14px">${o.desc}</div>
+      ${o.tip ? `<div style="font-size:12px; padding:10px 12px; background:#fef3c7; border-radius:8px; margin-bottom:12px; color:#92400e; line-height:1.5"><b>💡 TIP:</b> ${o.tip}</div>` : ''}
+      <div style="display:flex; gap:6px; flex-wrap:wrap">
+        <a href="${o.link}" target="_blank" rel="noopener" class="btn primary" style="flex:1; min-width:120px; text-align:center">🎁 바로가기 →</a>
+        <button class="btn" onclick="showOripaUsage(${i})">📖 사용법</button>
+        ${o.helper ? `<button class="btn" onclick="showOripaHelper(${i})" style="background:#fef3c7; border-color:#fbbf24; color:#92400e">📊 ${o.helper.label}</button>` : ''}
+      </div>
+    </div>
+  </div>`).join('');
+
+/* 오리파 사용법 모달 */
+function showOripaUsage(i) {
+  const o = ORIPAS[i];
+  if (!o) return;
+  const html = `
+    <div class="modal-head">
+      <h3>${o.name} 사용법</h3>
+      <button class="modal-close" onclick="closeAnyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px; color:var(--ink-sub); margin-bottom:14px; line-height:1.6">${o.desc}</div>
+      <div style="font-size:14px; font-weight:700; margin-bottom:8px">📖 단계별 사용법</div>
+      <ol style="margin:0; padding-left:20px; font-size:13px; line-height:1.8; color:#374151">
+        ${o.usage.map(s => `<li>${s}</li>`).join('')}
+      </ol>
+      ${o.tip ? `<div style="font-size:12px; padding:12px 14px; background:#fef3c7; border-radius:8px; margin-top:16px; color:#92400e; line-height:1.5"><b>💡 TIP:</b> ${o.tip}</div>` : ''}
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeAnyModal()">닫기</button>
+      <a href="${o.link}" target="_blank" rel="noopener" class="btn primary">${o.name} 열기 →</a>
+    </div>`;
+  openAnyModal(html);
+}
+
+/* Beezie EV 계산기 등 헬퍼 모달 */
+function showOripaHelper(i) {
+  const o = ORIPAS[i];
+  if (!o || !o.helper) return;
+  const h = o.helper;
+  const html = `
+    <div class="modal-head">
+      <h3>${h.label}</h3>
+      <button class="modal-close" onclick="closeAnyModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      ${h.embed
+        ? `<iframe src="${h.url}" style="width:100%; height:600px; border:0" title="${h.label}"></iframe>`
+        : `<div style="padding:18px 20px"><a href="${h.url}" target="_blank" rel="noopener" class="btn primary" style="display:block; text-align:center">${h.label} 새 탭으로 열기 →</a></div>`}
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeAnyModal()">닫기</button>
+      ${!h.embed ? `<a href="${h.url}" target="_blank" rel="noopener" class="btn primary">새 탭으로 열기 →</a>` : ''}
+    </div>`;
+  openAnyModal(html, 'wide');
+}
+
+document.getElementById('eventList').innerHTML = EVENTS.map(e => `
+  <div class="event-item">
+    <div class="event-date">${e.date}</div>
+    <div class="event-info">
+      <div class="event-title">${e.title}</div>
+      <div class="event-meta">${e.meta}</div>
+    </div>
+  </div>`).join('');
+
+/* ────────────────────────────────────
+   7. 내 정보 (관심 카드 + 보유 카드)
+   ──────────────────────────────────── */
+let WATCHLIST = JSON.parse(localStorage.getItem('watchlist') || '[]');
+let HOLDINGS = JSON.parse(localStorage.getItem('holdings') || '[]');
+
+function renderWatchlist() {
+  const list = document.getElementById('wlList');
+  const empty = document.getElementById('wlEmpty');
+  if (!WATCHLIST.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = WATCHLIST.map(w => `
+    <div class="card" style="padding:12px; display:block; cursor:pointer" onclick="window.open('${w.url}', '_blank')">
+      <div style="aspect-ratio:1/1; background:#fafafa; border-radius:8px; margin-bottom:8px; display:flex; align-items:center; justify-content:center">
+        ${w.image ? `<img src="${w.image}" style="max-width:100%; max-height:100%">` : '🃏'}
+      </div>
+      <div style="font-size:12px; font-weight:700">${w.name || '카드'}</div>
+      <div style="font-size:14px; font-weight:800; color:var(--accent); margin-top:4px">${fmtYen(w.price)}</div>
+      <div style="font-size:11px; color:var(--ink-sub)">${fmtKrw(w.price)}</div>
+    </div>`).join('');
+}
+
+function renderHoldings() {
+  const list = document.getElementById('pfList');
+  const empty = document.getElementById('pfEmpty');
+  if (!HOLDINGS.length) {
+    list.innerHTML = '';
+    empty.style.display = '';
+    document.getElementById('pfValue').textContent = '¥0';
+    document.getElementById('pfCost').textContent = '¥0';
+    document.getElementById('pfPnl').textContent = '¥0';
+    document.getElementById('pfPct').textContent = '—';
+    document.getElementById('pfBest').textContent = '—';
+    document.getElementById('pfQty').textContent = '0종 / 0장';
+    return;
+  }
+  empty.style.display = 'none';
+  let totalValue = 0, totalCost = 0, totalQty = 0;
+  HOLDINGS.forEach(h => {
+    const cur = h.currentPrice || h.purchasePrice;
+    totalValue += cur * h.quantity;
+    totalCost += h.purchasePrice * h.quantity;
+    totalQty += h.quantity;
+  });
+  const pnl = totalValue - totalCost;
+  const pct = totalCost > 0 ? (pnl / totalCost * 100) : 0;
+  document.getElementById('pfValue').textContent = fmtYen(totalValue);
+  document.getElementById('pfCost').textContent = fmtYen(totalCost);
+  const pnlEl = document.getElementById('pfPnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmtYen(pnl);
+  pnlEl.className = 'pf-stat-val ' + (pnl >= 0 ? 'pos' : 'neg');
+  document.getElementById('pfPct').textContent = `${pnl >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`;
+  document.getElementById('pfQty').textContent = `${HOLDINGS.length}종 / ${totalQty}장`;
+  list.innerHTML = HOLDINGS.map((h, i) => {
+    const cur = h.currentPrice || h.purchasePrice;
+    const value = cur * h.quantity;
+    const cost = h.purchasePrice * h.quantity;
+    const itemPnl = value - cost;
+    const itemPct = cost > 0 ? (itemPnl / cost * 100) : 0;
+    const sign = itemPnl >= 0 ? 'pos' : 'neg';
+    return `
+      <div class="card" style="padding:12px">
+        <div style="aspect-ratio:1/1; background:#fafafa; border-radius:8px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; font-size:24px">${h.image ? `<img src="${h.image}" style="max-width:100%; max-height:100%">` : '🃏'}</div>
+        <div style="font-size:12px; font-weight:700">${h.name}</div>
+        <div style="font-size:10px; color:var(--ink-sub); margin:4px 0">매입 ${fmtYen(h.purchasePrice)} × ${h.quantity}장</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px">
+          <div>
+            <div style="font-size:13px; font-weight:800">${fmtYen(value)}</div>
+            <div style="font-size:10px; color:var(--ink-sub)">${fmtKrw(value)}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="pf-stat-val ${sign}" style="font-size:13px">${itemPnl >= 0 ? '+' : ''}${fmtYen(itemPnl)}</div>
+            <div class="pf-stat-sub ${sign}" style="font-size:11px">${itemPnl >= 0 ? '▲' : '▼'} ${Math.abs(itemPct).toFixed(1)}%</div>
+          </div>
+        </div>
+        <button class="btn" style="margin-top:8px; width:100%; font-size:11px" onclick="removeHolding(${i})">삭제</button>
+      </div>`;
+  }).join('');
+}
+
+function openPfAdd() {
+  const name = prompt('카드 이름을 입력하세요:');
+  if (!name) return;
+  const price = parseFloat(prompt('매입가 (¥):'));
+  if (!price || price <= 0) { alert('가격을 정확히 입력해주세요'); return; }
+  const qty = parseInt(prompt('수량:', '1')) || 1;
+  HOLDINGS.push({name, purchasePrice: price, quantity: qty, currentPrice: price, addedAt: Date.now()});
+  localStorage.setItem('holdings', JSON.stringify(HOLDINGS));
+  renderHoldings();
+}
+function removeHolding(i) {
+  if (!confirm('이 카드를 삭제할까요?')) return;
+  HOLDINGS.splice(i, 1);
+  localStorage.setItem('holdings', JSON.stringify(HOLDINGS));
+  renderHoldings();
+}
+
+// 내 정보 탭
+document.addEventListener('click', e => {
+  const tab = e.target.closest('#myTabs .tab');
+  if (!tab) return;
+  document.querySelectorAll('#myTabs .tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  const which = tab.dataset.mytab;
+  document.querySelectorAll('[data-mypanel]').forEach(p => p.style.display = p.dataset.mypanel === which ? '' : 'none');
+});
+
+/* ────────────────────────────────────
+   8. 모달 인프라 (응모 방법, 오리파 사용법, EV 계산기 등)
+   ──────────────────────────────────── */
+function openAnyModal(innerHtml, size) {
+  let modal = document.getElementById('anyModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'anyModal';
+    modal.className = 'modal';
+    modal.addEventListener('click', e => { if (e.target === modal) closeAnyModal(); });
+    document.body.appendChild(modal);
+  }
+  const maxWidth = size === 'wide' ? '720px' : '480px';
+  modal.innerHTML = `<div class="modal-box" style="max-width:${maxWidth}" onclick="event.stopPropagation()">${innerHtml}</div>`;
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAnyModal() {
+  const modal = document.getElementById('anyModal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnyModal(); });
+
+/* ────────────────────────────────────
+   9. 초기화 — 페이지 진입
+   ──────────────────────────────────── */
+const initialPage = (location.hash || '#home').replace('#', '') || 'home';
+go(initialPage);
+</script>
+</body>
+</html>

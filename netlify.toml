@@ -1,0 +1,10 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# /api/prices → /.netlify/functions/beezie-prices (깔끔한 URL)
+[[redirects]]
+  from = "/api/prices"
+  to = "/.netlify/functions/beezie-prices"
+  status = 200
+  force = true

@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Beezie EV 실시간 계산기 · TCG</title>
+<meta name="description" content="Beezie Claw Machine의 Claw Price와 Average Value로 기대 수익률(EV%)을 계산합니다." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a;
+    --panel:#141414;
+    --panel-2:#1c1c1c;
+    --line:#2a2a2a;
+    --ink:#f5f5f5;
+    --ink-sub:#9a9a9a;
+    --ink-dim:#6a6a6a;
+    --gold:#FFB000;
+    --gold-soft:#FFB00022;
+    --green:#22c55e;
+    --green-soft:#22c55e1a;
+    --yellow:#eab308;
+    --red:#ef4444;
+    --red-soft:#ef44441a;
+    --blue:#3b82f6;
+    --blue-soft:#3b82f61a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Inter','Pretendard','Apple SD Gothic Neo',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:40px 24px 80px}
+
+  /* Header */
+  header{display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; margin-bottom:32px; padding-bottom:20px; border-bottom:1px solid var(--line)}
+  .brand{display:flex; align-items:center; gap:14px}
+  .brand-dot{width:10px; height:10px; border-radius:99px; background:var(--gold); box-shadow:0 0 16px var(--gold)}
+  .brand-title{font-size:22px; font-weight:800; letter-spacing:-0.02em}
+  .brand-sub{display:block; font-size:12px; color:var(--ink-sub); font-weight:500; margin-top:2px}
+  .toolbar{display:flex; align-items:center; gap:10px}
+  .btn{background:transparent; border:1px solid var(--line); color:var(--ink); padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; transition:.15s}
+  .btn:hover{background:var(--panel-2); border-color:#444}
+  .btn.primary{background:var(--gold); color:#000; border-color:var(--gold)}
+  .btn.primary:hover{background:#ffc33a}
+
+  /* Hero */
+  .hero{margin-bottom:24px}
+  .hero h1{font-size:clamp(26px, 4.2vw, 40px); font-weight:900; letter-spacing:-0.03em; line-height:1.1; margin:0 0 10px}
+  .hero h1 .accent{color:var(--gold)}
+  .hero p{color:var(--ink-sub); font-size:14.5px; line-height:1.6; margin:0; max-width:760px}
+  .hero p b{color:var(--gold)}
+
+  /* How-to strip */
+  .howto{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:24px; padding:18px; background:var(--panel); border:1px solid var(--line); border-radius:16px}
+  .step{display:flex; gap:12px; align-items:flex-start}
+  .step-num{flex-shrink:0; width:28px; height:28px; border-radius:99px; background:var(--gold); color:#000; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px}
+  .step-txt{font-size:13px; color:var(--ink-sub); line-height:1.5}
+  .step-txt b{color:var(--ink); font-weight:700}
+
+  /* Legend */
+  .legend{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px}
+  .chip{font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:99px; background:var(--panel); border:1px solid var(--line); color:var(--ink-sub); letter-spacing:0.02em}
+  .chip.good{background:var(--green-soft); color:var(--green); border-color:transparent}
+  .chip.ok{background:var(--gold-soft); color:var(--gold); border-color:transparent}
+  .chip.bad{background:var(--red-soft); color:var(--red); border-color:transparent}
+  .chip.save{background:var(--blue-soft); color:var(--blue); border-color:transparent}
+
+  /* Grid */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:28px}
+
+  /* Card */
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:22px;
+    position:relative;
+    overflow:hidden;
+    transition:.2s;
+  }
+  .card:hover{border-color:#3a3a3a}
+  .card::before{
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:var(--ink-dim); transition:.3s;
+  }
+  .card.good::before{background:var(--green); box-shadow:0 0 20px var(--green)}
+  .card.ok::before{background:var(--gold); box-shadow:0 0 20px var(--gold)}
+  .card.bad::before{background:var(--red)}
+  .card.empty::before{background:var(--ink-dim)}
+
+  .card-head{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; gap:10px}
+  .tier-label{font-size:11px; font-weight:800; color:var(--ink-sub); text-transform:uppercase; letter-spacing:0.1em}
+  .machine-name{font-size:18px; font-weight:900; color:var(--ink); margin-top:4px; letter-spacing:-0.02em; line-height:1.2}
+  .card-link{font-size:11.5px; color:var(--ink-sub); text-decoration:none; font-weight:600; padding:7px 11px; border-radius:8px; border:1px solid var(--line); background:var(--panel-2); transition:.15s; white-space:nowrap}
+  .card-link:hover{color:var(--gold); border-color:var(--gold); background:var(--gold-soft)}
+
+  .input-row{display:flex; gap:10px; margin-bottom:10px}
+  .input-box{flex:1; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; transition:.15s}
+  .input-box:focus-within{border-color:var(--gold); background:#1a1a1a}
+  .input-box label{display:block; font-size:10px; font-weight:700; color:var(--ink-dim); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:4px}
+  .input-box input{background:transparent; border:0; color:var(--ink); font-size:22px; font-weight:800; font-family:'JetBrains Mono',monospace; width:100%; padding:0; outline:none; letter-spacing:-0.01em}
+  .input-box input::-webkit-outer-spin-button,
+  .input-box input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+  .input-box input[type=number]{-moz-appearance:textfield}
+  .input-prefix{color:var(--ink-dim); margin-right:4px}
+
+  .timestamp{font-size:10.5px; color:var(--ink-dim); margin-bottom:12px; font-weight:500; min-height:14px}
+  .timestamp.saved{color:var(--blue)}
+
+  .ev-row{display:flex; align-items:center; justify-content:space-between; padding-top:14px; border-top:1px solid var(--line); gap:10px; flex-wrap:wrap}
+  .ev-badge{display:inline-flex; align-items:center; gap:6px; padding:10px 18px; border-radius:12px; font-weight:800; font-size:18px; font-family:'JetBrains Mono',monospace; letter-spacing:-0.01em}
+  .card.good .ev-badge{background:var(--green-soft); color:var(--green)}
+  .card.ok .ev-badge{background:var(--gold-soft); color:var(--gold)}
+  .card.bad .ev-badge{background:var(--red-soft); color:var(--red)}
+  .card.empty .ev-badge{background:var(--panel-2); color:var(--ink-dim)}
+  .ev-verdict{font-size:11px; color:var(--ink-sub); font-weight:600}
+
+  /* Summary */
+  .summary{background:linear-gradient(135deg, var(--panel) 0%, #1a1608 100%); border:1px solid var(--gold); border-radius:20px; padding:22px 26px; margin-bottom:20px}
+  .summary-title{font-size:13px; font-weight:800; color:var(--gold); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:10px; display:flex; align-items:center; gap:8px}
+  .summary-text{font-size:14.5px; line-height:1.7; color:var(--ink); margin:0}
+  .summary-text b{color:var(--gold)}
+
+  /* Footer */
+  footer{margin-top:32px; padding-top:20px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:14px; font-size:12px; color:var(--ink-dim)}
+  footer a{color:var(--ink-sub); text-decoration:none}
+  footer a:hover{color:var(--gold)}
+
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--ink); color:#000; padding:10px 18px; border-radius:99px; font-size:13px; font-weight:700; opacity:0; transition:.25s; pointer-events:none; z-index:50}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <div>
+        <div class="brand-title">Beezie EV Tracker</div>
+        <span class="brand-sub">Expected Value calculator for Beezie Claw Machines</span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn primary" id="autoBtn" onclick="tryAuto()">↻ 실시간 시세 자동 불러오기</button>
+      <button class="btn" onclick="resetAll()">전체 지우기</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1><span class="accent">EV%</span>로 최적의 타이밍을 잡아라.</h1>
+    <p>Beezie 주력 클로머신 4개의 <b>Claw Price</b>와 <b>Average Value</b>를 직접 입력하면 기대 수익률(EV)이 즉시 계산됩니다. <b>EV 15% 이상</b>일 때 참여하는 것이 통계적으로 가장 유리합니다. 입력값은 브라우저에 자동 저장돼 다음 방문에도 유지됩니다.</p>
+  </section>
+
+  <div class="howto">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-txt">각 카드의 <b>Beezie ↗</b> 버튼 클릭 (또는 상단 <b>↻ 실시간 시세 자동 불러오기</b>)</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-txt">Beezie 페이지에서 <b>Claw Price</b>($XXX)와 <b>Average Value</b>($XXX) 숫자 확인</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-txt">두 숫자를 카드 입력칸에 넣으면 <b>EV%</b>가 실시간 계산 + 자동 저장</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-txt"><b>초록색(EV ≥ 15%)</b> 이 뜬 머신이 있으면 참여 적기</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="chip good">EV ≥ 15% · 매우 유리</span>
+    <span class="chip ok">0 ~ 15% · 중립</span>
+    <span class="chip bad">EV &lt; 0% · 불리</span>
+    <span class="chip save">입력값 자동 저장</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="summary" id="summary" style="display:none">
+    <div class="summary-title">⚡ 현재 추천</div>
+    <p class="summary-text" id="summaryText"></p>
+  </div>
+
+  <footer>
+    <div>
+      데이터 출처: <a href="https://beezie.com" target="_blank" rel="noopener">beezie.com</a> · 본 페이지는 비공식 분석 도구입니다. 입력 기준 EV를 계산하며, 실제 뽑기 결과와 다를 수 있습니다.
+    </div>
+    <div id="globalTs">—</div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ──────────────────────────────────────────────────────────
+ * Machines
+ * ────────────────────────────────────────────────────────── */
+const MACHINES = [
+  {tier:"Platinum TCG", url:"https://beezie.com/claw/Platinum-TCG-87"},
+  {tier:"Gold TCG",     url:"https://beezie.com/claw/Gold-TCG-86"},
+  {tier:"Silver TCG",   url:"https://beezie.com/claw/Silver-TCG-85"},
+  {tier:"Wildcard",     url:"https://beezie.com/claw/Wildcard-84"},
+];
+
+const STORAGE_KEY = "beezie_ev_state_v2";
+const LEGACY_KEYS = ["beezie_ev_state_v3", "beezie_ev_state"];
+
+/* 최근 참고용 시드값 (첫 방문 시 기본으로 깔림 — 실제 Beezie 화면 숫자로 덮어써주세요) */
+const SEED = [
+  {price:500, avg:554, updatedAt:null}, // Platinum TCG
+  {price:250, avg:268, updatedAt:null}, // Gold TCG
+  {price:100, avg:108, updatedAt:null}, // Silver TCG
+  {price:50,  avg:54,  updatedAt:null}, // Wildcard
+];
+
+/* State: { machines: [{price, avg, updatedAt}] } */
+function loadState(){
+  // 1) 현재 키 시도
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && Array.isArray(parsed.machines) && parsed.machines.length === MACHINES.length){
+        return parsed;
+      }
+    }
+  }catch(e){ console.warn("loadState(primary) failed", e); }
+
+  // 2) 레거시 키에서 복원 시도 (v3 → v2 등 키 변경으로 인한 유실 방지)
+  for(const key of LEGACY_KEYS){
+    try{
+      const raw = localStorage.getItem(key);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        if(parsed && Array.isArray(parsed.machines) && parsed.machines.length === MACHINES.length){
+          console.log("Migrated state from legacy key:", key);
+          return parsed;
+        }
+      }
+    }catch(e){}
+  }
+
+  // 3) 최초 방문: 시드값으로 시작
+  return { machines: SEED.map(s => ({...s})) };
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch(e){ console.warn("saveState failed", e); }
+}
+let state = loadState();
+
+/* ──────────────────────────────────────────────────────────
+ * Helpers
+ * ────────────────────────────────────────────────────────── */
+function $(id){ return document.getElementById(id); }
+function fmtPct(v){
+  if(v == null || isNaN(v)) return "—";
+  const sign = v >= 0 ? "+" : "";
+  return sign + v.toFixed(2) + "%";
+}
+function classify(ev){
+  if(ev == null || isNaN(ev)) return "empty";
+  if(ev >= 15) return "good";
+  if(ev >= 0)  return "ok";
+  return "bad";
+}
+function verdictText(ev){
+  if(ev == null) return "값 입력 필요";
+  if(ev >= 15) return "지금이 적기";
+  if(ev >= 5)  return "양호";
+  if(ev >= 0)  return "중립";
+  return "불리";
+}
+function timeAgo(ts){
+  if(!ts) return "";
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if(diff < 10) return "방금 저장됨";
+  if(diff < 60) return diff + "초 전 저장됨";
+  if(diff < 3600) return Math.floor(diff/60) + "분 전 저장됨";
+  if(diff < 86400) return Math.floor(diff/3600) + "시간 전 저장됨";
+  return Math.floor(diff/86400) + "일 전 저장됨";
+}
+function showToast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> t.classList.remove("show"), 1800);
+}
+function calcEv(s){
+  const p = Number(s.price), a = Number(s.avg);
+  if(!p || !a || p <= 0) return null;
+  return (a / p - 1) * 100;
+}
+
+/* ──────────────────────────────────────────────────────────
+ * Render
+ * ────────────────────────────────────────────────────────── */
+function renderCards(){
+  const grid = $("grid");
+  grid.innerHTML = MACHINES.map((m, i) => {
+    const s  = state.machines[i];
+    const ev = calcEv(s);
+    const klass = classify(ev);
+    const tsStr = timeAgo(s.updatedAt);
+    return `
+      <div class="card ${klass}" id="card-${i}">
+        <div class="card-head">
+          <div>
+            <div class="tier-label">${m.tier.split(" ")[0]}</div>
+            <div class="machine-name">${m.tier}</div>
+          </div>
+          <a class="card-link" href="${m.url}" target="_blank" rel="noopener">Beezie ↗</a>
+        </div>
+        <div class="input-row">
+          <div class="input-box">
+            <label>Claw Price</label>
+            <div style="display:flex; align-items:center">
+              <span class="input-prefix">$</span>
+              <input type="number" inputmode="decimal" step="0.01" min="0"
+                value="${s.price ?? ''}" placeholder="0"
+                data-idx="${i}" data-field="price" />
+            </div>
+          </div>
+          <div class="input-box">
+            <label>Average Value</label>
+            <div style="display:flex; align-items:center">
+              <span class="input-prefix">$</span>
+              <input type="number" inputmode="decimal" step="0.01" min="0"
+                value="${s.avg ?? ''}" placeholder="0"
+                data-idx="${i}" data-field="avg" />
+            </div>
+          </div>
+        </div>
+        <div class="timestamp ${s.updatedAt ? 'saved' : ''}" id="ts-${i}">${tsStr ? '💾 ' + tsStr : '※ Beezie에서 숫자 확인 후 입력하세요'}</div>
+        <div class="ev-row">
+          <span class="ev-badge" id="ev-${i}">EV ${ev == null ? '—' : fmtPct(ev)}</span>
+          <span class="ev-verdict" id="vd-${i}">${verdictText(ev)}</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  grid.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', onInputChange);
+    inp.addEventListener('blur',  onInputChange);
+  });
+
+  renderSummary();
+  updateGlobalTs();
+}
+
+function onInputChange(e){
+  const i = Number(e.target.dataset.idx);
+  const field = e.target.dataset.field;
+  const raw = e.target.value.trim();
+  const parsed = parseFloat(raw.replace(/[^\d.]/g, ""));
+  const s = state.machines[i];
+  s[field] = (raw === "" || isNaN(parsed)) ? null : parsed;
+  s.updatedAt = (s.price != null || s.avg != null) ? Date.now() : null;
+  saveState();
+
+  const ev = calcEv(s);
+  const card = $("card-" + i);
+  card.classList.remove("good","ok","bad","empty");
+  card.classList.add(classify(ev));
+  $("ev-"+i).textContent = "EV " + (ev == null ? "—" : fmtPct(ev));
+  $("vd-"+i).textContent = verdictText(ev);
+  const tsEl = $("ts-"+i);
+  if(s.updatedAt){
+    tsEl.className = "timestamp saved";
+    tsEl.textContent = "💾 " + timeAgo(s.updatedAt);
+  } else {
+    tsEl.className = "timestamp";
+    tsEl.textContent = "※ Beezie에서 숫자 확인 후 입력하세요";
+  }
+
+  renderSummary();
+  updateGlobalTs();
+}
+
+function renderSummary(){
+  const results = MACHINES.map((m, i) => ({
+    name: m.tier,
+    ev: calcEv(state.machines[i]),
+  }));
+  const valid = results.filter(r => r.ev != null);
+  if(valid.length === 0){
+    $("summary").style.display = "none";
+    return;
+  }
+  const best = valid.reduce((a,b) => a.ev > b.ev ? a : b);
+  const goodCount = valid.filter(r => r.ev >= 15).length;
+  let txt;
+  if(goodCount > 0){
+    txt = `현재 <b>${goodCount}개 머신</b>이 EV ≥ 15% 조건을 충족합니다. 최고 EV는 <b>${best.name}</b> (<b>${fmtPct(best.ev)}</b>) — <b>지금이 참여 적기</b>입니다.`;
+  } else if(best.ev >= 0){
+    txt = `15% 조건을 만족하는 머신은 없지만, <b>${best.name}</b>이(가) <b>${fmtPct(best.ev)}</b>로 가장 높습니다. 조금 더 상승을 기다려볼 만합니다.`;
+  } else {
+    txt = `모든 머신이 음수 EV입니다. 현재는 참여를 보류하는 것이 통계적으로 불리합니다.`;
+  }
+  $("summaryText").innerHTML = txt;
+  $("summary").style.display = "block";
+}
+
+function updateGlobalTs(){
+  const stamps = state.machines.map(s => s.updatedAt).filter(Boolean);
+  if(stamps.length === 0){
+    $("globalTs").textContent = "입력 기록 없음";
+    return;
+  }
+  const latest = Math.max(...stamps);
+  $("globalTs").textContent = "최근 업데이트: " + new Date(latest).toLocaleString("ko-KR", {
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
+  });
+}
+
+function resetAll(){
+  if(!confirm("모든 입력값을 지우시겠습니까? (저장된 데이터가 사라집니다)")) return;
+  state = { machines: MACHINES.map(() => ({price:null, avg:null, updatedAt:null})) };
+  saveState();
+  renderCards();
+  showToast("전체 초기화됨");
+}
+
+function openAll(){
+  MACHINES.forEach(m => window.open(m.url, "_blank", "noopener,noreferrer"));
+  showToast("머신 4개 창 열림");
+}
+
+/* ──────────────────────────────────────────────────────────
+ * 실시간 자동 불러오기 — Netlify Function(/api/prices) 호출
+ * 서버에서 beezie.com을 대신 fetch해 Claw Price / Average Value 추출
+ * ────────────────────────────────────────────────────────── */
+let _busy = false;
+async function tryAuto(){
+  if(_busy) return;
+  _busy = true;
+  const btn = $("autoBtn");
+  const oldTxt = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "가져오는 중…";
+
+  try {
+    // /api/prices (netlify.toml rewrite) 우선, 실패 시 직접 경로 fallback
+    let data = null;
+    for(const endpoint of ["/api/prices", "/.netlify/functions/beezie-prices"]){
+      try{
+        const res = await fetch(endpoint, {cache:"no-store"});
+        if(res.ok){ data = await res.json(); break; }
+      }catch(e){ /* try next */ }
+    }
+
+    if(!data || !data.ok || !Array.isArray(data.results)){
+      showToast("서버 응답 실패 — 직접 입력해 주세요");
+      return;
+    }
+
+    let got = 0;
+    data.results.forEach((r, i) => {
+      if(i >= state.machines.length) return;
+      const s = state.machines[i];
+      let changed = false;
+      if(r.price != null && r.price !== s.price){ s.price = r.price; changed = true; }
+      if(r.avg   != null && r.avg   !== s.avg  ){ s.avg   = r.avg;   changed = true; }
+      if(changed){ s.updatedAt = Date.now(); got++; }
+    });
+
+    saveState();
+    renderCards();
+
+    if(got > 0){
+      showToast(got + "개 머신 업데이트 완료");
+    } else {
+      // 서버는 응답했지만 값이 못 뽑힘 (Beezie가 페이지 구조를 바꿨을 때)
+      showToast("Beezie에서 가격을 찾지 못했습니다 — 수동 입력 필요");
+    }
+  } catch(e){
+    console.error(e);
+    showToast("네트워크 오류 — 수동 입력해 주세요");
+  } finally {
+    _busy = false;
+    btn.disabled = false;
+    btn.textContent = oldTxt;
+  }
+}
+
+/* init */
+document.addEventListener("DOMContentLoaded", renderCards);
+if(document.readyState !== "loading") renderCards();
+</script>
+</body>
+</html>

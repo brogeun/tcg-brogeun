@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TCG Hub App — 모바일 프로토타입</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#111;
+    --sub:#6b7280;
+    --mute:#9ca3af;
+    --line:#ececec;
+    --chip:#f3f4f6;
+    --up:#16a34a;
+    --down:#dc2626;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#f5f5f5;
+    font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+    color:var(--ink); letter-spacing:-0.01em}
+  a{color:inherit; text-decoration:none}
+  button{font-family:inherit; cursor:pointer}
+
+  /* Preview stage */
+  .stage{
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:24px 16px 60px;
+    background:
+      radial-gradient(1200px 400px at 50% 0%, #eef2ff 0%, transparent 60%),
+      #f5f5f7;
+  }
+  .stage h1{font-size:22px; font-weight:800; margin:8px 0 2px}
+  .stage p{color:var(--sub); font-size:13px; margin:0 0 24px}
+
+  .devices{display:flex; gap:40px; flex-wrap:wrap; justify-content:center; align-items:flex-start}
+
+  /* iPhone frame */
+  .phone{
+    width:390px; height:820px;
+    background:#111; border-radius:54px; padding:12px;
+    box-shadow:0 30px 60px rgba(0,0,0,.25), 0 6px 12px rgba(0,0,0,.15);
+    position:relative;
+  }
+  .phone .screen{
+    width:100%; height:100%;
+    background:#fff; border-radius:44px; overflow:hidden;
+    position:relative;
+    display:flex; flex-direction:column;
+  }
+  .phone .notch{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    width:120px; height:30px; background:#000; border-radius:20px; z-index:10;
+  }
+  @media (max-width:500px){
+    .phone{width:100%; max-width:390px; height:780px; border-radius:40px}
+    .phone .screen{border-radius:30px}
+  }
+
+  /* Status bar */
+  .status-bar{
+    height:44px; flex-shrink:0;
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding: 0 28px 6px; font-size:13px; font-weight:600;
+  }
+  .status-bar .right{display:flex; gap:6px; align-items:center; font-size:12px}
+
+  /* Header */
+  .app-header{
+    padding:8px 20px 12px; border-bottom:1px solid var(--line); background:#fff; flex-shrink:0;
+  }
+  .app-header .row{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .app-header .title{font-size:22px; font-weight:800; letter-spacing:-0.02em}
+  .app-header .icons{display:flex; gap:10px}
+  .app-header .iconbtn{
+    width:36px;height:36px;border-radius:12px;background:#f5f5f5;
+    display:flex;align-items:center;justify-content:center;border:0; font-size:16px
+  }
+  .search{margin-top:12px; display:flex; align-items:center; gap:8px;
+    background:#f5f5f5; border-radius:12px; padding:10px 12px; font-size:13px; color:var(--sub)}
+
+  /* Screen content */
+  .screen-content{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; background:#fff}
+  .screen-content::-webkit-scrollbar{display:none}
+  .page{padding:16px 16px 16px; display:none}
+  .page.active{display:block}
+
+  .section-title{font-size:16px; font-weight:800; margin:18px 2px 10px}
+  .section-title:first-child{margin-top:6px}
+  .section-head{display:flex; align-items:center; justify-content:space-between; margin:18px 2px 10px}
+  .section-head .t{font-size:16px; font-weight:800}
+  .section-head .m{font-size:12px; color:var(--sub)}
+
+  /* Chips */
+  .chips{display:flex; gap:8px; overflow-x:auto; padding:2px; margin:0 -2px}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{font-size:12.5px; padding:7px 12px; border-radius:999px; background:var(--chip); color:#333; white-space:nowrap; border:0}
+  .chip.active{background:#111; color:#fff}
+
+  /* Cards */
+  .hero-card{
+    border-radius:16px; padding:18px; background:linear-gradient(135deg,#111,#2d2d2d); color:#fff; margin-bottom:14px;
+  }
+  .hero-card h3{margin:0 0 6px; font-size:17px; font-weight:800}
+  .hero-card p{margin:0; font-size:12.5px; color:#d1d5db}
+  .hero-card .stats{display:flex; gap:14px; margin-top:14px; font-size:11.5px; color:#d1d5db}
+  .hero-card .stats b{display:block; color:#fff; font-size:16px; font-weight:800; margin-bottom:1px}
+
+  .hgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .mini-card{
+    background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px;
+  }
+  .thumb{
+    aspect-ratio:3/4; border-radius:10px;
+    background:linear-gradient(135deg,#f3f4f6,#e5e7eb);
+    display:flex;align-items:center;justify-content:center;font-size:34px; position:relative
+  }
+  .thumb.wide{aspect-ratio:16/9}
+  .thumb.sq{aspect-ratio:1/1}
+  .thumb .badge{position:absolute; top:6px; left:6px; background:#111;color:#fff; font-size:10px; padding:3px 6px; border-radius:5px}
+  .name{font-size:12.5px; font-weight:600; margin-top:8px; line-height:1.3;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .sub{font-size:11px; color:var(--sub); margin-top:2px}
+  .pricerow{display:flex; align-items:center; justify-content:space-between; margin-top:6px}
+  .price{font-size:13px; font-weight:800}
+  .delta{font-size:11px; font-weight:700}
+  .up{color:var(--up)} .down{color:var(--down)}
+
+  .listcard{
+    display:grid; grid-template-columns:56px 1fr auto; gap:10px; align-items:center;
+    padding:10px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff;
+  }
+  .listcard .thumb{aspect-ratio:1/1; font-size:22px; width:56px; height:56px}
+  .listcard .n{font-size:13px; font-weight:700}
+  .listcard .s{font-size:11.5px; color:var(--sub); margin-top:2px}
+
+  /* News item */
+  .news-row{display:grid; grid-template-columns:1fr 100px; gap:10px; padding:10px 0; border-bottom:1px solid var(--line)}
+  .news-row h4{margin:0; font-size:13.5px; font-weight:700; line-height:1.35;
+    display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+  .news-row .src{font-size:11px; color:var(--sub); margin-top:6px}
+  .news-row .thumb{aspect-ratio:1/1; font-size:26px; border-radius:10px}
+
+  /* Schedule */
+  .sch-item{
+    display:grid; grid-template-columns:52px 1fr auto; gap:10px; align-items:center;
+    padding:10px; border:1px solid var(--line); border-radius:12px; background:#fff; margin-bottom:8px
+  }
+  .sch-item .d{font-size:20px; font-weight:800; line-height:1}
+  .sch-item .m{font-size:10.5px; color:var(--sub)}
+  .sch-item .n{font-size:13px; font-weight:700}
+  .sch-item .p{font-size:11px; color:var(--sub); margin-top:2px}
+  .tag{font-size:10.5px; padding:3px 7px; border-radius:5px; background:var(--chip)}
+  .tag.release{background:#eef2ff; color:#3730a3}
+  .tag.event{background:#ecfdf5; color:#065f46}
+  .tag.apply{background:#fef2f2; color:#991b1b}
+
+  /* Apply */
+  .apply{display:flex; gap:10px; padding:10px; border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff}
+  .apply .thumb{width:80px; height:80px; aspect-ratio:1/1; flex-shrink:0; font-size:28px}
+  .apply .body{flex:1; min-width:0}
+  .apply .brand{font-size:10.5px; padding:3px 6px; border-radius:5px; background:var(--chip); display:inline-block}
+  .brand.amazon{background:#fff7ed; color:#9a3412}
+  .brand.pokemon{background:#fef2f2; color:#991b1b}
+  .brand.bandai{background:#eff6ff; color:#1e40af}
+  .apply .n{font-size:13px; font-weight:700; margin-top:6px; line-height:1.3}
+  .apply .s{font-size:11px; color:var(--sub); margin-top:2px}
+  .prog{height:4px; background:#eee; border-radius:99px; overflow:hidden; margin-top:6px}
+  .prog>i{display:block; height:100%; background:#111}
+
+  /* Oripa grid */
+  .oripa{border:1px solid var(--line); border-radius:14px; padding:10px; background:#fff; position:relative}
+  .ribbon{position:absolute; top:8px; right:8px; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:99px; background:#111; color:#fff}
+
+  /* Event */
+  .event-card{border:1px solid var(--line); border-radius:14px; padding:10px; background:#fff; margin-bottom:10px}
+
+  /* Shop */
+  .shop{padding:12px; border:1px solid var(--line); border-radius:12px; background:#fff; margin-bottom:10px}
+  .shop h4{margin:0; font-size:14px; font-weight:700}
+  .shop .m{font-size:11.5px; color:var(--sub); margin-top:4px}
+  .pill{font-size:10.5px; padding:3px 7px; border-radius:99px; background:var(--chip); color:#444}
+  .stars{color:#f59e0b; font-size:12px}
+
+  /* Buttons */
+  .btn{padding:9px 12px; border-radius:10px; font-size:12.5px; font-weight:700; border:1px solid var(--line); background:#fff}
+  .btn.primary{background:#111; color:#fff; border-color:#111}
+  .btn.full{width:100%}
+
+  /* Bottom nav */
+  .bottom{flex-shrink:0; border-top:1px solid var(--line); background:#fff; padding:6px 4px 16px}
+  .bnav{display:grid; grid-template-columns:repeat(5,1fr)}
+  .bitem{display:flex; flex-direction:column; align-items:center; gap:1px; font-size:10px; padding:6px 0; color:var(--sub); border:0; background:transparent}
+  .bitem .ic{font-size:18px}
+  .bitem.active{color:#111; font-weight:700}
+
+  /* Second phone */
+  .note{max-width:390px; margin-top:16px; font-size:12px; color:var(--sub); text-align:center; line-height:1.55}
+  .dev-label{font-size:12px; color:var(--sub); margin-bottom:8px; font-weight:600; text-align:center}
+
+</style>
+</head>
+<body>
+<div class="stage">
+  <h1>TCG Hub — 앱 프로토타입</h1>
+  <p>React Native(Expo) 기준 UI 목업 · 미니멀 화이트 톤</p>
+
+  <div class="devices">
+    <!-- PHONE 1: Home -->
+    <div>
+      <div class="dev-label">📱 1번 기기 · 홈 / 시세 / 뉴스 / 일정</div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="status-bar"><span>9:41</span><span class="right">•••• 5G 🔋</span></div>
+          <div class="app-header">
+            <div class="row">
+              <div class="title" id="t1">홈</div>
+              <div class="icons">
+                <button class="iconbtn">🔔</button>
+                <button class="iconbtn">♡</button>
+              </div>
+            </div>
+            <div class="search">⌕ 카드 이름, 확장팩 검색</div>
+          </div>
+          <div class="screen-content" id="phone1"></div>
+          <div class="bottom">
+            <div class="bnav" id="bnav1">
+              <button class="bitem active" data-p="home"><span class="ic">◉</span>홈</button>
+              <button class="bitem" data-p="price"><span class="ic">₩</span>시세</button>
+              <button class="bitem" data-p="news"><span class="ic">📰</span>뉴스</button>
+              <button class="bitem" data-p="schedule"><span class="ic">📅</span>일정</button>
+              <button class="bitem" data-p="more"><span class="ic">≡</span>더보기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE 2: Apply / Oripa / Shops / Events -->
+    <div>
+      <div class="dev-label">📱 2번 기기 · 샵 / 응모 / 오리파 / 이벤트</div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen">
+          <div class="status-bar"><span>9:41</span><span class="right">•••• 5G 🔋</span></div>
+          <div class="app-header">
+            <div class="row">
+              <div class="title" id="t2">응모</div>
+              <div class="icons">
+                <button class="iconbtn">🔔</button>
+                <button class="iconbtn">♡</button>
+              </div>
+            </div>
+            <div class="search">⌕ 응모, 샵, 이벤트 검색</div>
+          </div>
+          <div class="screen-content" id="phone2"></div>
+          <div class="bottom">
+            <div class="bnav" id="bnav2">
+              <button class="bitem" data-p="shops"><span class="ic">📍</span>샵</button>
+              <button class="bitem active" data-p="apply"><span class="ic">🎟</span>응모</button>
+              <button class="bitem" data-p="oripa"><span class="ic">🎁</span>오리파</button>
+              <button class="bitem" data-p="events"><span class="ic">✨</span>이벤트</button>
+              <button class="bitem" data-p="profile"><span class="ic">👤</span>내 정보</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    💡 두 기기를 나란히 보여주는 이유: 7개 기능을 한 화면에 담으려면 하단 탭이 너무 많아집니다.<br/>
+    실제 앱에서는 <b>홈 · 시세 · 응모 · 오리파 · 더보기(샵/뉴스/일정/이벤트)</b> 5탭 구조를 권장합니다.
+  </div>
+</div>
+
+<!-- TEMPLATES (data & render) -->
+<script>
+/* ---------- Sample data ---------- */
+const CARDS = [
+  {n:"리자몽 VMAX (SSR)", s:"극한의 배틀", g:"포켓몬", p:1450000, d:+6.2, i:"🔥"},
+  {n:"뮤 UR · 151", s:"포켓몬 151", g:"포켓몬", p:720000, d:-1.4, i:"✨"},
+  {n:"루피 리더 SEC", s:"Romance Dawn", g:"원피스", p:520000, d:+3.1, i:"🏴‍☠️"},
+  {n:"에이스 SR Parallel", s:"Paramount War", g:"원피스", p:310000, d:+1.8, i:"🔥"},
+  {n:"피카츄 프로모", s:"25주년", g:"포켓몬", p:880000, d:+0.4, i:"⚡"},
+  {n:"샹크스 SEC", s:"Mighty Enemies", g:"원피스", p:620000, d:-2.6, i:"⚔️"},
+];
+const NEWS = [
+  {t:"8월 신규 확장팩 '테라스탈 크라운' 발매", s:"Pokémon Japan · 2h", i:"🎴"},
+  {t:"원피스 TCG 2026 세계대회 일정 공개", s:"Bandai · 5h", i:"🏆"},
+  {t:"snkrdunk PSA10 리자몽 가격 견인", s:"마켓리포트 · 1d", i:"📈"},
+  {t:"eBay, 일본 독점 프로모 카드 급등", s:"eBay · 2d", i:"💹"},
+];
+const SCH = [
+  {d:"04", m:"04월", t:"포켓몬 '고대의 포효' 한국 발매", p:"전국 매장", type:"release", k:"발매"},
+  {d:"12", m:"04월", t:"원피스 로컬 챔피언십 (서울)", p:"COEX", type:"event", k:"이벤트"},
+  {d:"18", m:"04월", t:"Mewtwo Plush 응모 마감", p:"Pokémon Center JP", type:"apply", k:"응모"},
+  {d:"25", m:"04월", t:"원피스 Mighty Enemies 발매", p:"전국", type:"release", k:"발매"},
+];
+const APPLY = [
+  {b:"포켓몬센터", k:"pokemon", t:"Mewtwo Plush × Promo 세트", dl:"04.28", pg:72},
+  {b:"아마존", k:"amazon", t:"포켓몬 151 Booster Box 추첨", dl:"05.10", pg:54},
+  {b:"반다이", k:"bandai", t:"원피스 Emperors 프로모", dl:"05.03", pg:88},
+  {b:"포켓몬센터", k:"pokemon", t:"Charizard ex Special Set", dl:"05.15", pg:31},
+];
+const ORIPA = [
+  {t:"포켓몬 프리미엄 골드", min:5000, r:"1등 0.5%", last:"리자몽 VMAX", hot:true},
+  {t:"원피스 레어 헌트", min:3000, r:"1등 1.2%", last:"샹크스 SEC"},
+  {t:"테라스탈 스페셜", min:1500, r:"1등 2.0%", last:"미라이돈 SAR"},
+  {t:"151 시그니처", min:4000, r:"1등 0.8%", last:"뮤 UR"},
+];
+const SHOPS = [
+  {n:"카드팡 홍대점", a:"서울 마포구 홍익로 12", h:"11:00–22:00", r:4.7, g:["포켓몬","원피스","대회"]},
+  {n:"플레이포인트 강남", a:"서울 강남구 테헤란로 87", h:"12:00–23:00", r:4.6, g:["포켓몬","대회"]},
+  {n:"트레이드스테이션 부산", a:"부산 서면 중앙대로 668", h:"11:30–22:00", r:4.5, g:["원피스"]},
+  {n:"카드마스터즈 대구", a:"대구 중구 동성로", h:"11:00–21:00", r:4.4, g:["포켓몬"]},
+];
+const EVENTS = [
+  {t:"포켓몬 월챔 한국 예선", d:"06.14 (토)", l:"서울 COEX", tag:"공식 대회"},
+  {t:"원피스 카드 유저 교환전", d:"05.03 (토)", l:"강남", tag:"커뮤니티"},
+  {t:"반다이 카드 페스타", d:"05.02 (금)", l:"부산 BEXCO", tag:"페스티벌"},
+];
+
+/* ---------- helpers ---------- */
+const won = n => "₩" + n.toLocaleString("ko-KR");
+const deltaEl = d => `<span class="delta ${d>=0?'up':'down'}">${d>=0?'▲':'▼'} ${Math.abs(d).toFixed(1)}%</span>`;
+
+/* ---------- Page renderers ---------- */
+function pHome(){
+  return `
+  <div class="page active">
+    <div class="hero-card">
+      <h3>오늘의 TCG, 한 눈에</h3>
+      <p>실시간 시세 · 응모 · 오리파까지</p>
+      <div class="stats">
+        <div><b>+2.1%</b>시세 변동</div>
+        <div><b>38</b>진행 응모</div>
+        <div><b>126</b>오리파</div>
+      </div>
+    </div>
+
+    <div class="chips">
+      <button class="chip active">전체</button>
+      <button class="chip">포켓몬</button>
+      <button class="chip">원피스</button>
+      <button class="chip">PSA10</button>
+    </div>
+
+    <div class="section-head"><div class="t">인기 시세 TOP</div><div class="m">더 보기 →</div></div>
+    <div class="hgrid">
+      ${CARDS.slice(0,4).map(c=>`
+        <div class="mini-card">
+          <div class="thumb"><div class="badge">${c.g}</div>${c.i}</div>
+          <div class="name">${c.n}</div>
+          <div class="sub">${c.s}</div>
+          <div class="pricerow">
+            <div class="price">${won(c.p)}</div>
+            ${deltaEl(c.d)}
+          </div>
+        </div>`).join("")}
+    </div>
+
+    <div class="section-head"><div class="t">최신 뉴스</div><div class="m">더 보기 →</div></div>
+    ${NEWS.slice(0,3).map(n=>`
+      <div class="news-row">
+        <div><h4>${n.t}</h4><div class="src">${n.s}</div></div>
+        <div class="thumb">${n.i}</div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pPrice(){
+  return `
+  <div class="page active">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip active">전체</button>
+      <button class="chip">포켓몬</button>
+      <button class="chip">원피스</button>
+      <button class="chip">PSA10</button>
+      <button class="chip">BGS9.5+</button>
+      <button class="chip">미개봉 박스</button>
+    </div>
+    <div class="chips" style="margin-bottom:14px">
+      <button class="chip active">시세 랭킹</button>
+      <button class="chip">상승 TOP</button>
+      <button class="chip">하락 TOP</button>
+      <button class="chip">거래량</button>
+    </div>
+    ${CARDS.map(c=>`
+      <div class="listcard">
+        <div class="thumb">${c.i}</div>
+        <div>
+          <div class="n">${c.n}</div>
+          <div class="s">${c.s} · ${c.g} · PSA10</div>
+        </div>
+        <div style="text-align:right">
+          <div class="price">${won(c.p)}</div>
+          ${deltaEl(c.d)}
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pNews(){
+  return `
+  <div class="page active">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip active">전체</button>
+      <button class="chip">포켓몬</button>
+      <button class="chip">원피스</button>
+      <button class="chip">국내</button>
+      <button class="chip">해외</button>
+    </div>
+    ${NEWS.map(n=>`
+      <div class="news-row">
+        <div><h4>${n.t}</h4><div class="src">${n.s}</div></div>
+        <div class="thumb">${n.i}</div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pSchedule(){
+  return `
+  <div class="page active">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip active">이번 달</button>
+      <button class="chip">발매</button>
+      <button class="chip">이벤트</button>
+      <button class="chip">응모</button>
+    </div>
+    ${SCH.map(s=>`
+      <div class="sch-item">
+        <div>
+          <div class="d">${s.d}</div>
+          <div class="m">${s.m}</div>
+        </div>
+        <div>
+          <div class="n">${s.t}</div>
+          <div class="p">${s.p}</div>
+        </div>
+        <span class="tag ${s.type}">${s.k}</span>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pMore(){
+  return `
+  <div class="page active">
+    <div class="section-head"><div class="t">더보기</div></div>
+    <div class="listcard" onclick="nav1('shops')">
+      <div class="thumb">📍</div>
+      <div><div class="n">국내 TCG 샵</div><div class="s">지점 검색 · 대회 · 영업시간</div></div>
+      <div>›</div>
+    </div>
+    <div class="listcard" onclick="nav2('oripa')">
+      <div class="thumb">🎁</div>
+      <div><div class="n">온라인 오리파</div><div class="s">등급 · 확률 · 당첨내역 확인</div></div>
+      <div>›</div>
+    </div>
+    <div class="listcard" onclick="nav2('events')">
+      <div class="thumb">✨</div>
+      <div><div class="n">이벤트</div><div class="s">대회 · 교환전 · 모임</div></div>
+      <div>›</div>
+    </div>
+    <div class="listcard">
+      <div class="thumb">♡</div>
+      <div><div class="n">관심 카드</div><div class="s">시세 알림 받기</div></div>
+      <div>›</div>
+    </div>
+    <div class="listcard">
+      <div class="thumb">⚙</div>
+      <div><div class="n">설정</div><div class="s">알림 · 계정 · 테마</div></div>
+      <div>›</div>
+    </div>
+  </div>`;
+}
+
+function pShops(){
+  return `
+  <div class="page active">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip active">전국</button>
+      <button class="chip">서울</button>
+      <button class="chip">경기/인천</button>
+      <button class="chip">부산</button>
+      <button class="chip">대구</button>
+    </div>
+    ${SHOPS.map(s=>`
+      <div class="shop">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start">
+          <h4>${s.n}</h4>
+          <div class="stars">★ ${s.r}</div>
+        </div>
+        <div class="m">${s.a}</div>
+        <div class="m">영업 ${s.h}</div>
+        <div class="chips" style="margin-top:6px">
+          ${s.g.map(t=>`<span class="pill">${t}</span>`).join("")}
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pApply(){
+  return `
+  <div class="page active">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip active">전체</button>
+      <button class="chip">아마존</button>
+      <button class="chip">포켓몬센터</button>
+      <button class="chip">반다이</button>
+      <button class="chip">마감 임박</button>
+    </div>
+    ${APPLY.map(a=>`
+      <div class="apply">
+        <div class="thumb">🎁</div>
+        <div class="body">
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <span class="brand ${a.k}">${a.b}</span>
+            <span class="sub">마감 ${a.dl}</span>
+          </div>
+          <div class="n">${a.t}</div>
+          <div class="prog"><i style="width:${a.pg}%"></i></div>
+          <div class="s">신청률 ${a.pg}%</div>
+          <div style="margin-top:8px"><button class="btn primary full">응모하기</button></div>
+        </div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pOripa(){
+  return `
+  <div class="page active">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip active">추천</button>
+      <button class="chip">포켓몬</button>
+      <button class="chip">원피스</button>
+      <button class="chip">프리미엄</button>
+    </div>
+    <div class="hgrid">
+      ${ORIPA.map(o=>`
+        <div class="oripa">
+          ${o.hot?'<div class="ribbon">HOT</div>':''}
+          <div class="thumb sq">🎴</div>
+          <div class="name">${o.t}</div>
+          <div class="sub">최소 ${won(o.min)} · ${o.r}</div>
+          <div class="sub">최근: ${o.last}</div>
+          <div style="margin-top:8px"><button class="btn primary full">뽑기 참여</button></div>
+        </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function pEvents(){
+  return `
+  <div class="page active">
+    <div class="chips" style="margin-bottom:12px">
+      <button class="chip active">전체</button>
+      <button class="chip">대회</button>
+      <button class="chip">커뮤니티</button>
+      <button class="chip">페스티벌</button>
+    </div>
+    ${EVENTS.map(e=>`
+      <div class="event-card">
+        <div class="thumb wide">🎉</div>
+        <div class="name" style="font-size:13.5px">${e.t}</div>
+        <div class="sub">${e.d} · ${e.l}</div>
+        <div class="chips" style="margin-top:6px"><span class="pill">${e.tag}</span></div>
+      </div>`).join("")}
+  </div>`;
+}
+
+function pProfile(){
+  return `
+  <div class="page active">
+    <div class="hero-card" style="text-align:center">
+      <div style="width:64px;height:64px;border-radius:999px;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;margin:0 auto 10px">B</div>
+      <h3 style="margin-bottom:2px">brogeun</h3>
+      <p>관심 카드 12 · 응모 참여 8</p>
+    </div>
+    <div class="listcard"><div class="thumb">♡</div><div><div class="n">관심 카드</div><div class="s">시세 알림 설정</div></div><div>›</div></div>
+    <div class="listcard"><div class="thumb">🎟</div><div><div class="n">내 응모 내역</div><div class="s">진행 8 · 종료 14</div></div><div>›</div></div>
+    <div class="listcard"><div class="thumb">🎁</div><div><div class="n">오리파 내역</div><div class="s">보유 카드 47장</div></div><div>›</div></div>
+    <div class="listcard"><div class="thumb">🔔</div><div><div class="n">알림 설정</div><div class="s">시세 · 응모 · 발매</div></div><div>›</div></div>
+    <div class="listcard"><div class="thumb">⚙</div><div><div class="n">설정</div><div class="s">계정 · 테마 · 버전</div></div><div>›</div></div>
+  </div>`;
+}
+
+const titleMap = {home:"홈", price:"카드 시세", news:"뉴스", schedule:"일정", more:"더보기",
+  shops:"국내 TCG 샵", apply:"응모", oripa:"오리파", events:"이벤트", profile:"내 정보"};
+const pageMap = {home:pHome, price:pPrice, news:pNews, schedule:pSchedule, more:pMore,
+  shops:pShops, apply:pApply, oripa:pOripa, events:pEvents, profile:pProfile};
+
+function nav1(p){
+  document.getElementById("t1").innerText = titleMap[p];
+  document.getElementById("phone1").innerHTML = pageMap[p]();
+  document.querySelectorAll("#bnav1 .bitem").forEach(b=>b.classList.toggle("active", b.dataset.p===p));
+  document.getElementById("phone1").scrollTop = 0;
+}
+function nav2(p){
+  document.getElementById("t2").innerText = titleMap[p];
+  document.getElementById("phone2").innerHTML = pageMap[p]();
+  document.querySelectorAll("#bnav2 .bitem").forEach(b=>b.classList.toggle("active", b.dataset.p===p));
+  document.getElementById("phone2").scrollTop = 0;
+}
+
+document.querySelectorAll("#bnav1 .bitem").forEach(b=>b.addEventListener("click", ()=>nav1(b.dataset.p)));
+document.querySelectorAll("#bnav2 .bitem").forEach(b=>b.addEventListener("click", ()=>nav2(b.dataset.p)));
+
+// Init
+nav1("home");
+nav2("apply");
+</script>
+</body>
+</html>

@@ -311,6 +311,102 @@ def fetch_usd_jpy() -> float:
     return get_usd_jpy()
 
 
+def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dict:
+    """카드 상세 페이지 (/en/trading-cards/{id}?slide=right) 에서 A / PSA 10 / PSA 9 각 탭 클릭하여
+       'US $X~' 또는 '¥X~' 헤드라인 가격 추출. SNKRDUNK 가 사이트에 표시하는 정확한 lowest_ask."""
+    url = f"https://snkrdunk.com/en/trading-cards/{card_id}?slide=right"
+    try:
+        driver.get(url)
+    except Exception as e:
+        if debug:
+            print(f"    [ERR] navigate {card_id}: {e}")
+        return {}
+    time.sleep(2.5)
+    # 가격이 비어있는 placeholder 가 사라질 때까지 짧게 대기
+    for _ in range(8):
+        txt = driver.execute_script("return document.body.innerText || ''")
+        if "$" in txt or "¥" in txt or "—" in txt:
+            break
+        time.sleep(0.4)
+
+    grade_map = [("A", "raw"), ("PSA 10", "psa10"), ("PSA 9", "psa9")]
+    out: dict = {}
+
+    # 활성 탭 가격 영역의 가장 큰 텍스트가 헤드라인 가격
+    extract_script = r"""
+        // 'US $X~' 또는 '¥X~' 패턴을 큰 폰트로 표시하는 element 찾기
+        const all = Array.from(document.querySelectorAll('div, span, h1, h2, h3, h4, p'));
+        let best = {price: null, currency: null, raw: null};
+        const re = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)\s*~?/;
+        for (const el of all) {
+            const txt = (el.innerText || '').trim();
+            if (txt.length > 30 || txt.length < 3) continue;
+            const m = txt.match(re);
+            if (!m) continue;
+            const fontSize = parseFloat(getComputedStyle(el).fontSize) || 0;
+            if (fontSize < 18) continue;  // 큰 글씨만
+            // 가장 큰 폰트의 매치 채택
+            if (!best.fontSize || fontSize > best.fontSize) {
+                const cur = txt.includes('¥') ? 'JPY' : 'USD';
+                best = {
+                    price: parseFloat(m[1].replace(/,/g, '')),
+                    currency: cur,
+                    raw: txt,
+                    fontSize: fontSize,
+                };
+            }
+        }
+        // 데이터 없음 표시 ("—" 또는 dash)
+        const dash = document.body.innerText.includes('—') &&
+                     !best.price &&
+                     /—/.test(document.querySelector('main, body')?.innerText || '');
+        return best.price ? best : (dash ? {dash: true} : null);
+    """
+
+    click_script_tpl = """
+        const target = arguments[0];
+        const els = document.querySelectorAll('button, [role="button"], div, span, a');
+        for (const el of els) {
+            const txt = (el.innerText || '').trim();
+            if (txt === target && el.offsetParent !== null && el.offsetWidth < 220 && el.offsetWidth > 20) {
+                el.scrollIntoView({block: 'center'});
+                el.click();
+                return true;
+            }
+        }
+        return false;
+    """
+
+    for label, key in grade_map:
+        try:
+            clicked = driver.execute_script(click_script_tpl, label)
+            if not clicked:
+                if debug:
+                    print(f"    [{label}] 탭 클릭 실패 (찾지 못함)")
+                out[key] = None
+                continue
+            time.sleep(1.2)
+            extracted = driver.execute_script(extract_script)
+            if extracted and extracted.get("price"):
+                out[key] = {
+                    "lowest_ask": extracted["price"],
+                    "currency": extracted["currency"],
+                    "raw_text": extracted.get("raw"),
+                }
+                if debug:
+                    print(f"    [{label}] {extracted['raw']} → {extracted['price']} {extracted['currency']}")
+            else:
+                # 데이터 없음 (— 표시)
+                out[key] = {"lowest_ask": None, "currency": "USD"}
+                if debug:
+                    print(f"    [{label}] 데이터 없음 (—)")
+        except Exception as e:
+            if debug:
+                print(f"    [{label}] err: {e}")
+            out[key] = None
+    return out
+
+
 def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
     """SNKRDUNK API 직접 호출 — JP 우선 (¥ 네이티브), 안 되면 EN(USD) fallback"""
     # JP 헤더로 ¥ 응답 강제 시도
@@ -356,20 +452,17 @@ def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
 
 
 def parse_grade(condition: str) -> str:
-    """condition 문자열을 등급 키로 매핑 — psa10/psa9/raw 만 반환, 나머지는 None"""
-    c = (condition or "").upper().replace(" ", "")
-    if "PSA10" in c: return "psa10"
-    if "PSA9" in c:  return "psa9"
-    # 싱글 = raw / A품 / 미개봉 (graded 아닌 거 = 일반 카드)
-    raw_match = (
-        c == "A" or "A品" in (condition or "") or
-        c == "S" or "S品" in (condition or "") or
-        "RAW" in c or "未開封" in (condition or "") or
-        "MINT" in c or "EX" in c
-    )
-    if raw_match:
-        return "raw"
-    return None  # PSA8, B, 기타 등은 무시
+    """SNKRDUNK 탭과 1:1 매칭 — psa10/psa9/raw(A탭) 만 반환, 나머지 None.
+       탭: All / A / B / C / D / PSA 10 / PSA 9 / PSA 8 or under / BGS 10 BL / BGS 10 GL
+       우리는 A(=raw), PSA10, PSA9 만 추적."""
+    if not condition:
+        return None
+    c = condition.strip().upper().replace(" ", "")  # "PSA 10" → "PSA10"
+    # 정확히 매칭 (B, C, D, PSA8, BGS 등은 무시)
+    if c == "PSA10": return "psa10"
+    if c == "PSA9":  return "psa9"
+    if c == "A":     return "raw"
+    return None
 
 
 def extract_raw_price(raw_price) -> tuple:
@@ -530,45 +623,45 @@ def main():
             print(f"[{label}] ❌ 에러: {e}")
             fail_count += 1
 
-    # 3) 카드별 sold listings (API 직접 호출, 0 credits)
+    # 3) 카드별 등급 가격 — Selenium 으로 SNKRDUNK 페이지 직접 방문하여 A/PSA10/PSA9 탭 클릭
+    #    (used-listings API 는 sold 만 반환해서 lowest_ask 못 구함 → 페이지 클릭으로 대체)
     print()
     print("=" * 60)
-    print("Phase 3: 카드별 sold listings + PSA10/PSA9/싱글 가격")
+    print("Phase 3: 카드별 등급 가격 (Selenium 페이지 클릭)")
     print("=" * 60)
     usd_jpy = fetch_usd_jpy()
-    print(f"  USD/JPY 환율: ¥{usd_jpy:.2f}")
-    card_ids = sorted(collect_card_ids())
-    print(f"  추적 카드: {len(card_ids)}개")
+    # 박스 ID 모으기 (등급 없으니 스킵)
+    box_ids = set()
+    for f in ("price-pokemon-box.json", "price-onepiece-box.json"):
+        try:
+            d = json.loads((DATA_DIR / f).read_text(encoding="utf-8"))
+            for p in d.get("products", []):
+                if p.get("id"):
+                    box_ids.add(p["id"])
+        except Exception:
+            pass
+    all_ids = sorted(collect_card_ids())
+    card_ids = [cid for cid in all_ids if cid not in box_ids]
+    print(f"  전체 추적 ID: {len(all_ids)}개  /  박스 제외 카드만: {len(card_ids)}개")
     cards_detail = {}
-    debug_count = 0
-    for i, cid in enumerate(card_ids, 1):
-        listings = fetch_used_listings(cid, max_pages=3)
-        # 첫 3장 카드 디버그 — raw price 가 어떻게 들어오는지 확인
-        if debug_count < 3 and listings:
-            print(f"  [DEBUG] card {cid}: {len(listings)}건 listings")
-            for j, sample in enumerate(listings[:3]):
-                print(f"    [{j}] keys={list(sample.keys())}")
-                print(f"        condition={sample.get('condition')!r}  isSold={sample.get('isSold')}  price={sample.get('price')!r}")
-            debug_count += 1
-        grades = parse_sold_prices(listings, usd_jpy)
-        # 첫 3장은 grade 결과도 출력
-        if debug_count <= 3:
-            for g, info in grades.items():
-                ask = info.get("lowest_ask")
-                avg = info.get("recent_sold_avg")
-                un = info.get("unsold_count", 0)
-                so = info.get("sold_count", 0)
-                cur = info.get("currency")
-                print(f"    → grade={g} cur={cur} lowest_ask={ask}({un}) recent_sold_avg={avg}({so}) samples={info.get('raw_samples', [])[:3]}")
-        cards_detail[cid] = {
-            "id": cid,
-            "soldCount": sum(1 for x in listings if x.get("isSold")),
-            "totalListings": len(listings),
-            "grades": grades,
-        }
-        if i % 10 == 0 or i == len(card_ids):
-            print(f"  [{i}/{len(card_ids)}] 진행 중... 등급: {list(grades.keys())}")
-        time.sleep(0.4)  # rate limit
+    # Selenium 단일 세션 재활용
+    grade_driver = make_driver(lang="en-US")
+    try:
+        for i, cid in enumerate(card_ids, 1):
+            debug_this = (i <= 3)
+            grades = scrape_grade_asks_selenium(grade_driver, cid, debug=debug_this)
+            cards_detail[cid] = {
+                "id": cid,
+                "grades": {k: v for k, v in grades.items() if v is not None},
+            }
+            if i % 5 == 0 or i == len(card_ids):
+                non_empty = sum(1 for v in grades.values() if v and v.get("lowest_ask"))
+                print(f"  [{i}/{len(card_ids)}] {cid} → 등급 채워진 칸: {non_empty}/3")
+    finally:
+        grade_driver.quit()
+    # 박스도 placeholder 로 등록 (frontend 가 product 못찾는 경우 방지)
+    for bid in box_ids:
+        cards_detail.setdefault(bid, {"id": bid, "grades": {}})
     out_path = DATA_DIR / "cards-detail.json"
     out_path.write_text(json.dumps({
         "ok": True,

@@ -8,6 +8,8 @@ import json
 import re
 import time
 import sys
+import urllib.request
+import urllib.error
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -190,6 +192,94 @@ def save_payload(filename: str, label: str, products: list, fetched_at: str):
     print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
 
+def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
+    """SNKRDUNK API 직접 호출 — 친구분 알려주신 신규 endpoint 사용"""
+    base = f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings"
+    all_listings = []
+    for page in range(1, max_pages + 1):
+        url = f"{base}?page={page}"
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": UA,
+                "Accept": "application/json",
+                "Accept-Language": "ja,en;q=0.9",
+            })
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                if resp.status != 200:
+                    break
+                data = json.loads(resp.read().decode("utf-8"))
+            # 키 후보: usedListings (신규), usedTradingCards (기존)
+            listings = data.get("usedListings") or data.get("usedTradingCards") or []
+            if not listings:
+                break
+            all_listings.extend(listings)
+            if len(listings) < 50:
+                break
+        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as e:
+            print(f"    page {page} err: {e}")
+            break
+    return all_listings
+
+
+def parse_grade(condition: str) -> str:
+    """condition 문자열을 등급 키로 매핑"""
+    c = (condition or "").upper().replace(" ", "")
+    if "PSA10" in c: return "psa10"
+    if "PSA9" in c: return "psa9"
+    if "PSA8" in c: return "psa8"
+    if "S品" in (condition or "") or "MINT" in c: return "s"
+    if "A品" in (condition or "") or c == "A": return "a"
+    if "B品" in (condition or "") or c == "B": return "b"
+    return "other"
+
+
+def parse_sold_prices(listings: list) -> dict:
+    """sold 만 골라서 등급별 가격 통계"""
+    by_grade = {}
+    for it in listings:
+        if not it.get("isSold"):
+            continue
+        price_str = str(it.get("price") or "")
+        m = re.search(r"\$\s*([\d.,]+)", price_str)
+        if not m:
+            continue
+        try:
+            price = float(m.group(1).replace(",", ""))
+        except ValueError:
+            continue
+        if price <= 0:
+            continue
+        grade = parse_grade(it.get("condition", ""))
+        by_grade.setdefault(grade, []).append(price)
+    out = {}
+    for grade, prices in by_grade.items():
+        if not prices:
+            continue
+        out[grade] = {
+            "count": len(prices),
+            "avg_usd": round(sum(prices) / len(prices), 2),
+            "last5_avg_usd": round(sum(prices[:5]) / min(5, len(prices)), 2),
+            "min_usd": round(min(prices), 2),
+            "max_usd": round(max(prices), 2),
+        }
+    return out
+
+
+def collect_card_ids() -> set:
+    """이미 저장된 JSON 들에서 모든 카드 ID 추출"""
+    ids = set()
+    for pattern in ("top10-*.json", "price-*.json"):
+        for path in DATA_DIR.glob(pattern):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+                for p in data.get("products", []):
+                    if p.get("id"):
+                        ids.add(p["id"])
+            except Exception:
+                pass
+    return ids
+
+
 def main():
     fetched_at = datetime.now(timezone.utc).isoformat()
     fail_count = 0
@@ -229,6 +319,43 @@ def main():
         except Exception as e:
             print(f"[{label}] ❌ 에러: {e}")
             fail_count += 1
+
+    # 3) 카드별 sold listings (API 직접 호출, 0 credits)
+    print()
+    print("=" * 60)
+    print("Phase 3: 카드별 sold listings + 등급별 가격")
+    print("=" * 60)
+    card_ids = sorted(collect_card_ids())
+    print(f"  추적 카드: {len(card_ids)}개")
+    cards_detail = {}
+    debug_printed = False
+    for i, cid in enumerate(card_ids, 1):
+        listings = fetch_used_listings(cid, max_pages=3)
+        if not debug_printed and listings:
+            # 첫 응답 샘플 (구조 확인용)
+            print(f"  [DEBUG] 첫 응답 샘플 (card {cid}):")
+            sample = listings[0]
+            print(f"    keys: {list(sample.keys())}")
+            print(f"    sample: {json.dumps(sample, ensure_ascii=False)[:300]}")
+            debug_printed = True
+        grades = parse_sold_prices(listings)
+        cards_detail[cid] = {
+            "id": cid,
+            "soldCount": sum(1 for x in listings if x.get("isSold")),
+            "totalListings": len(listings),
+            "grades": grades,
+        }
+        if i % 10 == 0 or i == len(card_ids):
+            print(f"  [{i}/{len(card_ids)}] 진행 중... 현재 카드 등급: {list(grades.keys())}")
+        time.sleep(0.4)  # rate limit
+    out_path = DATA_DIR / "cards-detail.json"
+    out_path.write_text(json.dumps({
+        "ok": True,
+        "fetchedAt": fetched_at,
+        "count": len(cards_detail),
+        "cards": cards_detail,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
     print(f"\n완료. 실패 {fail_count}/{total}")
     if fail_count == total:

@@ -840,7 +840,19 @@ function initPrice(productId) {
   loadPriceGrid();
 }
 
-/* ─────────── 상품 상세 패널 (Phase 2) ─────────── */
+/* ─────────── 카드 상세 (등급별 가격) 캐시 ─────────── */
+let CARDS_DETAIL_CACHE = null;
+async function loadCardsDetail() {
+  if (CARDS_DETAIL_CACHE) return CARDS_DETAIL_CACHE;
+  try {
+    const r = await fetch(`/data/cards-detail.json?t=${Math.floor(Date.now()/3600000)}`);
+    if (!r.ok) return null;
+    CARDS_DETAIL_CACHE = await r.json();
+    return CARDS_DETAIL_CACHE;
+  } catch { return null; }
+}
+
+/* ─────────── 상품 상세 패널 (Phase 2 + 3) ─────────── */
 async function showPriceDetailPanel(productId) {
   const panel = document.getElementById('priceDetailPanel');
   if (!panel) return;
@@ -918,18 +930,66 @@ async function showPriceDetailPanel(productId) {
               ← 전체 시세
             </button>
           </div>
-          <!-- Phase 3 예고 -->
-          <div style="margin-top:14px; padding:12px; background:#f9fafb; border:1px dashed #d1d5db; border-radius:8px; font-size:11px; color:var(--ink-sub); line-height:1.6">
-            🔜 <b>곧 추가 예정:</b> PSA 10 / PSA 9 / 싱글 등급별 시세 · 180일 가격 차트 · 거래량 막대 그래프
-          </div>
+        </div>
+      </div>
+      <!-- 등급별 시세 (Phase 3) -->
+      <div id="gradesPanel-${productId}" style="border-top:1px solid var(--line); padding:18px 20px; background:#fafafa">
+        <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px">📊 등급별 거래 시세 (USD 기준)</div>
+        <div id="gradesGrid-${productId}" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px">
+          <div style="grid-column:1/-1; color:var(--ink-sub); font-size:12px">⏳ 등급별 가격 불러오는 중...</div>
+        </div>
+        <div style="margin-top:12px; padding:10px; background:#fff; border:1px dashed #d1d5db; border-radius:8px; font-size:11px; color:var(--ink-sub); line-height:1.6">
+          🔜 <b>다음:</b> 180일 가격 차트 · 거래량 막대 · 7일 rolling outlier 필터
         </div>
       </div>
     </div>
     <style>
       @media (max-width: 640px) {
-        #priceDetailPanel .card > div { grid-template-columns: 1fr !important; }
+        #priceDetailPanel .card > div:first-child { grid-template-columns: 1fr !important; }
       }
     </style>`;
+
+  // 등급별 가격 비동기 렌더
+  renderGradesPanel(productId);
+}
+
+async function renderGradesPanel(productId) {
+  const grid = document.getElementById(`gradesGrid-${productId}`);
+  if (!grid) return;
+  const data = await loadCardsDetail();
+  const card = data?.cards?.[productId];
+  if (!card || !card.grades || Object.keys(card.grades).length === 0) {
+    grid.innerHTML = `<div style="grid-column:1/-1; color:var(--ink-sub); font-size:12px; line-height:1.5">아직 등급별 거래 데이터가 없습니다. 매일 04:00 KST 자동 갱신됩니다.</div>`;
+    return;
+  }
+  // 등급 라벨 + 색상
+  const GRADE_INFO = {
+    psa10: { label: 'PSA 10', color: '#fbbf24', bg: '#fffbeb' },
+    psa9:  { label: 'PSA 9',  color: '#9ca3af', bg: '#f3f4f6' },
+    psa8:  { label: 'PSA 8',  color: '#6b7280', bg: '#f9fafb' },
+    s:     { label: 'S급',    color: '#7c3aed', bg: '#f5f3ff' },
+    a:     { label: 'A급',    color: '#06b6d4', bg: '#ecfeff' },
+    b:     { label: 'B급',    color: '#64748b', bg: '#f1f5f9' },
+    other: { label: '기타',   color: '#94a3b8', bg: '#f8fafc' },
+  };
+  const order = ['psa10','psa9','psa8','s','a','b','other'];
+  const blocks = order.filter(k => card.grades[k]).map(k => {
+    const g = card.grades[k];
+    const info = GRADE_INFO[k];
+    const usd = g.last5_avg_usd || g.avg_usd;
+    // 환산: USD → JPY (대략) → KRW. 여기는 단순화: USD → KRW 직접
+    // 실제 USD/KRW 환율 별도 fetch 가 정확하지만 대략값으로
+    const usdKrw = 1380;  // 대략 환율 (정확도 ↓ 하지만 표시용)
+    const krw = Math.round(usd * usdKrw);
+    return `
+      <div style="background:${info.bg}; border:1px solid ${info.color}33; border-radius:8px; padding:10px 12px">
+        <div style="font-size:10px; font-weight:800; color:${info.color}; margin-bottom:4px">${info.label}</div>
+        <div style="font-size:14px; font-weight:800; color:#111">$${usd.toLocaleString()}</div>
+        <div style="font-size:10px; color:var(--ink-sub); margin-top:2px">≈ ₩${krw.toLocaleString()}</div>
+        <div style="font-size:10px; color:var(--ink-mute); margin-top:4px">${g.count}건 · 직전 5건 평균</div>
+      </div>`;
+  });
+  grid.innerHTML = blocks.join('');
 }
 
 async function loadPriceGrid() {

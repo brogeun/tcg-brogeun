@@ -660,40 +660,26 @@ const fmtYen = n => n != null ? '¥' + Math.round(n).toLocaleString() : '—';
 const fmtKrw = n => n != null ? '₩' + Math.round(n * JPY_KRW).toLocaleString() : '—';
 
 /* ────────────────────────────────────
-   2.5 홈 — TOP 10 인기 카드 (Cloudflare Worker 호출, 24h 캐시)
+   2.5 홈 — TOP 10 인기 카드 (GitHub Actions 자동 갱신, 정적 JSON)
+   GitHub Actions 가 매일 04:00 KST 에 SNKRDUNK 스크래핑 → data/top10-{brand}.json
    ──────────────────────────────────── */
-const TCG_API_BASE = "https://tcg-api.yhk3212.workers.dev";
 const HOME_TOP_CACHE = {};
 let HOME_TOP_BRAND = null;
 
 async function loadHomeTop(brand) {
-  // 1) localStorage 24h 캐시
-  const cacheKey = `home_top10_${brand}`;
-  try {
-    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-    if (cached && Date.now() - cached.ts < 86400000) {
-      HOME_TOP_CACHE[brand] = cached.products;
-      return cached.products;
-    }
-  } catch {}
-  // 2) 메모리 캐시
   if (HOME_TOP_CACHE[brand]) return HOME_TOP_CACHE[brand];
-  // 3) Worker 호출
-  const url = `${TCG_API_BASE}/?brand=${brand}`;
+  // 정적 JSON 호출 — 시간단위 캐시 버스터 (GitHub Actions 가 갱신하면 자동 반영)
+  const url = `/data/top10-${brand}.json?t=${Math.floor(Date.now() / 3600000)}`;
   console.log('[home-top10] fetching', url);
   let r;
   try { r = await fetch(url); }
   catch (e) { throw new Error(`네트워크 에러: ${e.message}`); }
-  const text = await r.text();
-  if (text.trim().startsWith('<')) throw new Error(`Worker 미배포 또는 코드 누락 (${r.status})`);
-  let d;
-  try { d = JSON.parse(text); }
-  catch { throw new Error(`JSON 파싱 실패: ${text.slice(0, 80)}`); }
-  if (!r.ok || !d?.ok) throw new Error(d?.error || `HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`데이터 파일 없음 (HTTP ${r.status})`);
+  const d = await r.json();
+  if (!d?.ok) throw new Error(d?.error || '데이터 형식 오류');
   const products = (d.products || []).slice(0, 10);
-  if (!products.length) throw new Error('상품 0개 — SNKRDUNK 페이지 구조 변경 가능성');
+  if (!products.length) throw new Error('아직 데이터 수집 전 — GitHub Actions 첫 실행 대기 중');
   HOME_TOP_CACHE[brand] = products;
-  try { localStorage.setItem(cacheKey, JSON.stringify({ products, ts: Date.now() })); } catch {}
   return products;
 }
 

@@ -440,6 +440,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <p class="page-sub">SNKRDUNK 라이브 · 24시간 자동 갱신</p>
       </div>
 
+      <!-- 선택 상품 상세 패널 (top10 카드 클릭 시 표시) -->
+      <div id="priceDetailPanel" style="display:none; margin-bottom:18px"></div>
+
       <!-- 1차 탭: 브랜드 -->
       <div class="tabs" id="priceBrandTabs">
         <div class="tab active" data-brand="pokemon">⚡ 포켓몬</div>
@@ -589,7 +592,15 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 /* ────────────────────────────────────
    1. 라우팅 (단순! 작동 보장)
    ──────────────────────────────────── */
-function go(page) {
+function go(pageOrPath) {
+  // path 지원: "price/618442" → page=price, productId=618442
+  let page = pageOrPath;
+  let productId = null;
+  if (pageOrPath.includes('/')) {
+    const parts = pageOrPath.split('/');
+    page = parts[0];
+    productId = parts[1] || null;
+  }
   // 모든 페이지 숨김
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   // 선택 페이지 표시
@@ -600,11 +611,12 @@ function go(page) {
     n.classList.toggle('active', n.dataset.nav === page);
   });
   // URL 해시 업데이트
-  if (location.hash !== '#' + page) {
-    history.pushState({page}, '', '#' + page);
+  const newHash = '#' + pageOrPath;
+  if (location.hash !== newHash) {
+    history.pushState({page: pageOrPath}, '', newHash);
   }
   // 페이지별 초기화
-  if (page === 'price') initPrice();
+  if (page === 'price') initPrice(productId);
   if (page === 'portfolio') renderWatchlist(), renderHoldings();
   // 스크롤 맨 위로
   window.scrollTo({top: 0, behavior: 'instant'});
@@ -628,15 +640,20 @@ document.addEventListener('click', e => {
 
 // 브라우저 뒤로가기
 window.addEventListener('popstate', e => {
-  const page = (location.hash || '#home').replace('#', '') || 'home';
-  // 라우팅만 (히스토리 push 안 함)
+  const path = (location.hash || '#home').replace('#', '') || 'home';
+  let page = path, productId = null;
+  if (path.includes('/')) {
+    const parts = path.split('/');
+    page = parts[0];
+    productId = parts[1] || null;
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const target = document.querySelector(`.page[data-page="${page}"]`);
   if (target) target.classList.add('active');
   document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.nav === page);
   });
-  if (page === 'price') initPrice();
+  if (page === 'price') initPrice(productId);
   if (page === 'portfolio') renderWatchlist(), renderHoldings();
 });
 
@@ -697,8 +714,8 @@ function renderHomeTop(brand, products) {
     const rankColor = i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#d97706' : '#111';
     const rankTextColor = (i < 3) ? '#fff' : '#fff';
     return `
-      <a href="${p.url}" target="_blank" rel="noopener noreferrer"
-         class="card" style="display:block; padding:0; overflow:hidden; text-decoration:none; color:inherit; position:relative">
+      <a href="#price/${p.id}" data-price-id="${p.id}"
+         class="card" style="display:block; padding:0; overflow:hidden; text-decoration:none; color:inherit; position:relative; cursor:pointer">
         <div style="position:absolute; top:8px; left:8px; background:${rankColor}; color:${rankTextColor}; font-size:11px; font-weight:800; padding:4px 9px; border-radius:5px; z-index:2; min-width:24px; text-align:center">${i+1}</div>
         <div style="background:linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%); aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; padding:14px">
           ${p.image ? `<img src="${p.image}" alt="${p.name}" loading="lazy" referrerpolicy="no-referrer"
@@ -782,6 +799,14 @@ document.addEventListener('click', e => {
     PRICE_CAT = 'card';
     PRICE_GRADE = 'psa10';
     go('price');
+    return;
+  }
+  // TOP 10 카드 클릭 → 내부 시세 상세로
+  const priceCard = e.target.closest('[data-price-id]');
+  if (priceCard) {
+    e.preventDefault();
+    const id = priceCard.dataset.priceId;
+    go('price/' + id);
   }
 });
 
@@ -795,12 +820,111 @@ let PRICE_PAGE = 1;
 let PRICE_LOADING = false;
 const PRICE_CACHE = {};
 
-function initPrice() {
+function initPrice(productId) {
   // 탭 활성화 동기화
   document.querySelectorAll('#priceBrandTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.brand === PRICE_BRAND));
   document.querySelectorAll('#priceCatTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.cat === PRICE_CAT));
   document.getElementById('priceGradeChips').style.display = PRICE_CAT === 'card' ? 'flex' : 'none';
+  // 상품 ID 들어오면 상세 패널 표시, 없으면 숨김
+  if (productId) {
+    showPriceDetailPanel(productId);
+  } else {
+    const panel = document.getElementById('priceDetailPanel');
+    if (panel) panel.style.display = 'none';
+  }
   loadPriceGrid();
+}
+
+/* ─────────── 상품 상세 패널 (Phase 2) ─────────── */
+async function showPriceDetailPanel(productId) {
+  const panel = document.getElementById('priceDetailPanel');
+  if (!panel) return;
+  panel.style.display = 'block';
+  panel.innerHTML = `<div class="card" style="padding:24px; text-align:center; color:var(--ink-sub)">⏳ 카드 정보 불러오는 중...</div>`;
+
+  // HOME_TOP_CACHE 또는 JSON 파일에서 찾기
+  let product = null;
+  for (const brand of ['pokemon', 'onepiece']) {
+    const list = HOME_TOP_CACHE[brand];
+    if (list) {
+      const found = list.find(p => String(p.id) === String(productId));
+      if (found) { product = found; product._brand = brand; break; }
+    }
+  }
+  // 캐시에 없으면 양쪽 JSON 모두 시도
+  if (!product) {
+    for (const brand of ['pokemon', 'onepiece']) {
+      try {
+        const r = await fetch(`/data/top10-${brand}.json?t=${Math.floor(Date.now()/3600000)}`);
+        if (!r.ok) continue;
+        const d = await r.json();
+        const found = (d.products || []).find(p => String(p.id) === String(productId));
+        if (found) {
+          product = found;
+          product._brand = brand;
+          if (!HOME_TOP_CACHE[brand]) HOME_TOP_CACHE[brand] = d.products;
+          break;
+        }
+      } catch {}
+    }
+  }
+
+  if (!product) {
+    panel.innerHTML = `
+      <div class="card" style="padding:20px">
+        <div style="font-weight:700; color:#991b1b; margin-bottom:6px">⚠ 카드 정보를 찾을 수 없습니다</div>
+        <div style="font-size:13px; color:var(--ink-sub)">상품 ID: ${productId}</div>
+        <button class="btn" type="button" style="margin-top:12px; cursor:pointer" onclick="go('price')">← 시세 페이지로 돌아가기</button>
+      </div>`;
+    return;
+  }
+
+  const price = product.lastPrice ?? product.lowestAsk;
+  const brandLbl = product._brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스';
+
+  panel.innerHTML = `
+    <div class="card" style="padding:0; overflow:hidden">
+      <div style="display:grid; grid-template-columns:minmax(0,260px) 1fr; gap:0; align-items:stretch">
+        <!-- 이미지 -->
+        <div style="background:linear-gradient(135deg,#fafafa,#f3f4f6); display:flex; align-items:center; justify-content:center; padding:20px; min-height:240px">
+          ${product.image
+            ? `<img src="${product.image}" alt="${product.name}" referrerpolicy="no-referrer" loading="lazy"
+                    style="max-width:100%; max-height:280px; object-fit:contain"
+                    onerror="this.outerHTML='<span style=\\'font-size:64px;opacity:0.3\\'>🃏</span>'">`
+            : `<span style="font-size:64px; opacity:0.3">🃏</span>`}
+        </div>
+        <!-- 정보 -->
+        <div style="padding:20px; display:flex; flex-direction:column; gap:10px">
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#f3f4f6; color:#374151; font-weight:600">${brandLbl}</span>
+            <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#fef3c7; color:#92400e; font-weight:600">SNKRDUNK 인기 TOP 10</span>
+          </div>
+          <div style="font-size:16px; font-weight:800; color:#111; line-height:1.4">${product.name}</div>
+          <div style="margin-top:6px">
+            <div style="font-size:24px; font-weight:900; color:#111">${fmtYen(price)}</div>
+            <div style="font-size:13px; color:var(--ink-sub); margin-top:2px">${fmtKrw(price)}</div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:auto; flex-wrap:wrap; padding-top:10px">
+            <a href="${product.url}" target="_blank" rel="noopener noreferrer"
+               class="btn primary" style="text-decoration:none; cursor:pointer; padding:9px 16px; font-size:13px">
+              🛒 SNKRDUNK 에서 보기 →
+            </a>
+            <button class="btn" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px" onclick="go('price')">
+              ← 전체 시세
+            </button>
+          </div>
+          <!-- Phase 3 예고 -->
+          <div style="margin-top:14px; padding:12px; background:#f9fafb; border:1px dashed #d1d5db; border-radius:8px; font-size:11px; color:var(--ink-sub); line-height:1.6">
+            🔜 <b>곧 추가 예정:</b> PSA 10 / PSA 9 / 싱글 등급별 시세 · 180일 가격 차트 · 거래량 막대 그래프
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @media (max-width: 640px) {
+        #priceDetailPanel .card > div { grid-template-columns: 1fr !important; }
+      }
+    </style>`;
 }
 
 async function loadPriceGrid() {

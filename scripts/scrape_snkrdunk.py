@@ -135,17 +135,43 @@ def extract_top10(driver):
             if (txt.length > 5) name = txt.slice(0, 100);
         }
 
-        // 가격: 부모 컨테이너에서 ¥숫자 패턴 찾기
+        // 가격: 컨테이너 안 leaf 요소 (직접 ¥ 텍스트 가진) 찾기
         let price = null;
         let p = a.parentElement;
-        for (let i = 0; i < 4 && p; i++) {
-            const t = p.textContent || '';
-            const pm = t.match(/¥\s*([\d,]+)/);
-            if (pm) {
-                const n = parseInt(pm[1].replace(/,/g, ''), 10);
-                if (n >= 50 && n <= 100000000) { price = n; break; }
+        for (let i = 0; i < 5; i++) {
+            if (!p) break;
+            const otherLinks = p.querySelectorAll('a[href*="/apparels/"]');
+            if (otherLinks.length > 1) break;
+            // 모든 자손 요소를 보고 직접 텍스트(자식 텍스트 노드)에 ¥ 있는지 확인
+            const all = p.querySelectorAll('*');
+            for (const el of all) {
+                let directText = '';
+                for (const child of el.childNodes) {
+                    if (child.nodeType === 3) directText += child.textContent || '';
+                }
+                const pm = directText.match(/¥\s*([\d,]+)/);
+                if (pm) {
+                    const n = parseInt(pm[1].replace(/,/g, ''), 10);
+                    if (n >= 50 && n <= 100000000) { price = n; break; }
+                }
             }
+            if (price) break;
             p = p.parentElement;
+        }
+        // fallback: a 자체 안의 직접 텍스트
+        if (!price) {
+            const all = a.querySelectorAll('*');
+            for (const el of all) {
+                let directText = '';
+                for (const child of el.childNodes) {
+                    if (child.nodeType === 3) directText += child.textContent || '';
+                }
+                const pm = directText.match(/¥\s*([\d,]+)/);
+                if (pm) {
+                    const n = parseInt(pm[1].replace(/,/g, ''), 10);
+                    if (n >= 50 && n <= 100000000) { price = n; break; }
+                }
+            }
         }
 
         if (!price) continue;

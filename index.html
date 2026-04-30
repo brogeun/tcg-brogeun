@@ -762,10 +762,8 @@ async function toggleHomeTop(brand) {
             <div style="font-weight:700; color:#991b1b; margin-bottom:8px">⚠ 시세 불러오기 실패</div>
             <div style="color:#7f1d1d; font-size:13px; line-height:1.6; margin-bottom:10px">${msg}</div>
             <div style="font-size:11px; color:#991b1b; line-height:1.7">
-              <b>진단 절차:</b><br>
-              1. 브라우저 주소창이 <code style="background:#fff;padding:1px 4px;border-radius:3px">https://tcgbrogeun.pages.dev/</code> 인지 확인<br>
-              2. F12 → Console 탭에서 <code style="background:#fff;padding:1px 4px;border-radius:3px">[home-top10]</code> 로그 확인<br>
-              3. <a href="${location.origin}/api/top10?brand=${brand}" target="_blank" style="color:#1d4ed8; text-decoration:underline">/api/top10?brand=${brand}</a> 직접 열어서 JSON 확인
+              <b>참고:</b> 데이터는 매일 04:00 KST 에 GitHub Actions 가 자동 갱신합니다.<br>
+              직접 확인: <a href="${location.origin}/data/top10-${brand}.json" target="_blank" style="color:#1d4ed8; text-decoration:underline">/data/top10-${brand}.json</a>
             </div>
           </div>`;
       }

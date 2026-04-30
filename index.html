@@ -824,9 +824,9 @@ function initPrice(productId) {
   // 탭 활성화 동기화
   document.querySelectorAll('#priceBrandTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.brand === PRICE_BRAND));
   document.querySelectorAll('#priceCatTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.cat === PRICE_CAT));
-  // 박스/카드 탭 — 포켓몬일 때만 표시 (원피스는 통합)
+  // 박스/카드 탭 — 두 브랜드 모두 표시
   const catTabs = document.getElementById('priceCatTabs');
-  if (catTabs) catTabs.style.display = PRICE_BRAND === 'pokemon' ? 'flex' : 'none';
+  if (catTabs) catTabs.style.display = 'flex';
   // PSA 등급 칩 — Phase 4 까지 일단 숨김 (등급별 데이터 없음)
   const gradeChips = document.getElementById('priceGradeChips');
   if (gradeChips) gradeChips.style.display = 'none';
@@ -997,15 +997,9 @@ async function loadPriceGrid() {
   const status = document.getElementById('priceStatus');
   const brandLbl = PRICE_BRAND === 'pokemon' ? '포켓몬' : '원피스';
   const catLbl = PRICE_CAT === 'box' ? '박스' : '카드';
-  // 데이터 파일 경로 결정
-  // pokemon → price-pokemon-box / price-pokemon-card (분리)
-  // onepiece → price-onepiece (통합, cat 무관)
-  const dataFile = PRICE_BRAND === 'pokemon'
-    ? `price-pokemon-${PRICE_CAT}`
-    : `price-onepiece`;
-  const labelText = PRICE_BRAND === 'pokemon'
-    ? `${brandLbl} ${catLbl}`
-    : `${brandLbl} 전체`;
+  // 데이터 파일 경로 — 두 브랜드 모두 box/card 분리
+  const dataFile = `price-${PRICE_BRAND}-${PRICE_CAT}`;
+  const labelText = `${brandLbl} ${catLbl}`;
   status.textContent = `🔄 ${labelText} 불러오는 중...`;
   grid.innerHTML = `<div class="empty">⏳ 잠시만 기다려주세요</div>`;
 
@@ -1015,18 +1009,13 @@ async function loadPriceGrid() {
     const d = await r.json();
     if (!d?.ok) throw new Error(d?.error || '데이터 형식 오류');
     const all = d.products || [];
-    // 상세 패널에서 검색할 수 있도록 캐시 동기화
-    if (PRICE_BRAND === 'pokemon') {
-      // 포켓몬은 box/card 따로 — 합쳐서 캐시
-      const otherFile = PRICE_CAT === 'box' ? 'price-pokemon-card' : 'price-pokemon-box';
-      try {
-        const r2 = await fetch(`/data/${otherFile}.json?t=${Math.floor(Date.now()/3600000)}`);
-        const d2 = await r2.json();
-        HOME_TOP_CACHE['pokemon'] = [...(d.products || []), ...(d2?.products || [])];
-      } catch { HOME_TOP_CACHE['pokemon'] = all; }
-    } else {
-      HOME_TOP_CACHE['onepiece'] = all;
-    }
+    // 상세 패널 검색용 캐시 — 같은 브랜드의 box+card 합쳐서
+    const otherCat = PRICE_CAT === 'box' ? 'card' : 'box';
+    try {
+      const r2 = await fetch(`/data/price-${PRICE_BRAND}-${otherCat}.json?t=${Math.floor(Date.now()/3600000)}`);
+      const d2 = await r2.json();
+      HOME_TOP_CACHE[PRICE_BRAND] = [...(d.products || []), ...(d2?.products || [])];
+    } catch { HOME_TOP_CACHE[PRICE_BRAND] = all; }
     renderPriceGrid(all);
     if (all.length === 0) {
       status.textContent = `🔜 데이터 수집 전 — GitHub Actions 첫 실행 대기`;

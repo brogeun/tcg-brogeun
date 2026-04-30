@@ -24,11 +24,13 @@ TOP10_URLS = {
     "onepiece": "https://snkrdunk.com/brands/onepiece/categories/6",
 }
 
-# 카드 시세 페이지 — search?sort=hottest 사용
+# 카드 시세 페이지 — 글로벌(/en/) trading-cards endpoint
+# categoryId=14 = Box & Packs, categoryId=25 = Single Card
 PRICE_URLS = {
-    "pokemon-box": "https://snkrdunk.com/search?keywords=Pokemon+Card+Game+%E3%83%88%E3%83%AC%E3%82%AB+%28%E3%83%9C%E3%83%83%E3%82%AF%E3%82%B9%E3%83%BB%E3%83%91%E3%83%83%E3%82%AF%29&searchCategoryIds=6%2F26&brandIds=pokemon&sort=hottest&page=1",
-    "pokemon-card": "https://snkrdunk.com/search?keywords=Pokemon+Card+Game+%E3%83%88%E3%83%AC%E3%82%AB+%28%E3%82%B7%E3%83%B3%E3%82%B0%E3%83%AB%E3%82%AB%E3%83%BC%E3%83%89%29&searchCategoryIds=6%2F33&brandIds=pokemon&sort=hottest&page=1",
-    "onepiece": "https://snkrdunk.com/search?brandIds=onepiece&sort=hottest&page=1",
+    "pokemon-box":  "https://snkrdunk.com/en/brands/pokemon/trading-cards?categoryId=14",
+    "pokemon-card": "https://snkrdunk.com/en/brands/pokemon/trading-cards?categoryId=25&slide=right",
+    "onepiece-box":  "https://snkrdunk.com/en/brands/onepiece/trading-cards?categoryId=14",
+    "onepiece-card": "https://snkrdunk.com/en/brands/onepiece/trading-cards?categoryId=25&slide=right",
 }
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -88,13 +90,37 @@ IMG_CDN_RE = re.compile(
     r'<img[^>]+src="(https://cdn\.snkrdunk\.com/upload[^"]+)"', re.IGNORECASE
 )
 ALT_RE = re.compile(r'<img[^>]+alt="([^"]+)"', re.IGNORECASE)
-PRICE_RE = re.compile(r'¥\s*([\d,]+)')
+# ¥ 또는 $ 가격 (둘 다 매칭)
+PRICE_RE = re.compile(r'¥\s*([\d,]+)|\$\s*([\d.,]+)|US\$\s*([\d.,]+)')
+
+# 모듈 레벨 환율 캐시 (한 번만 fetch)
+_USD_JPY_CACHE = {"rate": 150.0, "fetched": False}
+
+
+def get_usd_jpy() -> float:
+    if _USD_JPY_CACHE["fetched"]:
+        return _USD_JPY_CACHE["rate"]
+    try:
+        req = urllib.request.Request(
+            "https://api.exchangerate-api.com/v4/latest/USD",
+            headers={"User-Agent": UA},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            d = json.loads(resp.read().decode("utf-8"))
+        rate = float(d["rates"]["JPY"])
+        if 100 < rate < 200:
+            _USD_JPY_CACHE["rate"] = rate
+    except Exception as e:
+        print(f"  FX fetch err: {e}")
+    _USD_JPY_CACHE["fetched"] = True
+    return _USD_JPY_CACHE["rate"]
 
 
 def extract_from_html(html: str, max_items: int = 10) -> list:
     """HTML 문자열에서 URL 위치 기준 ±윈도우로 상품 정보 추출"""
     out = []
     seen = set()
+    usd_jpy = None  # lazy fetch
     for m in URL_RE.finditer(html):
         if len(out) >= max_items:
             break
@@ -112,13 +138,20 @@ def extract_from_html(html: str, max_items: int = 10) -> list:
             continue  # 이미지 없으면 패스 (lazy load 안 된 거)
         image = img_m.group(1).replace("?size=m", "?size=l")
 
-        # 가격 (윈도우 내 첫 ¥ 패턴)
+        # 가격 — ¥ 우선, 없으면 $ → JPY 환산
         price_m = PRICE_RE.search(window)
         if not price_m:
             continue
         try:
-            price = int(price_m.group(1).replace(",", ""))
-        except ValueError:
+            if price_m.group(1):  # ¥
+                price = int(price_m.group(1).replace(",", ""))
+            else:  # $ 또는 US$
+                usd_str = price_m.group(2) or price_m.group(3)
+                usd = float(usd_str.replace(",", ""))
+                if usd_jpy is None:
+                    usd_jpy = get_usd_jpy()
+                price = round(usd * usd_jpy)
+        except (ValueError, AttributeError):
             continue
         if not (50 <= price <= 100000000):
             continue
@@ -193,20 +226,8 @@ def save_payload(filename: str, label: str, products: list, fetched_at: str):
 
 
 def fetch_usd_jpy() -> float:
-    """USD → JPY 환율 (실패 시 기본 150)"""
-    try:
-        req = urllib.request.Request(
-            "https://api.exchangerate-api.com/v4/latest/USD",
-            headers={"User-Agent": UA},
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            d = json.loads(resp.read().decode("utf-8"))
-        rate = float(d["rates"]["JPY"])
-        if 100 < rate < 200:
-            return rate
-    except Exception as e:
-        print(f"  FX fetch err: {e}")
-    return 150.0  # fallback
+    """USD → JPY 환율 (모듈 캐시 사용)"""
+    return get_usd_jpy()
 
 
 def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:

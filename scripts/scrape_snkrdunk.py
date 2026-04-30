@@ -24,14 +24,28 @@ TOP10_URLS = {
     "onepiece": "https://snkrdunk.com/brands/onepiece/categories/6",
 }
 
-# 카드 시세 페이지 — 일본 SNKRDUNK trading-cards endpoint (¥ 네이티브, USD 환산 불필요)
-# categoryId=14 = Box & Packs, categoryId=25 = Single Card
-PRICE_URLS = {
-    "pokemon-box":  "https://snkrdunk.com/brands/pokemon/trading-cards?categoryId=14",
-    "pokemon-card": "https://snkrdunk.com/brands/pokemon/trading-cards?categoryId=25&slide=right",
-    "onepiece-box":  "https://snkrdunk.com/brands/onepiece/trading-cards?categoryId=14",
-    "onepiece-card": "https://snkrdunk.com/brands/onepiece/trading-cards?categoryId=25&slide=right",
+# 카드 시세 페이지 — categoryId N 을 path 로 (TOP 10 와 동일한 working 패턴)
+# 6 = TCG 전체 (parent) / 14 = Box & Packs / 25 = Single Card
+# /trading-cards?categoryId= URL 은 SPA 라우트라 169자 빈 페이지 반환 → /categories/{N} 로 전환
+PRICE_URLS_PRIMARY = {
+    "pokemon-box":   "https://snkrdunk.com/brands/pokemon/categories/14",
+    "pokemon-card":  "https://snkrdunk.com/brands/pokemon/categories/25",
+    "onepiece-box":  "https://snkrdunk.com/brands/onepiece/categories/14",
+    "onepiece-card": "https://snkrdunk.com/brands/onepiece/categories/25",
 }
+# Primary 가 비어있을 때 fallback — /categories/6 (전체) 받아서 이름 패턴으로 박스/카드 분리
+PRICE_URLS_FALLBACK = {
+    "pokemon-box":   ("https://snkrdunk.com/brands/pokemon/categories/6",  "box"),
+    "pokemon-card":  ("https://snkrdunk.com/brands/pokemon/categories/6",  "card"),
+    "onepiece-box":  ("https://snkrdunk.com/brands/onepiece/categories/6", "box"),
+    "onepiece-card": ("https://snkrdunk.com/brands/onepiece/categories/6", "card"),
+}
+# 이름으로 박스/카드 분류 — 박스 키워드가 들어가면 box, 아니면 card
+BOX_KEYWORDS = (
+    'ボックス', 'BOX', 'box', 'デッキ', 'スターター', 'コレクション',
+    'セット', '拡張パック', 'ハイクラスパック', 'ブースター', 'プレミアム',
+    'バトルコレクション', 'スペシャル', 'パック'
+)
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -183,18 +197,41 @@ def extract_from_html(html: str, max_items: int = 10) -> list:
     return out
 
 
+def deep_scroll(driver, max_height: int = 12000, step: int = 400, pause: float = 0.7):
+    """최대 12000px 까지 천천히 내려가며 lazy load 확실히 발동 — Phase 2 깊은 스크롤용"""
+    cur = 0
+    last_height = 0
+    while cur <= max_height:
+        driver.execute_script(f"window.scrollTo(0, {cur});")
+        time.sleep(pause)
+        cur += step
+        # 페이지 끝 도달 체크 (3회 연속 height 변화 없으면 stop)
+        h = driver.execute_script("return document.body.scrollHeight")
+        if h == last_height and cur > 4000:
+            break
+        last_height = h
+    # 마지막에 다시 위로
+    driver.execute_script("window.scrollTo(0, 0);")
+    time.sleep(0.5)
+
+
 def scrape_url(label: str, url: str, max_items: int = 10) -> list:
     print(f"\n[{label}] {url}")
     driver = make_driver()
     try:
         driver.get(url)
         time.sleep(4)
+        # 1차: 기본 스크롤 + 이미지 대기
         scroll_thoroughly(driver)
         wait_for_product_images(driver, timeout=20, min_count=5)
-        # 추가 천천히 스크롤 (더 많은 lazy 발동)
-        for y in [200, 600, 1000, 1400, 1800, 2200, 2600, 3000, 1500, 0]:
-            driver.execute_script(f"window.scrollTo(0, {y});")
-            time.sleep(1.0)
+        # 2차: max_items 가 클 때만 깊은 스크롤 (Phase 2 = 30개)
+        if max_items > 10:
+            print(f"  ⤵ 깊은 스크롤 (목표 {max_items}개)")
+            deep_scroll(driver, max_height=12000, step=400, pause=0.7)
+        else:
+            for y in [200, 600, 1000, 1400, 1800, 2200, 2600, 3000, 1500, 0]:
+                driver.execute_script(f"window.scrollTo(0, {y});")
+                time.sleep(1.0)
         time.sleep(2)
         html = driver.page_source
         print(f"  HTML 길이: {len(html):,} 자")
@@ -220,6 +257,20 @@ def scrape_url(label: str, url: str, max_items: int = 10) -> list:
         return products
     finally:
         driver.quit()
+
+
+def is_box_product(name: str) -> bool:
+    """이름에 박스 키워드가 들어가면 박스로 분류"""
+    if not name:
+        return False
+    return any(kw in name for kw in BOX_KEYWORDS)
+
+
+def filter_by_kind(products: list, kind: str) -> list:
+    """kind='box' → 박스, kind='card' → 박스 아닌 것"""
+    if kind == "box":
+        return [p for p in products if is_box_product(p["name"])]
+    return [p for p in products if not is_box_product(p["name"])]
 
 
 def save_payload(filename: str, label: str, products: list, fetched_at: str):
@@ -384,15 +435,29 @@ def main():
             print(f"[{brand}] ❌ 에러: {e}")
             fail_count += 1
 
-    # 2) 카드 시세 페이지 데이터 (search?sort=hottest, 30개씩)
+    # 2) 카드 시세 페이지 데이터 — primary 실패 시 /categories/6 fallback + 이름 분류
     print()
     print("=" * 60)
-    print("Phase 2: 카드 시세 데이터 수집")
+    print("Phase 2: 카드 시세 데이터 수집 (목표 30개씩)")
     print("=" * 60)
-    for label, url in PRICE_URLS.items():
+    # fallback 의 경우 같은 URL 두 번 fetch 안 되도록 캐싱
+    fallback_cache: dict = {}
+    for label, primary_url in PRICE_URLS_PRIMARY.items():
         total += 1
         try:
-            products = scrape_url(label, url, max_items=30)
+            products = scrape_url(label, primary_url, max_items=30)
+            if len(products) < 5:
+                # primary 가 5개 미만 → fallback 로 전환
+                fb_url, kind = PRICE_URLS_FALLBACK[label]
+                print(f"[{label}] ⤺ primary 부족 ({len(products)}개) → fallback {fb_url} ({kind})")
+                if fb_url in fallback_cache:
+                    all_products = fallback_cache[fb_url]
+                    print(f"  (캐시 사용 — {len(all_products)}개)")
+                else:
+                    all_products = scrape_url(f"{label}-fallback", fb_url, max_items=60)
+                    fallback_cache[fb_url] = all_products
+                products = filter_by_kind(all_products, kind)[:30]
+                print(f"  → {kind} 필터링 결과: {len(products)}개")
             if not products:
                 print(f"[{label}] ⚠ 0개 추출 - 기존 데이터 유지")
                 fail_count += 1

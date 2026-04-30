@@ -85,7 +85,7 @@ def wait_for_product_images(driver, timeout=20, min_count=5):
 
 # ─────────── HTML 문자열 기반 추출 (ScrapingBee Worker 방식과 동일) ───────────
 
-URL_RE = re.compile(r'(?:/en)?/apparels/(\d+)')
+URL_RE = re.compile(r'(?:/en)?/(?:apparels|trading-cards)/(\d+)')
 IMG_CDN_RE = re.compile(
     r'<img[^>]+src="(https://cdn\.snkrdunk\.com/upload[^"]+)"', re.IGNORECASE
 )

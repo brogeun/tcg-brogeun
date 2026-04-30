@@ -425,7 +425,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
           <div>
             <div id="homeTopTitle" style="font-size:15px; font-weight:800; color:#111"></div>
-            <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK · PSA 10 시세 라이브</div>
+            <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
           </div>
           <button class="btn" type="button" id="homeTopMore" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
         </div>
@@ -660,51 +660,38 @@ const fmtYen = n => n != null ? '¥' + Math.round(n).toLocaleString() : '—';
 const fmtKrw = n => n != null ? '₩' + Math.round(n * JPY_KRW).toLocaleString() : '—';
 
 /* ────────────────────────────────────
-   2.5 홈 — TOP 10 인기 카드 (브랜드 타일 클릭 시 펼쳐짐)
+   2.5 홈 — TOP 10 인기 카드 (Cloudflare Worker 호출, 24h 캐시)
    ──────────────────────────────────── */
-const HOME_TOP_CACHE = {};   // brand → products
-let HOME_TOP_BRAND = null;   // 현재 펼쳐진 브랜드 (null = 닫힘)
+const TCG_API_BASE = "https://tcg-api.yhk3212.workers.dev";
+const HOME_TOP_CACHE = {};
+let HOME_TOP_BRAND = null;
 
 async function loadHomeTop(brand) {
-  // 1) localStorage 24h 캐시 확인
+  // 1) localStorage 24h 캐시
   const cacheKey = `home_top10_${brand}`;
-  const cached = (() => {
-    try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); }
-    catch { return null; }
-  })();
-  if (cached && Date.now() - cached.ts < 86400000) {
-    console.log('[home-top10]', brand, 'localStorage cache hit');
-    HOME_TOP_CACHE[brand] = cached.products;
-    return cached.products;
-  }
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    if (cached && Date.now() - cached.ts < 86400000) {
+      HOME_TOP_CACHE[brand] = cached.products;
+      return cached.products;
+    }
+  } catch {}
   // 2) 메모리 캐시
   if (HOME_TOP_CACHE[brand]) return HOME_TOP_CACHE[brand];
-  // 3) API 호출 — 검증된 /api/snkrdunk 사용 (brand 카테고리 페이지 = 우리가 원하는 그 URL)
-  const fetchUrl = `${location.origin}/api/snkrdunk?brand=${brand}&grade=all&page=1`;
-  console.log('[home-top10] fetching', fetchUrl, 'protocol:', location.protocol);
-  if (location.protocol === 'file:') {
-    throw new Error(`로컬파일 모드(file://)에서는 API 호출 불가. 배포된 사이트(tcgbrogeun.pages.dev)에서 열어주세요.`);
-  }
+  // 3) Worker 호출
+  const url = `${TCG_API_BASE}/?brand=${brand}`;
+  console.log('[home-top10] fetching', url);
   let r;
-  try { r = await fetch(fetchUrl); }
-  catch (netErr) {
-    console.error('[home-top10] network error', netErr);
-    throw new Error(`네트워크 에러 (${netErr.message}) — 광고차단기 / VPN 확인 필요`);
-  }
-  console.log('[home-top10] response status', r.status);
+  try { r = await fetch(url); }
+  catch (e) { throw new Error(`네트워크 에러: ${e.message}`); }
   const text = await r.text();
-  if (text.trim().startsWith('<')) {
-    throw new Error(`API 가 HTML 반환 (Functions 미배포). 상태: ${r.status}`);
-  }
+  if (text.trim().startsWith('<')) throw new Error(`Worker 미배포 또는 코드 누락 (${r.status})`);
   let d;
   try { d = JSON.parse(text); }
   catch { throw new Error(`JSON 파싱 실패: ${text.slice(0, 80)}`); }
   if (!r.ok || !d?.ok) throw new Error(d?.error || `HTTP ${r.status}`);
-  // 가격 있는 상위 10개만 — SNKRDUNK 카테고리 페이지 순서 그대로
-  const products = (d.products || [])
-    .filter(p => p.lastPrice || p.lowestAsk)
-    .slice(0, 10);
-  if (!products.length) throw new Error('상품 데이터 0개 — SNKRDUNK 페이지 구조 변경 가능성');
+  const products = (d.products || []).slice(0, 10);
+  if (!products.length) throw new Error('상품 0개 — SNKRDUNK 페이지 구조 변경 가능성');
   HOME_TOP_CACHE[brand] = products;
   try { localStorage.setItem(cacheKey, JSON.stringify({ products, ts: Date.now() })); } catch {}
   return products;
@@ -713,7 +700,7 @@ async function loadHomeTop(brand) {
 function renderHomeTop(brand, products) {
   const list = document.getElementById('homeTopList');
   const brandLabel = brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스';
-  document.getElementById('homeTopTitle').textContent = `${brandLabel} 인기 카드 TOP 10 (PSA 10)`;
+  document.getElementById('homeTopTitle').textContent = `${brandLabel} 인기 TOP 10`;
 
   if (!products.length) {
     list.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--ink-sub); font-size:13px">시세 데이터를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.</div>`;
@@ -721,17 +708,17 @@ function renderHomeTop(brand, products) {
   }
   list.innerHTML = products.map((p, i) => {
     const price = p.lastPrice ?? p.lowestAsk;
-    // SNKRDUNK 이미지 프록시 (referer/CORS 문제 회피)
-    const imgSrc = p.image ? `/api/img?u=${encodeURIComponent(p.image)}` : '';
+    const rankColor = i === 0 ? '#fbbf24' : i === 1 ? '#9ca3af' : i === 2 ? '#d97706' : '#111';
+    const rankTextColor = (i < 3) ? '#fff' : '#fff';
     return `
       <a href="${p.url}" target="_blank" rel="noopener noreferrer"
          class="card" style="display:block; padding:0; overflow:hidden; text-decoration:none; color:inherit; position:relative">
-        <div style="position:absolute; top:8px; left:8px; background:#111; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:5px; z-index:2">#${i+1}</div>
-        <div style="background:#fafafa; aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; padding:14px">
-          ${imgSrc ? `<img src="${imgSrc}" alt="${p.name}" loading="lazy" referrerpolicy="no-referrer"
+        <div style="position:absolute; top:8px; left:8px; background:${rankColor}; color:${rankTextColor}; font-size:11px; font-weight:800; padding:4px 9px; border-radius:5px; z-index:2; min-width:24px; text-align:center">${i+1}</div>
+        <div style="background:linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%); aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; padding:14px">
+          ${p.image ? `<img src="${p.image}" alt="${p.name}" loading="lazy" referrerpolicy="no-referrer"
                           style="max-width:100%; max-height:100%; object-fit:contain"
-                          onerror="this.onerror=null; this.src='${p.image}';">`
-                   : `<span style="font-size:32px; opacity:0.4">🃏</span>`}
+                          onerror="this.outerHTML='<span style=\\'font-size:42px;opacity:0.3\\'>🃏</span>'">`
+                   : `<span style="font-size:42px; opacity:0.3">🃏</span>`}
         </div>
         <div style="padding:10px 12px">
           <div style="font-size:11px; font-weight:600; color:#374151; line-height:1.35; margin-bottom:6px;

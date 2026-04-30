@@ -956,38 +956,47 @@ async function showPriceDetailPanel(productId) {
 async function renderGradesPanel(productId) {
   const grid = document.getElementById(`gradesGrid-${productId}`);
   if (!grid) return;
-  const data = await loadCardsDetail();
-  const card = data?.cards?.[productId];
-  // PSA10 / PSA9 / 싱글 만 추출
-  const ALLOWED = ['psa10','psa9','raw'];
-  const presentGrades = card?.grades
-    ? ALLOWED.filter(k => card.grades[k])
-    : [];
-  if (presentGrades.length === 0) {
-    grid.innerHTML = `<div style="grid-column:1/-1; color:var(--ink-sub); font-size:12px; line-height:1.6">
-      이 카드는 PSA10 / PSA9 / 싱글 거래 데이터가 아직 없습니다.<br>
-      <span style="font-size:11px; color:var(--ink-mute)">(박스/팩 상품은 그레이딩 거래가 없을 수 있습니다)</span>
-    </div>`;
-    return;
-  }
+  // 등급 3개 — 항상 보이는 기본 박스 (PSA10 / PSA9 / A급(싱글))
+  const ORDER = ['psa10','psa9','raw'];
   const GRADE_INFO = {
     psa10: { label: 'PSA 10',  color: '#fbbf24', bg: '#fffbeb' },
     psa9:  { label: 'PSA 9',   color: '#9ca3af', bg: '#f3f4f6' },
-    raw:   { label: '싱글',    color: '#06b6d4', bg: '#ecfeff' },
+    raw:   { label: 'A급(싱글)', color: '#06b6d4', bg: '#ecfeff' },
   };
-  const blocks = ALLOWED.filter(k => card.grades[k]).map(k => {
-    const g = card.grades[k];
+  // 일단 3칸을 데이터 없음 상태로 즉시 렌더 (사용자가 구조 먼저 보게)
+  const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
-    const jpy = g.last5_avg_jpy || g.avg_jpy;
+    if (g && (g.last5_avg_jpy || g.avg_jpy)) {
+      const jpy = g.last5_avg_jpy || g.avg_jpy;
+      return `
+        <div style="background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px">
+          <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
+          <div style="font-size:15px; font-weight:800; color:#111">${fmtYen(jpy)}</div>
+          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtKrw(jpy)}</div>
+          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${g.count}건 · 직전 5건 평균</div>
+        </div>`;
+    }
+    // 데이터 없음 placeholder
     return `
-      <div style="background:${info.bg}; border:1px solid ${info.color}33; border-radius:8px; padding:12px 14px">
+      <div style="background:#fff; border:1px dashed #d1d5db; border-radius:8px; padding:12px 14px">
         <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
-        <div style="font-size:15px; font-weight:800; color:#111">${fmtYen(jpy)}</div>
-        <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtKrw(jpy)}</div>
-        <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${g.count}건 · 직전 5건 평균</div>
+        <div style="font-size:15px; font-weight:800; color:#9ca3af">—</div>
+        <div style="font-size:11px; color:var(--ink-mute); margin-top:2px">데이터 없음</div>
+        <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">거래 내역 부족</div>
       </div>`;
-  });
-  grid.innerHTML = blocks.join('');
+  };
+  // 1) 일단 3칸을 빈 상태로 렌더
+  grid.innerHTML = ORDER.map(k => renderBlock(k, null)).join('');
+  // 2) 데이터 로드 후 채워넣기
+  try {
+    const data = await loadCardsDetail();
+    const card = data?.cards?.[productId];
+    const grades = card?.grades || {};
+    grid.innerHTML = ORDER.map(k => renderBlock(k, grades[k])).join('');
+  } catch (e) {
+    console.warn('grades load fail:', e);
+    // 빈 3칸 그대로 유지
+  }
 }
 
 async function loadPriceGrid() {

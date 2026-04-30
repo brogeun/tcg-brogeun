@@ -74,97 +74,96 @@ def wait_for_product_images(driver, timeout=20, min_count=5):
 def extract_top10(driver):
     """JS 로 페이지에서 TOP 10 추출 (DOM 직접 파싱)"""
     js = r"""
-    (() => {
-        const out = [];
-        const seen = new Set();
-        const links = document.querySelectorAll('a[href*="/apparels/"]');
-        for (const a of links) {
-            if (out.length >= 10) break;
-            const href = a.getAttribute('href') || '';
-            const m = href.match(/\/apparels\/(\d+)/);
-            if (!m) continue;
-            const id = m[1];
-            if (seen.has(id)) continue;
+    const out = [];
+    const seen = new Set();
+    const links = document.querySelectorAll('a[href*="/apparels/"]');
+    for (const a of links) {
+        if (out.length >= 10) break;
+        const href = a.getAttribute('href') || '';
+        const m = href.match(/\/apparels\/(\d+)/);
+        if (!m) continue;
+        const id = m[1];
+        if (seen.has(id)) continue;
 
-            // 이미지: a 안 → 부모 컨테이너 검색
-            let image = null;
-            const findImg = (root) => {
-                const imgs = root.querySelectorAll('img');
-                for (const img of imgs) {
-                    const src = img.currentSrc || img.src || img.getAttribute('src') || '';
-                    if (src.includes('cdn.snkrdunk.com/upload')) {
-                        return src.replace(/\?size=m\b/, '?size=l');
-                    }
-                }
-                return null;
-            };
-            image = findImg(a);
-            if (!image) {
-                let p = a.parentElement;
-                for (let i = 0; i < 4 && p; i++) {
-                    image = findImg(p);
-                    if (image) break;
-                    p = p.parentElement;
-                }
-            }
-
-            // 이름: alt → 텍스트
-            let name = null;
-            const imgs = a.querySelectorAll('img');
+        // 이미지: a 안 → 부모 컨테이너 검색
+        let image = null;
+        const findImg = (root) => {
+            const imgs = root.querySelectorAll('img');
             for (const img of imgs) {
-                const alt = (img.alt || '').trim();
-                if (alt.length > 5 && alt !== 'SNKRDUNK' && !/^[a-z\-_]+$/.test(alt)) {
-                    name = alt; break;
+                const src = img.currentSrc || img.src || img.getAttribute('src') || '';
+                if (src.includes('cdn.snkrdunk.com/upload')) {
+                    return src.replace(/\?size=m\b/, '?size=l');
                 }
             }
-            if (!name) {
-                let p = a.parentElement;
-                for (let i = 0; i < 3 && p; i++) {
-                    const imgs2 = p.querySelectorAll('img');
-                    for (const img of imgs2) {
-                        const alt = (img.alt || '').trim();
-                        if (alt.length > 5 && alt !== 'SNKRDUNK' && !/^[a-z\-_]+$/.test(alt)) {
-                            name = alt; break;
-                        }
-                    }
-                    if (name) break;
-                    p = p.parentElement;
-                }
-            }
-            if (!name) {
-                const txt = (a.textContent || '').trim();
-                if (txt.length > 5) name = txt.slice(0, 100);
-            }
-
-            // 가격: 부모 컨테이너에서 ¥숫자 패턴 찾기
-            let price = null;
+            return null;
+        };
+        image = findImg(a);
+        if (!image) {
             let p = a.parentElement;
             for (let i = 0; i < 4 && p; i++) {
-                const t = p.textContent || '';
-                const pm = t.match(/¥\s*([\d,]+)/);
-                if (pm) {
-                    const n = parseInt(pm[1].replace(/,/g, ''), 10);
-                    if (n >= 50 && n <= 100000000) { price = n; break; }
-                }
+                image = findImg(p);
+                if (image) break;
                 p = p.parentElement;
             }
-
-            if (!price) continue;
-            if (!name) name = 'Card #' + id;
-
-            seen.add(id);
-            out.push({
-                id: id,
-                name: name,
-                image: image,
-                lastPrice: price,
-                url: 'https://snkrdunk.com/apparels/' + id
-            });
         }
-        return out;
-    })();
+
+        // 이름: alt → 텍스트
+        let name = null;
+        const imgs = a.querySelectorAll('img');
+        for (const img of imgs) {
+            const alt = (img.alt || '').trim();
+            if (alt.length > 5 && alt !== 'SNKRDUNK' && !/^[a-z\-_]+$/.test(alt)) {
+                name = alt; break;
+            }
+        }
+        if (!name) {
+            let p = a.parentElement;
+            for (let i = 0; i < 3 && p; i++) {
+                const imgs2 = p.querySelectorAll('img');
+                for (const img of imgs2) {
+                    const alt = (img.alt || '').trim();
+                    if (alt.length > 5 && alt !== 'SNKRDUNK' && !/^[a-z\-_]+$/.test(alt)) {
+                        name = alt; break;
+                    }
+                }
+                if (name) break;
+                p = p.parentElement;
+            }
+        }
+        if (!name) {
+            const txt = (a.textContent || '').trim();
+            if (txt.length > 5) name = txt.slice(0, 100);
+        }
+
+        // 가격: 부모 컨테이너에서 ¥숫자 패턴 찾기
+        let price = null;
+        let p = a.parentElement;
+        for (let i = 0; i < 4 && p; i++) {
+            const t = p.textContent || '';
+            const pm = t.match(/¥\s*([\d,]+)/);
+            if (pm) {
+                const n = parseInt(pm[1].replace(/,/g, ''), 10);
+                if (n >= 50 && n <= 100000000) { price = n; break; }
+            }
+            p = p.parentElement;
+        }
+
+        if (!price) continue;
+        if (!name) name = 'Card #' + id;
+
+        seen.add(id);
+        out.push({
+            id: id,
+            name: name,
+            image: image,
+            lastPrice: price,
+            url: 'https://snkrdunk.com/apparels/' + id
+        });
+    }
+    return out;
     """
-    return driver.execute_script(js)
+    result = driver.execute_script(js)
+    return result if result is not None else []
 
 
 def scrape_brand(brand, url):

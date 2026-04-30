@@ -49,6 +49,24 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 
+      - name: Prepare deploy bundle (정적 파일만)
+        # functions/ 폴더는 사용 안 하므로 배포 디렉토리에서 제외 — 'Failed to publish your Function' 에러 회피
+        run: |
+          rm -rf _deploy
+          mkdir -p _deploy
+          cp -r index.html _redirects data _deploy/ 2>/dev/null || true
+          # 추가 정적 파일들 (있을 때만 복사)
+          for f in mobile.html manifest.json sw.js favicon.ico robots.txt; do
+            [ -f "$f" ] && cp "$f" _deploy/ || true
+          done
+          for d in assets images img public static ev-calculator; do
+            [ -d "$d" ] && cp -r "$d" _deploy/ || true
+          done
+          echo "=== _deploy 디렉토리 구조 ==="
+          ls -la _deploy/
+          echo "=== data/ 파일 수 ==="
+          ls _deploy/data/ 2>/dev/null | wc -l
+
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}
         env:
@@ -57,4 +75,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          command: pages deploy . --project-name=tcghubrogeun --branch=main --commit-dirty=true
+          command: pages deploy _deploy --project-name=tcghubrogeun --branch=main --commit-dirty=true

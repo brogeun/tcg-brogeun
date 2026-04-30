@@ -300,9 +300,9 @@ def save_payload(filename: str, label: str, products: list, fetched_at: str):
         "fetchedAt": fetched_at,
     }
     out_path = DATA_DIR / filename
-    out_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    # write_bytes 로 LF 강제 — write_text 는 platform 따라 CRLF 변환할 수 있음
+    txt = json.dumps(payload, ensure_ascii=False, indent=2)
+    out_path.write_bytes(txt.encode("utf-8"))
     print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
 
@@ -663,17 +663,25 @@ def main():
     for bid in box_ids:
         cards_detail.setdefault(bid, {"id": bid, "grades": {}})
     out_path = DATA_DIR / "cards-detail.json"
-    out_path.write_text(json.dumps({
+    detail_txt = json.dumps({
         "ok": True,
         "fetchedAt": fetched_at,
         "usdJpy": usd_jpy,
         "count": len(cards_detail),
         "cards": cards_detail,
-    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    }, ensure_ascii=False, indent=2)
+    out_path.write_bytes(detail_txt.encode("utf-8"))
     print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
     print(f"\n완료. 실패 {fail_count}/{total}")
     if fail_count == total:
+        print("전체 실패 → exit 1")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+_count == total:
         print("전체 실패 → exit 1")
         sys.exit(1)
 

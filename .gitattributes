@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# JSON 데이터 파일은 라인 엔딩 변환 금지 — Windows CRLF 변환으로 잘리는 사고 방지
+*.json -text
+data/*.json -text
+data/**/*.json -text

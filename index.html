@@ -878,18 +878,25 @@ async function showPriceDetailPanel(productId) {
       if (found) { product = found; product._brand = brand; break; }
     }
   }
-  // 캐시에 없으면 양쪽 JSON 모두 시도
+  // 캐시에 없으면 top10-*.json + price-*-*.json 모두 시도
   if (!product) {
+    const sources = [];
     for (const brand of ['pokemon', 'onepiece']) {
+      sources.push({brand, file: `top10-${brand}`});
+      sources.push({brand, file: `price-${brand}-box`});
+      sources.push({brand, file: `price-${brand}-card`});
+    }
+    for (const {brand, file} of sources) {
+      if (product) break;
       try {
-        const r = await fetch(`/data/top10-${brand}.json?t=${Math.floor(Date.now()/3600000)}`);
+        const r = await fetch(`/data/${file}.json?t=${Math.floor(Date.now()/3600000)}`);
         if (!r.ok) continue;
         const d = await r.json();
         const found = (d.products || []).find(p => String(p.id) === String(productId));
         if (found) {
           product = found;
           product._brand = brand;
-          if (!HOME_TOP_CACHE[brand]) HOME_TOP_CACHE[brand] = d.products;
+          if (file.startsWith('top10-') && !HOME_TOP_CACHE[brand]) HOME_TOP_CACHE[brand] = d.products;
           break;
         }
       } catch {}
@@ -942,11 +949,11 @@ async function showPriceDetailPanel(productId) {
           </div>
         </div>
       </div>
-      <!-- 등급별 시세 (Phase 3) -->
+      <!-- 등급별 / 단일 시세 패널 (카드 = 3등급, 박스 = 단일가) -->
       <div id="gradesPanel-${productId}" style="border-top:1px solid var(--line); padding:18px 20px; background:#fafafa">
-        <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px">📊 등급별 거래 시세 (JPY 기준)</div>
+        <div id="gradesPanelHeader-${productId}" style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px">📊 거래 시세</div>
         <div id="gradesGrid-${productId}" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px">
-          <div style="grid-column:1/-1; color:var(--ink-sub); font-size:12px">⏳ 등급별 가격 불러오는 중...</div>
+          <div style="grid-column:1/-1; color:var(--ink-sub); font-size:12px">⏳ 가격 불러오는 중...</div>
         </div>
         <div style="margin-top:12px; padding:10px; background:#fff; border:1px dashed #d1d5db; border-radius:8px; font-size:11px; color:var(--ink-sub); line-height:1.6">
           🔜 <b>다음:</b> 180일 가격 차트 · 거래량 막대 · 7일 rolling outlier 필터
@@ -959,32 +966,61 @@ async function showPriceDetailPanel(productId) {
       }
     </style>`;
 
-  // 등급별 가격 비동기 렌더
-  renderGradesPanel(productId);
+  // 박스/카드 분기 렌더 — product 자체를 넘김 (이름·통화·가격 활용)
+  renderGradesPanel(productId, product);
 }
 
-async function renderGradesPanel(productId) {
+// 카드 식별: 이름에 [세트코드 번호] 대괄호가 있으면 카드, 아니면 박스 (Python 분류 로직 동일)
+function isCardProduct(name) {
+  return /\[[^\]]*\d+[^\]]*\]/.test(name || '');
+}
+
+async function renderGradesPanel(productId, product) {
   const grid = document.getElementById(`gradesGrid-${productId}`);
+  const header = document.getElementById(`gradesPanelHeader-${productId}`);
   if (!grid) return;
-  // 등급 3개 — 항상 보이는 기본 박스 (PSA10 / PSA9 / A급(싱글))
+
+  const isCard = product ? isCardProduct(product.name) : true; // 안전 default = 카드
+
+  // ───────── 박스: 단일 가격 박스 한 칸만 ─────────
+  if (!isCard) {
+    if (header) header.innerHTML = '💰 현재 시세';
+    const price = product?.lastPrice;
+    const cur = product?.currency || 'JPY';
+    if (price && price > 0) {
+      grid.style.gridTemplateColumns = '1fr';
+      grid.innerHTML = `
+        <div style="background:#ecfdf5; border:1px solid #10b98155; border-radius:8px; padding:18px 20px; text-align:center">
+          <div style="font-size:11px; font-weight:800; color:#047857; margin-bottom:8px; letter-spacing:.5px">SNKRDUNK 최저가</div>
+          <div style="font-size:28px; font-weight:900; color:#111">${fmtYen(price, cur)}</div>
+          <div style="font-size:13px; color:var(--ink-sub); margin-top:4px">${fmtKrw(price, cur)}</div>
+          <div style="font-size:10px; color:var(--ink-mute); margin-top:10px">박스 상품 · 그레이딩 거래 없음</div>
+        </div>`;
+    } else {
+      grid.style.gridTemplateColumns = '1fr';
+      grid.innerHTML = `
+        <div style="background:#fff; border:1px dashed #d1d5db; border-radius:8px; padding:18px 20px; text-align:center">
+          <div style="font-size:11px; font-weight:800; color:#6b7280; margin-bottom:8px">현재 시세</div>
+          <div style="font-size:24px; font-weight:900; color:#9ca3af">—</div>
+          <div style="font-size:11px; color:var(--ink-mute); margin-top:6px">데이터 없음</div>
+        </div>`;
+    }
+    return;
+  }
+
+  // ───────── 카드: PSA10 / PSA9 / A급(싱글) 3칸 ─────────
+  if (header) header.innerHTML = '📊 등급별 거래 시세';
   const ORDER = ['psa10','psa9','raw'];
   const GRADE_INFO = {
     psa10: { label: 'PSA 10',  color: '#fbbf24', bg: '#fffbeb' },
     psa9:  { label: 'PSA 9',   color: '#9ca3af', bg: '#f3f4f6' },
     raw:   { label: 'A급(싱글)', color: '#06b6d4', bg: '#ecfeff' },
   };
-  const fmtPrice = (val, cur) => {
-    if (cur === 'USD') return '$' + (Math.round(val*100)/100).toLocaleString();
-    return '¥' + Math.round(val).toLocaleString();
-  };
-  const fmtSecondary = (val, cur) => {
-    if (cur === 'JPY') return fmtKrw(val);
-    if (cur === 'USD') return '약 ₩' + Math.round(val * 1400).toLocaleString(); // 임시 환산 표시
-    return '';
-  };
+  const fmtPrice = (val, cur) => fmtYen(val, cur);
+  const fmtSecondary = (val, cur) => fmtKrw(val, cur);
   const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
-    // 새 스키마 (avg / last5_avg / currency) 우선, 없으면 구 스키마 (avg_jpy / last5_avg_jpy) 호환
+    // 새 스키마 (avg / last5_avg / currency) 우선, 구 스키마 (avg_jpy / last5_avg_jpy) 호환
     const val = g ? (g.last5_avg ?? g.avg ?? g.last5_avg_jpy ?? g.avg_jpy) : null;
     const cur = g?.currency || (g?.avg_jpy ? 'JPY' : null);
     if (val && val > 0) {
@@ -993,7 +1029,7 @@ async function renderGradesPanel(productId) {
           <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
           <div style="font-size:15px; font-weight:800; color:#111">${fmtPrice(val, cur||'JPY')}</div>
           <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtSecondary(val, cur||'JPY')}</div>
-          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${g.count}건 · 직전 5건 평균${cur==='USD'?' · USD 원본':''}</div>
+          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${g.count}건 · 직전 5건 평균</div>
         </div>`;
     }
     return `
@@ -1004,9 +1040,8 @@ async function renderGradesPanel(productId) {
         <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">거래 내역 부족</div>
       </div>`;
   };
-  // 1) 일단 3칸을 빈 상태로 렌더
+  grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px,1fr))';
   grid.innerHTML = ORDER.map(k => renderBlock(k, null)).join('');
-  // 2) 데이터 로드 후 채워넣기
   try {
     const data = await loadCardsDetail();
     const card = data?.cards?.[productId];

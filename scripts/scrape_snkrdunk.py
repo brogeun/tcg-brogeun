@@ -16,9 +16,17 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 
 # ─────────── 설정 ───────────
-URLS = {
+# 홈 TOP 10 (브랜드 카테고리 페이지)
+TOP10_URLS = {
     "pokemon": "https://snkrdunk.com/brands/pokemon/categories/6",
     "onepiece": "https://snkrdunk.com/brands/onepiece/categories/6",
+}
+
+# 카드 시세 페이지 — search?sort=hottest 사용
+PRICE_URLS = {
+    "pokemon-box": "https://snkrdunk.com/search?keywords=Pokemon+Card+Game+%E3%83%88%E3%83%AC%E3%82%AB+%28%E3%83%9C%E3%83%83%E3%82%AF%E3%82%B9%E3%83%BB%E3%83%91%E3%83%83%E3%82%AF%29&searchCategoryIds=6%2F26&brandIds=pokemon&sort=hottest&page=1",
+    "pokemon-card": "https://snkrdunk.com/search?keywords=Pokemon+Card+Game+%E3%83%88%E3%83%AC%E3%82%AB+%28%E3%82%B7%E3%83%B3%E3%82%B0%E3%83%AB%E3%82%AB%E3%83%BC%E3%83%89%29&searchCategoryIds=6%2F33&brandIds=pokemon&sort=hottest&page=1",
+    "onepiece": "https://snkrdunk.com/search?brandIds=onepiece&sort=hottest&page=1",
 }
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -81,12 +89,12 @@ ALT_RE = re.compile(r'<img[^>]+alt="([^"]+)"', re.IGNORECASE)
 PRICE_RE = re.compile(r'¥\s*([\d,]+)')
 
 
-def extract_from_html(html: str) -> list:
+def extract_from_html(html: str, max_items: int = 10) -> list:
     """HTML 문자열에서 URL 위치 기준 ±윈도우로 상품 정보 추출"""
     out = []
     seen = set()
     for m in URL_RE.finditer(html):
-        if len(out) >= 10:
+        if len(out) >= max_items:
             break
         product_id = m.group(1)
         if product_id in seen:
@@ -140,60 +148,92 @@ def extract_from_html(html: str) -> list:
     return out
 
 
-def scrape_brand(brand: str, url: str) -> list:
-    print(f"\n[{brand}] {url}")
+def scrape_url(label: str, url: str, max_items: int = 10) -> list:
+    print(f"\n[{label}] {url}")
     driver = make_driver()
     try:
         driver.get(url)
         time.sleep(4)
         scroll_thoroughly(driver)
         wait_for_product_images(driver, timeout=20, min_count=5)
-        # 한 번 더 위에서 아래로 천천히 스크롤 (lazy 강제)
-        for y in [200, 600, 1000, 1400, 1800, 2200, 0]:
+        # 추가 천천히 스크롤 (더 많은 lazy 발동)
+        for y in [200, 600, 1000, 1400, 1800, 2200, 2600, 3000, 1500, 0]:
             driver.execute_script(f"window.scrollTo(0, {y});")
             time.sleep(1.0)
         time.sleep(2)
         html = driver.page_source
         print(f"  HTML 길이: {len(html):,} 자")
-        products = extract_from_html(html)
-        print(f"[{brand}] 추출 완료: {len(products)}개")
-        for i, p in enumerate(products, 1):
+        products = extract_from_html(html, max_items=max_items)
+        print(f"[{label}] 추출 완료: {len(products)}개")
+        for i, p in enumerate(products[:10], 1):
             img_status = "✓" if p.get("image") else "✗"
             print(f"  {i}. {img_status} ¥{p['lastPrice']:>7,} | {p['name'][:50]}")
+        if len(products) > 10:
+            print(f"  ... +{len(products) - 10}개 더")
         return products
     finally:
         driver.quit()
 
 
+def save_payload(filename: str, label: str, products: list, fetched_at: str):
+    payload = {
+        "ok": True,
+        "brand": label,
+        "count": len(products),
+        "products": products,
+        "fetchedAt": fetched_at,
+    }
+    out_path = DATA_DIR / filename
+    out_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
+
+
 def main():
     fetched_at = datetime.now(timezone.utc).isoformat()
     fail_count = 0
-    for brand, url in URLS.items():
+    total = 0
+
+    # 1) 홈 TOP 10 (브랜드 카테고리, 10개씩)
+    print("=" * 60)
+    print("Phase 1: 홈 TOP 10 수집")
+    print("=" * 60)
+    for brand, url in TOP10_URLS.items():
+        total += 1
         try:
-            products = scrape_brand(brand, url)
+            products = scrape_url(brand, url, max_items=10)
             if not products:
                 print(f"[{brand}] ⚠ 0개 추출 - 기존 데이터 유지")
                 fail_count += 1
                 continue
-            payload = {
-                "ok": True,
-                "brand": brand,
-                "count": len(products),
-                "products": products,
-                "fetchedAt": fetched_at,
-            }
-            out_path = DATA_DIR / f"top10-{brand}.json"
-            out_path.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
-            print(f"[{brand}] 저장: {out_path.relative_to(DATA_DIR.parent)}")
+            save_payload(f"top10-{brand}.json", brand, products, fetched_at)
         except Exception as e:
             print(f"[{brand}] ❌ 에러: {e}")
             fail_count += 1
-    if fail_count == len(URLS):
-        print("\n전체 실패 → exit 1")
+
+    # 2) 카드 시세 페이지 데이터 (search?sort=hottest, 30개씩)
+    print()
+    print("=" * 60)
+    print("Phase 2: 카드 시세 데이터 수집")
+    print("=" * 60)
+    for label, url in PRICE_URLS.items():
+        total += 1
+        try:
+            products = scrape_url(label, url, max_items=30)
+            if not products:
+                print(f"[{label}] ⚠ 0개 추출 - 기존 데이터 유지")
+                fail_count += 1
+                continue
+            save_payload(f"price-{label}.json", label, products, fetched_at)
+        except Exception as e:
+            print(f"[{label}] ❌ 에러: {e}")
+            fail_count += 1
+
+    print(f"\n완료. 실패 {fail_count}/{total}")
+    if fail_count == total:
+        print("전체 실패 → exit 1")
         sys.exit(1)
-    print(f"\n완료. 실패 {fail_count}/{len(URLS)}")
 
 
 if __name__ == "__main__":

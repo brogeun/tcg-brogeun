@@ -824,7 +824,12 @@ function initPrice(productId) {
   // 탭 활성화 동기화
   document.querySelectorAll('#priceBrandTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.brand === PRICE_BRAND));
   document.querySelectorAll('#priceCatTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.cat === PRICE_CAT));
-  document.getElementById('priceGradeChips').style.display = PRICE_CAT === 'card' ? 'flex' : 'none';
+  // 박스/카드 탭 — 포켓몬일 때만 표시 (원피스는 통합)
+  const catTabs = document.getElementById('priceCatTabs');
+  if (catTabs) catTabs.style.display = PRICE_BRAND === 'pokemon' ? 'flex' : 'none';
+  // PSA 등급 칩 — Phase 4 까지 일단 숨김 (등급별 데이터 없음)
+  const gradeChips = document.getElementById('priceGradeChips');
+  if (gradeChips) gradeChips.style.display = 'none';
   // 상품 ID 들어오면 상세 패널 표시, 없으면 숨김
   if (productId) {
     showPriceDetailPanel(productId);
@@ -934,31 +939,46 @@ async function loadPriceGrid() {
   const status = document.getElementById('priceStatus');
   const brandLbl = PRICE_BRAND === 'pokemon' ? '포켓몬' : '원피스';
   const catLbl = PRICE_CAT === 'box' ? '박스' : '카드';
-  status.textContent = `🔄 ${brandLbl} ${catLbl} 불러오는 중...`;
+  // 데이터 파일 경로 결정
+  // pokemon → price-pokemon-box / price-pokemon-card (분리)
+  // onepiece → price-onepiece (통합, cat 무관)
+  const dataFile = PRICE_BRAND === 'pokemon'
+    ? `price-pokemon-${PRICE_CAT}`
+    : `price-onepiece`;
+  const labelText = PRICE_BRAND === 'pokemon'
+    ? `${brandLbl} ${catLbl}`
+    : `${brandLbl} 전체`;
+  status.textContent = `🔄 ${labelText} 불러오는 중...`;
   grid.innerHTML = `<div class="empty">⏳ 잠시만 기다려주세요</div>`;
 
-  const cacheKey = `${PRICE_BRAND}_${PRICE_CAT}_${PRICE_GRADE}_${PRICE_PAGE}`;
-  if (PRICE_CACHE[cacheKey]) {
-    renderPriceGrid(PRICE_CACHE[cacheKey]);
-    PRICE_LOADING = false;
-    return;
-  }
-
   try {
-    const params = new URLSearchParams({brand: PRICE_BRAND, type: PRICE_CAT, page: String(PRICE_PAGE)});
-    if (PRICE_CAT === 'card') params.set('grade', PRICE_GRADE);
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 10000);
-    const res = await fetch('/api/snkrdunk?' + params, {signal: ctrl.signal});
-    clearTimeout(timeout);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'API error');
-    PRICE_CACHE[cacheKey] = data.products || [];
-    renderPriceGrid(data.products || []);
-    status.textContent = `✓ ${data.products?.length || 0}개 — ${brandLbl} / ${catLbl}`;
+    const r = await fetch(`/data/${dataFile}.json?t=${Math.floor(Date.now()/3600000)}`);
+    if (!r.ok) throw new Error(`데이터 파일 없음 (HTTP ${r.status})`);
+    const d = await r.json();
+    if (!d?.ok) throw new Error(d?.error || '데이터 형식 오류');
+    const all = d.products || [];
+    // 상세 패널에서 검색할 수 있도록 캐시 동기화
+    if (PRICE_BRAND === 'pokemon') {
+      // 포켓몬은 box/card 따로 — 합쳐서 캐시
+      const otherFile = PRICE_CAT === 'box' ? 'price-pokemon-card' : 'price-pokemon-box';
+      try {
+        const r2 = await fetch(`/data/${otherFile}.json?t=${Math.floor(Date.now()/3600000)}`);
+        const d2 = await r2.json();
+        HOME_TOP_CACHE['pokemon'] = [...(d.products || []), ...(d2?.products || [])];
+      } catch { HOME_TOP_CACHE['pokemon'] = all; }
+    } else {
+      HOME_TOP_CACHE['onepiece'] = all;
+    }
+    renderPriceGrid(all);
+    if (all.length === 0) {
+      status.textContent = `🔜 데이터 수집 전 — GitHub Actions 첫 실행 대기`;
+    } else {
+      status.textContent = `✓ ${all.length}개 — ${labelText} · 매일 04:00 KST 자동 갱신`;
+    }
   } catch (e) {
+    console.error('[price-grid]', e);
     status.textContent = `⚠️ 로딩 실패: ${e.message}`;
-    grid.innerHTML = `<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">시세 데이터를 불러올 수 없습니다</div><div class="empty-sub">서버 함수가 응답하지 않거나 네트워크 문제일 수 있습니다.<br>잠시 후 다시 시도해주세요.</div></div>`;
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">📡</div><div class="empty-title">시세 데이터를 불러올 수 없습니다</div><div class="empty-sub">${e.message}</div></div>`;
   } finally {
     PRICE_LOADING = false;
   }
@@ -967,15 +987,20 @@ async function loadPriceGrid() {
 function renderPriceGrid(products) {
   const grid = document.getElementById('priceGrid');
   if (!products.length) {
-    grid.innerHTML = `<div class="empty">데이터 없음</div>`;
+    grid.innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">🔜</div>
+        <div class="empty-title">아직 ${PRICE_CAT === 'box' ? '박스' : '카드'} 데이터가 없습니다</div>
+        <div class="empty-sub">현재 SNKRDUNK 인기 TOP 10 만 수집 중입니다.<br>다른 탭을 확인해보세요.</div>
+      </div>`;
     return;
   }
   grid.innerHTML = products.map(p => {
-    const price = p.lowestAsk || p.lastPrice;
+    const price = p.lastPrice ?? p.lowestAsk;
     return `
-      <div class="price-card" onclick="window.open('${(p.url || '').replace(/'/g, '&#39;')}', '_blank')">
+      <a href="#price/${p.id}" data-price-id="${p.id}" class="price-card" style="text-decoration:none; color:inherit; cursor:pointer">
         <div class="price-card-img">
-          ${p.image ? `<img src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">` : '<div class="ph">🃏</div>'}
+          ${p.image ? `<img src="${p.image}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="ph">🃏</div>'}
         </div>
         <div class="price-card-body">
           <div class="price-card-name" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.name || '—'}</div>
@@ -983,18 +1008,12 @@ function renderPriceGrid(products) {
           <div class="price-card-krw">${fmtKrw(price)}</div>
           <div class="price-card-tag">SNKRDUNK 최저가</div>
         </div>
-      </div>`;
-  }).join('') + `
-    <div style="grid-column:1/-1; display:flex; justify-content:center; gap:8px; margin-top:14px">
-      <button class="btn" onclick="changePricePage(-1)" ${PRICE_PAGE === 1 ? 'disabled' : ''}>← 이전</button>
-      <span style="padding:10px 14px; color:var(--ink-sub)">페이지 ${PRICE_PAGE}</span>
-      <button class="btn" onclick="changePricePage(1)">다음 →</button>
-    </div>`;
+      </a>`;
+  }).join('');
 }
 
 function changePricePage(d) {
-  PRICE_PAGE = Math.max(1, PRICE_PAGE + d);
-  loadPriceGrid();
+  // (지금은 페이지네이션 없음 — TOP 10 만 보여주므로)
 }
 
 // 시세 탭/칩 클릭

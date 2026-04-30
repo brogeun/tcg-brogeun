@@ -24,13 +24,13 @@ TOP10_URLS = {
     "onepiece": "https://snkrdunk.com/brands/onepiece/categories/6",
 }
 
-# 카드 시세 페이지 — 글로벌(/en/) trading-cards endpoint
+# 카드 시세 페이지 — 일본 SNKRDUNK trading-cards endpoint (¥ 네이티브, USD 환산 불필요)
 # categoryId=14 = Box & Packs, categoryId=25 = Single Card
 PRICE_URLS = {
-    "pokemon-box":  "https://snkrdunk.com/en/brands/pokemon/trading-cards?categoryId=14",
-    "pokemon-card": "https://snkrdunk.com/en/brands/pokemon/trading-cards?categoryId=25&slide=right",
-    "onepiece-box":  "https://snkrdunk.com/en/brands/onepiece/trading-cards?categoryId=14",
-    "onepiece-card": "https://snkrdunk.com/en/brands/onepiece/trading-cards?categoryId=25&slide=right",
+    "pokemon-box":  "https://snkrdunk.com/brands/pokemon/trading-cards?categoryId=14",
+    "pokemon-card": "https://snkrdunk.com/brands/pokemon/trading-cards?categoryId=25&slide=right",
+    "onepiece-box":  "https://snkrdunk.com/brands/onepiece/trading-cards?categoryId=14",
+    "onepiece-card": "https://snkrdunk.com/brands/onepiece/trading-cards?categoryId=25&slide=right",
 }
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -243,31 +243,36 @@ def fetch_usd_jpy() -> float:
 
 
 def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
-    """SNKRDUNK API 직접 호출 — 친구분 알려주신 신규 endpoint 사용"""
-    base = f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings"
-    all_listings = []
-    for page in range(1, max_pages + 1):
-        url = f"{base}?page={page}"
-        try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": UA,
-                "Accept": "application/json",
-                "Accept-Language": "ja,en;q=0.9",
-            })
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                if resp.status != 200:
+    """SNKRDUNK API 직접 호출 — JP 우선 (¥ 네이티브), 안 되면 EN(USD) fallback"""
+    bases = [
+        f"https://snkrdunk.com/v1/products/SW---{card_id}/used-listings",       # JP
+        f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings",    # EN fallback
+    ]
+    for base in bases:
+        all_listings = []
+        for page in range(1, max_pages + 1):
+            url = f"{base}?page={page}"
+            try:
+                req = urllib.request.Request(url, headers={
+                    "User-Agent": UA,
+                    "Accept": "application/json",
+                    "Accept-Language": "ja,en;q=0.9",
+                })
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    if resp.status != 200:
+                        break
+                    data = json.loads(resp.read().decode("utf-8"))
+                listings = data.get("usedListings") or data.get("usedTradingCards") or []
+                if not listings:
                     break
-                data = json.loads(resp.read().decode("utf-8"))
-            listings = data.get("usedListings") or data.get("usedTradingCards") or []
-            if not listings:
+                all_listings.extend(listings)
+                if len(listings) < 50:
+                    break
+            except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
                 break
-            all_listings.extend(listings)
-            if len(listings) < 50:
-                break
-        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError) as e:
-            print(f"    page {page} err: {e}")
-            break
-    return all_listings
+        if all_listings:
+            return all_listings
+    return []
 
 
 def parse_grade(condition: str) -> str:
@@ -288,24 +293,42 @@ def parse_grade(condition: str) -> str:
 
 
 def parse_sold_prices(listings: list, usd_jpy: float) -> dict:
-    """sold 만 골라서 등급별(psa10/psa9/raw) JPY 가격 통계"""
+    """sold 만 골라서 등급별(psa10/psa9/raw) JPY 가격 통계
+       ¥ 우선 (JP API), 없으면 $ → JPY 환산 (EN API fallback)"""
     by_grade = {}
     for it in listings:
         if not it.get("isSold"):
             continue
-        price_str = str(it.get("price") or "")
-        # USD 추출
-        m_usd = re.search(r"\$\s*([\d,.]+)", price_str)
-        if not m_usd:
+        # price 가 dict ({amount, currency}) 또는 문자열일 수 있음
+        raw_price = it.get("price")
+        jpy = None
+        if isinstance(raw_price, dict):
+            try:
+                amt = float(raw_price.get("amount") or 0)
+                cur = (raw_price.get("currency") or "").upper()
+                if amt > 0:
+                    if cur == "JPY":
+                        jpy = round(amt)
+                    elif cur == "USD":
+                        jpy = round(amt * usd_jpy)
+            except (ValueError, TypeError):
+                pass
+        if jpy is None:
+            price_str = str(raw_price or "")
+            # ¥ 우선
+            m_jpy = re.search(r"¥\s*([\d,]+)", price_str)
+            m_usd = re.search(r"\$\s*([\d,.]+)", price_str)
+            try:
+                if m_jpy:
+                    jpy = int(m_jpy.group(1).replace(",", ""))
+                elif m_usd:
+                    usd = float(m_usd.group(1).replace(",", ""))
+                    if usd > 0:
+                        jpy = round(usd * usd_jpy)
+            except (ValueError, AttributeError):
+                pass
+        if jpy is None or jpy <= 0:
             continue
-        try:
-            usd = float(m_usd.group(1).replace(",", ""))
-        except ValueError:
-            continue
-        if usd <= 0:
-            continue
-        # JPY 환산
-        jpy = round(usd * usd_jpy)
         grade = parse_grade(it.get("condition", ""))
         if grade is None:
             continue  # psa10/psa9/raw 외 무시

@@ -85,7 +85,7 @@ def wait_for_product_images(driver, timeout=20, min_count=5):
 
 # ─────────── HTML 문자열 기반 추출 (ScrapingBee Worker 방식과 동일) ───────────
 
-URL_RE = re.compile(r'/apparels/(\d+)')
+URL_RE = re.compile(r'(?:/en)?/apparels/(\d+)')
 IMG_CDN_RE = re.compile(
     r'<img[^>]+src="(https://cdn\.snkrdunk\.com/upload[^"]+)"', re.IGNORECASE
 )
@@ -200,6 +200,18 @@ def scrape_url(label: str, url: str, max_items: int = 10) -> list:
         print(f"  HTML 길이: {len(html):,} 자")
         products = extract_from_html(html, max_items=max_items)
         print(f"[{label}] 추출 완료: {len(products)}개")
+        # 0개일 때 디버그
+        if not products:
+            apparel_count = len(re.findall(r'/apparels?/\d+', html))
+            yen_count = len(re.findall(r'¥\s*[\d,]+', html))
+            usd_count = len(re.findall(r'\$\s*[\d.,]+', html))
+            print(f"  [DEBUG] HTML 안 검색 결과:")
+            print(f"    /apparel(s)/ 패턴: {apparel_count}개")
+            print(f"    ¥ 가격 패턴: {yen_count}개")
+            print(f"    $ 가격 패턴: {usd_count}개")
+            # 처음 발견되는 product-like URL 5개
+            urls = re.findall(r'href="([^"]*/(?:apparels?|products|trading-cards)/[^"]*)"', html)[:5]
+            print(f"    상품 추정 URL 샘플: {urls}")
         for i, p in enumerate(products[:10], 1):
             img_status = "✓" if p.get("image") else "✗"
             print(f"  {i}. {img_status} ¥{p['lastPrice']:>7,} | {p['name'][:50]}")

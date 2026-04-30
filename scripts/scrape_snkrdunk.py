@@ -130,18 +130,24 @@ def get_usd_jpy() -> float:
 
 
 def extract_from_html(html: str, max_items: int = 10) -> list:
-    """HTML 문자열에서 URL 위치 기준 ±윈도우로 상품 정보 추출 — 가격 변형 없이 raw 통화 그대로"""
+    """HTML 문자열에서 URL 위치 기준 forward 전용 윈도우로 상품 정보 추출.
+       BUG FIX: 이전엔 앞 800자 포함했는데, 옆 카드 영역까지 침범해서 ID-name mismatch 발생.
+       이제 URL 다음 → 다음 URL 직전까지만 검색."""
     out = []
     seen = set()
-    for m in URL_RE.finditer(html):
+    matches = list(URL_RE.finditer(html))
+    positions = [m.start() for m in matches]
+    for i, m in enumerate(matches):
         if len(out) >= max_items:
             break
         product_id = m.group(1)
         if product_id in seen:
             continue
-        # 윈도우: 앞 800자 + 뒤 4000자
-        start = max(0, m.start() - 800)
-        end = min(len(html), m.start() + 4000)
+        # 윈도우 = [현재 URL 매치 끝, 다음 URL 매치 시작) — 절대 이웃 카드 침범 안 함
+        # (이미지/가격이 보통 <a href=URL><img><div>price</div></a> 형식으로 URL 뒤에 옴)
+        start = m.end()
+        next_pos = positions[i + 1] if i + 1 < len(positions) else (start + 5000)
+        end = min(len(html), next_pos, start + 5000)
         window = html[start:end]
 
         # 이미지 (CDN upload URL)
@@ -408,50 +414,49 @@ def extract_raw_price(raw_price) -> tuple:
 
 
 def parse_sold_prices(listings: list, usd_jpy: float) -> dict:
-    """sold 만 골라서 등급별(psa10/psa9/raw) 가격 — 변형 없이 원본 통화 그대로 저장.
-       JPY 만 있으면 JPY, USD 만 있으면 USD, 섞여있으면 통화별 별도 보관."""
-    by_grade: dict = {}
+    """등급별(psa10/psa9/raw) 가격 통계 — 통화 변형 없이 원본 그대로.
+       SNKRDUNK 가 헤드라인에 표시하는 'US $X~' 는 unsold listing 의 최저가 (lowest ask).
+       그래서 unsold 의 min 을 'lowest_ask' 로 저장. + sold 의 avg 도 같이 보관 (히스토리)."""
+    by_grade: dict = {}  # grade → {unsold:[(amt,cur)], sold:[(amt,cur)], raw_samples:[]}
     for it in listings:
-        if not it.get("isSold"):
-            continue
         amt, cur, raw_str = extract_raw_price(it.get("price"))
         if amt is None or amt <= 0:
             continue
         grade = parse_grade(it.get("condition", ""))
         if grade is None:
             continue
-        by_grade.setdefault(grade, {"prices": [], "raw_samples": []})
-        # currency 가 None 일 때는 amt 크기로 추정 (5000+ 면 JPY, 1000 미만이면 USD)
         if cur is None:
             cur = "JPY" if amt >= 1000 else "USD"
-        by_grade[grade]["prices"].append((amt, cur))
+        bucket = "sold" if it.get("isSold") else "unsold"
+        by_grade.setdefault(grade, {"unsold": [], "sold": [], "raw_samples": []})
+        by_grade[grade][bucket].append((amt, cur))
         if len(by_grade[grade]["raw_samples"]) < 5:
-            by_grade[grade]["raw_samples"].append(raw_str)
+            sold_tag = "sold" if it.get("isSold") else "ask"
+            by_grade[grade]["raw_samples"].append(f"[{sold_tag}] {raw_str}")
     out: dict = {}
     for grade, info in by_grade.items():
-        prices = info["prices"]
-        if not prices:
+        unsold = info["unsold"]
+        sold = info["sold"]
+        all_prices = unsold + sold
+        if not all_prices:
             continue
-        # 통화별 분리
-        jpy_vals = [p for p, c in prices if c == "JPY"]
-        usd_vals = [p for p, c in prices if c == "USD"]
-        # 다수파 통화 사용
-        if len(jpy_vals) >= len(usd_vals):
-            vals = jpy_vals or [p for p, c in prices]
-            currency = "JPY"
-        else:
-            vals = usd_vals
-            currency = "USD"
-        if not vals:
-            continue
+        # 다수파 통화로 정규화
+        jpy_count = sum(1 for _, c in all_prices if c == "JPY")
+        usd_count = sum(1 for _, c in all_prices if c == "USD")
+        currency = "JPY" if jpy_count >= usd_count else "USD"
+        unsold_vals = [p for p, c in unsold if c == currency]
+        sold_vals = [p for p, c in sold if c == currency]
+        # SNKRDUNK 헤드라인 매칭 — unsold 최저가
+        lowest_ask = round(min(unsold_vals), 2) if unsold_vals else None
+        # sold avg (직전 5건)
+        recent_sold_avg = round(sum(sold_vals[:5]) / min(5, len(sold_vals)), 2) if sold_vals else None
         out[grade] = {
-            "count": len(vals),
-            "currency": currency,
-            "avg":      round(sum(vals) / len(vals), 2),
-            "last5_avg": round(sum(vals[:5]) / min(5, len(vals)), 2),
-            "min":      round(min(vals), 2),
-            "max":      round(max(vals), 2),
-            "raw_samples": info["raw_samples"],
+            "currency":         currency,
+            "lowest_ask":       lowest_ask,        # ← SNKRDUNK 의 'US $X~' 와 동일
+            "unsold_count":     len(unsold_vals),
+            "recent_sold_avg":  recent_sold_avg,   # 보조 정보 (직전 5건 평균)
+            "sold_count":       len(sold_vals),
+            "raw_samples":      info["raw_samples"],
         }
     return out
 
@@ -549,7 +554,12 @@ def main():
         # 첫 3장은 grade 결과도 출력
         if debug_count <= 3:
             for g, info in grades.items():
-                print(f"    → grade={g} count={info['count']} cur={info['currency']} avg={info['avg']} samples={info.get('raw_samples')[:3]}")
+                ask = info.get("lowest_ask")
+                avg = info.get("recent_sold_avg")
+                un = info.get("unsold_count", 0)
+                so = info.get("sold_count", 0)
+                cur = info.get("currency")
+                print(f"    → grade={g} cur={cur} lowest_ask={ask}({un}) recent_sold_avg={avg}({so}) samples={info.get('raw_samples', [])[:3]}")
         cards_detail[cid] = {
             "id": cid,
             "soldCount": sum(1 for x in listings if x.get("isSold")),

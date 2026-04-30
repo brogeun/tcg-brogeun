@@ -24,28 +24,27 @@ TOP10_URLS = {
     "onepiece": "https://snkrdunk.com/brands/onepiece/categories/6",
 }
 
-# 카드 시세 페이지 — categoryId N 을 path 로 (TOP 10 와 동일한 working 패턴)
-# 6 = TCG 전체 (parent) / 14 = Box & Packs / 25 = Single Card
-# /trading-cards?categoryId= URL 은 SPA 라우트라 169자 빈 페이지 반환 → /categories/{N} 로 전환
+# 카드 시세 페이지 — 사용자가 직접 지정한 EN URL (슬라이드 파라미터 포함)
+# 박스: categoryId=14 / 카드: categoryId=25&slide=right
 PRICE_URLS_PRIMARY = {
-    "pokemon-box":   "https://snkrdunk.com/brands/pokemon/categories/14",
-    "pokemon-card":  "https://snkrdunk.com/brands/pokemon/categories/25",
-    "onepiece-box":  "https://snkrdunk.com/brands/onepiece/categories/14",
-    "onepiece-card": "https://snkrdunk.com/brands/onepiece/categories/25",
+    "pokemon-box":   "https://snkrdunk.com/en/brands/pokemon/trading-cards?categoryId=14",
+    "pokemon-card":  "https://snkrdunk.com/en/brands/pokemon/trading-cards?categoryId=25&slide=right",
+    "onepiece-box":  "https://snkrdunk.com/en/brands/onepiece/trading-cards?categoryId=14",
+    "onepiece-card": "https://snkrdunk.com/en/brands/onepiece/trading-cards?categoryId=25&slide=right",
 }
-# Primary 가 비어있을 때 fallback — /categories/6 (전체) 받아서 이름 패턴으로 박스/카드 분리
+# Primary 가 비어있을 때 fallback — /en/brands/.../trading-cards (전체) 받아서 이름 패턴으로 박스/카드 분리
 PRICE_URLS_FALLBACK = {
-    "pokemon-box":   ("https://snkrdunk.com/brands/pokemon/categories/6",  "box"),
-    "pokemon-card":  ("https://snkrdunk.com/brands/pokemon/categories/6",  "card"),
-    "onepiece-box":  ("https://snkrdunk.com/brands/onepiece/categories/6", "box"),
-    "onepiece-card": ("https://snkrdunk.com/brands/onepiece/categories/6", "card"),
+    "pokemon-box":   ("https://snkrdunk.com/en/brands/pokemon/trading-cards",  "box"),
+    "pokemon-card":  ("https://snkrdunk.com/en/brands/pokemon/trading-cards",  "card"),
+    "onepiece-box":  ("https://snkrdunk.com/en/brands/onepiece/trading-cards", "box"),
+    "onepiece-card": ("https://snkrdunk.com/en/brands/onepiece/trading-cards", "card"),
 }
-# 이름으로 박스/카드 분류 — 박스 키워드가 들어가면 box, 아니면 card
-BOX_KEYWORDS = (
-    'ボックス', 'BOX', 'box', 'デッキ', 'スターター', 'コレクション',
-    'セット', '拡張パック', 'ハイクラスパック', 'ブースター', 'プレミアム',
-    'バトルコレクション', 'スペシャル', 'パック'
-)
+# 이름으로 박스/카드 분류
+# 카드: [세트코드 번호] 대괄호가 있음  (예: [s12a 226/172], [P-055], [SV-P 289])
+# 박스: 대괄호 없고 「」 풀와이드 따옴표 안에 세트명
+CARD_BRACKET_RE = re.compile(r'\[[^\]]*\d+[^\]]*\]')
+# 강제 박스 키워드 (대괄호 있어도 박스로 분류 — 예: 박스 상품에 카드번호 표기될 일 거의 없으나 안전장치)
+HARD_BOX_KEYWORDS = ('ボックス', 'BOX', 'スペシャルBOX', 'スターターデッキ')
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -56,15 +55,15 @@ UA = (
 )
 
 
-def make_driver():
-    """헤드리스 Chrome 인스턴스"""
+def make_driver(lang: str = "en-US"):
+    """헤드리스 Chrome 인스턴스 — 기본은 EN (lang=en-US), JP 필요시 ja-JP 지정"""
     opts = Options()
     opts.add_argument("--headless=new")
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-blink-features=AutomationControlled")
     opts.add_argument("--window-size=1280,2400")
-    opts.add_argument("--lang=ja-JP")
+    opts.add_argument(f"--lang={lang}")
     opts.add_argument(f"--user-agent={UA}")
     return webdriver.Chrome(options=opts)
 
@@ -131,10 +130,9 @@ def get_usd_jpy() -> float:
 
 
 def extract_from_html(html: str, max_items: int = 10) -> list:
-    """HTML 문자열에서 URL 위치 기준 ±윈도우로 상품 정보 추출"""
+    """HTML 문자열에서 URL 위치 기준 ±윈도우로 상품 정보 추출 — 가격 변형 없이 raw 통화 그대로"""
     out = []
     seen = set()
-    usd_jpy = None  # lazy fetch
     for m in URL_RE.finditer(html):
         if len(out) >= max_items:
             break
@@ -149,25 +147,27 @@ def extract_from_html(html: str, max_items: int = 10) -> list:
         # 이미지 (CDN upload URL)
         img_m = IMG_CDN_RE.search(window)
         if not img_m:
-            continue  # 이미지 없으면 패스 (lazy load 안 된 거)
+            continue
         image = img_m.group(1).replace("?size=m", "?size=l")
 
-        # 가격 — ¥ 우선, 없으면 $ → JPY 환산
+        # 가격 — ¥ 또는 $ 그대로 저장, 환산 절대 안 함
         price_m = PRICE_RE.search(window)
         if not price_m:
             continue
         try:
-            if price_m.group(1):  # ¥
-                price = int(price_m.group(1).replace(",", ""))
-            else:  # $ 또는 US$
+            if price_m.group(1):  # ¥ (JP 사이트)
+                price_val = int(price_m.group(1).replace(",", ""))
+                currency = "JPY"
+            else:  # $ 또는 US$ (EN 사이트)
                 usd_str = price_m.group(2) or price_m.group(3)
-                usd = float(usd_str.replace(",", ""))
-                if usd_jpy is None:
-                    usd_jpy = get_usd_jpy()
-                price = round(usd * usd_jpy)
+                price_val = float(usd_str.replace(",", ""))
+                currency = "USD"
         except (ValueError, AttributeError):
             continue
-        if not (50 <= price <= 100000000):
+        # 합리적 범위 체크 (USD 1~10000, JPY 50~100M)
+        if currency == "USD" and not (1 <= price_val <= 10000):
+            continue
+        if currency == "JPY" and not (50 <= price_val <= 100000000):
             continue
 
         # 이름 (img alt 중 의미있는 것)
@@ -190,8 +190,9 @@ def extract_from_html(html: str, max_items: int = 10) -> list:
                 "id": product_id,
                 "name": name,
                 "image": image,
-                "lastPrice": price,
-                "url": f"https://snkrdunk.com/apparels/{product_id}",
+                "lastPrice": price_val,
+                "currency": currency,
+                "url": f"https://snkrdunk.com/en/trading-cards/{product_id}?slide=right",
             }
         )
     return out
@@ -251,7 +252,11 @@ def scrape_url(label: str, url: str, max_items: int = 10) -> list:
             print(f"    상품 추정 URL 샘플: {urls}")
         for i, p in enumerate(products[:10], 1):
             img_status = "✓" if p.get("image") else "✗"
-            print(f"  {i}. {img_status} ¥{p['lastPrice']:>7,} | {p['name'][:50]}")
+            cur = p.get("currency", "JPY")
+            sym = "$" if cur == "USD" else "¥"
+            val = p['lastPrice']
+            val_str = f"{val:>8,.2f}" if cur == "USD" else f"{val:>7,}"
+            print(f"  {i}. {img_status} {sym}{val_str} | {p['name'][:50]}")
         if len(products) > 10:
             print(f"  ... +{len(products) - 10}개 더")
         return products
@@ -260,10 +265,17 @@ def scrape_url(label: str, url: str, max_items: int = 10) -> list:
 
 
 def is_box_product(name: str) -> bool:
-    """이름에 박스 키워드가 들어가면 박스로 분류"""
+    """카드: [세트코드 번호] 대괄호 있음. 박스: 대괄호 없거나 ボックス/BOX 단어 직접 포함."""
     if not name:
         return False
-    return any(kw in name for kw in BOX_KEYWORDS)
+    # 강제 박스: 명시적 박스 키워드
+    if any(kw in name for kw in HARD_BOX_KEYWORDS):
+        return True
+    # 카드는 [...숫자...] 대괄호 패턴 보유
+    if CARD_BRACKET_RE.search(name):
+        return False
+    # 그 외 (대괄호 없는 일반 상품) → 박스/덱/세트로 간주
+    return True
 
 
 def filter_by_kind(products: list, kind: str) -> list:
@@ -295,20 +307,31 @@ def fetch_usd_jpy() -> float:
 
 def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
     """SNKRDUNK API 직접 호출 — JP 우선 (¥ 네이티브), 안 되면 EN(USD) fallback"""
+    # JP 헤더로 ¥ 응답 강제 시도
+    jp_headers = {
+        "User-Agent": UA,
+        "Accept": "application/json",
+        "Accept-Language": "ja-JP,ja;q=0.9,en;q=0.5",
+        "Referer": "https://snkrdunk.com/",
+        "X-Country": "JP",   # 일부 SaaS 가 인식
+        "X-Currency": "JPY", # 일부 SaaS 가 인식
+    }
+    en_headers = {
+        "User-Agent": UA,
+        "Accept": "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://snkrdunk.com/en/",
+    }
     bases = [
-        f"https://snkrdunk.com/v1/products/SW---{card_id}/used-listings",       # JP
-        f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings",    # EN fallback
+        (f"https://snkrdunk.com/v1/products/SW---{card_id}/used-listings",    jp_headers),
+        (f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings", en_headers),
     ]
-    for base in bases:
+    for base, hdrs in bases:
         all_listings = []
         for page in range(1, max_pages + 1):
             url = f"{base}?page={page}"
             try:
-                req = urllib.request.Request(url, headers={
-                    "User-Agent": UA,
-                    "Accept": "application/json",
-                    "Accept-Language": "ja,en;q=0.9",
-                })
+                req = urllib.request.Request(url, headers=hdrs)
                 with urllib.request.urlopen(req, timeout=15) as resp:
                     if resp.status != 200:
                         break
@@ -343,57 +366,92 @@ def parse_grade(condition: str) -> str:
     return None  # PSA8, B, 기타 등은 무시
 
 
+def extract_raw_price(raw_price) -> tuple:
+    """API 응답의 price 필드에서 (amount, currency, raw_str) 추출 — 변형 없이 그대로"""
+    if raw_price is None:
+        return (None, None, "")
+    # dict 형태: {amount: 35799, currency: "JPY"}
+    if isinstance(raw_price, dict):
+        try:
+            amt = float(raw_price.get("amount") or 0)
+            cur = (raw_price.get("currency") or "").upper() or None
+            if amt > 0:
+                return (amt, cur, json.dumps(raw_price, ensure_ascii=False))
+        except (ValueError, TypeError):
+            pass
+        return (None, None, json.dumps(raw_price, ensure_ascii=False))
+    # 숫자 형태 (그냥 int/float)
+    if isinstance(raw_price, (int, float)) and raw_price > 0:
+        return (float(raw_price), None, str(raw_price))
+    # 문자열 형태: "¥35,799" or "$240.00" 등
+    s = str(raw_price)
+    m_jpy = re.search(r"¥\s*([\d,]+)", s)
+    if m_jpy:
+        try:
+            return (float(m_jpy.group(1).replace(",", "")), "JPY", s)
+        except ValueError:
+            pass
+    m_usd = re.search(r"\$\s*([\d,.]+)", s)
+    if m_usd:
+        try:
+            return (float(m_usd.group(1).replace(",", "")), "USD", s)
+        except ValueError:
+            pass
+    # 순수 숫자 문자열
+    m_num = re.search(r"([\d,.]+)", s)
+    if m_num:
+        try:
+            return (float(m_num.group(1).replace(",", "")), None, s)
+        except ValueError:
+            pass
+    return (None, None, s)
+
+
 def parse_sold_prices(listings: list, usd_jpy: float) -> dict:
-    """sold 만 골라서 등급별(psa10/psa9/raw) JPY 가격 통계
-       ¥ 우선 (JP API), 없으면 $ → JPY 환산 (EN API fallback)"""
-    by_grade = {}
+    """sold 만 골라서 등급별(psa10/psa9/raw) 가격 — 변형 없이 원본 통화 그대로 저장.
+       JPY 만 있으면 JPY, USD 만 있으면 USD, 섞여있으면 통화별 별도 보관."""
+    by_grade: dict = {}
     for it in listings:
         if not it.get("isSold"):
             continue
-        # price 가 dict ({amount, currency}) 또는 문자열일 수 있음
-        raw_price = it.get("price")
-        jpy = None
-        if isinstance(raw_price, dict):
-            try:
-                amt = float(raw_price.get("amount") or 0)
-                cur = (raw_price.get("currency") or "").upper()
-                if amt > 0:
-                    if cur == "JPY":
-                        jpy = round(amt)
-                    elif cur == "USD":
-                        jpy = round(amt * usd_jpy)
-            except (ValueError, TypeError):
-                pass
-        if jpy is None:
-            price_str = str(raw_price or "")
-            # ¥ 우선
-            m_jpy = re.search(r"¥\s*([\d,]+)", price_str)
-            m_usd = re.search(r"\$\s*([\d,.]+)", price_str)
-            try:
-                if m_jpy:
-                    jpy = int(m_jpy.group(1).replace(",", ""))
-                elif m_usd:
-                    usd = float(m_usd.group(1).replace(",", ""))
-                    if usd > 0:
-                        jpy = round(usd * usd_jpy)
-            except (ValueError, AttributeError):
-                pass
-        if jpy is None or jpy <= 0:
+        amt, cur, raw_str = extract_raw_price(it.get("price"))
+        if amt is None or amt <= 0:
             continue
         grade = parse_grade(it.get("condition", ""))
         if grade is None:
-            continue  # psa10/psa9/raw 외 무시
-        by_grade.setdefault(grade, []).append(jpy)
-    out = {}
-    for grade, prices in by_grade.items():
+            continue
+        by_grade.setdefault(grade, {"prices": [], "raw_samples": []})
+        # currency 가 None 일 때는 amt 크기로 추정 (5000+ 면 JPY, 1000 미만이면 USD)
+        if cur is None:
+            cur = "JPY" if amt >= 1000 else "USD"
+        by_grade[grade]["prices"].append((amt, cur))
+        if len(by_grade[grade]["raw_samples"]) < 5:
+            by_grade[grade]["raw_samples"].append(raw_str)
+    out: dict = {}
+    for grade, info in by_grade.items():
+        prices = info["prices"]
         if not prices:
             continue
+        # 통화별 분리
+        jpy_vals = [p for p, c in prices if c == "JPY"]
+        usd_vals = [p for p, c in prices if c == "USD"]
+        # 다수파 통화 사용
+        if len(jpy_vals) >= len(usd_vals):
+            vals = jpy_vals or [p for p, c in prices]
+            currency = "JPY"
+        else:
+            vals = usd_vals
+            currency = "USD"
+        if not vals:
+            continue
         out[grade] = {
-            "count": len(prices),
-            "avg_jpy": round(sum(prices) / len(prices)),
-            "last5_avg_jpy": round(sum(prices[:5]) / min(5, len(prices))),
-            "min_jpy": min(prices),
-            "max_jpy": max(prices),
+            "count": len(vals),
+            "currency": currency,
+            "avg":      round(sum(vals) / len(vals), 2),
+            "last5_avg": round(sum(vals[:5]) / min(5, len(vals)), 2),
+            "min":      round(min(vals), 2),
+            "max":      round(max(vals), 2),
+            "raw_samples": info["raw_samples"],
         }
     return out
 
@@ -477,16 +535,21 @@ def main():
     card_ids = sorted(collect_card_ids())
     print(f"  추적 카드: {len(card_ids)}개")
     cards_detail = {}
-    debug_printed = False
+    debug_count = 0
     for i, cid in enumerate(card_ids, 1):
         listings = fetch_used_listings(cid, max_pages=3)
-        if not debug_printed and listings:
-            print(f"  [DEBUG] 첫 응답 샘플 (card {cid}):")
-            sample = listings[0]
-            print(f"    keys: {list(sample.keys())}")
-            print(f"    sample: {json.dumps(sample, ensure_ascii=False)[:300]}")
-            debug_printed = True
+        # 첫 3장 카드 디버그 — raw price 가 어떻게 들어오는지 확인
+        if debug_count < 3 and listings:
+            print(f"  [DEBUG] card {cid}: {len(listings)}건 listings")
+            for j, sample in enumerate(listings[:3]):
+                print(f"    [{j}] keys={list(sample.keys())}")
+                print(f"        condition={sample.get('condition')!r}  isSold={sample.get('isSold')}  price={sample.get('price')!r}")
+            debug_count += 1
         grades = parse_sold_prices(listings, usd_jpy)
+        # 첫 3장은 grade 결과도 출력
+        if debug_count <= 3:
+            for g, info in grades.items():
+                print(f"    → grade={g} count={info['count']} cur={info['currency']} avg={info['avg']} samples={info.get('raw_samples')[:3]}")
         cards_detail[cid] = {
             "id": cid,
             "soldCount": sum(1 for x in listings if x.get("isSold")),

@@ -673,8 +673,18 @@ let JPY_KRW = 9.5;
     }
   } catch (e) {}
 })();
-const fmtYen = n => n != null ? '¥' + Math.round(n).toLocaleString() : '—';
-const fmtKrw = n => n != null ? '₩' + Math.round(n * JPY_KRW).toLocaleString() : '—';
+// currency 미지정시 JPY 가정 (구 데이터 호환). USD 면 $ 표시.
+const fmtYen = (n, cur) => {
+  if (n == null) return '—';
+  if (cur === 'USD') return '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits: 2});
+  return '¥' + Math.round(n).toLocaleString();
+};
+const fmtKrw = (n, cur) => {
+  if (n == null) return '—';
+  // USD → KRW 임시 환율 1400 (정확한 값은 추후 별도 fetch 가능)
+  const rate = cur === 'USD' ? 1400 : JPY_KRW;
+  return '₩' + Math.round(n * rate).toLocaleString();
+};
 
 /* ────────────────────────────────────
    2.5 홈 — TOP 10 인기 카드 (GitHub Actions 자동 갱신, 정적 JSON)
@@ -726,8 +736,8 @@ function renderHomeTop(brand, products) {
         <div style="padding:10px 12px">
           <div style="font-size:11px; font-weight:600; color:#374151; line-height:1.35; margin-bottom:6px;
                       display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:30px">${p.name}</div>
-          <div style="font-size:13px; font-weight:800; color:#111; line-height:1.2">${fmtYen(price)}</div>
-          <div style="font-size:10px; color:var(--ink-sub); margin-top:2px">${fmtKrw(price)}</div>
+          <div style="font-size:13px; font-weight:800; color:#111; line-height:1.2">${fmtYen(price, p.currency)}</div>
+          <div style="font-size:10px; color:var(--ink-sub); margin-top:2px">${fmtKrw(price, p.currency)}</div>
         </div>
       </a>`;
   }).join('');
@@ -918,8 +928,8 @@ async function showPriceDetailPanel(productId) {
           </div>
           <div style="font-size:16px; font-weight:800; color:#111; line-height:1.4">${product.name}</div>
           <div style="margin-top:6px">
-            <div style="font-size:24px; font-weight:900; color:#111">${fmtYen(price)}</div>
-            <div style="font-size:13px; color:var(--ink-sub); margin-top:2px">${fmtKrw(price)}</div>
+            <div style="font-size:24px; font-weight:900; color:#111">${fmtYen(price, product.currency)}</div>
+            <div style="font-size:13px; color:var(--ink-sub); margin-top:2px">${fmtKrw(price, product.currency)}</div>
           </div>
           <div style="display:flex; gap:8px; margin-top:auto; flex-wrap:wrap; padding-top:10px">
             <a href="${product.url}" target="_blank" rel="noopener noreferrer"
@@ -963,20 +973,29 @@ async function renderGradesPanel(productId) {
     psa9:  { label: 'PSA 9',   color: '#9ca3af', bg: '#f3f4f6' },
     raw:   { label: 'A급(싱글)', color: '#06b6d4', bg: '#ecfeff' },
   };
-  // 일단 3칸을 데이터 없음 상태로 즉시 렌더 (사용자가 구조 먼저 보게)
+  const fmtPrice = (val, cur) => {
+    if (cur === 'USD') return '$' + (Math.round(val*100)/100).toLocaleString();
+    return '¥' + Math.round(val).toLocaleString();
+  };
+  const fmtSecondary = (val, cur) => {
+    if (cur === 'JPY') return fmtKrw(val);
+    if (cur === 'USD') return '약 ₩' + Math.round(val * 1400).toLocaleString(); // 임시 환산 표시
+    return '';
+  };
   const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
-    if (g && (g.last5_avg_jpy || g.avg_jpy)) {
-      const jpy = g.last5_avg_jpy || g.avg_jpy;
+    // 새 스키마 (avg / last5_avg / currency) 우선, 없으면 구 스키마 (avg_jpy / last5_avg_jpy) 호환
+    const val = g ? (g.last5_avg ?? g.avg ?? g.last5_avg_jpy ?? g.avg_jpy) : null;
+    const cur = g?.currency || (g?.avg_jpy ? 'JPY' : null);
+    if (val && val > 0) {
       return `
         <div style="background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px">
           <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
-          <div style="font-size:15px; font-weight:800; color:#111">${fmtYen(jpy)}</div>
-          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtKrw(jpy)}</div>
-          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${g.count}건 · 직전 5건 평균</div>
+          <div style="font-size:15px; font-weight:800; color:#111">${fmtPrice(val, cur||'JPY')}</div>
+          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtSecondary(val, cur||'JPY')}</div>
+          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${g.count}건 · 직전 5건 평균${cur==='USD'?' · USD 원본':''}</div>
         </div>`;
     }
-    // 데이터 없음 placeholder
     return `
       <div style="background:#fff; border:1px dashed #d1d5db; border-radius:8px; padding:12px 14px">
         <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
@@ -995,7 +1014,6 @@ async function renderGradesPanel(productId) {
     grid.innerHTML = ORDER.map(k => renderBlock(k, grades[k])).join('');
   } catch (e) {
     console.warn('grades load fail:', e);
-    // 빈 3칸 그대로 유지
   }
 }
 
@@ -1060,8 +1078,8 @@ function renderPriceGrid(products) {
         </div>
         <div class="price-card-body">
           <div class="price-card-name" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.name || '—'}</div>
-          <div class="price-card-price">${fmtYen(price)}</div>
-          <div class="price-card-krw">${fmtKrw(price)}</div>
+          <div class="price-card-price">${fmtYen(price, p.currency)}</div>
+          <div class="price-card-krw">${fmtKrw(price, p.currency)}</div>
           <div class="price-card-tag">SNKRDUNK 최저가</div>
         </div>
       </a>`;

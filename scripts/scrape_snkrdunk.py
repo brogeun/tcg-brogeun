@@ -192,6 +192,23 @@ def save_payload(filename: str, label: str, products: list, fetched_at: str):
     print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
 
+def fetch_usd_jpy() -> float:
+    """USD → JPY 환율 (실패 시 기본 150)"""
+    try:
+        req = urllib.request.Request(
+            "https://api.exchangerate-api.com/v4/latest/USD",
+            headers={"User-Agent": UA},
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            d = json.loads(resp.read().decode("utf-8"))
+        rate = float(d["rates"]["JPY"])
+        if 100 < rate < 200:
+            return rate
+    except Exception as e:
+        print(f"  FX fetch err: {e}")
+    return 150.0  # fallback
+
+
 def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
     """SNKRDUNK API 직접 호출 — 친구분 알려주신 신규 endpoint 사용"""
     base = f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings"
@@ -208,7 +225,6 @@ def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
                 if resp.status != 200:
                     break
                 data = json.loads(resp.read().decode("utf-8"))
-            # 키 후보: usedListings (신규), usedTradingCards (기존)
             listings = data.get("usedListings") or data.get("usedTradingCards") or []
             if not listings:
                 break
@@ -222,45 +238,55 @@ def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
 
 
 def parse_grade(condition: str) -> str:
-    """condition 문자열을 등급 키로 매핑"""
+    """condition 문자열을 등급 키로 매핑 — psa10/psa9/raw 만 반환, 나머지는 None"""
     c = (condition or "").upper().replace(" ", "")
     if "PSA10" in c: return "psa10"
-    if "PSA9" in c: return "psa9"
-    if "PSA8" in c: return "psa8"
-    if "S品" in (condition or "") or "MINT" in c: return "s"
-    if "A品" in (condition or "") or c == "A": return "a"
-    if "B品" in (condition or "") or c == "B": return "b"
-    return "other"
+    if "PSA9" in c:  return "psa9"
+    # 싱글 = raw / A품 / 미개봉 (graded 아닌 거 = 일반 카드)
+    raw_match = (
+        c == "A" or "A品" in (condition or "") or
+        c == "S" or "S品" in (condition or "") or
+        "RAW" in c or "未開封" in (condition or "") or
+        "MINT" in c or "EX" in c
+    )
+    if raw_match:
+        return "raw"
+    return None  # PSA8, B, 기타 등은 무시
 
 
-def parse_sold_prices(listings: list) -> dict:
-    """sold 만 골라서 등급별 가격 통계"""
+def parse_sold_prices(listings: list, usd_jpy: float) -> dict:
+    """sold 만 골라서 등급별(psa10/psa9/raw) JPY 가격 통계"""
     by_grade = {}
     for it in listings:
         if not it.get("isSold"):
             continue
         price_str = str(it.get("price") or "")
-        m = re.search(r"\$\s*([\d.,]+)", price_str)
-        if not m:
+        # USD 추출
+        m_usd = re.search(r"\$\s*([\d,.]+)", price_str)
+        if not m_usd:
             continue
         try:
-            price = float(m.group(1).replace(",", ""))
+            usd = float(m_usd.group(1).replace(",", ""))
         except ValueError:
             continue
-        if price <= 0:
+        if usd <= 0:
             continue
+        # JPY 환산
+        jpy = round(usd * usd_jpy)
         grade = parse_grade(it.get("condition", ""))
-        by_grade.setdefault(grade, []).append(price)
+        if grade is None:
+            continue  # psa10/psa9/raw 외 무시
+        by_grade.setdefault(grade, []).append(jpy)
     out = {}
     for grade, prices in by_grade.items():
         if not prices:
             continue
         out[grade] = {
             "count": len(prices),
-            "avg_usd": round(sum(prices) / len(prices), 2),
-            "last5_avg_usd": round(sum(prices[:5]) / min(5, len(prices)), 2),
-            "min_usd": round(min(prices), 2),
-            "max_usd": round(max(prices), 2),
+            "avg_jpy": round(sum(prices) / len(prices)),
+            "last5_avg_jpy": round(sum(prices[:5]) / min(5, len(prices))),
+            "min_jpy": min(prices),
+            "max_jpy": max(prices),
         }
     return out
 
@@ -323,8 +349,10 @@ def main():
     # 3) 카드별 sold listings (API 직접 호출, 0 credits)
     print()
     print("=" * 60)
-    print("Phase 3: 카드별 sold listings + 등급별 가격")
+    print("Phase 3: 카드별 sold listings + PSA10/PSA9/싱글 가격")
     print("=" * 60)
+    usd_jpy = fetch_usd_jpy()
+    print(f"  USD/JPY 환율: ¥{usd_jpy:.2f}")
     card_ids = sorted(collect_card_ids())
     print(f"  추적 카드: {len(card_ids)}개")
     cards_detail = {}
@@ -332,13 +360,12 @@ def main():
     for i, cid in enumerate(card_ids, 1):
         listings = fetch_used_listings(cid, max_pages=3)
         if not debug_printed and listings:
-            # 첫 응답 샘플 (구조 확인용)
             print(f"  [DEBUG] 첫 응답 샘플 (card {cid}):")
             sample = listings[0]
             print(f"    keys: {list(sample.keys())}")
             print(f"    sample: {json.dumps(sample, ensure_ascii=False)[:300]}")
             debug_printed = True
-        grades = parse_sold_prices(listings)
+        grades = parse_sold_prices(listings, usd_jpy)
         cards_detail[cid] = {
             "id": cid,
             "soldCount": sum(1 for x in listings if x.get("isSold")),
@@ -346,12 +373,13 @@ def main():
             "grades": grades,
         }
         if i % 10 == 0 or i == len(card_ids):
-            print(f"  [{i}/{len(card_ids)}] 진행 중... 현재 카드 등급: {list(grades.keys())}")
+            print(f"  [{i}/{len(card_ids)}] 진행 중... 등급: {list(grades.keys())}")
         time.sleep(0.4)  # rate limit
     out_path = DATA_DIR / "cards-detail.json"
     out_path.write_text(json.dumps({
         "ok": True,
         "fetchedAt": fetched_at,
+        "usdJpy": usd_jpy,
         "count": len(cards_detail),
         "cards": cards_detail,
     }, ensure_ascii=False, indent=2), encoding="utf-8")

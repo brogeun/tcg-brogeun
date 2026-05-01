@@ -713,10 +713,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-_count == total:
-        print("전체 실패 → exit 1")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

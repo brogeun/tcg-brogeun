@@ -332,60 +332,92 @@ def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dic
     grade_map = [("A", "raw"), ("PSA 10", "psa10"), ("PSA 9", "psa9")]
     out: dict = {}
 
-    # 활성 탭 가격 영역의 가장 큰 텍스트가 헤드라인 가격
+    # 헤드라인 가격은 'US $X~' (tilde 필수). 개별 listing 가격은 ~ 없음 → 헤드라인만 정확히 잡힘.
     extract_script = r"""
-        // 'US $X~' 또는 '¥X~' 패턴을 큰 폰트로 표시하는 element 찾기
+        // SNKRDUNK 헤드라인 패턴: "US $122~", "US $1,279~", "¥35,000~"  ← ~ 필수
         const all = Array.from(document.querySelectorAll('div, span, h1, h2, h3, h4, p'));
-        let best = {price: null, currency: null, raw: null};
-        const re = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)\s*~?/;
+        let best = null;
+        // ~ 가 반드시 끝에 붙는 패턴만 매칭 (개별 listing 가격은 ~ 없어서 자동 제외)
+        const re = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)\s*~/;
+        // 페이지 상단 (탭 버튼 가까이) 의 element 일수록 우선 — y 좌표 가장 작은 것
         for (const el of all) {
             const txt = (el.innerText || '').trim();
-            if (txt.length > 30 || txt.length < 3) continue;
+            if (txt.length > 50 || txt.length < 3) continue;
             const m = txt.match(re);
             if (!m) continue;
+            const rect = el.getBoundingClientRect();
             const fontSize = parseFloat(getComputedStyle(el).fontSize) || 0;
-            if (fontSize < 18) continue;  // 큰 글씨만
-            // 가장 큰 폰트의 매치 채택
-            if (!best.fontSize || fontSize > best.fontSize) {
-                const cur = txt.includes('¥') ? 'JPY' : 'USD';
+            if (fontSize < 16) continue;
+            // 가장 위쪽의 (y 가 작은) headline 채택, 같은 y 면 큰 폰트 우선
+            if (!best || rect.top < best.top - 5 ||
+                (Math.abs(rect.top - best.top) < 5 && fontSize > best.fontSize)) {
                 best = {
                     price: parseFloat(m[1].replace(/,/g, '')),
-                    currency: cur,
+                    currency: txt.includes('¥') ? 'JPY' : 'USD',
                     raw: txt,
                     fontSize: fontSize,
+                    top: rect.top,
                 };
             }
         }
-        // 데이터 없음 표시 ("—" 또는 dash)
-        const dash = document.body.innerText.includes('—') &&
-                     !best.price &&
-                     /—/.test(document.querySelector('main, body')?.innerText || '');
-        return best.price ? best : (dash ? {dash: true} : null);
-    """
-
-    click_script_tpl = """
-        const target = arguments[0];
-        const els = document.querySelectorAll('button, [role="button"], div, span, a');
-        for (const el of els) {
-            const txt = (el.innerText || '').trim();
-            if (txt === target && el.offsetParent !== null && el.offsetWidth < 220 && el.offsetWidth > 20) {
-                el.scrollIntoView({block: 'center'});
-                el.click();
-                return true;
+        // 데이터 없음 표시 ("—" 만 있는 element 가 비슷한 위치)
+        if (!best) {
+            for (const el of all) {
+                const txt = (el.innerText || '').trim();
+                if (txt !== '—' && txt !== '-') continue;
+                const fontSize = parseFloat(getComputedStyle(el).fontSize) || 0;
+                if (fontSize >= 18) {
+                    return {dash: true};
+                }
             }
         }
-        return false;
+        return best;
+    """
+
+    # 탭 컨테이너 (여러 탭 레이블 동시 포함하는 부모) 안에서만 클릭 — "A" 가 다른 요소(Authentic 등)에 매칭되는 사고 차단
+    click_script_tpl = r"""
+        const target = arguments[0];
+        const TAB_LABELS = ['All', 'A', 'B', 'C', 'D', 'PSA 10', 'PSA 9', 'PSA 8 or under', 'BGS 10 BL', 'BGS 10 GL'];
+        // 1) 탭 바 컨테이너 찾기 — 5개 이상의 탭 레이블을 직접 자식으로 가진 element
+        const containers = document.querySelectorAll('div, ul, nav');
+        let tabBar = null;
+        for (const c of containers) {
+            const directText = Array.from(c.children)
+                .map(ch => (ch.innerText || '').trim())
+                .filter(t => TAB_LABELS.includes(t));
+            if (directText.length >= 5) { tabBar = c; break; }
+            // depth-2 까지도 시도
+            const grandText = Array.from(c.querySelectorAll('button, [role="button"], div, span'))
+                .map(el => (el.innerText || '').trim())
+                .filter(t => TAB_LABELS.includes(t));
+            if (grandText.length >= 5) { tabBar = c; break; }
+        }
+        if (!tabBar) return {ok: false, reason: 'no-tabbar'};
+        // 2) 탭바 안에서 target 매칭하는 클릭 가능 요소
+        const candidates = tabBar.querySelectorAll('button, [role="button"], div, span, a');
+        for (const el of candidates) {
+            const txt = (el.innerText || '').trim();
+            if (txt !== target) continue;
+            if (el.offsetParent === null) continue;
+            const w = el.offsetWidth;
+            if (w < 15 || w > 250) continue;
+            el.scrollIntoView({block: 'center'});
+            el.click();
+            return {ok: true, w: w};
+        }
+        return {ok: false, reason: 'no-match-in-tabbar'};
     """
 
     for label, key in grade_map:
         try:
-            clicked = driver.execute_script(click_script_tpl, label)
-            if not clicked:
+            click_result = driver.execute_script(click_script_tpl, label)
+            if not (click_result and click_result.get("ok")):
+                reason = (click_result or {}).get("reason", "unknown")
                 if debug:
-                    print(f"    [{label}] 탭 클릭 실패 (찾지 못함)")
+                    print(f"    [{label}] 탭 클릭 실패 ({reason})")
                 out[key] = None
                 continue
-            time.sleep(1.2)
+            time.sleep(1.8)  # 헤드라인 가격 업데이트 대기 — 1.2 → 1.8
             extracted = driver.execute_script(extract_script)
             if extracted and extracted.get("price"):
                 out[key] = {
@@ -394,7 +426,7 @@ def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dic
                     "raw_text": extracted.get("raw"),
                 }
                 if debug:
-                    print(f"    [{label}] {extracted['raw']} → {extracted['price']} {extracted['currency']}")
+                    print(f"    [{label}] '{extracted['raw'][:40]}' → {extracted['price']} {extracted['currency']}")
             else:
                 # 데이터 없음 (— 표시)
                 out[key] = {"lowest_ask": None, "currency": "USD"}

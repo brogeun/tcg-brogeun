@@ -696,6 +696,8 @@ def main():
     print("=" * 60)
     print("Phase 3: 카드별 등급 가격 (API only_on_sale=true)")
     print("=" * 60)
+    usd_jpy = fetch_usd_jpy()  # 메타데이터용 (cards-detail.json 의 usdJpy 필드)
+    print(f"  USD/JPY 환율: ¥{usd_jpy:.2f}")
     # 박스 ID 모으기 (등급 없으니 스킵)
     box_ids = set()
     for f in ("price-pokemon-box.json", "price-onepiece-box.json"):

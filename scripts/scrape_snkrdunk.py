@@ -553,21 +553,38 @@ def main():
         debug_this = (debug_count < 3)
         if debug_this:
             print(f"  [DEBUG] card {cid}:")
+        # ⚡ 한 번만 호출 — conditionId 없이 모든 listing 받아서 client-side 분류
+        # API 가 conditionId 무시할 가능성 있어서 한 호출로 다 처리하는게 더 효율적
+        all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=4)
+        # max_pages=4 → 최대 200건. 이걸로도 부족하면 매우 인기있는 카드.
+        # ⚠ API 의 isOnlyOnSale 도 안 먹을 가능성 → client-side isSold 필터
+        active_only = [it for it in all_listings if not it.get("isSold")]
+        if debug_this and all_listings:
+            from collections import Counter
+            sample0 = all_listings[0]
+            conds_all = Counter((it.get("condition") or "").strip() for it in all_listings)
+            print(f"    [전체 응답 {len(all_listings)}건, active {len(active_only)}건]")
+            print(f"    sample[0] keys={list(sample0.keys())}")
+            print(f"    sample[0] cond={sample0.get('condition')!r} isSold={sample0.get('isSold')} price={sample0.get('price')!r}")
+            print(f"    conditions 분포={dict(conds_all)}")
+
+        # condition 매칭 함수 (lenient)
+        def matches(cond_str, grade_key):
+            c = (cond_str or "").strip()
+            cu = c.upper().replace(" ", "")
+            if grade_key == "psa10":
+                return cu.startswith("PSA10") and not cu.startswith("PSA100")
+            if grade_key == "psa9":
+                return cu.startswith("PSA9") and not cu.startswith("PSA90") and not cu.startswith("PSA99")
+            if grade_key == "raw":
+                return c == "A" or cu == "A"
+            return False
+
         for grade, cond_id in GRADE_CONDITION_IDS.items():
-            listings = fetch_grade_listings(cid, cond_id, only_on_sale=True, max_pages=2)
-            if not listings:
-                if debug_this:
-                    print(f"    {grade:>5} (cond {cond_id}): 매물 없음")
-                continue
-            # ⚠ API 의 conditionId 가 안 먹을 수 있음 → client-side condition 필드로 강제 필터
-            target_cond = {"psa10": "PSA 10", "psa9": "PSA 9", "raw": "A"}[grade]
-            filtered = [it for it in listings if (it.get("condition") or "").strip() == target_cond]
+            filtered = [it for it in active_only if matches(it.get("condition"), grade)]
             if debug_this:
-                conds_seen = set((it.get("condition") or "").strip() for it in listings)
-                print(f"    {grade:>5} (cond {cond_id}): API 응답 {len(listings)}건, condition 종류={conds_seen}, '{target_cond}' 필터 후 {len(filtered)}건")
+                print(f"    {grade:>5}: '{grade}' 매칭 active listing {len(filtered)}건")
             if not filtered:
-                if debug_this:
-                    print(f"    {grade:>5} (cond {cond_id}): condition 매칭 0건 → skip")
                 continue
             # USD 가격 추출
             prices = []
@@ -600,9 +617,9 @@ def main():
         if i % 10 == 0 or i == len(card_ids):
             non_empty = sum(1 for v in grades.values() if v.get("lowest_ask"))
             print(f"  [{i}/{len(card_ids)}] {cid} → 등급 채워진 칸: {non_empty}/3")
-        time.sleep(0.2)  # rate limit (3 호출/카드 × 0.2초 = 0.6초/카드)
+        time.sleep(0.2)
 
-    # 박스 placeholder 등록 (frontend 가 product 못찾는 경우 방지)
+    # 박스 placeholder 등록
     for bid in box_ids:
         cards_detail.setdefault(bid, {"id": bid, "grades": {}})
 

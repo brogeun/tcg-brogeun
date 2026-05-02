@@ -309,198 +309,30 @@ def save_payload(filename: str, label: str, products: list, fetched_at: str):
 def fetch_usd_jpy() -> float:
     """USD → JPY 환율 (모듈 캐시 사용)"""
     return get_usd_jpy()
-
-
-def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dict:
-    """카드 상세 페이지 (/en/trading-cards/{id}?slide=right) 에서 A / PSA 10 / PSA 9 각 탭 클릭하여
-       'US $X~' 또는 '¥X~' 헤드라인 가격 추출. SNKRDUNK 가 사이트에 표시하는 정확한 lowest_ask."""
-    url = f"https://snkrdunk.com/en/trading-cards/{card_id}?slide=right"
-    try:
-        driver.get(url)
-    except Exception as e:
-        if debug:
-            print(f"    [ERR] navigate {card_id}: {e}")
-        return {}
-    time.sleep(2.5)
-    # 가격이 비어있는 placeholder 가 사라질 때까지 짧게 대기
-    for _ in range(8):
-        txt = driver.execute_script("return document.body.innerText || ''")
-        if "$" in txt or "¥" in txt or "—" in txt:
-            break
-        time.sleep(0.4)
-
-    grade_map = [("A", "raw"), ("PSA 10", "psa10"), ("PSA 9", "psa9")]
-    out: dict = {}
-
-    # 헤드라인 가격 추출 — 2단계 시도: 1) ~ 있는 헤드라인, 2) ~ 없어도 가장 큰 폰트 (fallback)
-    extract_script = r"""
-        const all = Array.from(document.querySelectorAll('div, span, h1, h2, h3, h4, p'));
-        const reTilde = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)\s*~/;
-        const reAny   = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)/;
-        let bestTilde = null;
-        let bestFont  = null;
-        for (const el of all) {
-            const txt = (el.innerText || '').trim();
-            if (txt.length > 50 || txt.length < 3) continue;
-            const fontSize = parseFloat(getComputedStyle(el).fontSize) || 0;
-            if (fontSize < 14) continue;
-            const rect = el.getBoundingClientRect();
-            const mT = txt.match(reTilde);
-            if (mT) {
-                if (!bestTilde || rect.top < bestTilde.top - 5 ||
-                    (Math.abs(rect.top - bestTilde.top) < 5 && fontSize > bestTilde.fontSize)) {
-                    bestTilde = {price: parseFloat(mT[1].replace(/,/g, '')), currency: txt.includes('¥')?'JPY':'USD', raw: txt, fontSize: fontSize, top: rect.top, kind: 'tilde'};
-                }
-                continue;
-            }
-            if (fontSize < 22) continue;
-            const mA = txt.match(reAny);
-            if (mA) {
-                if (!bestFont || fontSize > bestFont.fontSize) {
-                    bestFont = {price: parseFloat(mA[1].replace(/,/g, '')), currency: txt.includes('¥')?'JPY':'USD', raw: txt, fontSize: fontSize, top: rect.top, kind: 'fontfallback'};
-                }
-            }
-        }
-        const dashCheck = () => {
-            for (const el of all) {
-                const txt = (el.innerText || '').trim();
-                if (txt !== '—' && txt !== '-') continue;
-                const fontSize = parseFloat(getComputedStyle(el).fontSize) || 0;
-                if (fontSize >= 18) return true;
-            }
-            return false;
-        };
-        if (bestTilde) return bestTilde;
-        if (bestFont) return bestFont;
-        if (dashCheck()) return {dash: true};
-        const txt = (document.body.innerText || '');
-        const dollarIdx = txt.indexOf('$');
-        const sample = dollarIdx >= 0 ? txt.substring(Math.max(0, dollarIdx - 20), dollarIdx + 50) : null;
-        return {debug: 'no-match', sample: sample};
-    """
-
-    # 탭 클릭 — 3단계 시도: 탭바 스코프 → sibling 검증 → 모든 매칭 fallback
-    click_script_tpl = r"""
-        const target = arguments[0];
-        const TAB_LABELS = ['All', 'A', 'B', 'C', 'D', 'PSA 10', 'PSA 9', 'PSA 8 or under', 'BGS 10 BL', 'BGS 10 GL'];
-        const allClickable = Array.from(document.querySelectorAll('button, [role="button"], div, span, a, li'));
-        const targetMatches = allClickable.filter(el => (el.innerText || '').trim() === target && el.offsetParent !== null);
-        // 1) tabBar 안에서 매칭
-        const containers = document.querySelectorAll('div, ul, nav');
-        let tabBar = null;
-        for (const c of containers) {
-            const allText = Array.from(c.querySelectorAll('button, [role="button"], div, span, a, li'))
-                .map(el => (el.innerText || '').trim())
-                .filter(t => TAB_LABELS.includes(t));
-            if (allText.length >= 5) { tabBar = c; break; }
-        }
-        if (tabBar) {
-            const candidates = tabBar.querySelectorAll('button, [role="button"], div, span, a, li');
-            for (const el of candidates) {
-                if ((el.innerText || '').trim() !== target) continue;
-                if (el.offsetParent === null) continue;
-                el.scrollIntoView({block: 'center', inline: 'center'});
-                el.click();
-                return {ok: true, via: 'tabbar', w: el.offsetWidth};
-            }
-        }
-        // 2) sibling 검증
-        for (const el of targetMatches) {
-            const parent = el.parentElement;
-            if (!parent) continue;
-            const sibLabels = Array.from(parent.querySelectorAll('*'))
-                .map(e => (e.innerText || '').trim())
-                .filter(t => TAB_LABELS.includes(t));
-            if (sibLabels.length >= 3) {
-                el.scrollIntoView({block: 'center', inline: 'center'});
-                el.click();
-                return {ok: true, via: 'sibling', w: el.offsetWidth};
-            }
-        }
-        // 3) fallback
-        for (const el of targetMatches) {
-            const w = el.offsetWidth;
-            if (w >= 15 && w <= 250) {
-                el.scrollIntoView({block: 'center', inline: 'center'});
-                el.click();
-                return {ok: true, via: 'fallback', w: w};
-            }
-        }
-        return {ok: false, reason: 'no-match', candidates: targetMatches.length};
-    """
-
-    for label, key in grade_map:
-        try:
-            click_result = driver.execute_script(click_script_tpl, label)
-            if not (click_result and click_result.get("ok")):
-                reason = (click_result or {}).get("reason", "unknown")
-                cands = (click_result or {}).get("candidates", "?")
-                if debug:
-                    print(f"    [{label}] 탭 클릭 실패 ({reason}, candidates={cands})")
-                out[key] = None
-                continue
-            time.sleep(1.8)
-            extracted = driver.execute_script(extract_script)
-            if extracted and extracted.get("price"):
-                out[key] = {
-                    "lowest_ask": extracted["price"],
-                    "currency": extracted["currency"],
-                    "raw_text": extracted.get("raw"),
-                    "kind": extracted.get("kind"),
-                }
-                if debug:
-                    via = click_result.get("via", "?")
-                    kind = extracted.get("kind", "?")
-                    print(f"    [{label}] (click:{via}, extract:{kind}) '{extracted['raw'][:40]}' -> {extracted['price']} {extracted['currency']}")
-            elif extracted and extracted.get("dash"):
-                out[key] = {"lowest_ask": None, "currency": "USD"}
-                if debug:
-                    print(f"    [{label}] 데이터 없음 (—)")
-            elif extracted and extracted.get("debug") == "no-match":
-                out[key] = {"lowest_ask": None, "currency": "USD"}
-                if debug:
-                    sample = extracted.get("sample", "")
-                    print(f"    [{label}] 가격 매칭 실패 — sample near $: {sample!r}")
-            else:
-                out[key] = None
-                if debug:
-                    print(f"    [{label}] extract 응답 없음")
-        except Exception as e:
-            if debug:
-                print(f"    [{label}] err: {e}")
-            out[key] = None
-    return out
-
-
-def fetch_used_listings(card_id: str, max_pages: int = 3, only_on_sale: bool = False) -> list:
-    """SNKRDUNK EN API 단일 호출 — 통화 USD 고정 (KRW 환산은 frontend 에서 곱하기만).
-       only_on_sale=True 면 active listing 만."""
-    qs_only = "&onlyOnSale=true" if only_on_sale else ""
-    en_headers = {
-        "User-Agent": UA,
-        "Accept": "application/json",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://snkrdunk.com/en/",
-    }
+def fetch_grade_listings(card_id: str, condition_id: int, only_on_sale: bool = True, max_pages: int = 3) -> list:
+    """SNKRDUNK API — 카드 ID + 등급 조건 ID 로 active listing 받아옴.
+       condition_id: 22=PSA10, 23=PSA9, 18=A.
+       반환: [{id, listingUID, price, condition, isSold}, ...]"""
     base = f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings"
-    all_listings = []
+    qs_only = "&isOnlyOnSale=true" if only_on_sale else ""
+    all_items = []
     for page in range(1, max_pages + 1):
-        url = f"{base}?page={page}&perPage=50{qs_only}"
+        url = f"{base}?conditionId={condition_id}&page={page}&perPage=50{qs_only}"
         try:
-            req = urllib.request.Request(url, headers=en_headers)
+            req = urllib.request.Request(url, headers=API_HEADERS)
             with urllib.request.urlopen(req, timeout=15) as resp:
                 if resp.status != 200:
                     break
                 data = json.loads(resp.read().decode("utf-8"))
-            listings = data.get("usedListings") or data.get("usedTradingCards") or []
-            if not listings:
-                break
-            all_listings.extend(listings)
-            if len(listings) < 50:
-                break
         except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
             break
-    return all_listings
+        items = data.get("usedListings") or data.get("usedTradingCards") or []
+        if not items:
+            break
+        all_items.extend(items)
+        if len(items) < 50:
+            break
+    return all_items
 
 
 def parse_grade(condition: str) -> str:
@@ -675,14 +507,14 @@ def main():
             print(f"[{label}] ❌ 에러: {e}")
             fail_count += 1
 
-    # 3) 카드별 등급 가격 — API 직접 호출 (only_on_sale=True 로 active listings 만)
-    #    봇 가이드 방식 그대로: condition별 min(price) = SNKRDUNK 헤드라인 'US $X~'
+    # 3) 카드별 등급 가격 — SNKRDUNK 공식 API 정확한 파라미터로 호출
+    #    isOnlyOnSale=true (active 만) + conditionId 별 (PSA10=22, PSA9=23, A=18)
+    #    각 grade min(price) = SNKRDUNK 헤드라인 'US $X~' 와 동일
     print()
     print("=" * 60)
-    print("Phase 3: 카드별 등급 가격 (API only_on_sale=true)")
+    print("Phase 3: 카드별 등급 가격 (API conditionId 별 호출)")
     print("=" * 60)
-    usd_jpy = fetch_usd_jpy()  # 메타데이터용 (cards-detail.json 의 usdJpy 필드)
-    print(f"  USD/JPY 환율: ¥{usd_jpy:.2f}")
+    usd_jpy = fetch_usd_jpy()
     # 박스 ID 모으기 (등급 없으니 스킵)
     box_ids = set()
     for f in ("price-pokemon-box.json", "price-onepiece-box.json"):
@@ -699,55 +531,41 @@ def main():
     cards_detail = {}
     debug_count = 0
     for i, cid in enumerate(card_ids, 1):
-        # only_on_sale=True 로 active listing 만 받기 시도
-        listings = fetch_used_listings(cid, max_pages=5, only_on_sale=True)
-        # 클라이언트 측 강제 필터: isSold==False 만 (API 파라미터가 안 먹을 경우 대비)
-        active_only = [it for it in listings if not it.get("isSold")]
-        # 첫 3장 디버그
-        if debug_count < 3 and listings:
-            sold_count = len(listings) - len(active_only)
-            print(f"  [DEBUG] card {cid}: 총 {len(listings)}건 (active {len(active_only)}, sold {sold_count})")
-            for j, sample in enumerate(listings[:3]):
-                print(f"    [{j}] cond={sample.get('condition')!r}  isSold={sample.get('isSold')}  price={sample.get('price')!r}")
-            debug_count += 1
-        # condition 별로 그룹화
-        by_grade: dict = {}
-        for it in active_only:
-            grade = parse_grade(it.get("condition", ""))
-            if grade is None:
-                continue
-            amt, cur, raw_str = extract_raw_price(it.get("price"))
-            if amt is None or amt <= 0:
-                continue
-            if cur is None:
-                cur = "JPY" if amt >= 1000 else "USD"
-            by_grade.setdefault(grade, []).append((amt, cur, raw_str))
         grades = {}
-        for g, items in by_grade.items():
-            jpy_count = sum(1 for _, c, _ in items if c == "JPY")
-            usd_count = sum(1 for _, c, _ in items if c == "USD")
-            currency = "JPY" if jpy_count >= usd_count else "USD"
-            same_cur = [(p, r) for p, c, r in items if c == currency]
-            if not same_cur:
+        debug_this = (debug_count < 3)
+        if debug_this:
+            print(f"  [DEBUG] card {cid}:")
+        for grade, cond_id in GRADE_CONDITION_IDS.items():
+            listings = fetch_grade_listings(cid, cond_id, only_on_sale=True, max_pages=2)
+            if not listings:
+                if debug_this:
+                    print(f"    {grade:>5} (cond {cond_id}): 매물 없음")
                 continue
-            # outlier 제외 — median 기준 50% 미만은 의심 (불량 grading, 잘못된 listing 등)
-            sorted_prices = sorted(p for p, _ in same_cur)
-            median = sorted_prices[len(sorted_prices) // 2]
-            cleaned = [(p, r) for p, r in same_cur if p >= median * 0.5]
-            if not cleaned:
-                cleaned = same_cur  # 다 outlier 라 판단되면 fallback 으로 전체 사용
-            min_price, min_raw = min(cleaned, key=lambda x: x[0])
-            grades[g] = {
-                "lowest_ask": min_price,
-                "currency": currency,
-                "active_count": len(same_cur),
-                "after_outlier_filter": len(cleaned),
-                "raw_text": min_raw[:30] if min_raw else "",
+            # USD 가격 추출
+            prices = []
+            for it in listings:
+                amt, cur, raw_str = extract_raw_price(it.get("price"))
+                if amt is None or amt <= 0:
+                    continue
+                # USD 강제 (EN API)
+                prices.append(amt)
+            if not prices:
+                if debug_this:
+                    print(f"    {grade:>5} (cond {cond_id}): 가격 파싱 실패 ({len(listings)}건)")
+                continue
+            prices_sorted = sorted(prices)
+            lowest = prices_sorted[0]
+            grades[grade] = {
+                "lowest_ask": lowest,
+                "currency": "USD",
+                "active_count": len(prices),
+                "top5": [round(p, 2) for p in prices_sorted[:5]],
             }
-        # 디버그 첫 3장 결과 출력
-        if debug_count <= 3 and i <= 3:
-            for g, info in grades.items():
-                print(f"    -> {g}: lowest_ask={info['lowest_ask']} {info['currency']} (active {info['active_count']}건)")
+            if debug_this:
+                top5 = [f"${p}" for p in prices_sorted[:5]]
+                print(f"    {grade:>5} (cond {cond_id}): lowest=${lowest}  N={len(prices)}  top5=[{', '.join(top5)}]")
+        if debug_this:
+            debug_count += 1
         cards_detail[cid] = {
             "id": cid,
             "grades": grades,
@@ -755,7 +573,8 @@ def main():
         if i % 10 == 0 or i == len(card_ids):
             non_empty = sum(1 for v in grades.values() if v.get("lowest_ask"))
             print(f"  [{i}/{len(card_ids)}] {cid} → 등급 채워진 칸: {non_empty}/3")
-        time.sleep(0.3)  # rate limit
+        time.sleep(0.2)  # rate limit (3 호출/카드 × 0.2초 = 0.6초/카드)
+
     # 박스 placeholder 등록 (frontend 가 product 못찾는 경우 방지)
     for bid in box_ids:
         cards_detail.setdefault(bid, {"id": bid, "grades": {}})

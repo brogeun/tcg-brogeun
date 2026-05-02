@@ -1,0 +1,23 @@
+name: Test Grade Prices (pokemon-card 첫 5장)
+
+# 수동 실행 전용 — 데이터 파일 변경 X, 로그 출력만
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run test (no data changes)
+        run: python scripts/test_grade_prices.py
+        env:
+          PYTHONUNBUFFERED: "1"

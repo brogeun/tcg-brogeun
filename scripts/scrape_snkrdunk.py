@@ -571,18 +571,15 @@ def main():
         debug_this = (debug_count < 3)
         if debug_this:
             print(f"  [DEBUG] card {cid}:")
-        # ⚡ 카드별 1회 호출, 깊은 페이지네이션 (max_pages=20 = 최대 1000건)
-        # 인기 카드는 listing 많아서 PSA 10 같은 적은 등급도 깊은 페이지에 있을 수 있음
-        # ⚡ active 가 아니라 SOLD listing 받기 — 봇 가이드의 "최근 5건 sold 평균" 방식
-        # 매도호가가 아니라 실제 거래된 가격 → 사용자 체감과 일치
-        all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=False, max_pages=20)
-        sold_only = [it for it in all_listings if it.get("isSold")]
+        # ⚡ active 매물만 받기 (isOnlyOnSale=true) — 사용자가 SNKRDUNK 페이지에서 보는 매물 그대로
+        all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=20)
+        # 안전장치: client-side isSold 필터 (API 가 isOnlyOnSale 무시할 가능성 대비)
+        active_only = [it for it in all_listings if not it.get("isSold")]
         if debug_this and all_listings:
             from collections import Counter
             sample0 = all_listings[0]
             conds_all = Counter((it.get("condition") or "").strip() for it in all_listings)
-            print(f"    [전체 응답 {len(all_listings)}건, sold {len(sold_only)}건]")
-            print(f"    sample[0] keys={list(sample0.keys())}")
+            print(f"    [전체 응답 {len(all_listings)}건, active {len(active_only)}건]")
             print(f"    sample[0] cond={sample0.get('condition')!r} isSold={sample0.get('isSold')} price={sample0.get('price')!r}")
             print(f"    conditions 분포={dict(conds_all)}")
 
@@ -599,53 +596,37 @@ def main():
             return False
 
         for grade, cond_id in GRADE_CONDITION_IDS.items():
-            # sold listings 중 grade 매칭하는 것만
-            filtered = [it for it in sold_only if matches(it.get("condition"), grade)]
+            filtered = [it for it in active_only if matches(it.get("condition"), grade)]
             if debug_this:
-                print(f"    {grade:>5}: '{grade}' 매칭 sold listing {len(filtered)}건")
+                print(f"    {grade:>5}: '{grade}' 매칭 active listing {len(filtered)}건")
             if not filtered:
                 continue
-            # ⚡ listingUID (ULID) 기반 정렬 — 첫 10자가 timestamp_ms (Crockford base32)
-            # 내림차순 = 최신 거래 먼저
-            filtered.sort(key=lambda it: (it.get("listingUID") or "")[:10], reverse=True)
-            # 최근 거래 5건만
-            recent_5 = filtered[:5]
-            if debug_this and recent_5:
-                uids = [it.get("listingUID", "")[:10] for it in recent_5]
-                print(f"    {grade:>5}: 최신 5건 ULID prefix = {uids}")
+            # USD 가격 추출
             prices = []
-            for it in recent_5:
-                amt, cur, raw_str = extract_raw_price(it.get("price"))
-                if amt is None or amt <= 0:
-                    continue
-                prices.append(amt)
-            if not prices:
-                if debug_this:
-                    print(f"    {grade:>5} (cond {cond_id}): 가격 파싱 실패")
-                continue
-            # 봇 알고리즘: 30일 median 의 1/5 ~ 2.5배 범위 내만 통과 (outlier 제외)
-            all_prices = []
             for it in filtered:
                 amt, _, _ = extract_raw_price(it.get("price"))
                 if amt and amt > 0:
-                    all_prices.append(amt)
-            if all_prices:
-                med = sorted(all_prices)[len(all_prices) // 2]
-                clean_recent = [p for p in prices if med / 5 < p < med * 2.5]
-                if not clean_recent:
-                    clean_recent = prices  # 전부 outlier 면 fallback
-            else:
-                clean_recent = prices
-            avg = round(sum(clean_recent) / len(clean_recent), 2)
+                    prices.append(amt)
+            if not prices:
+                continue
+            # outlier 필터 — median 의 50% 미만은 mispriced 의심 (불량 grading, 잘못된 listing)
+            prices_sorted = sorted(prices)
+            med = prices_sorted[len(prices_sorted) // 2]
+            cleaned = [p for p in prices if p >= med * 0.5]
+            if not cleaned:
+                cleaned = prices  # 전부 outlier 면 fallback
+            cleaned_sorted = sorted(cleaned)
+            lowest = cleaned_sorted[0]
             grades[grade] = {
-                "recent_avg": avg,
+                "lowest_ask": lowest,
                 "currency": "USD",
-                "sold_count": len(filtered),
-                "recent_5": [round(p, 2) for p in prices],
+                "active_count": len(prices),
+                "after_filter": len(cleaned),
+                "top5": [round(p, 2) for p in cleaned_sorted[:5]],
             }
             if debug_this:
-                samples = [f"${p}" for p in prices]
-                print(f"    {grade:>5} → 최근 5건 평균=${avg}  (sold {len(filtered)}건, samples=[{', '.join(samples)}])")
+                top5 = [f"${p}" for p in cleaned_sorted[:5]]
+                print(f"    {grade:>5} → lowest=${lowest}  active {len(prices)}건 (filter 후 {len(cleaned)}건)  top5=[{', '.join(top5)}]")
 
         # ⚠ 이상 감지 — 2개 이상 등급의 lowest_ask 가 동일하면 API 필터 실패 의심
         # 정상이라면 PSA 10 > PSA 9 > A 또는 적어도 다른 값이어야 함

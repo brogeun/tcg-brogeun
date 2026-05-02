@@ -1009,7 +1009,7 @@ async function renderGradesPanel(productId, product) {
   }
 
   // ───────── 카드: PSA10 / PSA9 / A급(싱글) 3칸 ─────────
-  if (header) header.innerHTML = '📊 등급별 최근 거래 평균 (USD)';
+  if (header) header.innerHTML = '📊 등급별 SNKRDUNK 최저가 (USD)';
   const ORDER = ['psa10','psa9','raw'];
   const GRADE_INFO = {
     psa10: { label: 'PSA 10',  color: '#fbbf24', bg: '#fffbeb' },
@@ -1020,22 +1020,23 @@ async function renderGradesPanel(productId, product) {
   const fmtSecondary = (val, cur) => fmtKrw(val, cur);
   const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
-    // 신 스키마 우선: recent_avg (직전 5건 거래 평균)
-    // 호환: lowest_ask, last5_avg, avg, avg_jpy
-    const val = g ? (g.recent_avg ?? g.lowest_ask ?? g.last5_avg ?? g.avg ?? g.avg_jpy) : null;
+    // 신 스키마: lowest_ask (active 매물 최저가, SNKRDUNK 헤드라인)
+    // 호환: recent_avg, last5_avg, avg, avg_jpy
+    const val = g ? (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy) : null;
     const cur = g?.currency || (g?.avg_jpy ? 'JPY' : null);
     if (val && val > 0) {
-      const soldCount = g.sold_count;
-      const recent5 = g.recent_5;
-      const askCount = g.unsold_count;
+      const activeCount = g.active_count ?? g.unsold_count;
+      const afterFilter = g.after_filter;
       let subline;
-      if (g.recent_avg != null) {
-        // 신 스키마 — 거래 기반
+      if (g.lowest_ask != null && activeCount != null) {
+        // 신 스키마 — active listing 최저가
+        const filterTxt = (afterFilter != null && afterFilter < activeCount) ? ` (outlier 제외 ${afterFilter}건)` : '';
+        subline = `출품 ${activeCount}건${filterTxt}`;
+      } else if (g.recent_avg != null) {
+        const soldCount = g.sold_count;
         subline = `최근 5건 평균${soldCount ? ` (총 거래 ${soldCount}건)` : ''}`;
-      } else if (askCount != null) {
-        subline = `최저가 (출품 ${askCount}건)`;
       } else {
-        subline = `${g.count || g.active_count || '?'}건 평균`;
+        subline = `${g.count || g.active_count || '?'}건`;
       }
       return `
         <div style="background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px">

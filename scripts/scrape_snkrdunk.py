@@ -559,17 +559,26 @@ def main():
                 if debug_this:
                     print(f"    {grade:>5} (cond {cond_id}): 매물 없음")
                 continue
+            # ⚠ API 의 conditionId 가 안 먹을 수 있음 → client-side condition 필드로 강제 필터
+            target_cond = {"psa10": "PSA 10", "psa9": "PSA 9", "raw": "A"}[grade]
+            filtered = [it for it in listings if (it.get("condition") or "").strip() == target_cond]
+            if debug_this:
+                conds_seen = set((it.get("condition") or "").strip() for it in listings)
+                print(f"    {grade:>5} (cond {cond_id}): API 응답 {len(listings)}건, condition 종류={conds_seen}, '{target_cond}' 필터 후 {len(filtered)}건")
+            if not filtered:
+                if debug_this:
+                    print(f"    {grade:>5} (cond {cond_id}): condition 매칭 0건 → skip")
+                continue
             # USD 가격 추출
             prices = []
-            for it in listings:
+            for it in filtered:
                 amt, cur, raw_str = extract_raw_price(it.get("price"))
                 if amt is None or amt <= 0:
                     continue
-                # USD 강제 (EN API)
                 prices.append(amt)
             if not prices:
                 if debug_this:
-                    print(f"    {grade:>5} (cond {cond_id}): 가격 파싱 실패 ({len(listings)}건)")
+                    print(f"    {grade:>5} (cond {cond_id}): 가격 파싱 실패 ({len(filtered)}건)")
                 continue
             prices_sorted = sorted(prices)
             lowest = prices_sorted[0]
@@ -581,7 +590,7 @@ def main():
             }
             if debug_this:
                 top5 = [f"${p}" for p in prices_sorted[:5]]
-                print(f"    {grade:>5} (cond {cond_id}): lowest=${lowest}  N={len(prices)}  top5=[{', '.join(top5)}]")
+                print(f"    {grade:>5} → lowest=${lowest}  N={len(prices)}  top5=[{', '.join(top5)}]")
         if debug_this:
             debug_count += 1
         cards_detail[cid] = {

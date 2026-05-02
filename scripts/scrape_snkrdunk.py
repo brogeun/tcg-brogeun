@@ -309,6 +309,24 @@ def save_payload(filename: str, label: str, products: list, fetched_at: str):
 def fetch_usd_jpy() -> float:
     """USD → JPY 환율 (모듈 캐시 사용)"""
     return get_usd_jpy()
+
+
+# ─────────── SNKRDUNK 등급별 매물 API (정확한 파라미터) ───────────
+# isOnlyOnSale=true → active 매물만 / conditionId=N → 등급 필터
+GRADE_CONDITION_IDS = {
+    "psa10": 22,
+    "psa9":  23,
+    "raw":   18,  # A 탭 (싱글)
+}
+
+API_HEADERS = {
+    "User-Agent": UA,
+    "Accept": "application/json",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://snkrdunk.com/en/",
+}
+
+
 def fetch_grade_listings(card_id: str, condition_id: int, only_on_sale: bool = True, max_pages: int = 3) -> list:
     """SNKRDUNK API — 카드 ID + 등급 조건 ID 로 active listing 받아옴.
        condition_id: 22=PSA10, 23=PSA9, 18=A.

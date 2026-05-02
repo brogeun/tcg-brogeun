@@ -327,13 +327,15 @@ API_HEADERS = {
 }
 
 
-def fetch_grade_listings(card_id: str, condition_id: int, only_on_sale: bool = True, max_pages: int = 3) -> list:
-    """SNKRDUNK API — 카드 ID + 등급 조건 ID 로 active listing 받아옴.
-       condition_id: 22=PSA10, 23=PSA9, 18=A.
+def fetch_grade_listings(card_id: str, condition_id: int = 22, only_on_sale: bool = True, max_pages: int = 20) -> list:
+    """SNKRDUNK API — 카드의 active listings 받기. 깊은 페이지네이션 + 중복 제거.
+       max_pages=20 → 최대 1000건 (대부분 카드 충분).
        반환: [{id, listingUID, price, condition, isSold}, ...]"""
     base = f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings"
     qs_only = "&isOnlyOnSale=true" if only_on_sale else ""
+    seen_uids = set()
     all_items = []
+    no_new_count = 0  # 새 listing 0건 페이지가 연속 N번 → 끝
     for page in range(1, max_pages + 1):
         url = f"{base}?conditionId={condition_id}&page={page}&perPage=50{qs_only}"
         try:
@@ -347,9 +349,25 @@ def fetch_grade_listings(card_id: str, condition_id: int, only_on_sale: bool = T
         items = data.get("usedListings") or data.get("usedTradingCards") or []
         if not items:
             break
-        all_items.extend(items)
+        # 중복 제거 (API 가 conditionId 무시하고 같은 listing 반복할 수 있음)
+        new_items = []
+        for it in items:
+            uid = it.get("listingUID") or it.get("id")
+            if uid and uid not in seen_uids:
+                seen_uids.add(uid)
+                new_items.append(it)
+        all_items.extend(new_items)
+        # 새 listing 0개면 카운터 ↑, 2번 연속이면 stop (API 가 같은 페이지 무한 반복하는 경우)
+        if not new_items:
+            no_new_count += 1
+            if no_new_count >= 2:
+                break
+        else:
+            no_new_count = 0
+        # 한 페이지가 50건 미만 → 마지막 페이지
         if len(items) < 50:
             break
+        time.sleep(0.05)  # rate limit (페이지간 50ms)
     return all_items
 
 
@@ -553,10 +571,9 @@ def main():
         debug_this = (debug_count < 3)
         if debug_this:
             print(f"  [DEBUG] card {cid}:")
-        # ⚡ 한 번만 호출 — conditionId 없이 모든 listing 받아서 client-side 분류
-        # API 가 conditionId 무시할 가능성 있어서 한 호출로 다 처리하는게 더 효율적
-        all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=4)
-        # max_pages=4 → 최대 200건. 이걸로도 부족하면 매우 인기있는 카드.
+        # ⚡ 카드별 1회 호출, 깊은 페이지네이션 (max_pages=20 = 최대 1000건)
+        # 인기 카드는 listing 많아서 PSA 10 같은 적은 등급도 깊은 페이지에 있을 수 있음
+        all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=20)
         # ⚠ API 의 isOnlyOnSale 도 안 먹을 가능성 → client-side isSold 필터
         active_only = [it for it in all_listings if not it.get("isSold")]
         if debug_this and all_listings:
@@ -608,6 +625,51 @@ def main():
             if debug_this:
                 top5 = [f"${p}" for p in prices_sorted[:5]]
                 print(f"    {grade:>5} → lowest=${lowest}  N={len(prices)}  top5=[{', '.join(top5)}]")
+
+        # ⚠ 이상 감지 — 2개 이상 등급의 lowest_ask 가 동일하면 API 필터 실패 의심
+        # 정상이라면 PSA 10 > PSA 9 > A 또는 적어도 다른 값이어야 함
+        non_empty_prices = [(g, info["lowest_ask"]) for g, info in grades.items() if info.get("lowest_ask")]
+        if len(non_empty_prices) >= 2:
+            unique_prices = set(p for _, p in non_empty_prices)
+            if len(unique_prices) == 1:
+                # 모든 등급 동일 가격 → retry 1번
+                if debug_this:
+                    print(f"  ⚠ 모든 등급 동일 가격 ${non_empty_prices[0][1]} → retry...")
+                time.sleep(1.0)
+                all_listings_retry = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=20)
+                active_retry = [it for it in all_listings_retry if not it.get("isSold")]
+                grades_retry = {}
+                for g_key in grades.keys():
+                    filtered_r = [it for it in active_retry if matches(it.get("condition"), g_key)]
+                    if not filtered_r:
+                        continue
+                    prices_r = []
+                    for it in filtered_r:
+                        amt, cur, raw_str = extract_raw_price(it.get("price"))
+                        if amt and amt > 0:
+                            prices_r.append(amt)
+                    if not prices_r:
+                        continue
+                    pr_sorted = sorted(prices_r)
+                    grades_retry[g_key] = {
+                        "lowest_ask": pr_sorted[0],
+                        "currency": "USD",
+                        "active_count": len(prices_r),
+                        "top5": [round(p, 2) for p in pr_sorted[:5]],
+                    }
+                # retry 결과가 더 다양하면 적용
+                retry_prices = set(info["lowest_ask"] for info in grades_retry.values() if info.get("lowest_ask"))
+                if len(retry_prices) > 1:
+                    grades = grades_retry
+                    if debug_this:
+                        print(f"  ✓ retry 결과 다양함 → 채택")
+                else:
+                    # 여전히 다 같으면 → 신뢰 낮음, active_count 가장 큰 1개만 남김
+                    biggest = max(non_empty_prices, key=lambda kv: grades[kv[0]].get("active_count", 0))
+                    grades = {biggest[0]: grades[biggest[0]]}
+                    if debug_this:
+                        print(f"  ⚠ retry 후도 동일 → '{biggest[0]}' 만 신뢰, 나머지 제거")
+
         if debug_this:
             debug_count += 1
         cards_detail[cid] = {

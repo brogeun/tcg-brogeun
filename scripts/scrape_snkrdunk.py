@@ -599,14 +599,20 @@ def main():
             return False
 
         for grade, cond_id in GRADE_CONDITION_IDS.items():
-            # sold listings 중 grade 매칭하는 것만 (API 가 sort=latest 라 이미 최신순)
+            # sold listings 중 grade 매칭하는 것만
             filtered = [it for it in sold_only if matches(it.get("condition"), grade)]
             if debug_this:
                 print(f"    {grade:>5}: '{grade}' 매칭 sold listing {len(filtered)}건")
             if not filtered:
                 continue
+            # ⚡ listingUID (ULID) 기반 정렬 — 첫 10자가 timestamp_ms (Crockford base32)
+            # 내림차순 = 최신 거래 먼저
+            filtered.sort(key=lambda it: (it.get("listingUID") or "")[:10], reverse=True)
             # 최근 거래 5건만
             recent_5 = filtered[:5]
+            if debug_this and recent_5:
+                uids = [it.get("listingUID", "")[:10] for it in recent_5]
+                print(f"    {grade:>5}: 최신 5건 ULID prefix = {uids}")
             prices = []
             for it in recent_5:
                 amt, cur, raw_str = extract_raw_price(it.get("price"))

@@ -332,80 +332,101 @@ def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dic
     grade_map = [("A", "raw"), ("PSA 10", "psa10"), ("PSA 9", "psa9")]
     out: dict = {}
 
-    # 헤드라인 가격은 'US $X~' (tilde 필수). 개별 listing 가격은 ~ 없음 → 헤드라인만 정확히 잡힘.
+    # 헤드라인 가격 추출 — 2단계 시도: 1) ~ 있는 헤드라인, 2) ~ 없어도 가장 큰 폰트 (fallback)
     extract_script = r"""
-        // SNKRDUNK 헤드라인 패턴: "US $122~", "US $1,279~", "¥35,000~"  ← ~ 필수
         const all = Array.from(document.querySelectorAll('div, span, h1, h2, h3, h4, p'));
-        let best = null;
-        // ~ 가 반드시 끝에 붙는 패턴만 매칭 (개별 listing 가격은 ~ 없어서 자동 제외)
-        const re = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)\s*~/;
-        // 페이지 상단 (탭 버튼 가까이) 의 element 일수록 우선 — y 좌표 가장 작은 것
+        const reTilde = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)\s*~/;
+        const reAny   = /(?:US\s*\$|\$|¥)\s*([\d,]+(?:\.\d+)?)/;
+        let bestTilde = null;
+        let bestFont  = null;
         for (const el of all) {
             const txt = (el.innerText || '').trim();
             if (txt.length > 50 || txt.length < 3) continue;
-            const m = txt.match(re);
-            if (!m) continue;
-            const rect = el.getBoundingClientRect();
             const fontSize = parseFloat(getComputedStyle(el).fontSize) || 0;
-            if (fontSize < 16) continue;
-            // 가장 위쪽의 (y 가 작은) headline 채택, 같은 y 면 큰 폰트 우선
-            if (!best || rect.top < best.top - 5 ||
-                (Math.abs(rect.top - best.top) < 5 && fontSize > best.fontSize)) {
-                best = {
-                    price: parseFloat(m[1].replace(/,/g, '')),
-                    currency: txt.includes('¥') ? 'JPY' : 'USD',
-                    raw: txt,
-                    fontSize: fontSize,
-                    top: rect.top,
-                };
+            if (fontSize < 14) continue;
+            const rect = el.getBoundingClientRect();
+            const mT = txt.match(reTilde);
+            if (mT) {
+                if (!bestTilde || rect.top < bestTilde.top - 5 ||
+                    (Math.abs(rect.top - bestTilde.top) < 5 && fontSize > bestTilde.fontSize)) {
+                    bestTilde = {price: parseFloat(mT[1].replace(/,/g, '')), currency: txt.includes('¥')?'JPY':'USD', raw: txt, fontSize: fontSize, top: rect.top, kind: 'tilde'};
+                }
+                continue;
+            }
+            if (fontSize < 22) continue;
+            const mA = txt.match(reAny);
+            if (mA) {
+                if (!bestFont || fontSize > bestFont.fontSize) {
+                    bestFont = {price: parseFloat(mA[1].replace(/,/g, '')), currency: txt.includes('¥')?'JPY':'USD', raw: txt, fontSize: fontSize, top: rect.top, kind: 'fontfallback'};
+                }
             }
         }
-        // 데이터 없음 표시 ("—" 만 있는 element 가 비슷한 위치)
-        if (!best) {
+        const dashCheck = () => {
             for (const el of all) {
                 const txt = (el.innerText || '').trim();
                 if (txt !== '—' && txt !== '-') continue;
                 const fontSize = parseFloat(getComputedStyle(el).fontSize) || 0;
-                if (fontSize >= 18) {
-                    return {dash: true};
-                }
+                if (fontSize >= 18) return true;
             }
-        }
-        return best;
+            return false;
+        };
+        if (bestTilde) return bestTilde;
+        if (bestFont) return bestFont;
+        if (dashCheck()) return {dash: true};
+        const txt = (document.body.innerText || '');
+        const dollarIdx = txt.indexOf('$');
+        const sample = dollarIdx >= 0 ? txt.substring(Math.max(0, dollarIdx - 20), dollarIdx + 50) : null;
+        return {debug: 'no-match', sample: sample};
     """
 
-    # 탭 컨테이너 (여러 탭 레이블 동시 포함하는 부모) 안에서만 클릭 — "A" 가 다른 요소(Authentic 등)에 매칭되는 사고 차단
+    # 탭 클릭 — 3단계 시도: 탭바 스코프 → sibling 검증 → 모든 매칭 fallback
     click_script_tpl = r"""
         const target = arguments[0];
         const TAB_LABELS = ['All', 'A', 'B', 'C', 'D', 'PSA 10', 'PSA 9', 'PSA 8 or under', 'BGS 10 BL', 'BGS 10 GL'];
-        // 1) 탭 바 컨테이너 찾기 — 5개 이상의 탭 레이블을 직접 자식으로 가진 element
+        const allClickable = Array.from(document.querySelectorAll('button, [role="button"], div, span, a, li'));
+        const targetMatches = allClickable.filter(el => (el.innerText || '').trim() === target && el.offsetParent !== null);
+        // 1) tabBar 안에서 매칭
         const containers = document.querySelectorAll('div, ul, nav');
         let tabBar = null;
         for (const c of containers) {
-            const directText = Array.from(c.children)
-                .map(ch => (ch.innerText || '').trim())
-                .filter(t => TAB_LABELS.includes(t));
-            if (directText.length >= 5) { tabBar = c; break; }
-            // depth-2 까지도 시도
-            const grandText = Array.from(c.querySelectorAll('button, [role="button"], div, span'))
+            const allText = Array.from(c.querySelectorAll('button, [role="button"], div, span, a, li'))
                 .map(el => (el.innerText || '').trim())
                 .filter(t => TAB_LABELS.includes(t));
-            if (grandText.length >= 5) { tabBar = c; break; }
+            if (allText.length >= 5) { tabBar = c; break; }
         }
-        if (!tabBar) return {ok: false, reason: 'no-tabbar'};
-        // 2) 탭바 안에서 target 매칭하는 클릭 가능 요소
-        const candidates = tabBar.querySelectorAll('button, [role="button"], div, span, a');
-        for (const el of candidates) {
-            const txt = (el.innerText || '').trim();
-            if (txt !== target) continue;
-            if (el.offsetParent === null) continue;
+        if (tabBar) {
+            const candidates = tabBar.querySelectorAll('button, [role="button"], div, span, a, li');
+            for (const el of candidates) {
+                if ((el.innerText || '').trim() !== target) continue;
+                if (el.offsetParent === null) continue;
+                el.scrollIntoView({block: 'center', inline: 'center'});
+                el.click();
+                return {ok: true, via: 'tabbar', w: el.offsetWidth};
+            }
+        }
+        // 2) sibling 검증
+        for (const el of targetMatches) {
+            const parent = el.parentElement;
+            if (!parent) continue;
+            const sibLabels = Array.from(parent.querySelectorAll('*'))
+                .map(e => (e.innerText || '').trim())
+                .filter(t => TAB_LABELS.includes(t));
+            if (sibLabels.length >= 3) {
+                el.scrollIntoView({block: 'center', inline: 'center'});
+                el.click();
+                return {ok: true, via: 'sibling', w: el.offsetWidth};
+            }
+        }
+        // 3) fallback
+        for (const el of targetMatches) {
             const w = el.offsetWidth;
-            if (w < 15 || w > 250) continue;
-            el.scrollIntoView({block: 'center'});
-            el.click();
-            return {ok: true, w: w};
+            if (w >= 15 && w <= 250) {
+                el.scrollIntoView({block: 'center', inline: 'center'});
+                el.click();
+                return {ok: true, via: 'fallback', w: w};
+            }
         }
-        return {ok: false, reason: 'no-match-in-tabbar'};
+        return {ok: false, reason: 'no-match', candidates: targetMatches.length};
     """
 
     for label, key in grade_map:
@@ -413,25 +434,37 @@ def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dic
             click_result = driver.execute_script(click_script_tpl, label)
             if not (click_result and click_result.get("ok")):
                 reason = (click_result or {}).get("reason", "unknown")
+                cands = (click_result or {}).get("candidates", "?")
                 if debug:
-                    print(f"    [{label}] 탭 클릭 실패 ({reason})")
+                    print(f"    [{label}] 탭 클릭 실패 ({reason}, candidates={cands})")
                 out[key] = None
                 continue
-            time.sleep(1.8)  # 헤드라인 가격 업데이트 대기 — 1.2 → 1.8
+            time.sleep(1.8)
             extracted = driver.execute_script(extract_script)
             if extracted and extracted.get("price"):
                 out[key] = {
                     "lowest_ask": extracted["price"],
                     "currency": extracted["currency"],
                     "raw_text": extracted.get("raw"),
+                    "kind": extracted.get("kind"),
                 }
                 if debug:
-                    print(f"    [{label}] '{extracted['raw'][:40]}' → {extracted['price']} {extracted['currency']}")
-            else:
-                # 데이터 없음 (— 표시)
+                    via = click_result.get("via", "?")
+                    kind = extracted.get("kind", "?")
+                    print(f"    [{label}] (click:{via}, extract:{kind}) '{extracted['raw'][:40]}' -> {extracted['price']} {extracted['currency']}")
+            elif extracted and extracted.get("dash"):
                 out[key] = {"lowest_ask": None, "currency": "USD"}
                 if debug:
                     print(f"    [{label}] 데이터 없음 (—)")
+            elif extracted and extracted.get("debug") == "no-match":
+                out[key] = {"lowest_ask": None, "currency": "USD"}
+                if debug:
+                    sample = extracted.get("sample", "")
+                    print(f"    [{label}] 가격 매칭 실패 — sample near $: {sample!r}")
+            else:
+                out[key] = None
+                if debug:
+                    print(f"    [{label}] extract 응답 없음")
         except Exception as e:
             if debug:
                 print(f"    [{label}] err: {e}")

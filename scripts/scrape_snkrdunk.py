@@ -472,8 +472,10 @@ def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dic
     return out
 
 
-def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
-    """SNKRDUNK API 직접 호출 — JP 우선 (¥ 네이티브), 안 되면 EN(USD) fallback"""
+def fetch_used_listings(card_id: str, max_pages: int = 3, only_on_sale: bool = False) -> list:
+    """SNKRDUNK API 호출 — only_on_sale=True 면 unsold (active) listing 만 받음.
+       active 들 중 condition별 min(price) = SNKRDUNK 헤드라인 'US $X~' 와 일치."""
+    qs_only = "&onlyOnSale=true" if only_on_sale else ""
     # JP 헤더로 ¥ 응답 강제 시도
     jp_headers = {
         "User-Agent": UA,
@@ -496,7 +498,7 @@ def fetch_used_listings(card_id: str, max_pages: int = 3) -> list:
     for base, hdrs in bases:
         all_listings = []
         for page in range(1, max_pages + 1):
-            url = f"{base}?page={page}"
+            url = f"{base}?page={page}&perPage=50{qs_only}"
             try:
                 req = urllib.request.Request(url, headers=hdrs)
                 with urllib.request.urlopen(req, timeout=15) as resp:
@@ -688,13 +690,12 @@ def main():
             print(f"[{label}] ❌ 에러: {e}")
             fail_count += 1
 
-    # 3) 카드별 등급 가격 — Selenium 으로 SNKRDUNK 페이지 직접 방문하여 A/PSA10/PSA9 탭 클릭
-    #    (used-listings API 는 sold 만 반환해서 lowest_ask 못 구함 → 페이지 클릭으로 대체)
+    # 3) 카드별 등급 가격 — API 직접 호출 (only_on_sale=True 로 active listings 만)
+    #    봇 가이드 방식 그대로: condition별 min(price) = SNKRDUNK 헤드라인 'US $X~'
     print()
     print("=" * 60)
-    print("Phase 3: 카드별 등급 가격 (Selenium 페이지 클릭)")
+    print("Phase 3: 카드별 등급 가격 (API only_on_sale=true)")
     print("=" * 60)
-    usd_jpy = fetch_usd_jpy()
     # 박스 ID 모으기 (등급 없으니 스킵)
     box_ids = set()
     for f in ("price-pokemon-box.json", "price-onepiece-box.json"):
@@ -709,22 +710,57 @@ def main():
     card_ids = [cid for cid in all_ids if cid not in box_ids]
     print(f"  전체 추적 ID: {len(all_ids)}개  /  박스 제외 카드만: {len(card_ids)}개")
     cards_detail = {}
-    # Selenium 단일 세션 재활용
-    grade_driver = make_driver(lang="en-US")
-    try:
-        for i, cid in enumerate(card_ids, 1):
-            debug_this = (i <= 3)
-            grades = scrape_grade_asks_selenium(grade_driver, cid, debug=debug_this)
-            cards_detail[cid] = {
-                "id": cid,
-                "grades": {k: v for k, v in grades.items() if v is not None},
+    debug_count = 0
+    for i, cid in enumerate(card_ids, 1):
+        # only_on_sale=True 로 active listing 만 (= 헤드라인과 동일 메트릭)
+        listings = fetch_used_listings(cid, max_pages=5, only_on_sale=True)
+        # 첫 3장 디버그
+        if debug_count < 3 and listings:
+            print(f"  [DEBUG] card {cid}: active listings {len(listings)}건")
+            for j, sample in enumerate(listings[:3]):
+                print(f"    [{j}] cond={sample.get('condition')!r}  price={sample.get('price')!r}")
+            debug_count += 1
+        # condition 별 min(price) = lowest_ask
+        by_grade: dict = {}
+        for it in listings:
+            grade = parse_grade(it.get("condition", ""))
+            if grade is None:
+                continue
+            amt, cur, raw_str = extract_raw_price(it.get("price"))
+            if amt is None or amt <= 0:
+                continue
+            if cur is None:
+                cur = "JPY" if amt >= 1000 else "USD"
+            by_grade.setdefault(grade, []).append((amt, cur, raw_str))
+        grades = {}
+        for g, items in by_grade.items():
+            # 다수파 통화로 통일
+            jpy_count = sum(1 for _, c, _ in items if c == "JPY")
+            usd_count = sum(1 for _, c, _ in items if c == "USD")
+            currency = "JPY" if jpy_count >= usd_count else "USD"
+            same_cur = [(p, r) for p, c, r in items if c == currency]
+            if not same_cur:
+                continue
+            min_price, min_raw = min(same_cur, key=lambda x: x[0])
+            grades[g] = {
+                "lowest_ask": min_price,
+                "currency": currency,
+                "active_count": len(same_cur),
+                "raw_text": min_raw[:30] if min_raw else "",
             }
-            if i % 5 == 0 or i == len(card_ids):
-                non_empty = sum(1 for v in grades.values() if v and v.get("lowest_ask"))
-                print(f"  [{i}/{len(card_ids)}] {cid} → 등급 채워진 칸: {non_empty}/3")
-    finally:
-        grade_driver.quit()
-    # 박스도 placeholder 로 등록 (frontend 가 product 못찾는 경우 방지)
+        # 디버그 첫 3장 결과 출력
+        if debug_count <= 3 and i <= 3:
+            for g, info in grades.items():
+                print(f"    -> {g}: lowest_ask={info['lowest_ask']} {info['currency']} (active {info['active_count']}건)")
+        cards_detail[cid] = {
+            "id": cid,
+            "grades": grades,
+        }
+        if i % 10 == 0 or i == len(card_ids):
+            non_empty = sum(1 for v in grades.values() if v.get("lowest_ask"))
+            print(f"  [{i}/{len(card_ids)}] {cid} → 등급 채워진 칸: {non_empty}/3")
+        time.sleep(0.3)  # rate limit
+        # 박스도 placeholder 로 등록 (frontend 가 product 못찾는 경우 방지)
     for bid in box_ids:
         cards_detail.setdefault(bid, {"id": bid, "grades": {}})
     out_path = DATA_DIR / "cards-detail.json"

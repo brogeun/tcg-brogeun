@@ -121,9 +121,8 @@ def scrape_pokemon(driver, src: dict) -> list:
     driver.execute_script("window.scrollTo(0, 0);")
     time.sleep(0.5)
 
-    # 일반적 게시판 a.title, .news-item, .post 등 패턴 시도
+    # 다양한 사이트 구조 대응 — a 태그 안에 텍스트 없어도 부모/자식/img alt 다 찾기
     items_js = r"""
-        // 뉴스 항목 후보 셀렉터들
         const selectors = [
             'article a[href]',
             '.news-list a[href]',
@@ -133,33 +132,67 @@ def scrape_pokemon(driver, src: dict) -> list:
             'a.news-item',
             'a[href*="news"]',
             'a[href*="view"]',
+            'a[href*="topics"]',
+            'a[href*="article"]',
         ];
         const seen = new Set();
         const out = [];
+
+        // 제목 추출 함수 — 4단계 fallback
+        function extractTitle(el) {
+            // 1) a 태그 자체 innerText
+            let t = (el.innerText || '').trim();
+            if (t && t.length >= 5 && t.length <= 200) return t.split('\n')[0].trim();
+            // 2) a 안의 img alt
+            const img = el.querySelector('img');
+            if (img) {
+                const alt = (img.alt || '').trim();
+                if (alt && alt.length >= 3) return alt;
+            }
+            // 3) 부모 영역에서 .title, h2, h3, strong 찾기
+            const parent = el.closest('article, li, .item, .post, div, tr');
+            if (parent) {
+                const titleEl = parent.querySelector('.title, .subject, .news-title, h2, h3, h4, strong, b');
+                if (titleEl) {
+                    const tt = (titleEl.innerText || '').trim();
+                    if (tt && tt.length >= 3 && tt.length <= 200) return tt.split('\n')[0].trim();
+                }
+                // 4) 부모 텍스트 첫 의미있는 줄
+                const lines = (parent.innerText || '').split('\n').map(s => s.trim()).filter(s => s.length >= 5 && s.length <= 200);
+                // 날짜/메뉴어 같은 거 제외
+                const filtered = lines.filter(l => !/^\d{4}[\-./]\d/.test(l) && !/^\d+$/.test(l) && !/^(more|view|read|click)/i.test(l));
+                if (filtered.length) return filtered[0];
+            }
+            // 5) title 속성
+            const titleAttr = el.getAttribute('title');
+            if (titleAttr && titleAttr.length >= 3) return titleAttr.trim();
+            return null;
+        }
+
         for (const sel of selectors) {
             const els = document.querySelectorAll(sel);
             for (const el of els) {
                 const href = el.href;
                 if (!href || seen.has(href)) continue;
-                const txt = (el.innerText || '').trim();
-                if (!txt || txt.length < 5 || txt.length > 200) continue;
-                // 이미지 찾기 (a 태그 안 또는 가까운 부모에서)
+                const title = extractTitle(el);
+                if (!title) continue;
+                // 이미지
                 let img = el.querySelector('img');
                 if (!img) {
                     const parent = el.closest('article, li, .item, .post, div');
                     if (parent) img = parent.querySelector('img');
                 }
-                const imgSrc = img ? (img.src || img.getAttribute('data-src') || '') : '';
-                // 날짜 텍스트 찾기 (부모 영역에서)
+                const imgSrc = img ? (img.src || img.getAttribute('data-src') || img.getAttribute('data-original') || '') : '';
+                // 날짜
                 const parent = el.closest('article, li, .item, .post, div, tr');
                 let dateText = '';
                 if (parent) {
-                    const dateEl = parent.querySelector('.date, .day, time, .news-date');
+                    const dateEl = parent.querySelector('.date, .day, time, .news-date, .post-date');
                     if (dateEl) dateText = (dateEl.innerText || '').trim();
-                    if (!dateText) dateText = (parent.innerText || '').slice(-30);
+                    if (!dateText) dateText = (parent.innerText || '').slice(-50);
                 }
                 seen.add(href);
-                out.push({title: txt.split('\n')[0].trim(), href: href, img: imgSrc, dateText: dateText});
+                out.push({title: title, href: href, img: imgSrc, dateText: dateText});
                 if (out.length >= 60) return out;
             }
             if (out.length >= 30) break;
@@ -202,19 +235,7 @@ def scrape_pokemon(driver, src: dict) -> list:
 
 
 def scrape_onepiece(driver, src: dict) -> list:
-    """onepiece-cardgame.kr/topics.do — 좀 더 일반화된 추출"""
-    print(f"\n━━━ {src['label']}: {src['url']} ━━━")
-    try:
-        driver.get(src['url'])
-        time.sleep(3)
-    except Exception as e:
-        print(f"  ✗ load err: {e}")
-        return []
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(1.5)
-    driver.execute_script("window.scrollTo(0, 0);")
-    time.sleep(0.5)
-    # 같은 추출 스크립트 재사용
+    """onepiece-cardgame.kr/topics.do — 같은 추출 로직 재사용"""
     return scrape_pokemon(driver, src)
 
 

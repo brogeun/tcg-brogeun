@@ -242,24 +242,78 @@ GENERIC_TITLES = {
 
 
 def fetch_detail_title(driver, url: str) -> str:
-    """detail 페이지에서 진짜 제목 추출 — h1/h2/큰 폰트 텍스트 찾기"""
+    """detail 페이지에서 진짜 제목 추출 — 다중 전략, generic 우회"""
     try:
         driver.get(url)
-        time.sleep(1.5)
+        time.sleep(2.0)
     except Exception:
         return None
     title_js = r"""
-        // 1순위: h1, h2 (큰 제목)
-        const headings = document.querySelectorAll('h1, h2');
-        for (const el of headings) {
-            const t = (el.innerText || '').trim();
-            if (t && t.length >= 4 && t.length <= 200) return t.split('\n')[0].trim();
+        const GENERIC = new Set([
+            'PRODUCTS', 'EVENTS', 'NEWS', 'NOTICE', 'BOOSTERS', 'DECKS', 'OTHER',
+            '상품정보', '이벤트', '공지사항', '뉴스', 'ONE PIECE', 'ONE PIECE CARD GAME',
+            '원피스', '원피스 카드게임', 'ONE PIECE 원피스 카드게임'
+        ]);
+        const isGeneric = (t) => {
+            if (!t) return true;
+            const trimmed = t.trim();
+            if (GENERIC.has(trimmed) || GENERIC.has(trimmed.toUpperCase())) return true;
+            const onlyAlpha = trimmed.toUpperCase().replace(/[^A-Z]/g, '');
+            if (onlyAlpha === 'ONEPIECE' || onlyAlpha === 'ONEPIECECARDGAME') return true;
+            return false;
+        };
+        const isGood = (t) => {
+            if (!t) return false;
+            const trimmed = t.trim();
+            if (trimmed.length < 5 || trimmed.length > 200) return false;
+            if (isGeneric(trimmed)) return false;
+            return true;
+        };
+
+        // 1순위: 대괄호 패턴 [STK-22], [OPK-12] 가 들어간 텍스트 (제일 확실)
+        const allEls = document.querySelectorAll('h1, h2, h3, h4, .title, .subject, .tit, .board-tit, .bd-title, .post-title, .article-title, div, p, span');
+        for (const el of allEls) {
+            const t = (el.innerText || '').trim().split('\n')[0].trim();
+            if (isGood(t) && /\[[A-Z0-9\-]+\]/.test(t)) {
+                return t;
+            }
         }
+        // 2순위: 큰 폰트 텍스트 중 generic 아닌 것 (페이지 상단)
+        let bestByFont = null;
+        let bestSize = 0;
+        for (const el of allEls) {
+            const t = (el.innerText || '').trim().split('\n')[0].trim();
+            if (!isGood(t)) continue;
+            const rect = el.getBoundingClientRect();
+            if (rect.top < 0 || rect.top > 800) continue;
+            const fs = parseFloat(getComputedStyle(el).fontSize) || 0;
+            if (fs >= 20 && fs > bestSize) {
+                bestSize = fs;
+                bestByFont = t;
+            }
+        }
+        if (bestByFont) return bestByFont;
+
+        // 3순위: h1/h2/h3 순서
+        const headings = document.querySelectorAll('h1, h2, h3, h4');
+        for (const el of headings) {
+            const t = (el.innerText || '').trim().split('\n')[0].trim();
+            if (isGood(t)) return t;
+        }
+        // 4순위: 일반 .title / .subject 클래스
+        const titleEls = document.querySelectorAll('.title, .subject, .tit, .news-title, .post-title, .article-title, .board-tit, .bd-title');
+        for (const el of titleEls) {
+            const t = (el.innerText || '').trim();
+            if (isGood(t)) return t.split('\n')[0].trim();
+        }
+        // 5순위: <title> 메타 — 가장 긴 segment 채택
         const pageTitle = document.title || '';
-        if (pageTitle && pageTitle.length >= 4) {
-            const cleaned = pageTitle.split(/[:|\-]/)[0].trim();
-            if (cleaned.length >= 4 && cleaned.length <= 200) return cleaned;
-            return pageTitle.trim();
+        if (pageTitle) {
+            const parts = pageTitle.split(/[:|\-]/).map(s => s.trim()).filter(s => isGood(s));
+            if (parts.length) {
+                parts.sort((a, b) => b.length - a.length);
+                return parts[0];
+            }
         }
         return null;
     """
@@ -267,6 +321,7 @@ def fetch_detail_title(driver, url: str) -> str:
         return driver.execute_script(title_js)
     except Exception:
         return None
+
 
 
 def enrich_titles(driver, items: list) -> list:

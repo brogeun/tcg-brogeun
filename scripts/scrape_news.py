@@ -242,12 +242,38 @@ GENERIC_TITLES = {
 
 
 def fetch_detail_title(driver, url: str) -> str:
-    """detail 페이지에서 진짜 제목 추출 — 다중 전략, generic 우회"""
+    """detail 페이지에서 진짜 제목 추출 — 페이지 완전 로드 검증 후 추출"""
     try:
+        # about:blank 으로 먼저 가서 이전 페이지 잔재 클리어 (DOM 캐싱 방지)
+        driver.get("about:blank")
+        time.sleep(0.3)
         driver.get(url)
-        time.sleep(2.0)
     except Exception:
         return None
+    # 1) document.readyState 가 complete 될 때까지 최대 8초 대기
+    for _ in range(40):
+        try:
+            ready = driver.execute_script("return document.readyState")
+            cur = driver.execute_script("return location.href")
+            if ready == "complete" and cur and url.split("?")[0] in cur:
+                break
+        except Exception:
+            pass
+        time.sleep(0.2)
+    # 2) 추가 안정화 대기 (JS 렌더링 완료)
+    time.sleep(1.5)
+    # 3) URL 일치 최종 검증
+    try:
+        cur = driver.execute_script("return location.href") or ""
+        # brdno=숫자 같은 식별자 검증
+        import re as _re
+        m1 = _re.search(r"brdno=(\d+)", url)
+        m2 = _re.search(r"brdno=(\d+)", cur)
+        if m1 and m2 and m1.group(1) != m2.group(1):
+            print(f"    ⚠ URL mismatch: expected brdno={m1.group(1)}, got brdno={m2.group(1)}")
+            return None
+    except Exception:
+        pass
     title_js = r"""
         const GENERIC = new Set([
             'PRODUCTS', 'EVENTS', 'NEWS', 'NOTICE', 'BOOSTERS', 'DECKS', 'OTHER',

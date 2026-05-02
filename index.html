@@ -1166,11 +1166,46 @@ document.addEventListener('click', e => {
 /* ────────────────────────────────────
    4. 정보 허브 — 뉴스 + 샵
    ──────────────────────────────────── */
-const NEWS = [
-  {title: "낙원 드래고나 BOX 발매", date: "2026-04-26", src: "포켓몬센터 공식", link: "https://www.pokemon-card.com/"},
-  {title: "OP-13 三兄弟의 絆 발매 예정", date: "2026-04-25", src: "원피스 공식", link: "https://en.onepiece-cardgame.com/"},
-  {title: "SV12 카드팩 사전 정보 공개", date: "2026-04-22", src: "TCG뉴스", link: "https://www.pokemon-card.com/"},
-];
+// 뉴스: GitHub Actions 가 매일 04:00 KST 에 한국 사이트 (pokemoncard.co.kr, onepiece-cardgame.kr)
+//       에서 4·5월 항목만 자동 수집해 data/news.json 에 저장
+async function loadNews() {
+  const list = document.getElementById('newsList');
+  if (!list) return;
+  list.innerHTML = `<div class="empty" style="grid-column:1/-1; padding:30px"><div class="empty-icon">⏳</div><div class="empty-sub">뉴스 불러오는 중...</div></div>`;
+  try {
+    const r = await fetch(`/data/news.json?t=${Math.floor(Date.now()/3600000)}`);
+    if (!r.ok) throw new Error('news.json 없음');
+    const d = await r.json();
+    const items = d.items || [];
+    if (!items.length) {
+      list.innerHTML = `<div class="empty" style="grid-column:1/-1; padding:30px"><div class="empty-icon">📰</div><div class="empty-title">4·5월 뉴스 없음</div><div class="empty-sub">매일 04:00 KST 에 자동 갱신됩니다</div></div>`;
+      return;
+    }
+    list.innerHTML = items.map(n => {
+      const srcBadge = n.source === 'pokemon'
+        ? '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:700">⚡ 포켓몬</span>'
+        : '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:700">🏴‍☠️ 원피스</span>';
+      const imgHtml = n.image
+        ? `<img src="${n.image}" alt="" loading="lazy" referrerpolicy="no-referrer"
+                style="width:100%; aspect-ratio:16/9; object-fit:cover; background:#f3f4f6"
+                onerror="this.style.display='none'">`
+        : `<div style="width:100%; aspect-ratio:16/9; background:linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%); display:flex; align-items:center; justify-content:center; font-size:42px; opacity:0.3">📰</div>`;
+      return `
+        <a href="${n.link}" target="_blank" rel="noopener" class="card" style="display:block; padding:0; overflow:hidden; text-decoration:none; color:inherit">
+          ${imgHtml}
+          <div style="padding:12px 14px">
+            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px">${srcBadge}<span style="font-size:11px; color:var(--ink-sub)">${n.date || ''}</span></div>
+            <div style="font-size:14px; font-weight:700; line-height:1.4; color:#111;
+                        display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">${n.title}</div>
+          </div>
+        </a>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="empty" style="grid-column:1/-1; padding:30px"><div class="empty-icon">⚠</div><div class="empty-title">뉴스 데이터 로드 실패</div><div class="empty-sub">${e.message}</div></div>`;
+  }
+}
+// 페이지 로드시 한 번 호출 (정보 허브 진입할 때마다 새로고침은 안 해도 됨 — 캐시 버스터가 시간단위)
+loadNews();
 /* 공식매장 — 포켓몬 카드 공식 매장 11개 */
 // 매장 정보 — 공식 포스터(pokemonkorea.co.kr) 출처 그대로 반영
 // image = images/market/{영문지역}.JPG (사용자 업로드 로고)
@@ -1255,11 +1290,6 @@ const SHOPS = {
   onepiece: []  // 원피스 공식 매장 등록 시 추가
 };
 
-document.getElementById('newsList').innerHTML = NEWS.map(n => `
-  <a href="${n.link}" target="_blank" rel="noopener" class="card" style="padding:14px 16px; display:block">
-    <div style="font-size:15px; font-weight:700; margin-bottom:6px">${n.title}</div>
-    <div style="font-size:12px; color:var(--ink-sub)">${n.src} · ${n.date}</div>
-  </a>`).join('');
 let SHOP_BRAND = 'pokemon';
 function renderShops() {
   const list = SHOPS[SHOP_BRAND] || [];

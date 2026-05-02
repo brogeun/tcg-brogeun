@@ -41,6 +41,11 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
+      - name: Run news scraper (한국 TCG 뉴스 - 4·5월)
+        run: python scripts/scrape_news.py || echo "news scrape failed (non-fatal)"
+        env:
+          PYTHONUNBUFFERED: "1"
+
       - name: Commit JSON updates (if any)
         uses: stefanzweifel/git-auto-commit-action@v5
         with:

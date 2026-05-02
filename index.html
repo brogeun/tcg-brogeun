@@ -433,7 +433,15 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           </div>
           <button class="btn" type="button" id="homeTopMore" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
         </div>
-        <div id="homeTopList" class="grid auto-shop"></div>
+        <div id="homeTopList" class="home-top-grid"></div>
+        <style>
+          /* 홈 인기 TOP 10 — 5열 × 2행 고정 */
+          .home-top-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px; }
+          @media (max-width: 1100px) { .home-top-grid { grid-template-columns:repeat(5, minmax(0,1fr)); } }
+          @media (max-width: 850px)  { .home-top-grid { grid-template-columns:repeat(4, minmax(0,1fr)); } }
+          @media (max-width: 640px)  { .home-top-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+          @media (max-width: 480px)  { .home-top-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+        </style>
       </div>
     </section>
 
@@ -732,6 +740,8 @@ function renderHomeTop(brand, products) {
   const list = document.getElementById('homeTopList');
   const brandLabel = brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스';
   document.getElementById('homeTopTitle').textContent = `${brandLabel} 인기 TOP 10`;
+  // 안전장치: 어떤 경로로든 10개 초과 못 들어가게 한 번 더 자르기
+  products = (products || []).slice(0, 10);
 
   if (!products.length) {
     list.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--ink-sub); font-size:13px">시세 데이터를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.</div>`;

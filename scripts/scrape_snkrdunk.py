@@ -473,49 +473,34 @@ def scrape_grade_asks_selenium(driver, card_id: str, debug: bool = False) -> dic
 
 
 def fetch_used_listings(card_id: str, max_pages: int = 3, only_on_sale: bool = False) -> list:
-    """SNKRDUNK API 호출 — only_on_sale=True 면 unsold (active) listing 만 받음.
-       active 들 중 condition별 min(price) = SNKRDUNK 헤드라인 'US $X~' 와 일치."""
+    """SNKRDUNK EN API 단일 호출 — 통화 USD 고정 (KRW 환산은 frontend 에서 곱하기만).
+       only_on_sale=True 면 active listing 만."""
     qs_only = "&onlyOnSale=true" if only_on_sale else ""
-    # JP 헤더로 ¥ 응답 강제 시도
-    jp_headers = {
-        "User-Agent": UA,
-        "Accept": "application/json",
-        "Accept-Language": "ja-JP,ja;q=0.9,en;q=0.5",
-        "Referer": "https://snkrdunk.com/",
-        "X-Country": "JP",   # 일부 SaaS 가 인식
-        "X-Currency": "JPY", # 일부 SaaS 가 인식
-    }
     en_headers = {
         "User-Agent": UA,
         "Accept": "application/json",
         "Accept-Language": "en-US,en;q=0.9",
         "Referer": "https://snkrdunk.com/en/",
     }
-    bases = [
-        (f"https://snkrdunk.com/v1/products/SW---{card_id}/used-listings",    jp_headers),
-        (f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings", en_headers),
-    ]
-    for base, hdrs in bases:
-        all_listings = []
-        for page in range(1, max_pages + 1):
-            url = f"{base}?page={page}&perPage=50{qs_only}"
-            try:
-                req = urllib.request.Request(url, headers=hdrs)
-                with urllib.request.urlopen(req, timeout=15) as resp:
-                    if resp.status != 200:
-                        break
-                    data = json.loads(resp.read().decode("utf-8"))
-                listings = data.get("usedListings") or data.get("usedTradingCards") or []
-                if not listings:
+    base = f"https://snkrdunk.com/en/v1/products/SW---{card_id}/used-listings"
+    all_listings = []
+    for page in range(1, max_pages + 1):
+        url = f"{base}?page={page}&perPage=50{qs_only}"
+        try:
+            req = urllib.request.Request(url, headers=en_headers)
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                if resp.status != 200:
                     break
-                all_listings.extend(listings)
-                if len(listings) < 50:
-                    break
-            except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
+                data = json.loads(resp.read().decode("utf-8"))
+            listings = data.get("usedListings") or data.get("usedTradingCards") or []
+            if not listings:
                 break
-        if all_listings:
-            return all_listings
-    return []
+            all_listings.extend(listings)
+            if len(listings) < 50:
+                break
+        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
+            break
+    return all_listings
 
 
 def parse_grade(condition: str) -> str:
@@ -714,17 +699,20 @@ def main():
     cards_detail = {}
     debug_count = 0
     for i, cid in enumerate(card_ids, 1):
-        # only_on_sale=True 로 active listing 만 (= 헤드라인과 동일 메트릭)
+        # only_on_sale=True 로 active listing 만 받기 시도
         listings = fetch_used_listings(cid, max_pages=5, only_on_sale=True)
+        # 클라이언트 측 강제 필터: isSold==False 만 (API 파라미터가 안 먹을 경우 대비)
+        active_only = [it for it in listings if not it.get("isSold")]
         # 첫 3장 디버그
         if debug_count < 3 and listings:
-            print(f"  [DEBUG] card {cid}: active listings {len(listings)}건")
+            sold_count = len(listings) - len(active_only)
+            print(f"  [DEBUG] card {cid}: 총 {len(listings)}건 (active {len(active_only)}, sold {sold_count})")
             for j, sample in enumerate(listings[:3]):
-                print(f"    [{j}] cond={sample.get('condition')!r}  price={sample.get('price')!r}")
+                print(f"    [{j}] cond={sample.get('condition')!r}  isSold={sample.get('isSold')}  price={sample.get('price')!r}")
             debug_count += 1
-        # condition 별 min(price) = lowest_ask
+        # condition 별로 그룹화
         by_grade: dict = {}
-        for it in listings:
+        for it in active_only:
             grade = parse_grade(it.get("condition", ""))
             if grade is None:
                 continue
@@ -736,18 +724,24 @@ def main():
             by_grade.setdefault(grade, []).append((amt, cur, raw_str))
         grades = {}
         for g, items in by_grade.items():
-            # 다수파 통화로 통일
             jpy_count = sum(1 for _, c, _ in items if c == "JPY")
             usd_count = sum(1 for _, c, _ in items if c == "USD")
             currency = "JPY" if jpy_count >= usd_count else "USD"
             same_cur = [(p, r) for p, c, r in items if c == currency]
             if not same_cur:
                 continue
-            min_price, min_raw = min(same_cur, key=lambda x: x[0])
+            # outlier 제외 — median 기준 50% 미만은 의심 (불량 grading, 잘못된 listing 등)
+            sorted_prices = sorted(p for p, _ in same_cur)
+            median = sorted_prices[len(sorted_prices) // 2]
+            cleaned = [(p, r) for p, r in same_cur if p >= median * 0.5]
+            if not cleaned:
+                cleaned = same_cur  # 다 outlier 라 판단되면 fallback 으로 전체 사용
+            min_price, min_raw = min(cleaned, key=lambda x: x[0])
             grades[g] = {
                 "lowest_ask": min_price,
                 "currency": currency,
                 "active_count": len(same_cur),
+                "after_outlier_filter": len(cleaned),
                 "raw_text": min_raw[:30] if min_raw else "",
             }
         # 디버그 첫 3장 결과 출력
@@ -762,9 +756,10 @@ def main():
             non_empty = sum(1 for v in grades.values() if v.get("lowest_ask"))
             print(f"  [{i}/{len(card_ids)}] {cid} → 등급 채워진 칸: {non_empty}/3")
         time.sleep(0.3)  # rate limit
-        # 박스도 placeholder 로 등록 (frontend 가 product 못찾는 경우 방지)
+    # 박스 placeholder 등록 (frontend 가 product 못찾는 경우 방지)
     for bid in box_ids:
         cards_detail.setdefault(bid, {"id": bid, "grades": {}})
+
     out_path = DATA_DIR / "cards-detail.json"
     detail_txt = json.dumps({
         "ok": True,

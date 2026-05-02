@@ -1009,7 +1009,7 @@ async function renderGradesPanel(productId, product) {
   }
 
   // ───────── 카드: PSA10 / PSA9 / A급(싱글) 3칸 ─────────
-  if (header) header.innerHTML = '📊 등급별 거래 시세';
+  if (header) header.innerHTML = '📊 등급별 최근 거래 평균 (USD)';
   const ORDER = ['psa10','psa9','raw'];
   const GRADE_INFO = {
     psa10: { label: 'PSA 10',  color: '#fbbf24', bg: '#fffbeb' },
@@ -1020,21 +1020,28 @@ async function renderGradesPanel(productId, product) {
   const fmtSecondary = (val, cur) => fmtKrw(val, cur);
   const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
-    // 신 스키마: lowest_ask (SNKRDUNK 헤드라인 매칭) 우선
-    // 구 스키마들도 호환: last5_avg / avg / last5_avg_jpy / avg_jpy
-    const val = g ? (g.lowest_ask ?? g.last5_avg ?? g.avg ?? g.last5_avg_jpy ?? g.avg_jpy) : null;
+    // 신 스키마 우선: recent_avg (직전 5건 거래 평균)
+    // 호환: lowest_ask, last5_avg, avg, avg_jpy
+    const val = g ? (g.recent_avg ?? g.lowest_ask ?? g.last5_avg ?? g.avg ?? g.avg_jpy) : null;
     const cur = g?.currency || (g?.avg_jpy ? 'JPY' : null);
     if (val && val > 0) {
+      const soldCount = g.sold_count;
+      const recent5 = g.recent_5;
       const askCount = g.unsold_count;
-      const soldCount = g.sold_count ?? g.count;
-      const subline = askCount != null
-        ? `최저가 (출품 ${askCount}건${soldCount ? ` · 거래 ${soldCount}건` : ''})`
-        : `${g.count}건 · 직전 5건 평균`;
+      let subline;
+      if (g.recent_avg != null) {
+        // 신 스키마 — 거래 기반
+        subline = `최근 5건 평균${soldCount ? ` (총 거래 ${soldCount}건)` : ''}`;
+      } else if (askCount != null) {
+        subline = `최저가 (출품 ${askCount}건)`;
+      } else {
+        subline = `${g.count || g.active_count || '?'}건 평균`;
+      }
       return `
         <div style="background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px">
           <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
-          <div style="font-size:15px; font-weight:800; color:#111">${fmtPrice(val, cur||'JPY')}~</div>
-          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtSecondary(val, cur||'JPY')}</div>
+          <div style="font-size:15px; font-weight:800; color:#111">${fmtPrice(val, cur||'USD')}</div>
+          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtSecondary(val, cur||'USD')}</div>
           <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${subline}</div>
         </div>`;
     }

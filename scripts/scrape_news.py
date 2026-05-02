@@ -234,9 +234,63 @@ def scrape_pokemon(driver, src: dict) -> list:
     return out
 
 
+# 원피스 사이트는 list 에서 제목이 카테고리("PRODUCTS")로 잡혀서 detail 페이지 fetch 필요
+GENERIC_TITLES = {
+    "PRODUCTS", "EVENTS", "NEWS", "NOTICE", "BOOSTERS", "DECKS", "OTHER",
+    "상품정보", "이벤트", "공지사항", "뉴스",
+}
+
+
+def fetch_detail_title(driver, url: str) -> str:
+    """detail 페이지에서 진짜 제목 추출 — h1/h2/큰 폰트 텍스트 찾기"""
+    try:
+        driver.get(url)
+        time.sleep(1.5)
+    except Exception:
+        return None
+    title_js = r"""
+        // 1순위: h1, h2 (큰 제목)
+        const headings = document.querySelectorAll('h1, h2');
+        for (const el of headings) {
+            const t = (el.innerText || '').trim();
+            if (t && t.length >= 4 && t.length <= 200) return t.split('\n')[0].trim();
+        }
+        const pageTitle = document.title || '';
+        if (pageTitle && pageTitle.length >= 4) {
+            const cleaned = pageTitle.split(/[:|\-]/)[0].trim();
+            if (cleaned.length >= 4 && cleaned.length <= 200) return cleaned;
+            return pageTitle.trim();
+        }
+        return null;
+    """
+    try:
+        return driver.execute_script(title_js)
+    except Exception:
+        return None
+
+
+def enrich_titles(driver, items: list) -> list:
+    """list 단계에서 generic 제목('PRODUCTS' 등)인 것 — detail 페이지 fetch 해서 진짜 제목으로 교체"""
+    enriched = 0
+    for it in items:
+        title = (it.get("title") or "").strip()
+        if title in GENERIC_TITLES or len(title) < 6:
+            real = fetch_detail_title(driver, it["link"])
+            if real and real != title and real not in GENERIC_TITLES:
+                print(f"    ↻ [{it.get('date')}] '{title}' → '{real[:60]}'")
+                it["title"] = real[:120]
+                enriched += 1
+    if enriched:
+        print(f"  ✓ detail 페이지로 제목 보강: {enriched}건")
+    return items
+
+
 def scrape_onepiece(driver, src: dict) -> list:
-    """onepiece-cardgame.kr/topics.do — 같은 추출 로직 재사용"""
-    return scrape_pokemon(driver, src)
+    """onepiece-cardgame.kr/topics.do — list 추출 + detail 제목 보강"""
+    items = scrape_pokemon(driver, src)
+    if items:
+        items = enrich_titles(driver, items)
+    return items
 
 
 def main():
@@ -257,7 +311,6 @@ def main():
     finally:
         driver.quit()
 
-    # 날짜 내림차순 정렬
     all_items.sort(key=lambda x: x.get("date") or "", reverse=True)
 
     payload = {

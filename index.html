@@ -398,7 +398,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <p>SNKRDUNK · PSA · Hareruya 통합 시세부터 응모, 오리파까지. 포켓몬 · 원피스 카드를 위한 올인원 허브.</p>
         <div class="hero-btns">
           <button class="btn primary" data-nav="price">카드 시세 보기 →</button>
-          <button class="btn" data-nav="hub">뉴스 · 샵 →</button>
+          <button class="btn" data-nav="hub" data-tab-target="news">뉴스 · 샵 →</button>
+          <button class="btn" data-nav="cardinfo">카드 정보 →</button>
         </div>
       </div>
 
@@ -662,6 +663,16 @@ document.addEventListener('click', e => {
   // 브랜드 타일은 브랜드도 같이 설정
   if (navEl.dataset.brand) PRICE_BRAND = navEl.dataset.brand;
   go(page);
+  // hub 페이지로 이동시 특정 탭 강제 활성화 (data-tab-target="news" 등)
+  if (page === 'hub' && navEl.dataset.tabTarget) {
+    setTimeout(() => {
+      const targetTab = navEl.dataset.tabTarget;
+      document.querySelectorAll('#hubTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === targetTab));
+      document.querySelectorAll('[data-hubpanel]').forEach(p => {
+        p.style.display = p.dataset.hubpanel === targetTab ? '' : 'none';
+      });
+    }, 50);
+  }
 });
 
 // 브라우저 뒤로가기
@@ -1412,28 +1423,28 @@ const CARDINFO = {
     {code:"SV5M", name:"사이버 저지 (Cyber Judge)", release:"2024.01.26", url:"https://www.tcgcollector.com/sets/11604/cyber-judge?setCardCountMode=anyCardVariant"},
   ],
   onepiece: [
-    // ─── 신작 (예정) ───
+    // ─── 신작 (예정) — 발매일 미정, 링크 없음 ───
     {code:"OP16", name:"엑스퍼트 브레이커스 (Expert Breakers)", release:"2026 예정", nolink:true},
-    {code:"EB04", name:"Extra Booster 04", release:"2026 예정", nolink:true},
-    {code:"OP15", name:"OP-15 (신작)", release:"2026 예정", nolink:true},
-    {code:"EB03", name:"Extra Booster 03", release:"2026 예정", nolink:true},
-    {code:"OP14", name:"OP-14 (신작)", release:"2026 예정", nolink:true},
-    // ─── 정식 발매 (onepiece.gg 직링크) ───
-    {code:"OP13", name:"계승된 의지 (Inherited Will)", release:"2025.11.01", url:"https://onepiece.gg/sets/OP13"},
-    {code:"OP12", name:"마스터의 유산 (Legacy of the Master)", release:"2025.08.22", url:"https://onepiece.gg/sets/OP12"},
-    {code:"OP11", name:"신속의 일격 (A Fist of Divine Speed)", release:"2025.06.06", url:"https://onepiece.gg/sets/OP11"},
-    {code:"EB02", name:"애니메이션 25주년 컬렉션 (Anime 25th)", release:"2025.05.09", url:"https://onepiece.gg/sets/EB02"},
-    {code:"OP10", name:"로열 블러드 (Royal Blood)", release:"2025.03.21", url:"https://onepiece.gg/sets/OP10"},
-    {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.12.13", url:"https://onepiece.gg/sets/OP09"},
-    {code:"OP08", name:"투 레전드 (Two Legends)", release:"2024.09.13", url:"https://onepiece.gg/sets/OP08"},
-    {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.06.28", url:"https://onepiece.gg/sets/OP07"},
-    {code:"EB01", name:"메모리얼 컬렉션 (Memorial Collection)", release:"2024.05.03", url:"https://onepiece.gg/sets/EB01"},
-    {code:"OP06", name:"선장의 날개 (Wings of Captain)", release:"2024.03.15", url:"https://onepiece.gg/sets/OP06"},
-    {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", release:"2023.12.01", url:"https://onepiece.gg/sets/OP05"},
-    {code:"OP04", name:"음모의 왕국 (Kingdoms of Intrigue)", release:"2023.09.22", url:"https://onepiece.gg/sets/OP04"},
-    {code:"OP03", name:"힘의 기둥 (Pillars of Strength)", release:"2023.06.30", url:"https://onepiece.gg/sets/OP03"},
-    {code:"OP02", name:"정상 전쟁 (Paramount War)", release:"2023.03.10", url:"https://onepiece.gg/sets/OP02"},
-    {code:"OP01", name:"로맨스 던 (Romance Dawn)", release:"2022.12.02", url:"https://onepiece.gg/sets/OP01"},
+    // ─── 정식 발매 (TCG Republic 직링크) — 최신부터 ───
+    {code:"EB04", name:"Extra Booster 04", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10895.html"},
+    {code:"OP15", name:"OP-15", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10948.html"},
+    {code:"EB03", name:"Extra Booster 03", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10671.html"},
+    {code:"OP14", name:"OP-14", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10744.html"},
+    {code:"OP13", name:"계승된 의지 (Inherited Will)", release:"2025.11.01", url:"https://tcgrepublic.com/category/subcategory_page_10545.html"},
+    {code:"OP12", name:"마스터의 유산 (Legacy of the Master)", release:"2025.08.22", url:"https://tcgrepublic.com/category/subcategory_page_10336.html"},
+    {code:"OP11", name:"신속의 일격 (A Fist of Divine Speed)", release:"2025.06.06", url:"https://tcgrepublic.com/category/subcategory_page_10172.html"},
+    {code:"EB02", name:"애니메이션 25주년 컬렉션 (Anime 25th)", release:"2025.05.09", url:"https://tcgrepublic.com/category/subcategory_page_10091.html"},
+    {code:"OP10", name:"로열 블러드 (Royal Blood)", release:"2025.03.21", url:"https://tcgrepublic.com/category/subcategory_page_9987.html"},
+    {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.12.13", url:"https://tcgrepublic.com/category/subcategory_page_9758.html"},
+    {code:"OP08", name:"두 전설 (Two Legends)", release:"2024.09.13", url:"https://tcgrepublic.com/category/subcategory_page_9499.html"},
+    {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.06.28", url:"https://tcgrepublic.com/category/subcategory_page_9138.html"},
+    {code:"EB01", name:"메모리얼 컬렉션 (Memorial Collection)", release:"2024.05.03", url:"https://tcgrepublic.com/category/subcategory_page_9054.html"},
+    {code:"OP06", name:"선장의 날개 (Wings of Captain)", release:"2024.03.15", url:"https://tcgrepublic.com/category/category_page_67.html"},
+    {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", release:"2023.12.01", url:"https://tcgrepublic.com/category/subcategory_page_8690.html"},
+    {code:"OP04", name:"음모의 왕국 (Kingdoms of Intrigue)", release:"2023.09.22", url:"https://tcgrepublic.com/category/subcategory_page_8492.html"},
+    {code:"OP03", name:"힘의 기둥 (Pillars of Strength)", release:"2023.06.30", url:"https://tcgrepublic.com/category/subcategory_page_8014.html"},
+    {code:"OP02", name:"정상 전쟁 (Paramount War)", release:"2023.03.10", url:"https://tcgrepublic.com/category/subcategory_page_7712.html"},
+    {code:"OP01", name:"로맨스 던 (Romance Dawn)", release:"2022.12.02", url:"https://tcgrepublic.com/category/subcategory_page_7322.html"},
   ],
 };
 let CI_TAB = 'pokemon';

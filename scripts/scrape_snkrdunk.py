@@ -698,43 +698,88 @@ def main():
     out_path.write_bytes(detail_txt.encode("utf-8"))
     print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
-    # ─────────── Phase A — history 누적 (per-card) ───────────
-    # 매일 실행 시 오늘자 스냅샷을 data/history/{cardId}.json 에 append
-    # 가격(JPY) + 거래량(active_count) 등급별로 저장 / 360일 초과분 trim
+    # ─────────── Phase A — history 누적 (sales-chart 기반) ───────────
+    # 백필과 동일한 데이터 소스 사용 (실거래가) → line 끊김 없음
+    # 각 카드별로 sales-chart oneMonth 받아서 history 에 merge.
+    # 같은 날짜 있으면 최신값으로 갱신, 없으면 추가.
+    print("\n[Phase A] 가격 history 누적 (sales-chart 기반)")
     history_dir = DATA_DIR / "history"
     history_dir.mkdir(exist_ok=True)
-    today_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
+
+    GRADE_OPTION_IDS_HIST = {"psa10": 22, "psa9": 23, "raw": 18}
+
+    def fetch_chart_recent(cid, opt_id):
+        """sales-chart oneMonth — 최근 30일치만"""
+        url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart/used"
+               f"?range=oneMonth&salesChartOptionId={opt_id}")
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": UA,
+                "Accept": "application/json",
+                "Accept-Language": "ja-JP,ja;q=0.9",
+                "Referer": "https://snkrdunk.com/",
+            })
+            with urllib.request.urlopen(req, timeout=15) as r:
+                d = json.loads(r.read().decode("utf-8"))
+            out = []
+            for p in d.get("points", []) or []:
+                if isinstance(p, list) and len(p) >= 2:
+                    ts_ms, price = p[0], p[1]
+                    try:
+                        date = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+                        out.append((date, int(price)))
+                    except Exception:
+                        pass
+            return out
+        except Exception:
+            return []
+
     appended = 0
     for cid, det in cards_detail.items():
         grades = det.get("grades") or {}
-        # 가격 (JPY 기준 — lowest_ask 우선, 없으면 recent_avg)
-        snap = {"date": today_str}
-        any_data = False
-        for gk in ("psa10", "psa9", "raw"):
-            g = grades.get(gk) or {}
-            price = g.get("lowest_ask") or g.get("recent_avg") or g.get("avg")
-            vol = g.get("active_count") or g.get("after_filter") or 0
-            if price:
-                snap[f"{gk}_price"] = round(price)
-                snap[f"{gk}_vol"] = vol
-                any_data = True
-        if not any_data:
+        if not grades:
             continue
         hist_path = history_dir / f"{cid}.json"
         try:
             existing = json.loads(hist_path.read_text("utf-8")) if hist_path.exists() else {"id": cid, "history": []}
         except Exception:
             existing = {"id": cid, "history": []}
-        hist = [h for h in existing.get("history", []) if h.get("date") != today_str]
-        hist.append(snap)
-        hist.sort(key=lambda h: h.get("date", ""))
-        # 360일치만 보관 (180일 차트 + 1년 변동률 계산 여유분)
-        if len(hist) > 360:
-            hist = hist[-360:]
-        out = json.dumps({"id": cid, "updatedAt": fetched_at, "history": hist}, ensure_ascii=False, indent=2)
+        # 일자별 dict 로 변환
+        by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
+
+        # 등급별 sales-chart 최근 30일치 가져와서 merge
+        any_new = False
+        for grade, opt_id in GRADE_OPTION_IDS_HIST.items():
+            points = fetch_chart_recent(cid, opt_id)
+            for date, price in points:
+                if date not in by_date:
+                    by_date[date] = {"date": date}
+                key = f"{grade}_price"
+                # 같은 날 이미 값 있으면 평균 (거의 1점이라 사실상 덮어쓰기)
+                if key in by_date[date] and by_date[date][key] != price:
+                    by_date[date][key] = (by_date[date][key] + price) // 2
+                else:
+                    by_date[date][key] = price
+                any_new = True
+            time.sleep(0.3)  # 등급 간 sleep
+
+        if not any_new and not by_date:
+            continue
+
+        new_history = sorted(by_date.values(), key=lambda h: h.get("date", ""))
+        # 360일치만 보관 (180일 차트 + 변동률 계산 여유)
+        if len(new_history) > 360:
+            new_history = new_history[-360:]
+        out = json.dumps({
+            "id": str(cid),
+            "updatedAt": fetched_at,
+            "source": "daily (sales-chart oneMonth)",
+            "history": new_history,
+        }, ensure_ascii=False, indent=2)
         hist_path.write_bytes(out.encode("utf-8"))
         appended += 1
-    print(f"  → history 누적: {appended} 카드 (총 {len(list(history_dir.glob('*.json')))} 파일)")
+
+    print(f"  → history 갱신: {appended} 카드 (총 {len(list(history_dir.glob('*.json')))} 파일)")
 
     print(f"\n완료. 실패 {fail_count}/{total}")
     if fail_count == total:

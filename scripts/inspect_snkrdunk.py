@@ -147,27 +147,43 @@ def try_selenium_xhr_capture(url, cookies):
         time.sleep(3)
         driver.execute_script("window.scrollTo(0, 1600);")
         time.sleep(3)
-        # 네트워크 로그 추출
+        # 네트워크 로그 추출 + 응답 본문도 가져오기
         logs = driver.get_log("performance")
         xhrs = []
+        request_id_to_url = {}
         for entry in logs:
             try:
                 msg = json.loads(entry["message"])["message"]
                 if msg["method"] == "Network.responseReceived":
                     resp = msg["params"]["response"]
                     rurl = resp.get("url", "")
-                    if any(kw in rurl for kw in ["/api/", "/v1/", "/v2/", "history", "sold", "listings", "transactions", ".json"]):
+                    rid = msg["params"].get("requestId")
+                    if any(kw in rurl for kw in ["/api/", "/v1/", "/v2/", "history", "sold", "listings", "transactions", "apparels", "sales-histor", ".json"]):
+                        request_id_to_url[rid] = rurl
                         xhrs.append({
                             "url": rurl,
                             "method": resp.get("requestMethod", "GET"),
                             "type": resp.get("mimeType"),
                             "status": resp.get("status"),
+                            "requestId": rid,
                         })
             except Exception:
                 pass
+        # 응답 본문 fetch — sales-histories 등 JSON 응답을 직접 dump
+        response_bodies = {}
+        for x in xhrs:
+            rid = x.get("requestId")
+            rurl = x["url"]
+            # JSON 응답일 가능성 높은 것만 (성능 + 노이즈 제거)
+            if x.get("type") and "json" in x["type"].lower():
+                try:
+                    body = driver.execute_cdp_cmd("Network.getResponseBody", {"requestId": rid})
+                    response_bodies[rurl] = body.get("body", "")[:50000]  # 50KB 제한
+                except Exception as e:
+                    response_bodies[rurl] = f"[fetch failed: {e}]"
         # 최종 렌더된 HTML
         rendered_html = driver.page_source
-        return {"xhrs": xhrs, "rendered_html": rendered_html}
+        return {"xhrs": xhrs, "rendered_html": rendered_html, "bodies": response_bodies}
     finally:
         driver.quit()
 
@@ -178,22 +194,47 @@ def main():
         print("예시:   python scripts/inspect_snkrdunk.py 5547899")
         sys.exit(1)
 
-    product_id = sys.argv[1]
+    arg = sys.argv[1]
     cookies = load_cookies()
     if cookies:
         print(f"✓ cookies.json 로드 완료 ({len(cookies)}개 쿠키)")
 
-    # 1) 단순 HTML fetch
-    url = f"https://snkrdunk.com/jp/products/{product_id}"
-    print(f"\n[1/3] HTML fetch: {url}")
-    try:
-        html, headers = fetch_html(url, cookies)
-        page_path = DEBUG_DIR / f"page-{product_id}.html"
-        page_path.write_text(html, encoding="utf-8")
-        print(f"  ✓ {page_path.name} ({len(html):,} bytes)")
-    except Exception as e:
-        print(f"  ⚠ {e}")
-        html = ""
+    # 인자가 전체 URL 이면 그대로, 숫자면 여러 패턴 시도
+    if arg.startswith("http"):
+        candidate_urls = [arg]
+        # /apparels/{id} 형태에서 ID 추출
+        m = re.search(r'/apparels/(\d+)', arg)
+        product_id = m.group(1) if m else arg.rstrip("/").split("/")[-1].split("?")[0]
+    else:
+        product_id = arg
+        candidate_urls = [
+            f"https://snkrdunk.com/apparels/{product_id}",
+            f"https://snkrdunk.com/apparels/{product_id}/sales-histories?slide=right",
+            f"https://snkrdunk.com/jp/apparels/{product_id}",
+            f"https://snkrdunk.com/jp/products/{product_id}",
+            f"https://snkrdunk.com/products/{product_id}",
+        ]
+
+    # 1) 여러 URL 패턴 순회하며 첫 200 응답 찾기
+    print(f"\n[1/3] HTML fetch (URL 패턴 자동 탐색)")
+    html = ""
+    url = None
+    for u in candidate_urls:
+        print(f"  → 시도: {u}")
+        try:
+            html, _ = fetch_html(u, cookies)
+            url = u
+            page_path = DEBUG_DIR / f"page-{product_id}.html"
+            page_path.write_text(html, encoding="utf-8")
+            print(f"  ✓ 200 OK — {page_path.name} ({len(html):,} bytes)")
+            break
+        except urllib.error.HTTPError as e:
+            print(f"    [{e.code}] {e.reason}")
+        except Exception as e:
+            print(f"    ⚠ {e}")
+    if not html:
+        print("  ⚠ 모든 URL 패턴 실패 — Selenium 으로 시도 계속")
+        url = candidate_urls[0]
 
     # 2) __NEXT_DATA__ 추출
     print(f"\n[2/3] __NEXT_DATA__ 추출")
@@ -232,6 +273,20 @@ def main():
         print(f"  ✓ {xhr_path.name} — XHR {len(sel_result['xhrs'])}건 캡처")
         for x in sel_result["xhrs"][:15]:
             print(f"    [{x['status']}] {x['url'][:120]}")
+        # XHR 응답 본문 dump — sales-histories 등 핵심 데이터
+        bodies = sel_result.get("bodies", {})
+        if bodies:
+            bodies_path = DEBUG_DIR / f"bodies-{product_id}.json"
+            # 본문이 JSON 이면 파싱해서 예쁘게, 아니면 raw
+            pretty_bodies = {}
+            for url, body in bodies.items():
+                try:
+                    pretty_bodies[url] = json.loads(body)
+                except Exception:
+                    pretty_bodies[url] = body
+            bodies_path.write_text(json.dumps(pretty_bodies, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"  ✓ {bodies_path.name} — XHR 응답 본문 {len(bodies)}개 dump")
+            print(f"    (이 파일이 sales-histories 응답 형태 파악 핵심 — Claude 에 공유 필수)")
         # 최종 렌더된 HTML 도 저장
         rendered_path = DEBUG_DIR / f"page-rendered-{product_id}.html"
         rendered_path.write_text(sel_result["rendered_html"], encoding="utf-8")

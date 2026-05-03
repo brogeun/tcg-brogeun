@@ -54,8 +54,8 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 
-      - name: Prepare deploy bundle (정적 파일만)
-        # functions/ 폴더는 사용 안 하므로 배포 디렉토리에서 제외 — 'Failed to publish your Function' 에러 회피
+      - name: Prepare deploy bundle (정적 + admin function 만)
+        # 옛날 functions/api/*.js 들은 deploy 깨뜨려서 제외, admin.js 만 포함
         run: |
           rm -rf _deploy
           mkdir -p _deploy
@@ -67,8 +67,14 @@ jobs:
           for d in assets images img public static ev-calculator; do
             [ -d "$d" ] && cp -r "$d" _deploy/ || true
           done
+          # admin function 만 배포 (다른 옛날 function 들은 제외)
+          if [ -f functions/api/admin.js ]; then
+            mkdir -p _deploy/functions/api
+            cp functions/api/admin.js _deploy/functions/api/admin.js
+            echo "✓ admin function 포함"
+          fi
           echo "=== _deploy 디렉토리 구조 ==="
-          ls -la _deploy/
+          find _deploy -type f | head -30
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
 

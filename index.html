@@ -371,6 +371,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="nav-item" data-nav="apply"><span class="ic">🎟</span> 응모</div>
       <div class="nav-item" data-nav="oripa"><span class="ic">🎁</span> 오리파</div>
       <div class="nav-item" data-nav="events"><span class="ic">✨</span> 이벤트</div>
+      <div class="nav-item" data-nav="etc"><span class="ic">📦</span> 기타</div>
+      <div class="nav-item" data-nav="admin"><span class="ic">🛠</span> 관리자</div>
     </div>
     <div class="nav-section">내 정보</div>
     <div class="nav-list">
@@ -556,6 +558,52 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div id="eventList" style="display:flex; flex-direction:column; gap:10px"></div>
     </section>
 
+    <!-- 기타 -->
+    <section class="page" data-page="etc">
+      <div class="page-head">
+        <h1 class="page-title">📦 기타</h1>
+        <p class="page-sub">기타 정보</p>
+      </div>
+      <div id="etcList" style="display:flex; flex-direction:column; gap:12px"></div>
+    </section>
+
+    <!-- 관리자 — 이벤트/기타 직접 입력 -->
+    <section class="page" data-page="admin">
+      <div class="page-head">
+        <h1 class="page-title">🛠 관리자</h1>
+        <p class="page-sub">이벤트 · 기타 메뉴를 직접 작성/편집 (브라우저 localStorage 저장)</p>
+      </div>
+      <div class="tabs pill" id="adminTabs" style="margin-bottom:14px">
+        <div class="tab active" data-admin-tab="events">✨ 이벤트</div>
+        <div class="tab" data-admin-tab="etc">📦 기타</div>
+      </div>
+
+      <!-- 입력 폼 -->
+      <div class="card" style="padding:18px; margin-bottom:18px">
+        <div style="font-size:14px; font-weight:800; color:#111; margin-bottom:12px" id="adminFormTitle">새 이벤트 추가</div>
+        <input type="hidden" id="adminEditId">
+        <div style="display:flex; flex-direction:column; gap:10px">
+          <input id="adminTitle" placeholder="제목 (예: SV12 카드팩 사전공개)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
+          <input id="adminDate" placeholder="날짜 (예: 2026.05.22 또는 05.22)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
+          <textarea id="adminContent" rows="4" placeholder="내용 (자유 입력 — 줄바꿈 가능)" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; resize:vertical; font-family:inherit"></textarea>
+          <input id="adminLink" placeholder="링크 (선택사항 — https://... )" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button class="btn primary" type="button" onclick="adminSaveEntry()" style="cursor:pointer">💾 저장</button>
+            <button class="btn" type="button" onclick="adminClearForm()" style="cursor:pointer">↩ 폼 비우기</button>
+            <button class="btn" type="button" onclick="adminExportJson()" style="cursor:pointer; margin-left:auto">📤 JSON 내보내기</button>
+          </div>
+          <div style="font-size:11px; color:var(--ink-mute); line-height:1.5">
+            ⚠ 데이터는 <b>이 브라우저</b>에만 저장됩니다 (localStorage). 다른 기기/방문자에게 공유되진 않아요.<br>
+            공유하려면 우측 "JSON 내보내기" 로 백업 받아 별도 보관하시거나 추후 서버 저장 기능 요청 가능.
+          </div>
+        </div>
+      </div>
+
+      <!-- 현재 등록 항목 리스트 -->
+      <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:8px" id="adminListLabel">📋 현재 등록된 이벤트</div>
+      <div id="adminEntryList" style="display:flex; flex-direction:column; gap:8px"></div>
+    </section>
+
     <!-- 내 정보 (포트폴리오 + 관심 카드) -->
     <section class="page" data-page="portfolio">
       <div class="page-head">
@@ -609,6 +657,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <div class="mnav-item" data-nav="cardinfo"><div class="ic">🃏</div>정보</div>
     <div class="mnav-item" data-nav="apply"><div class="ic">🎟</div>응모</div>
     <div class="mnav-item" data-nav="oripa"><div class="ic">🎁</div>오리파</div>
+    <div class="mnav-item" data-nav="etc"><div class="ic">📦</div>기타</div>
     <div class="mnav-item" data-nav="portfolio"><div class="ic">👤</div>내정보</div>
   </nav>
 </div>
@@ -1394,7 +1443,7 @@ document.addEventListener('click', e => {
    ──────────────────────────────────── */
 const CARDINFO_SOURCE = {
   pokemon:  { label: "출처: tcgcollector.com/sets/jp", url: "https://www.tcgcollector.com/sets/jp" },
-  onepiece: { label: "출처: onepiece.gg/sets",        url: "https://onepiece.gg/sets" },
+  onepiece: { label: "출처: tcgrepublic.com",         url: "https://tcgrepublic.com/" },
 };
 
 const CARDINFO = {
@@ -1423,28 +1472,27 @@ const CARDINFO = {
     {code:"SV5M", name:"사이버 저지 (Cyber Judge)", release:"2024.01.26", url:"https://www.tcgcollector.com/sets/11604/cyber-judge?setCardCountMode=anyCardVariant"},
   ],
   onepiece: [
-    // ─── 신작 (예정) — 발매일 미정, 링크 없음 ───
-    {code:"OP16", name:"엑스퍼트 브레이커스 (Expert Breakers)", release:"2026 예정", nolink:true},
-    // ─── 정식 발매 (TCG Republic 직링크) — 최신부터 ───
-    {code:"EB04", name:"Extra Booster 04", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10895.html"},
-    {code:"OP15", name:"OP-15", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10948.html"},
-    {code:"EB03", name:"Extra Booster 03", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10671.html"},
-    {code:"OP14", name:"OP-14", release:"2026 예정", url:"https://tcgrepublic.com/category/subcategory_page_10744.html"},
-    {code:"OP13", name:"계승된 의지 (Inherited Will)", release:"2025.11.01", url:"https://tcgrepublic.com/category/subcategory_page_10545.html"},
-    {code:"OP12", name:"마스터의 유산 (Legacy of the Master)", release:"2025.08.22", url:"https://tcgrepublic.com/category/subcategory_page_10336.html"},
-    {code:"OP11", name:"신속의 일격 (A Fist of Divine Speed)", release:"2025.06.06", url:"https://tcgrepublic.com/category/subcategory_page_10172.html"},
-    {code:"EB02", name:"애니메이션 25주년 컬렉션 (Anime 25th)", release:"2025.05.09", url:"https://tcgrepublic.com/category/subcategory_page_10091.html"},
-    {code:"OP10", name:"로열 블러드 (Royal Blood)", release:"2025.03.21", url:"https://tcgrepublic.com/category/subcategory_page_9987.html"},
-    {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.12.13", url:"https://tcgrepublic.com/category/subcategory_page_9758.html"},
-    {code:"OP08", name:"두 전설 (Two Legends)", release:"2024.09.13", url:"https://tcgrepublic.com/category/subcategory_page_9499.html"},
-    {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.06.28", url:"https://tcgrepublic.com/category/subcategory_page_9138.html"},
-    {code:"EB01", name:"메모리얼 컬렉션 (Memorial Collection)", release:"2024.05.03", url:"https://tcgrepublic.com/category/subcategory_page_9054.html"},
-    {code:"OP06", name:"선장의 날개 (Wings of Captain)", release:"2024.03.15", url:"https://tcgrepublic.com/category/category_page_67.html"},
-    {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", release:"2023.12.01", url:"https://tcgrepublic.com/category/subcategory_page_8690.html"},
-    {code:"OP04", name:"음모의 왕국 (Kingdoms of Intrigue)", release:"2023.09.22", url:"https://tcgrepublic.com/category/subcategory_page_8492.html"},
-    {code:"OP03", name:"힘의 기둥 (Pillars of Strength)", release:"2023.06.30", url:"https://tcgrepublic.com/category/subcategory_page_8014.html"},
-    {code:"OP02", name:"정상 전쟁 (Paramount War)", release:"2023.03.10", url:"https://tcgrepublic.com/category/subcategory_page_7712.html"},
-    {code:"OP01", name:"로맨스 던 (Romance Dawn)", release:"2022.12.02", url:"https://tcgrepublic.com/category/subcategory_page_7322.html"},
+    // ─── 발매일 내림차순 (최신 → 과거) ───
+    {code:"OP16", name:"엑스퍼트 브레이커스 (Expert Breakers)", release:"2026.05.30", nolink:true},
+    {code:"OP15", name:"OP-15", release:"2026.02.28", url:"https://tcgrepublic.com/category/subcategory_page_10948.html"},
+    {code:"EB04", name:"Extra Booster 04", release:"2026.01.31", url:"https://tcgrepublic.com/category/subcategory_page_10895.html"},
+    {code:"OP14", name:"OP-14", release:"2025.11.22", url:"https://tcgrepublic.com/category/subcategory_page_10744.html"},
+    {code:"EB03", name:"Extra Booster 03", release:"2025.10.25", url:"https://tcgrepublic.com/category/subcategory_page_10671.html"},
+    {code:"OP13", name:"계승된 의지 (Inherited Will)", release:"2025.08.30", url:"https://tcgrepublic.com/category/subcategory_page_10545.html"},
+    {code:"OP12", name:"마스터의 유산 (Legacy of the Master)", release:"2025.05.24", url:"https://tcgrepublic.com/category/subcategory_page_10336.html"},
+    {code:"OP11", name:"신속의 일격 (A Fist of Divine Speed)", release:"2025.02.22", url:"https://tcgrepublic.com/category/subcategory_page_10172.html"},
+    {code:"EB02", name:"애니메이션 25주년 컬렉션 (Anime 25th)", release:"2025.01.25", url:"https://tcgrepublic.com/category/subcategory_page_10091.html"},
+    {code:"OP10", name:"로열 블러드 (Royal Blood)", release:"2024.11.30", url:"https://tcgrepublic.com/category/subcategory_page_9987.html"},
+    {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.08.31", url:"https://tcgrepublic.com/category/subcategory_page_9758.html"},
+    {code:"OP08", name:"두 전설 (Two Legends)", release:"2024.05.25", url:"https://tcgrepublic.com/category/subcategory_page_9499.html"},
+    {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.02.24", url:"https://tcgrepublic.com/category/subcategory_page_9138.html"},
+    {code:"EB01", name:"메모리얼 컬렉션 (Memorial Collection)", release:"2024.01.27", url:"https://tcgrepublic.com/category/subcategory_page_9054.html"},
+    {code:"OP06", name:"선장의 날개 (Wings of Captain)", release:"2023.11.25", url:"https://tcgrepublic.com/category/category_page_67.html"},
+    {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", release:"2023.08.26", url:"https://tcgrepublic.com/category/subcategory_page_8690.html"},
+    {code:"OP04", name:"음모의 왕국 (Kingdoms of Intrigue)", release:"2023.05.27", url:"https://tcgrepublic.com/category/subcategory_page_8492.html"},
+    {code:"OP03", name:"힘의 기둥 (Pillars of Strength)", release:"2023.02.11", url:"https://tcgrepublic.com/category/subcategory_page_8014.html"},
+    {code:"OP02", name:"정상 전쟁 (Paramount War)", release:"2022.11.04", url:"https://tcgrepublic.com/category/subcategory_page_7712.html"},
+    {code:"OP01", name:"로맨스 던 (Romance Dawn)", release:"2022.07.22", url:"https://tcgrepublic.com/category/subcategory_page_7322.html"},
   ],
 };
 let CI_TAB = 'pokemon';
@@ -1586,11 +1634,65 @@ const ORIPAS = [
     ]
   }
 ];
-const EVENTS = [
-  {date: "05.22", title: "어비스아이 (Abyss Eye) 발매", meta: "포켓몬 TCG · M5"},
-  {date: "04.25", title: "三兄弟의 絆 발매", meta: "원피스 TCG · OP-13"},
-  {date: "04.18", title: "로켓단의 영광 발매", meta: "포켓몬 TCG · SV10"},
-];
+// 이벤트 + 기타 — Cloudflare KV 백엔드 (/api/admin), 모든 방문자에게 동일하게 보임
+let EVENTS = [];
+let ETC_LIST = [];
+
+// 관리자 비밀번호는 sessionStorage 에 임시 보관 (탭 닫으면 사라짐)
+function getAdminPwd() { return sessionStorage.getItem('admin_pwd') || ''; }
+function setAdminPwd(p) { sessionStorage.setItem('admin_pwd', p); }
+function clearAdminPwd() { sessionStorage.removeItem('admin_pwd'); }
+
+async function fetchAdminData(type) {
+  try {
+    const r = await fetch(`/api/admin?type=${type}&t=${Date.now()}`, {cache: 'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    return d.items || [];
+  } catch (e) {
+    console.warn('admin load fail (' + type + '):', e);
+    return [];
+  }
+}
+
+async function saveAdminData(type, items) {
+  const pwd = getAdminPwd();
+  if (!pwd) {
+    const input = prompt('관리자 비밀번호를 입력하세요:');
+    if (!input) return false;
+    setAdminPwd(input);
+  }
+  try {
+    const r = await fetch('/api/admin', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-Admin-Password': getAdminPwd()},
+      body: JSON.stringify({type, items}),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) {
+      if (r.status === 401) {
+        clearAdminPwd();
+        alert('비밀번호가 틀렸습니다. 다시 시도하세요.');
+      } else {
+        alert('저장 실패: ' + (d.error || r.status));
+      }
+      return false;
+    }
+    return true;
+  } catch (e) {
+    alert('네트워크 에러: ' + e.message);
+    return false;
+  }
+}
+
+async function loadAllAdminData() {
+  const [events, etc] = await Promise.all([
+    fetchAdminData('events'),
+    fetchAdminData('etc'),
+  ]);
+  EVENTS = events;
+  ETC_LIST = etc;
+}
 
 document.getElementById('applyList').innerHTML = APPLIES.map((a, i) => {
   const isMulti = !!a.multi && a.multi.length > 0;
@@ -1724,14 +1826,168 @@ function showOripaHelper(i) {
   openAnyModal(html, 'wide');
 }
 
-document.getElementById('eventList').innerHTML = EVENTS.map(e => `
-  <div class="event-item">
-    <div class="event-date">${e.date}</div>
-    <div class="event-info">
-      <div class="event-title">${e.title}</div>
-      <div class="event-meta">${e.meta}</div>
-    </div>
-  </div>`).join('');
+// ─── 이벤트 / 기타 / 관리자 CRUD ───
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function nl2br(s) { return escapeHtml(s).replace(/\n/g, '<br>'); }
+
+function renderEvents() {
+  const list = document.getElementById('eventList');
+  if (!list) return;
+  if (!EVENTS.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">등록된 이벤트가 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
+    return;
+  }
+  list.innerHTML = EVENTS.map(e => {
+    const linkPart = e.link ? `<div style="margin-top:8px"><a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline">자세히 보기 →</a></div>` : '';
+    return `
+    <div class="event-item">
+      <div class="event-date">${escapeHtml(e.date || '')}</div>
+      <div class="event-info">
+        <div class="event-title">${escapeHtml(e.title || '')}</div>
+        ${e.content ? `<div class="event-meta" style="margin-top:4px; line-height:1.6">${nl2br(e.content)}</div>` : ''}
+        ${linkPart}
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderEtc() {
+  const list = document.getElementById('etcList');
+  if (!list) return;
+  if (!ETC_LIST.length) {
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">등록된 항목이 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
+    return;
+  }
+  list.innerHTML = ETC_LIST.map(e => {
+    const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기 →</a>` : '';
+    return `
+    <div class="card" style="padding:14px 16px">
+      ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>` : ''}
+      <div style="font-size:15px; font-weight:700; color:#111">${escapeHtml(e.title || '')}</div>
+      ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.6; margin-top:6px">${nl2br(e.content)}</div>` : ''}
+      ${linkPart}
+    </div>`;
+  }).join('');
+}
+// API 에서 데이터 로드 후 렌더 (이벤트/기타 페이지 진입 시 항상 최신)
+loadAllAdminData().then(() => {
+  renderEvents();
+  renderEtc();
+  renderAdminList();
+});
+
+// ─── 관리자 페이지 ───
+let ADMIN_TAB = 'events';
+
+function adminCurrentArr() { return ADMIN_TAB === 'events' ? EVENTS : ETC_LIST; }
+function adminCurrentKey() { return ADMIN_TAB === 'events' ? 'events' : 'etc'; }
+
+function renderAdminList() {
+  const arr = adminCurrentArr();
+  const list = document.getElementById('adminEntryList');
+  const label = document.getElementById('adminListLabel');
+  if (label) label.textContent = ADMIN_TAB === 'events' ? '📋 현재 등록된 이벤트' : '📋 현재 등록된 기타 항목';
+  if (!list) return;
+  if (!arr.length) {
+    list.innerHTML = `<div class="empty" style="padding:24px"><div class="empty-icon">📭</div><div class="empty-sub">등록된 항목이 없습니다</div></div>`;
+    return;
+  }
+  list.innerHTML = arr.map(e => `
+    <div class="card" style="padding:12px 14px; display:flex; gap:10px; align-items:flex-start">
+      <div style="flex:1; min-width:0">
+        ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:2px">${escapeHtml(e.date)}</div>` : ''}
+        <div style="font-size:13px; font-weight:700; color:#111; margin-bottom:2px">${escapeHtml(e.title || '')}</div>
+        ${e.content ? `<div style="font-size:12px; color:#6b7280; line-height:1.5; max-height:60px; overflow:hidden">${nl2br(e.content)}</div>` : ''}
+        ${e.link ? `<div style="font-size:11px; color:#1d4ed8; margin-top:4px; word-break:break-all">${escapeHtml(e.link)}</div>` : ''}
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px">
+        <button class="btn" style="font-size:11px; padding:5px 9px; cursor:pointer" onclick="adminEditEntry('${e.id}')">✏ 편집</button>
+        <button class="btn" style="font-size:11px; padding:5px 9px; cursor:pointer; color:#991b1b; border-color:#fecaca" onclick="adminDeleteEntry('${e.id}')">🗑 삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+function adminClearForm() {
+  document.getElementById('adminEditId').value = '';
+  document.getElementById('adminTitle').value = '';
+  document.getElementById('adminDate').value = '';
+  document.getElementById('adminContent').value = '';
+  document.getElementById('adminLink').value = '';
+  document.getElementById('adminFormTitle').textContent = ADMIN_TAB === 'events' ? '새 이벤트 추가' : '새 기타 항목 추가';
+}
+
+async function adminSaveEntry() {
+  const editId = document.getElementById('adminEditId').value;
+  const title = document.getElementById('adminTitle').value.trim();
+  const date = document.getElementById('adminDate').value.trim();
+  const content = document.getElementById('adminContent').value.trim();
+  const link = document.getElementById('adminLink').value.trim();
+  if (!title) { alert('제목을 입력해주세요'); return; }
+  const key = adminCurrentKey();
+  const arr = [...adminCurrentArr()];
+  if (editId) {
+    const idx = arr.findIndex(e => e.id === editId);
+    if (idx >= 0) arr[idx] = {...arr[idx], title, date, content, link};
+  } else {
+    arr.unshift({id: 'a' + Date.now() + Math.random().toString(36).slice(2,6), title, date, content, link, createdAt: new Date().toISOString()});
+  }
+  const ok = await saveAdminData(key, arr);
+  if (!ok) return;
+  if (key === 'events') { EVENTS = arr; renderEvents(); }
+  else { ETC_LIST = arr; renderEtc(); }
+  adminClearForm();
+  renderAdminList();
+}
+
+function adminEditEntry(id) {
+  const arr = adminCurrentArr();
+  const e = arr.find(x => x.id === id);
+  if (!e) return;
+  document.getElementById('adminEditId').value = e.id;
+  document.getElementById('adminTitle').value = e.title || '';
+  document.getElementById('adminDate').value = e.date || '';
+  document.getElementById('adminContent').value = e.content || '';
+  document.getElementById('adminLink').value = e.link || '';
+  document.getElementById('adminFormTitle').textContent = '✏ 편집중...';
+  // 폼 영역으로 스크롤
+  document.getElementById('adminTitle').scrollIntoView({behavior: 'smooth', block: 'center'});
+  document.getElementById('adminTitle').focus();
+}
+
+async function adminDeleteEntry(id) {
+  if (!confirm('정말 삭제하시겠습니까?')) return;
+  const key = adminCurrentKey();
+  const arr = adminCurrentArr().filter(e => e.id !== id);
+  const ok = await saveAdminData(key, arr);
+  if (!ok) return;
+  if (key === 'events') { EVENTS = arr; renderEvents(); }
+  else { ETC_LIST = arr; renderEtc(); }
+  renderAdminList();
+}
+
+function adminExportJson() {
+  const data = {events: EVENTS, etc: ETC_LIST, exportedAt: new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tcg-admin-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 관리자 탭 클릭 핸들러
+document.addEventListener('click', e => {
+  const tab = e.target.closest('#adminTabs .tab[data-admin-tab]');
+  if (!tab) return;
+  ADMIN_TAB = tab.dataset.adminTab;
+  document.querySelectorAll('#adminTabs .tab').forEach(t => t.classList.toggle('active', t === tab));
+  adminClearForm();
+  renderAdminList();
+});
+
+// (관리자 탭 클릭 시 자동 갱신은 위 핸들러에서 처리됨)
 
 /* ────────────────────────────────────
    7. 내 정보 (관심 카드 + 보유 카드)

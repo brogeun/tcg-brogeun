@@ -497,6 +497,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="tabs" id="hubTabs">
         <div class="tab active" data-tab="news">📰 뉴스</div>
         <div class="tab" data-tab="shops">🏪 공식매장</div>
+        <div class="tab" data-tab="events">✨ 이벤트</div>
+        <div class="tab" data-tab="etc">📦 기타</div>
       </div>
       <div data-hubpanel="news"><div id="newsList" class="news-grid"></div></div>
       <style>
@@ -512,6 +514,12 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <div class="tab" data-shop-brand="onepiece">🏴‍☠️ 원피스</div>
         </div>
         <div id="shopList" class="grid auto-shop"></div>
+      </div>
+      <div data-hubpanel="events" style="display:none">
+        <div id="eventListHub" style="display:flex; flex-direction:column; gap:10px"></div>
+      </div>
+      <div data-hubpanel="etc" style="display:none">
+        <div id="etcListHub" style="display:flex; flex-direction:column; gap:12px"></div>
       </div>
     </section>
 
@@ -586,6 +594,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <input id="adminTitle" placeholder="제목 (예: SV12 카드팩 사전공개)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
           <input id="adminDate" placeholder="날짜 (예: 2026.05.22 또는 05.22)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
           <textarea id="adminContent" rows="4" placeholder="내용 (자유 입력 — 줄바꿈 가능)" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; resize:vertical; font-family:inherit"></textarea>
+          <input id="adminImage" placeholder="이미지 URL (선택 — https://... .jpg/.png)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
+          <div id="adminImagePreview" style="display:none; padding:8px; border:1px dashed var(--line); border-radius:8px; background:#fafafa">
+            <img style="max-width:100%; max-height:200px; display:block; margin:0 auto; border-radius:4px">
+          </div>
           <input id="adminLink" placeholder="링크 (선택사항 — https://... )" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
           <div style="display:flex; gap:8px; flex-wrap:wrap">
             <button class="btn primary" type="button" onclick="adminSaveEntry()" style="cursor:pointer">💾 저장</button>
@@ -653,11 +665,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   <nav class="mnav">
     <div class="mnav-item" data-nav="home"><div class="ic">🏠</div>홈</div>
     <div class="mnav-item" data-nav="price"><div class="ic">₩</div>시세</div>
-    <div class="mnav-item" data-nav="hub"><div class="ic">📌</div>허브</div>
-    <div class="mnav-item" data-nav="cardinfo"><div class="ic">🃏</div>정보</div>
+    <div class="mnav-item" data-nav="hub"><div class="ic">📌</div>정보</div>
+    <div class="mnav-item" data-nav="cardinfo"><div class="ic">🃏</div>카드</div>
     <div class="mnav-item" data-nav="apply"><div class="ic">🎟</div>응모</div>
     <div class="mnav-item" data-nav="oripa"><div class="ic">🎁</div>오리파</div>
-    <div class="mnav-item" data-nav="etc"><div class="ic">📦</div>기타</div>
     <div class="mnav-item" data-nav="portfolio"><div class="ic">👤</div>내정보</div>
   </nav>
 </div>
@@ -1833,42 +1844,50 @@ function escapeHtml(s) {
 function nl2br(s) { return escapeHtml(s).replace(/\n/g, '<br>'); }
 
 function renderEvents() {
-  const list = document.getElementById('eventList');
-  if (!list) return;
+  const targets = [document.getElementById('eventList'), document.getElementById('eventListHub')].filter(Boolean);
+  if (!targets.length) return;
+  let html;
   if (!EVENTS.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">등록된 이벤트가 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
-    return;
+    html = `<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">등록된 이벤트가 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
+  } else {
+    html = EVENTS.map(e => {
+      const linkPart = e.link ? `<div style="margin-top:8px"><a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline">자세히 보기 →</a></div>` : '';
+      const imgPart = e.image ? `<div style="margin-top:10px"><img src="${escapeHtml(e.image)}" alt="" style="max-width:100%; max-height:280px; border-radius:8px; border:1px solid #e5e7eb; display:block" onerror="this.style.display='none'"></div>` : '';
+      return `
+      <div class="event-item">
+        <div class="event-date">${escapeHtml(e.date || '')}</div>
+        <div class="event-info">
+          <div class="event-title">${escapeHtml(e.title || '')}</div>
+          ${e.content ? `<div class="event-meta" style="margin-top:4px; line-height:1.6">${nl2br(e.content)}</div>` : ''}
+          ${imgPart}
+          ${linkPart}
+        </div>
+      </div>`;
+    }).join('');
   }
-  list.innerHTML = EVENTS.map(e => {
-    const linkPart = e.link ? `<div style="margin-top:8px"><a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline">자세히 보기 →</a></div>` : '';
-    return `
-    <div class="event-item">
-      <div class="event-date">${escapeHtml(e.date || '')}</div>
-      <div class="event-info">
-        <div class="event-title">${escapeHtml(e.title || '')}</div>
-        ${e.content ? `<div class="event-meta" style="margin-top:4px; line-height:1.6">${nl2br(e.content)}</div>` : ''}
-        ${linkPart}
-      </div>
-    </div>`;
-  }).join('');
+  targets.forEach(el => el.innerHTML = html);
 }
 function renderEtc() {
-  const list = document.getElementById('etcList');
-  if (!list) return;
+  const targets = [document.getElementById('etcList'), document.getElementById('etcListHub')].filter(Boolean);
+  if (!targets.length) return;
+  let html;
   if (!ETC_LIST.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">등록된 항목이 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
-    return;
+    html = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">등록된 항목이 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
+  } else {
+    html = ETC_LIST.map(e => {
+      const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기 →</a>` : '';
+      const imgPart = e.image ? `<div style="margin-top:10px"><img src="${escapeHtml(e.image)}" alt="" style="max-width:100%; max-height:280px; border-radius:8px; border:1px solid #e5e7eb; display:block" onerror="this.style.display='none'"></div>` : '';
+      return `
+      <div class="card" style="padding:14px 16px">
+        ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>` : ''}
+        <div style="font-size:15px; font-weight:700; color:#111">${escapeHtml(e.title || '')}</div>
+        ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.6; margin-top:6px">${nl2br(e.content)}</div>` : ''}
+        ${imgPart}
+        ${linkPart}
+      </div>`;
+    }).join('');
   }
-  list.innerHTML = ETC_LIST.map(e => {
-    const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기 →</a>` : '';
-    return `
-    <div class="card" style="padding:14px 16px">
-      ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>` : ''}
-      <div style="font-size:15px; font-weight:700; color:#111">${escapeHtml(e.title || '')}</div>
-      ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.6; margin-top:6px">${nl2br(e.content)}</div>` : ''}
-      ${linkPart}
-    </div>`;
-  }).join('');
+  targets.forEach(el => el.innerHTML = html);
 }
 // API 에서 데이터 로드 후 렌더 (이벤트/기타 페이지 진입 시 항상 최신)
 loadAllAdminData().then(() => {
@@ -1895,6 +1914,7 @@ function renderAdminList() {
   }
   list.innerHTML = arr.map(e => `
     <div class="card" style="padding:12px 14px; display:flex; gap:10px; align-items:flex-start">
+      ${e.image ? `<img src="${escapeHtml(e.image)}" alt="" style="width:56px; height:56px; object-fit:cover; border-radius:6px; border:1px solid #e5e7eb; flex-shrink:0" onerror="this.style.display='none'">` : ''}
       <div style="flex:1; min-width:0">
         ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:2px">${escapeHtml(e.date)}</div>` : ''}
         <div style="font-size:13px; font-weight:700; color:#111; margin-bottom:2px">${escapeHtml(e.title || '')}</div>
@@ -1913,24 +1933,44 @@ function adminClearForm() {
   document.getElementById('adminTitle').value = '';
   document.getElementById('adminDate').value = '';
   document.getElementById('adminContent').value = '';
+  document.getElementById('adminImage').value = '';
   document.getElementById('adminLink').value = '';
+  document.getElementById('adminImagePreview').style.display = 'none';
   document.getElementById('adminFormTitle').textContent = ADMIN_TAB === 'events' ? '새 이벤트 추가' : '새 기타 항목 추가';
 }
+
+// 이미지 URL 입력 시 즉시 미리보기
+document.addEventListener('input', e => {
+  if (e.target.id === 'adminImage') {
+    const url = e.target.value.trim();
+    const preview = document.getElementById('adminImagePreview');
+    const img = preview?.querySelector('img');
+    if (!preview || !img) return;
+    if (url && /^https?:\/\//.test(url)) {
+      img.src = url;
+      img.onload = () => preview.style.display = 'block';
+      img.onerror = () => preview.style.display = 'none';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+});
 
 async function adminSaveEntry() {
   const editId = document.getElementById('adminEditId').value;
   const title = document.getElementById('adminTitle').value.trim();
   const date = document.getElementById('adminDate').value.trim();
   const content = document.getElementById('adminContent').value.trim();
+  const image = document.getElementById('adminImage').value.trim();
   const link = document.getElementById('adminLink').value.trim();
   if (!title) { alert('제목을 입력해주세요'); return; }
   const key = adminCurrentKey();
   const arr = [...adminCurrentArr()];
   if (editId) {
     const idx = arr.findIndex(e => e.id === editId);
-    if (idx >= 0) arr[idx] = {...arr[idx], title, date, content, link};
+    if (idx >= 0) arr[idx] = {...arr[idx], title, date, content, image, link};
   } else {
-    arr.unshift({id: 'a' + Date.now() + Math.random().toString(36).slice(2,6), title, date, content, link, createdAt: new Date().toISOString()});
+    arr.unshift({id: 'a' + Date.now() + Math.random().toString(36).slice(2,6), title, date, content, image, link, createdAt: new Date().toISOString()});
   }
   const ok = await saveAdminData(key, arr);
   if (!ok) return;
@@ -1948,7 +1988,20 @@ function adminEditEntry(id) {
   document.getElementById('adminTitle').value = e.title || '';
   document.getElementById('adminDate').value = e.date || '';
   document.getElementById('adminContent').value = e.content || '';
+  document.getElementById('adminImage').value = e.image || '';
   document.getElementById('adminLink').value = e.link || '';
+  // 이미지 미리보기 갱신
+  const preview = document.getElementById('adminImagePreview');
+  const img = preview?.querySelector('img');
+  if (preview && img) {
+    if (e.image && /^https?:\/\//.test(e.image)) {
+      img.src = e.image;
+      img.onload = () => preview.style.display = 'block';
+      img.onerror = () => preview.style.display = 'none';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
   document.getElementById('adminFormTitle').textContent = '✏ 편집중...';
   // 폼 영역으로 스크롤
   document.getElementById('adminTitle').scrollIntoView({behavior: 'smooth', block: 'center'});

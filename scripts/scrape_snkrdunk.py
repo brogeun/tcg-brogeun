@@ -698,6 +698,44 @@ def main():
     out_path.write_bytes(detail_txt.encode("utf-8"))
     print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
+    # ─────────── Phase A — history 누적 (per-card) ───────────
+    # 매일 실행 시 오늘자 스냅샷을 data/history/{cardId}.json 에 append
+    # 가격(JPY) + 거래량(active_count) 등급별로 저장 / 360일 초과분 trim
+    history_dir = DATA_DIR / "history"
+    history_dir.mkdir(exist_ok=True)
+    today_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d")
+    appended = 0
+    for cid, det in cards_detail.items():
+        grades = det.get("grades") or {}
+        # 가격 (JPY 기준 — lowest_ask 우선, 없으면 recent_avg)
+        snap = {"date": today_str}
+        any_data = False
+        for gk in ("psa10", "psa9", "raw"):
+            g = grades.get(gk) or {}
+            price = g.get("lowest_ask") or g.get("recent_avg") or g.get("avg")
+            vol = g.get("active_count") or g.get("after_filter") or 0
+            if price:
+                snap[f"{gk}_price"] = round(price)
+                snap[f"{gk}_vol"] = vol
+                any_data = True
+        if not any_data:
+            continue
+        hist_path = history_dir / f"{cid}.json"
+        try:
+            existing = json.loads(hist_path.read_text("utf-8")) if hist_path.exists() else {"id": cid, "history": []}
+        except Exception:
+            existing = {"id": cid, "history": []}
+        hist = [h for h in existing.get("history", []) if h.get("date") != today_str]
+        hist.append(snap)
+        hist.sort(key=lambda h: h.get("date", ""))
+        # 360일치만 보관 (180일 차트 + 1년 변동률 계산 여유분)
+        if len(hist) > 360:
+            hist = hist[-360:]
+        out = json.dumps({"id": cid, "updatedAt": fetched_at, "history": hist}, ensure_ascii=False, indent=2)
+        hist_path.write_bytes(out.encode("utf-8"))
+        appended += 1
+    print(f"  → history 누적: {appended} 카드 (총 {len(list(history_dir.glob('*.json')))} 파일)")
+
     print(f"\n완료. 실패 {fail_count}/{total}")
     if fail_count == total:
         print("전체 실패 → exit 1")

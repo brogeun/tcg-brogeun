@@ -1054,8 +1054,39 @@ async function showPriceDetailPanel(productId) {
         <div id="gradesGrid-${productId}" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px">
           <div style="grid-column:1/-1; color:var(--ink-sub); font-size:12px">⏳ 가격 불러오는 중...</div>
         </div>
-        <div style="margin-top:12px; padding:10px; background:#fff; border:1px dashed #d1d5db; border-radius:8px; font-size:11px; color:var(--ink-sub); line-height:1.6">
-          🔜 <b>다음:</b> 180일 가격 차트 · 거래량 막대 · 7일 rolling outlier 필터
+        <!-- 가격 + 거래량 히스토리 차트 -->
+        <div id="historyWrap-${productId}" style="margin-top:14px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+              <div style="font-size:13px; font-weight:700; color:#374151">📈 가격 · 거래량 히스토리</div>
+              <div class="tabs pill" id="histGradeTabs-${productId}" style="margin:0">
+                <div class="tab active" data-g="psa10" style="font-size:11px; padding:4px 10px">PSA10</div>
+                <div class="tab" data-g="psa9" style="font-size:11px; padding:4px 10px">PSA9</div>
+                <div class="tab" data-g="raw" style="font-size:11px; padding:4px 10px">A급</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:4px" id="histRangeTabs-${productId}">
+              <button class="btn" type="button" data-r="30" style="font-size:11px; padding:4px 10px; cursor:pointer">30일</button>
+              <button class="btn" type="button" data-r="90" style="font-size:11px; padding:4px 10px; cursor:pointer">90일</button>
+              <button class="btn" type="button" data-r="180" style="font-size:11px; padding:4px 10px; cursor:pointer; background:#111; color:#fff; border-color:#111">180일</button>
+              <button class="btn" type="button" data-r="all" style="font-size:11px; padding:4px 10px; cursor:pointer">전체</button>
+            </div>
+          </div>
+          <div id="histHeader-${productId}" style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px; min-height:22px">
+            <span id="histPrice-${productId}" style="font-size:18px; font-weight:900; color:#111"></span>
+            <span id="histChange-${productId}" style="font-size:13px; font-weight:700"></span>
+            <span id="histRange-${productId}" style="font-size:11px; color:var(--ink-mute); margin-left:auto"></span>
+          </div>
+          <div style="position:relative; height:280px">
+            <canvas id="histChart-${productId}"></canvas>
+            <div id="histEmpty-${productId}" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; color:var(--ink-mute); font-size:12px; text-align:center; padding:20px">
+              <div style="font-size:28px; opacity:0.3">📊</div>
+              <div>히스토리 데이터를 불러오는 중...</div>
+            </div>
+          </div>
+          <div style="margin-top:8px; font-size:10px; color:var(--ink-mute); line-height:1.6">
+            🔵 가격(JPY) · ▮ 거래량 · 7일 rolling outlier 필터 적용 (median × [0.4, 2.5] 범위 외 제외)
+          </div>
         </div>
       </div>
     </div>
@@ -1067,6 +1098,13 @@ async function showPriceDetailPanel(productId) {
 
   // 박스/카드 분기 렌더 — product 자체를 넘김 (이름·통화·가격 활용)
   renderGradesPanel(productId, product);
+  // 가격 히스토리 차트 (카드만 — 박스는 단일가)
+  if (isCardProduct(product.name)) {
+    renderHistoryChart(productId, product);
+  } else {
+    const wrap = document.getElementById(`historyWrap-${productId}`);
+    if (wrap) wrap.style.display = 'none';
+  }
 }
 
 // 카드 식별: 이름에 [세트코드 번호] 대괄호가 있으면 카드, 아니면 박스 (Python 분류 로직 동일)
@@ -1163,6 +1201,250 @@ async function renderGradesPanel(productId, product) {
   } catch (e) {
     console.warn('grades load fail:', e);
   }
+}
+
+/* ────────────────────────────────────
+   가격·거래량 히스토리 차트 (Chart.js)
+   ──────────────────────────────────── */
+let _CHART_JS_LOADING = null;
+function loadChartJs() {
+  if (window.Chart) return Promise.resolve();
+  if (_CHART_JS_LOADING) return _CHART_JS_LOADING;
+  _CHART_JS_LOADING = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _CHART_JS_LOADING;
+}
+
+// 7일 rolling median outlier 필터
+// 각 점이 그 점 기준 ±3일(총 7일) 윈도우의 median × [0.4, 2.5] 범위를 벗어나면 제외
+function applyRollingOutlierFilter(rows, priceKey) {
+  if (rows.length < 5) return rows;
+  const median = arr => {
+    const s = [...arr].sort((a,b) => a-b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+  };
+  const result = [];
+  for (let i = 0; i < rows.length; i++) {
+    const start = Math.max(0, i - 3);
+    const end = Math.min(rows.length, i + 4);
+    const window = rows.slice(start, end).map(r => r[priceKey]).filter(v => v != null && v > 0);
+    if (window.length < 3) { result.push(rows[i]); continue; }
+    const med = median(window);
+    const v = rows[i][priceKey];
+    if (v == null || v <= 0) { result.push(rows[i]); continue; }
+    if (v < med * 0.4 || v > med * 2.5) {
+      // outlier — 가격은 null 처리 (라인 끊지 않고 점 제외)
+      result.push({ ...rows[i], [priceKey]: null, [`${priceKey.replace('_price','_outlier')}`]: v });
+    } else {
+      result.push(rows[i]);
+    }
+  }
+  return result;
+}
+
+const _CHART_INSTANCES = {}; // productId → Chart instance
+const _HIST_STATE = {};      // productId → {grade, range}
+
+async function renderHistoryChart(productId, product) {
+  const wrap = document.getElementById(`historyWrap-${productId}`);
+  if (!wrap) return;
+  const state = _HIST_STATE[productId] = _HIST_STATE[productId] || { grade: 'psa10', range: 180 };
+
+  // 히스토리 fetch
+  let history = [];
+  try {
+    const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
+    if (r.ok) {
+      const d = await r.json();
+      history = d.history || [];
+    }
+  } catch {}
+
+  const empty = document.getElementById(`histEmpty-${productId}`);
+  const canvas = document.getElementById(`histChart-${productId}`);
+  if (!history.length) {
+    if (empty) {
+      empty.style.display = 'flex';
+      empty.innerHTML = `
+        <div style="font-size:28px; opacity:0.3">📊</div>
+        <div style="font-weight:600; color:#6b7280">데이터 누적 중</div>
+        <div style="font-size:11px; color:var(--ink-mute); max-width:280px">매일 04:00 KST에 자동 수집됩니다. 7일 누적 후 outlier 필터가 동작하고, 30일 후 의미있는 추세가 보입니다.</div>`;
+    }
+    return;
+  }
+
+  await loadChartJs();
+  if (empty) empty.style.display = 'none';
+
+  // 탭 핸들러 — 등급/기간 변경
+  wrap.querySelectorAll(`#histGradeTabs-${productId} .tab`).forEach(t => {
+    t.onclick = () => {
+      wrap.querySelectorAll(`#histGradeTabs-${productId} .tab`).forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      state.grade = t.dataset.g;
+      drawHistoryChart(productId, history);
+    };
+  });
+  wrap.querySelectorAll(`#histRangeTabs-${productId} button`).forEach(b => {
+    b.onclick = () => {
+      wrap.querySelectorAll(`#histRangeTabs-${productId} button`).forEach(x => {
+        x.style.background = ''; x.style.color = ''; x.style.borderColor = '';
+      });
+      b.style.background = '#111'; b.style.color = '#fff'; b.style.borderColor = '#111';
+      state.range = b.dataset.r === 'all' ? 9999 : parseInt(b.dataset.r);
+      drawHistoryChart(productId, history);
+    };
+  });
+
+  drawHistoryChart(productId, history);
+}
+
+function drawHistoryChart(productId, history) {
+  const state = _HIST_STATE[productId];
+  const grade = state.grade;
+  const priceKey = `${grade}_price`;
+  const volKey = `${grade}_vol`;
+
+  // 기간 필터
+  let rows = history.slice();
+  if (state.range !== 9999 && rows.length > state.range) {
+    rows = rows.slice(-state.range);
+  }
+  // outlier 필터
+  rows = applyRollingOutlierFilter(rows, priceKey);
+
+  const labels = rows.map(r => r.date);
+  const prices = rows.map(r => r[priceKey]);
+  const vols = rows.map(r => r[volKey] || 0);
+
+  // 헤더 — 현재가 + 변동률
+  const validPrices = prices.filter(v => v != null && v > 0);
+  const headerPrice = document.getElementById(`histPrice-${productId}`);
+  const headerChange = document.getElementById(`histChange-${productId}`);
+  const headerRange = document.getElementById(`histRange-${productId}`);
+  if (validPrices.length >= 2) {
+    const cur = validPrices[validPrices.length - 1];
+    const start = validPrices[0];
+    const pct = ((cur - start) / start) * 100;
+    const sign = pct >= 0 ? '+' : '';
+    const color = pct >= 0 ? '#10b981' : '#ef4444';
+    if (headerPrice) headerPrice.textContent = '¥' + Math.round(cur).toLocaleString();
+    if (headerChange) {
+      headerChange.textContent = `${sign}${pct.toFixed(1)}%`;
+      headerChange.style.color = color;
+    }
+    if (headerRange) headerRange.textContent = `${rows.length}일치 (${labels[0]} ~ ${labels[labels.length-1]})`;
+  } else if (validPrices.length === 1) {
+    if (headerPrice) headerPrice.textContent = '¥' + Math.round(validPrices[0]).toLocaleString();
+    if (headerChange) headerChange.textContent = '데이터 누적 중';
+    if (headerRange) headerRange.textContent = `${rows.length}일치`;
+  }
+
+  // 최저점 / 최고점 인덱스 찾기
+  let minIdx = -1, maxIdx = -1, minV = Infinity, maxV = -Infinity;
+  prices.forEach((v, i) => {
+    if (v == null || v <= 0) return;
+    if (v < minV) { minV = v; minIdx = i; }
+    if (v > maxV) { maxV = v; maxIdx = i; }
+  });
+  const pointStyles = prices.map((v, i) => {
+    if (i === maxIdx) return 'triangle';
+    if (i === minIdx) return 'triangle';
+    return 'circle';
+  });
+  const pointColors = prices.map((v, i) => {
+    if (i === maxIdx) return '#ef4444';
+    if (i === minIdx) return '#10b981';
+    return 'rgba(20, 184, 166, 0)';
+  });
+  const pointRadii = prices.map((v, i) => (i === maxIdx || i === minIdx) ? 7 : 0);
+  const pointRotation = prices.map((v, i) => i === maxIdx ? 180 : 0);
+
+  // 기존 차트 destroy
+  if (_CHART_INSTANCES[productId]) {
+    _CHART_INSTANCES[productId].destroy();
+  }
+  const ctx = document.getElementById(`histChart-${productId}`).getContext('2d');
+  _CHART_INSTANCES[productId] = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'line',
+          label: '가격 (¥)',
+          data: prices,
+          borderColor: '#14b8a6',
+          backgroundColor: 'rgba(20, 184, 166, 0.12)',
+          borderWidth: 2,
+          tension: 0.25,
+          fill: true,
+          spanGaps: true,
+          pointStyle: pointStyles,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointColors,
+          pointRadius: pointRadii,
+          pointRotation: pointRotation,
+          pointHoverRadius: 5,
+          yAxisID: 'y',
+        },
+        {
+          type: 'bar',
+          label: '거래량',
+          data: vols,
+          backgroundColor: 'rgba(156, 163, 175, 0.5)',
+          borderWidth: 0,
+          yAxisID: 'yVol',
+          barPercentage: 1.0,
+          categoryPercentage: 0.9,
+          order: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.type === 'bar') return `거래량: ${ctx.parsed.y}건`;
+              const v = ctx.parsed.y;
+              return v == null ? '가격: —' : `가격: ¥${v.toLocaleString()}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { font: { size: 10 }, maxRotation: 0, autoSkipPadding: 20 },
+          grid: { display: false },
+        },
+        y: {
+          position: 'left',
+          ticks: {
+            font: { size: 10 },
+            callback: v => '¥' + v.toLocaleString(),
+          },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+        yVol: {
+          position: 'right',
+          beginAtZero: true,
+          ticks: { font: { size: 10 }, color: '#9ca3af' },
+          grid: { display: false },
+          title: { display: true, text: 'Vol', font: { size: 10 }, color: '#9ca3af' },
+        },
+      },
+    },
+  });
 }
 
 async function loadPriceGrid() {

@@ -6,6 +6,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TCG Hub — 포켓몬 · 원피스 카드 시세</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
+
+<!-- PWA — 홈화면 추가 + 오프라인 캐시 + 앱 출시 준비 -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#14b8a6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="TCG Hub">
+<link rel="apple-touch-icon" href="images/brand-logo.png">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- 검색엔진 / SNS 공유 (Open Graph) -->
+<meta name="description" content="포켓몬 · 원피스 카드 SNKRDUNK 라이브 시세, 6개월 가격 차트, 포트폴리오 추적">
+<meta property="og:title" content="TCG Hub — 포켓몬 · 원피스 카드 시세">
+<meta property="og:description" content="SNKRDUNK 라이브 카드 시세 · 6개월 가격 차트 · 포트폴리오 추적">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tcghub.kr">
+<meta property="og:image" content="https://tcghub.kr/images/brand-logo.png">
+<meta name="twitter:card" content="summary">
+
+<!-- Quill rich text editor (관리자 글쓰기) -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
 <style>
 :root {
   --bg: #fafafa;
@@ -97,6 +118,15 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .nav-item:hover { background: var(--bg-soft); }
 .nav-item.active { background: #111; color: #fff; }
+
+/* 관리자 전용 — 기본 숨김, 활성화 시에만 표시 */
+.admin-only { display: none !important; }
+body.admin-active .admin-only { display: flex !important; }
+/* 모바일에서는 활성화돼도 영구 숨김 */
+@media (max-width: 900px) {
+  .admin-only { display: none !important; }
+  body.admin-active .admin-only { display: none !important; }
+}
 .nav-item .ic { width: 24px; text-align: center; font-size: 18px; }
 
 /* ── 페이지 표시 (핵심: 단순!) ── */
@@ -349,6 +379,30 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 </style>
 </head>
 <body>
+<script>
+// 관리자 모드 활성화/비활성화 — URL ?admin=enable / ?admin=disable
+// 모바일 (< 900px) 에서는 활성화돼도 표시 안 됨 (CSS 차단)
+(function() {
+  try {
+    const params = new URLSearchParams(location.search);
+    if (params.get('admin') === 'enable') {
+      localStorage.setItem('admin_enabled', '1');
+      params.delete('admin');
+      const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
+      history.replaceState(null, '', clean);
+    } else if (params.get('admin') === 'disable') {
+      localStorage.removeItem('admin_enabled');
+      sessionStorage.removeItem('admin_pwd');
+      params.delete('admin');
+      const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
+      history.replaceState(null, '', clean);
+    }
+    if (localStorage.getItem('admin_enabled') === '1') {
+      document.body.classList.add('admin-active');
+    }
+  } catch (e) {}
+})();
+</script>
 <div class="app">
 
   <!-- 사이드바 -->
@@ -368,15 +422,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="nav-item" data-nav="price"><span class="ic">₩</span> 카드 시세</div>
       <div class="nav-item" data-nav="hub"><span class="ic">📌</span> 정보 허브</div>
       <div class="nav-item" data-nav="cardinfo"><span class="ic">🃏</span> 카드 정보</div>
-      <div class="nav-item" data-nav="apply"><span class="ic">🎟</span> 응모</div>
-      <div class="nav-item" data-nav="oripa"><span class="ic">🎁</span> 오리파</div>
-      <div class="nav-item" data-nav="events"><span class="ic">✨</span> 이벤트</div>
-      <div class="nav-item" data-nav="etc"><span class="ic">📦</span> 기타</div>
-      <div class="nav-item" data-nav="admin"><span class="ic">🛠</span> 관리자</div>
+      <div class="nav-item" data-nav="portfolio"><span class="ic">👤</span> 마이페이지</div>
+      <div class="nav-item admin-only" data-nav="admin"><span class="ic">🛠</span> 관리자</div>
     </div>
-    <div class="nav-section">내 정보</div>
-    <div class="nav-list">
-      <div class="nav-item" data-nav="portfolio"><span class="ic">👤</span> 내 정보</div>
+    <div class="nav-section">계정</div>
+    <div id="authStatus" style="padding:8px 12px 12px">
+      <!-- 로그인 안 된 상태 (기본) -->
+      <button id="loginBtn" class="btn primary" style="width:100%; cursor:pointer; padding:10px; font-size:13px">📧 이메일로 로그인</button>
     </div>
   </aside>
 
@@ -397,55 +449,87 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <section class="page" data-page="home">
       <div class="hero">
         <h2>오늘의 TCG, 한 눈에.</h2>
-        <p>SNKRDUNK · PSA · Hareruya 통합 시세부터 응모, 오리파까지. 포켓몬 · 원피스 카드를 위한 올인원 허브.</p>
-        <div class="hero-btns">
-          <button class="btn primary" data-nav="price">카드 시세 보기 →</button>
-          <button class="btn" data-nav="hub" data-tab-target="news">뉴스 · 샵 →</button>
-          <button class="btn" data-nav="cardinfo">카드 정보 →</button>
+        <p>SNKRDUNK 라이브 시세부터 응모, 오리파까지. 포켓몬 · 원피스 카드를 위한 올인원 허브.</p>
+      </div>
+
+      <!-- 메뉴 카드 3종 (시세 / 뉴스 / 정보) -->
+      <div class="grid" style="grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; margin-bottom:20px">
+        <div class="home-menu-card" data-nav="price" style="cursor:pointer; padding:18px 16px; background:#fff; border:1px solid var(--line); border-radius:12px; transition:all 0.2s; text-align:center">
+          <div style="font-size:32px; margin-bottom:8px">💰</div>
+          <div style="font-size:14px; font-weight:800; color:#111; margin-bottom:2px">시세</div>
+          <div style="font-size:11px; color:var(--ink-sub)">SNKRDUNK 라이브</div>
+        </div>
+        <div class="home-menu-card" data-nav="hub" style="cursor:pointer; padding:18px 16px; background:#fff; border:1px solid var(--line); border-radius:12px; transition:all 0.2s; text-align:center">
+          <div style="font-size:32px; margin-bottom:8px">📰</div>
+          <div style="font-size:14px; font-weight:800; color:#111; margin-bottom:2px">정보</div>
+          <div style="font-size:11px; color:var(--ink-sub)">뉴스 · 매장 · 이벤트</div>
+        </div>
+        <div class="home-menu-card" data-nav="cardinfo" style="cursor:pointer; padding:18px 16px; background:#fff; border:1px solid var(--line); border-radius:12px; transition:all 0.2s; text-align:center">
+          <div style="font-size:32px; margin-bottom:8px">🃏</div>
+          <div style="font-size:14px; font-weight:800; color:#111; margin-bottom:2px">카드</div>
+          <div style="font-size:11px; color:var(--ink-sub)">확장팩 · 발매 정보</div>
         </div>
       </div>
+      <style>
+        .home-menu-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: var(--line-strong); }
+      </style>
 
       <h3 style="margin:0 0 12px; font-size:15px">브랜드별 시세</h3>
-      <div class="grid cols-2">
-        <div class="brand-tile" data-home-brand="pokemon" style="cursor:pointer">
-          <div class="brand-tile-img">
-            <img src="images/pokemon-box.jpg" alt="포켓몬" onerror="this.parentElement.textContent='⚡'; this.parentElement.style.fontSize='64px'">
+      <!-- 포켓몬 — 타일 + 펼쳐지는 TOP 10 (자기 영역 안에) -->
+      <div class="brand-tile" data-home-brand="pokemon" style="cursor:pointer; margin-bottom:14px">
+        <div style="display:flex; gap:14px; align-items:center; padding:14px 16px">
+          <div style="width:80px; height:80px; flex-shrink:0; display:flex; align-items:center; justify-content:center">
+            <img src="images/pokemon-box.jpg" alt="포켓몬" style="max-width:100%; max-height:100%; object-fit:contain" onerror="this.outerHTML='<div style=\\'font-size:48px\\'>⚡</div>'">
           </div>
-          <div class="brand-tile-body">
-            <div class="brand-tile-name">포켓몬 카드</div>
-            <div class="brand-tile-sub" id="homeBrandSubPokemon">인기 TOP 10 시세 ↓</div>
-          </div>
-        </div>
-        <div class="brand-tile" data-home-brand="onepiece" style="cursor:pointer">
-          <div class="brand-tile-img">
-            <img src="images/onepiece-box.jpg" alt="원피스" onerror="this.parentElement.textContent='🏴‍☠️'; this.parentElement.style.fontSize='64px'">
-          </div>
-          <div class="brand-tile-body">
-            <div class="brand-tile-name">원피스 카드</div>
-            <div class="brand-tile-sub" id="homeBrandSubOnepiece">인기 TOP 10 시세 ↓</div>
+          <div style="flex:1">
+            <div style="font-size:16px; font-weight:800; margin-bottom:4px">포켓몬 카드</div>
+            <div style="font-size:12px; color:var(--ink-sub)" id="homeBrandSubPokemon">인기 TOP 10 시세 ↓</div>
           </div>
         </div>
       </div>
-
-      <!-- TOP 10 인기 카드 (브랜드 타일 클릭 시 펼쳐짐) -->
-      <div id="homeTopBox" style="display:none; margin-top:18px">
+      <!-- 포켓몬 TOP 10 — 포켓몬 타일 바로 아래 -->
+      <div data-home-top="pokemon" style="display:none; margin-bottom:18px; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px">
         <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
           <div>
-            <div id="homeTopTitle" style="font-size:15px; font-weight:800; color:#111"></div>
+            <div style="font-size:15px; font-weight:800; color:#111">⚡ 포켓몬 인기 카드 TOP 10</div>
             <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
           </div>
-          <button class="btn" type="button" id="homeTopMore" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
+          <button class="btn" type="button" data-home-more="pokemon" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
         </div>
-        <div id="homeTopList" class="home-top-grid"></div>
-        <style>
-          /* 홈 인기 TOP 10 — 5열 × 2행 고정 */
-          .home-top-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px; }
-          @media (max-width: 1100px) { .home-top-grid { grid-template-columns:repeat(5, minmax(0,1fr)); } }
-          @media (max-width: 850px)  { .home-top-grid { grid-template-columns:repeat(4, minmax(0,1fr)); } }
-          @media (max-width: 640px)  { .home-top-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
-          @media (max-width: 480px)  { .home-top-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
-        </style>
+        <div data-home-top-list="pokemon" class="home-top-grid"></div>
       </div>
+
+      <!-- 원피스 — 타일 + 펼쳐지는 TOP 10 -->
+      <div class="brand-tile" data-home-brand="onepiece" style="cursor:pointer; margin-bottom:14px">
+        <div style="display:flex; gap:14px; align-items:center; padding:14px 16px">
+          <div style="width:80px; height:80px; flex-shrink:0; display:flex; align-items:center; justify-content:center">
+            <img src="images/onepiece-box.jpg" alt="원피스" style="max-width:100%; max-height:100%; object-fit:contain" onerror="this.outerHTML='<div style=\\'font-size:48px\\'>🏴‍☠️</div>'">
+          </div>
+          <div style="flex:1">
+            <div style="font-size:16px; font-weight:800; margin-bottom:4px">원피스 카드</div>
+            <div style="font-size:12px; color:var(--ink-sub)" id="homeBrandSubOnepiece">인기 TOP 10 시세 ↓</div>
+          </div>
+        </div>
+      </div>
+      <!-- 원피스 TOP 10 — 원피스 타일 바로 아래 -->
+      <div data-home-top="onepiece" style="display:none; margin-bottom:18px; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
+          <div>
+            <div style="font-size:15px; font-weight:800; color:#111">🏴‍☠️ 원피스 인기 카드 TOP 10</div>
+            <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
+          </div>
+          <button class="btn" type="button" data-home-more="onepiece" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
+        </div>
+        <div data-home-top-list="onepiece" class="home-top-grid"></div>
+      </div>
+
+      <style>
+        .home-top-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px; }
+        @media (max-width: 1100px) { .home-top-grid { grid-template-columns:repeat(5, minmax(0,1fr)); } }
+        @media (max-width: 850px)  { .home-top-grid { grid-template-columns:repeat(4, minmax(0,1fr)); } }
+        @media (max-width: 640px)  { .home-top-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
+        @media (max-width: 480px)  { .home-top-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+      </style>
     </section>
 
     <!-- 카드 시세 -->
@@ -457,6 +541,17 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
       <!-- 선택 상품 상세 패널 (top10 카드 클릭 시 표시) -->
       <div id="priceDetailPanel" style="display:none; margin-bottom:18px"></div>
+
+      <!-- 카드 검색 -->
+      <div id="cardSearchWrap" style="position:relative; margin-bottom:14px">
+        <div style="display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px">
+          <span style="font-size:16px">🔍</span>
+          <input id="cardSearchInput" placeholder="카드 검색 (예: 리자몽, 루피, リザードン, M2a 246, 730964)"
+                 style="flex:1; border:none; outline:none; font-size:14px; background:transparent">
+          <button id="cardSearchClear" style="display:none; border:none; background:#f3f4f6; color:#6b7280; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px">✕</button>
+        </div>
+        <div id="cardSearchResults" style="display:none; position:absolute; left:0; right:0; top:100%; margin-top:6px; background:#fff; border:1px solid var(--line); border-radius:10px; max-height:480px; overflow-y:auto; box-shadow:0 6px 20px rgba(0,0,0,0.08); z-index:50"></div>
+      </div>
 
       <!-- 1차 탭: 브랜드 -->
       <div class="tabs" id="priceBrandTabs">
@@ -494,10 +589,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <h1 class="page-title">📌 정보 허브</h1>
         <p class="page-sub">카드 뉴스 · 전국 TCG 샵을 한 곳에서</p>
       </div>
-      <div class="tabs" id="hubTabs">
+      <div class="tabs" id="hubTabs" style="overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch">
         <div class="tab active" data-tab="news">📰 뉴스</div>
         <div class="tab" data-tab="shops">🏪 공식매장</div>
         <div class="tab" data-tab="events">✨ 이벤트</div>
+        <div class="tab" data-tab="cardshow">🎪 카드쇼</div>
+        <div class="tab" data-tab="apply">🎟 응모</div>
+        <div class="tab" data-tab="oripa">🎁 오리파</div>
         <div class="tab" data-tab="etc">📦 기타</div>
       </div>
       <div data-hubpanel="news"><div id="newsList" class="news-grid"></div></div>
@@ -509,14 +607,26 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         @media (max-width: 380px)  { .news-grid { grid-template-columns:1fr; } }
       </style>
       <div data-hubpanel="shops" style="display:none">
-        <div class="tabs pill" id="shopBrandTabs" style="margin-bottom:14px">
-          <div class="tab active" data-shop-brand="pokemon">⚡ 포켓몬</div>
-          <div class="tab" data-shop-brand="onepiece">🏴‍☠️ 원피스</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px">
+          <div class="tabs pill" id="shopBrandTabs" style="margin:0">
+            <div class="tab active" data-shop-brand="pokemon">⚡ 포켓몬</div>
+            <div class="tab" data-shop-brand="onepiece">🏴‍☠️ 원피스</div>
+          </div>
+          <div id="shopSrc" style="font-size:11px; color:var(--ink-sub)"></div>
         </div>
         <div id="shopList" class="grid auto-shop"></div>
       </div>
       <div data-hubpanel="events" style="display:none">
         <div id="eventListHub" style="display:flex; flex-direction:column; gap:10px"></div>
+      </div>
+      <div data-hubpanel="cardshow" style="display:none">
+        <div id="cardshowListHub" style="display:flex; flex-direction:column; gap:12px"></div>
+      </div>
+      <div data-hubpanel="apply" style="display:none">
+        <div class="grid cols-2" id="applyListHub"></div>
+      </div>
+      <div data-hubpanel="oripa" style="display:none">
+        <div class="grid cols-2" id="oripaListHub"></div>
       </div>
       <div data-hubpanel="etc" style="display:none">
         <div id="etcListHub" style="display:flex; flex-direction:column; gap:12px"></div>
@@ -576,89 +686,190 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     </section>
 
     <!-- 관리자 — 이벤트/기타 직접 입력 -->
-    <section class="page" data-page="admin">
+    <section class="page admin-only" data-page="admin">
       <div class="page-head">
         <h1 class="page-title">🛠 관리자</h1>
-        <p class="page-sub">이벤트 · 기타 메뉴를 직접 작성/편집 (브라우저 localStorage 저장)</p>
-      </div>
-      <div class="tabs pill" id="adminTabs" style="margin-bottom:14px">
-        <div class="tab active" data-admin-tab="events">✨ 이벤트</div>
-        <div class="tab" data-admin-tab="etc">📦 기타</div>
+        <p class="page-sub">이벤트 · 기타 글 작성 (KV에 저장 — 모든 방문자 공개)</p>
       </div>
 
-      <!-- 입력 폼 -->
-      <div class="card" style="padding:18px; margin-bottom:18px">
-        <div style="font-size:14px; font-weight:800; color:#111; margin-bottom:12px" id="adminFormTitle">새 이벤트 추가</div>
-        <input type="hidden" id="adminEditId">
-        <div style="display:flex; flex-direction:column; gap:10px">
-          <input id="adminTitle" placeholder="제목 (예: SV12 카드팩 사전공개)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
-          <input id="adminDate" placeholder="날짜 (예: 2026.05.22 또는 05.22)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
-          <textarea id="adminContent" rows="4" placeholder="내용 (자유 입력 — 줄바꿈 가능)" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; resize:vertical; font-family:inherit"></textarea>
-          <input id="adminImage" placeholder="이미지 URL (선택 — https://... .jpg/.png)" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
-          <div id="adminImagePreview" style="display:none; padding:8px; border:1px dashed var(--line); border-radius:8px; background:#fafafa">
-            <img style="max-width:100%; max-height:200px; display:block; margin:0 auto; border-radius:4px">
-          </div>
-          <input id="adminLink" placeholder="링크 (선택사항 — https://... )" style="padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
-          <div style="display:flex; gap:8px; flex-wrap:wrap">
-            <button class="btn primary" type="button" onclick="adminSaveEntry()" style="cursor:pointer">💾 저장</button>
-            <button class="btn" type="button" onclick="adminClearForm()" style="cursor:pointer">↩ 폼 비우기</button>
-            <button class="btn" type="button" onclick="adminExportJson()" style="cursor:pointer; margin-left:auto">📤 JSON 내보내기</button>
-          </div>
-          <div style="font-size:11px; color:var(--ink-mute); line-height:1.5">
-            ⚠ 데이터는 <b>이 브라우저</b>에만 저장됩니다 (localStorage). 다른 기기/방문자에게 공유되진 않아요.<br>
-            공유하려면 우측 "JSON 내보내기" 로 백업 받아 별도 보관하시거나 추후 서버 저장 기능 요청 가능.
-          </div>
+      <!-- 글쓰기 영역 (네이버 카페 스타일) -->
+      <div class="card" style="padding:0; overflow:hidden; margin-bottom:18px">
+        <!-- 헤더 -->
+        <div style="padding:18px 20px 14px; border-bottom:1px solid var(--line)">
+          <div style="font-size:18px; font-weight:800; color:#111" id="adminFormTitle">📝 새 글 작성</div>
+        </div>
+
+        <!-- 게시판 + 날짜 (Row 1) -->
+        <div style="padding:14px 20px; border-bottom:1px solid var(--line); display:grid; grid-template-columns:200px 1fr; gap:10px">
+          <select id="adminBoard" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff; cursor:pointer">
+            <option value="">📋 게시판을 선택해주세요</option>
+            <option value="events">✨ 이벤트</option>
+            <option value="cardshow">🎪 카드쇼</option>
+            <option value="etc">📦 기타</option>
+          </select>
+          <input id="adminDate" placeholder="📅 날짜 (선택 — 예: 2026.05.22)" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
+        </div>
+
+        <!-- 제목 (Row 2) -->
+        <div style="padding:0 20px; border-bottom:1px solid var(--line)">
+          <input id="adminTitle" placeholder="제목을 입력해주세요." style="width:100%; padding:14px 0; border:none; outline:none; font-size:18px; font-weight:600; color:#111; background:transparent">
+        </div>
+
+        <!-- Quill 에디터 (Row 3) -->
+        <div style="padding:0 20px">
+          <div id="adminEditor" style="height:340px; border:none"></div>
+          <input type="hidden" id="adminEditId">
+        </div>
+
+        <!-- 외부 링크 (Row 4 — 선택, 카드 외부 보기 등) -->
+        <div style="padding:14px 20px; border-top:1px solid var(--line); background:#fafafa">
+          <div style="font-size:11px; font-weight:700; color:#6b7280; margin-bottom:6px">🔗 외부 링크 (선택 — 카드 페이지에 "자세히 보기 →" 로 표시됨)</div>
+          <input id="adminLink" placeholder="https://... (없으면 비워두세요)" style="width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff">
+        </div>
+
+        <!-- 액션 (Row 5) -->
+        <div style="padding:14px 20px; border-top:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+          <button class="btn primary" type="button" onclick="adminSaveEntry()" style="cursor:pointer; padding:10px 24px">💾 저장</button>
+          <button class="btn" type="button" onclick="adminClearForm()" style="cursor:pointer">↩ 새로 쓰기</button>
+          <button class="btn" type="button" onclick="adminExportJson()" style="cursor:pointer; margin-left:auto; font-size:12px">📤 JSON 백업</button>
         </div>
       </div>
 
-      <!-- 현재 등록 항목 리스트 -->
+      <!-- 게시판 리스트 (탭 + 글 목록) -->
+      <div class="tabs pill" id="adminTabs" style="margin-bottom:12px">
+        <div class="tab active" data-admin-tab="events">✨ 이벤트</div>
+        <div class="tab" data-admin-tab="cardshow">🎪 카드쇼</div>
+        <div class="tab" data-admin-tab="etc">📦 기타</div>
+      </div>
       <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:8px" id="adminListLabel">📋 현재 등록된 이벤트</div>
       <div id="adminEntryList" style="display:flex; flex-direction:column; gap:8px"></div>
+
+      <!-- Quill 커스텀 스타일 -->
+      <style>
+        .ql-toolbar.ql-snow { border:1px solid var(--line); border-radius:8px 8px 0 0; border-bottom:none; }
+        .ql-container.ql-snow { border:1px solid var(--line); border-radius:0 0 8px 8px; }
+        .ql-editor { min-height:280px; font-size:14px; line-height:1.7; }
+        .ql-editor.ql-blank::before { color:#9ca3af; font-style:normal; }
+        .ql-editor img { max-width:100%; height:auto; border-radius:6px; margin:6px 0; }
+        .ql-editor a { color:#1d4ed8; text-decoration:underline; }
+      </style>
     </section>
 
     <!-- 내 정보 (포트폴리오 + 관심 카드) -->
     <section class="page" data-page="portfolio">
       <div class="page-head">
-        <h1 class="page-title">👤 내 정보</h1>
-        <p class="page-sub">관심 카드 추적 · 보유 카드 손익 (이 브라우저에 저장)</p>
-      </div>
-      <div class="tabs pill" id="myTabs">
-        <div class="tab active" data-mytab="watchlist">🔖 관심 카드</div>
-        <div class="tab" data-mytab="holdings">💼 보유 카드</div>
+        <h1 class="page-title">👤 마이페이지</h1>
+        <p class="page-sub">로그인 시 모든 기기에서 동기화 · 카드별 손익 + 합산 평가액 차트</p>
       </div>
 
-      <!-- 관심 카드 -->
-      <div data-mypanel="watchlist">
-        <div style="margin-bottom:14px">
-          <button class="btn primary" onclick="alert('관심 카드 추가 기능은 카드 시세 페이지에서 카드 클릭 후 추가 가능합니다')">+ 관심 카드 추가</button>
-        </div>
-        <div class="empty" id="wlEmpty">
-          <div class="empty-icon">🔖</div>
-          <div class="empty-title">관심 카드가 없습니다</div>
-          <div class="empty-sub">카드 시세에서 카드를 클릭한 후 관심 추가하세요</div>
-        </div>
-        <div class="grid auto" id="wlList"></div>
+      <!-- 비로그인 안내 -->
+      <div id="pfLoginGate" style="display:none; padding:48px 24px; text-align:center; background:#fff; border:1px solid var(--line); border-radius:14px">
+        <div style="font-size:48px; opacity:0.4; margin-bottom:14px">🔒</div>
+        <div style="font-size:18px; font-weight:800; color:#111; margin-bottom:6px">로그인이 필요합니다</div>
+        <div style="font-size:13px; color:var(--ink-sub); margin-bottom:20px; line-height:1.6">포트폴리오는 사용자별로 안전하게 저장됩니다.<br>이메일만 입력하면 비밀번호 없이 로그인 가능.</div>
+        <button class="btn primary" onclick="openLoginModal()" style="cursor:pointer; padding:11px 28px; font-size:14px">📧 로그인</button>
       </div>
 
-      <!-- 보유 카드 -->
-      <div data-mypanel="holdings" style="display:none">
-        <div class="pf-stats">
-          <div class="pf-stat"><div class="pf-stat-label">총 평가액</div><div class="pf-stat-val" id="pfValue">¥0</div><div class="pf-stat-sub" id="pfQty">0종 / 0장</div></div>
-          <div class="pf-stat"><div class="pf-stat-label">총 매입가</div><div class="pf-stat-val" id="pfCost">¥0</div></div>
-          <div class="pf-stat"><div class="pf-stat-label">손익</div><div class="pf-stat-val" id="pfPnl">¥0</div><div class="pf-stat-sub" id="pfPct">—</div></div>
-          <div class="pf-stat"><div class="pf-stat-label">최고 수익</div><div class="pf-stat-val" id="pfBest">—</div></div>
+      <!-- 로그인 후 메인 영역 -->
+      <div id="pfMain" style="display:none">
+        <!-- 요약 카드 (총평가/매입/손익/수익률) -->
+        <div class="pf-stats" id="pfStats" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:18px">
+          <div class="pf-stat">
+            <div class="pf-stat-label">💰 총 평가액</div>
+            <div class="pf-stat-val" id="pfValue">¥0</div>
+            <div class="pf-stat-sub" id="pfQty">0종 / 0장</div>
+          </div>
+          <div class="pf-stat">
+            <div class="pf-stat-label">📥 총 매입가</div>
+            <div class="pf-stat-val" id="pfCost">¥0</div>
+            <div class="pf-stat-sub" style="color:var(--ink-mute)">실제 투입 금액</div>
+          </div>
+          <div class="pf-stat">
+            <div class="pf-stat-label">📊 손익</div>
+            <div class="pf-stat-val" id="pfPnl">¥0</div>
+            <div class="pf-stat-sub" id="pfPct">—</div>
+          </div>
+          <div class="pf-stat">
+            <div class="pf-stat-label">🏆 최고 수익</div>
+            <div class="pf-stat-val" id="pfBest" style="font-size:13px">—</div>
+            <div class="pf-stat-sub" id="pfBestPct">—</div>
+          </div>
         </div>
-        <div style="margin-bottom:14px">
-          <button class="btn primary" onclick="openPfAdd()">+ 보유 카드 추가</button>
+
+        <!-- 합산 평가액 차트 (6개월) -->
+        <div id="pfChartWrap" style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:18px; display:none">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px">
+            <div style="font-size:14px; font-weight:700; color:#374151">📈 포트폴리오 평가액 추이</div>
+            <div id="pfChartRange" style="display:flex; gap:4px">
+              <button class="btn" data-r="30" style="font-size:11px; padding:4px 10px; cursor:pointer">30일</button>
+              <button class="btn" data-r="90" style="font-size:11px; padding:4px 10px; cursor:pointer">90일</button>
+              <button class="btn" data-r="180" style="font-size:11px; padding:4px 10px; cursor:pointer; background:#111; color:#fff; border-color:#111">180일</button>
+            </div>
+          </div>
+          <div style="position:relative; height:240px">
+            <canvas id="pfAggChart"></canvas>
+          </div>
         </div>
-        <div class="empty" id="pfEmpty">
-          <div class="empty-icon">💼</div>
-          <div class="empty-title">등록된 보유 카드가 없습니다</div>
-          <div class="empty-sub">"+ 보유 카드 추가" 버튼으로 시작하세요</div>
+
+        <!-- 탭: 보유 / 관심 -->
+        <div class="tabs pill" id="myTabs" style="margin-bottom:14px">
+          <div class="tab active" data-mytab="holdings">💼 보유 카드 (<span id="pfHoldCount">0</span>)</div>
+          <div class="tab" data-mytab="watchlist">🔖 관심 카드 (<span id="pfWatchCount">0</span>)</div>
+          <div class="tab" data-mytab="distribution">🥧 분포</div>
         </div>
-        <div class="grid auto" id="pfList"></div>
+
+        <!-- 보유 카드 -->
+        <div data-mypanel="holdings">
+          <div style="margin-bottom:14px">
+            <button class="btn" onclick="go('price')" style="cursor:pointer; font-size:13px">+ 카드 시세에서 카드 찾아 추가하기</button>
+          </div>
+          <div class="empty" id="pfEmpty" style="display:none">
+            <div class="empty-icon">💼</div>
+            <div class="empty-title">등록된 보유 카드가 없습니다</div>
+            <div class="empty-sub">카드 시세 페이지에서 카드 클릭 → "📋 포트폴리오 추가"</div>
+          </div>
+          <div id="pfList" style="display:flex; flex-direction:column; gap:10px"></div>
+        </div>
+
+        <!-- 관심 카드 -->
+        <div data-mypanel="watchlist" style="display:none">
+          <div class="empty" id="wlEmpty" style="display:none">
+            <div class="empty-icon">🔖</div>
+            <div class="empty-title">관심 카드가 없습니다</div>
+            <div class="empty-sub">카드 시세 페이지에서 카드 클릭 → "⭐ 관심"</div>
+          </div>
+          <div id="wlList" class="grid auto" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px"></div>
+        </div>
+
+        <!-- 분포 (도넛 차트) -->
+        <div data-mypanel="distribution" style="display:none">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px">
+            <div style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px">
+              <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:10px">브랜드별 분산</div>
+              <div style="position:relative; height:240px"><canvas id="pfBrandChart"></canvas></div>
+            </div>
+            <div style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:18px">
+              <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:10px">등급별 분산</div>
+              <div style="position:relative; height:240px"><canvas id="pfGradeChart"></canvas></div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
+
+    <!-- 푸터 -->
+    <footer style="margin-top:40px; padding:24px 0; border-top:1px solid var(--line); font-size:12px; color:var(--ink-sub); line-height:1.7">
+      <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:8px">
+        <a href="/privacy.html" target="_blank" rel="noopener" style="color:#374151; text-decoration:none">🔒 개인정보처리방침</a>
+        <a href="/terms.html" target="_blank" rel="noopener" style="color:#374151; text-decoration:none">📋 이용약관</a>
+        <a href="mailto:yhk3213@gmail.com" style="color:#374151; text-decoration:none">📧 문의</a>
+      </div>
+      <div style="color:var(--ink-mute); font-size:11px; line-height:1.6">
+        ⓒ 2026 TCG Hub · 개인 운영 · 본 서비스의 시세 정보는 SNKRDUNK 등 외부 사이트 데이터 기반 참고 자료이며, 실제 거래 결정은 사용자 본인 책임입니다.<br>
+        본 서비스는 닌텐도, The Pokémon Company, 반다이남코 등 공식 권리자와 무관합니다.<br>
+        외부 사이트 링크 일부는 추천 보상이 제공되는 광고 (Affiliate) 링크입니다. 사행성 콘텐츠는 만 19세 이상에게 권장됩니다.
+      </div>
+    </footer>
   </main>
 
   <!-- 모바일 하단 nav -->
@@ -667,9 +878,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <div class="mnav-item" data-nav="price"><div class="ic">₩</div>시세</div>
     <div class="mnav-item" data-nav="hub"><div class="ic">📌</div>정보</div>
     <div class="mnav-item" data-nav="cardinfo"><div class="ic">🃏</div>카드</div>
-    <div class="mnav-item" data-nav="apply"><div class="ic">🎟</div>응모</div>
-    <div class="mnav-item" data-nav="oripa"><div class="ic">🎁</div>오리파</div>
-    <div class="mnav-item" data-nav="portfolio"><div class="ic">👤</div>내정보</div>
+    <div class="mnav-item" data-nav="portfolio"><div class="ic">👤</div>마이페이지</div>
   </nav>
 </div>
 
@@ -808,10 +1017,9 @@ async function loadHomeTop(brand) {
 }
 
 function renderHomeTop(brand, products) {
-  const list = document.getElementById('homeTopList');
-  const brandLabel = brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스';
-  document.getElementById('homeTopTitle').textContent = `${brandLabel} 인기 TOP 10`;
-  // 안전장치: 어떤 경로로든 10개 초과 못 들어가게 한 번 더 자르기
+  const list = document.querySelector(`[data-home-top-list="${brand}"]`);
+  if (!list) return;
+  // 안전장치
   products = (products || []).slice(0, 10);
 
   if (!products.length) {
@@ -842,8 +1050,10 @@ function renderHomeTop(brand, products) {
   }).join('');
 }
 
-function renderHomeTopSkeleton() {
-  document.getElementById('homeTopList').innerHTML = Array.from({length:10}, () => `
+function renderHomeTopSkeleton(brand) {
+  const list = document.querySelector(`[data-home-top-list="${brand}"]`);
+  if (!list) return;
+  list.innerHTML = Array.from({length:10}, () => `
     <div class="card" style="padding:0; overflow:hidden">
       <div style="background:#f3f4f6; aspect-ratio:1/1"></div>
       <div style="padding:10px 12px">
@@ -855,41 +1065,46 @@ function renderHomeTopSkeleton() {
 }
 
 async function toggleHomeTop(brand) {
-  const box = document.getElementById('homeTopBox');
+  const box = document.querySelector(`[data-home-top="${brand}"]`);
+  if (!box) return;
+  const subEl = document.getElementById('homeBrandSub' + (brand === 'pokemon' ? 'Pokemon' : 'Onepiece'));
   // 같은 브랜드 다시 클릭 → 닫기
   if (HOME_TOP_BRAND === brand) {
     box.style.display = 'none';
     HOME_TOP_BRAND = null;
-    document.getElementById('homeBrandSubPokemon').textContent = '인기 TOP 10 시세 ↓';
-    document.getElementById('homeBrandSubOnepiece').textContent = '인기 TOP 10 시세 ↓';
+    if (subEl) subEl.textContent = '인기 TOP 10 시세 ↓';
     return;
+  }
+  // 다른 브랜드 열려있으면 닫기
+  if (HOME_TOP_BRAND) {
+    const prevBox = document.querySelector(`[data-home-top="${HOME_TOP_BRAND}"]`);
+    if (prevBox) prevBox.style.display = 'none';
+    const prevSub = document.getElementById('homeBrandSub' + (HOME_TOP_BRAND === 'pokemon' ? 'Pokemon' : 'Onepiece'));
+    if (prevSub) prevSub.textContent = '인기 TOP 10 시세 ↓';
   }
   HOME_TOP_BRAND = brand;
   box.style.display = 'block';
-  document.getElementById('homeBrandSubPokemon').textContent = brand === 'pokemon' ? '인기 TOP 10 펼쳐짐 ↑' : '인기 TOP 10 시세 ↓';
-  document.getElementById('homeBrandSubOnepiece').textContent = brand === 'onepiece' ? '인기 TOP 10 펼쳐짐 ↑' : '인기 TOP 10 시세 ↓';
+  if (subEl) subEl.textContent = '인기 TOP 10 펼쳐짐 ↑';
 
   // 캐시 있으면 즉시, 없으면 스켈레톤 + 로드
   if (HOME_TOP_CACHE[brand]) {
     renderHomeTop(brand, HOME_TOP_CACHE[brand]);
   } else {
-    renderHomeTopSkeleton();
-    document.getElementById('homeTopTitle').textContent =
-      (brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스') + ' 인기 카드 TOP 10 (PSA 10)';
+    renderHomeTopSkeleton(brand);
     try {
       const products = await loadHomeTop(brand);
       if (HOME_TOP_BRAND === brand) renderHomeTop(brand, products);
     } catch (e) {
       console.error('[home-top10] error', e);
-      if (HOME_TOP_BRAND === brand) {
+      const list = document.querySelector(`[data-home-top-list="${brand}"]`);
+      if (HOME_TOP_BRAND === brand && list) {
         const msg = String(e.message || e);
-        document.getElementById('homeTopList').innerHTML = `
+        list.innerHTML = `
           <div style="grid-column:1/-1; padding:24px; background:#fef2f2; border:1px solid #fecaca; border-radius:10px">
             <div style="font-weight:700; color:#991b1b; margin-bottom:8px">⚠ 시세 불러오기 실패</div>
             <div style="color:#7f1d1d; font-size:13px; line-height:1.6; margin-bottom:10px">${msg}</div>
             <div style="font-size:11px; color:#991b1b; line-height:1.7">
-              <b>참고:</b> 데이터는 매일 04:00 KST 에 GitHub Actions 가 자동 갱신합니다.<br>
-              직접 확인: <a href="${location.origin}/data/top10-${brand}.json" target="_blank" style="color:#1d4ed8; text-decoration:underline">/data/top10-${brand}.json</a>
+              <b>참고:</b> 데이터는 매일 04:00 KST 에 GitHub Actions 가 자동 갱신합니다.
             </div>
           </div>`;
       }
@@ -902,9 +1117,10 @@ async function toggleHomeTop(brand) {
 document.addEventListener('click', e => {
   const tile = e.target.closest('[data-home-brand]');
   if (tile) { e.preventDefault(); toggleHomeTop(tile.dataset.homeBrand); return; }
-  const moreBtn = e.target.closest('#homeTopMore');
-  if (moreBtn && HOME_TOP_BRAND) {
-    PRICE_BRAND = HOME_TOP_BRAND;
+  const moreBtn = e.target.closest('[data-home-more]');
+  if (moreBtn) {
+    const targetBrand = moreBtn.dataset.homeMore;
+    PRICE_BRAND = targetBrand;
     PRICE_CAT = 'card';
     PRICE_GRADE = 'psa10';
     go('price');
@@ -1038,9 +1254,17 @@ async function showPriceDetailPanel(productId) {
             <div style="font-size:13px; color:var(--ink-sub); margin-top:2px">${fmtKrw(price, product.currency)}</div>
           </div>
           <div style="display:flex; gap:8px; margin-top:auto; flex-wrap:wrap; padding-top:10px">
+            <button class="btn primary" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
+                    onclick="openAddToPortfolio('${productId}', ${JSON.stringify(product.name).replace(/"/g, '&quot;')}, '${product.image || ''}', ${price || 0}, 'psa10')">
+              📋 포트폴리오 추가
+            </button>
+            <button class="btn" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
+                    onclick="openAddToWatchlist('${productId}', ${JSON.stringify(product.name).replace(/"/g, '&quot;')}, 'psa10')">
+              ⭐ 관심
+            </button>
             <a href="${product.url}" target="_blank" rel="noopener noreferrer"
-               class="btn primary" style="text-decoration:none; cursor:pointer; padding:9px 16px; font-size:13px">
-              🛒 SNKRDUNK 에서 보기 →
+               class="btn" style="text-decoration:none; cursor:pointer; padding:9px 16px; font-size:13px">
+              🛒 SNKRDUNK →
             </a>
             <button class="btn" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px" onclick="go('price')">
               ← 전체 시세
@@ -1202,6 +1426,153 @@ async function renderGradesPanel(productId, product) {
     console.warn('grades load fail:', e);
   }
 }
+
+/* ────────────────────────────────────
+   카드 검색 (이미지 우선, 한국어/일본어/영어 모두)
+   ──────────────────────────────────── */
+let _ALL_CARDS_INDEX = null;
+let _SEARCH_ALIASES = null;
+
+async function loadCardSearchData() {
+  if (_ALL_CARDS_INDEX) return;
+  // all-cards.json 으로딩 (discover 결과)
+  try {
+    const r = await fetch('/data/all-cards.json?t=' + Math.floor(Date.now() / 3600000));
+    if (r.ok) {
+      const d = await r.json();
+      _ALL_CARDS_INDEX = (d.details || []).map(c => ({
+        id: String(c.id),
+        name: c.name || '',
+        nameLower: (c.name || '').toLowerCase(),
+        productNumber: (c.productNumber || '').toLowerCase(),
+        thumbnailUrl: c.thumbnailUrl || '',
+        minPrice: c.minPrice,
+        currency: c.currency || 'USD',
+        listingCount: c.listingCount,
+        brand: c.brand || '',
+        kind: c.kind || 'card',
+      }));
+    }
+  } catch (e) { console.warn('all-cards load fail:', e); }
+  if (!_ALL_CARDS_INDEX) _ALL_CARDS_INDEX = [];
+  // search-aliases.json 로딩
+  try {
+    const r = await fetch('/data/search-aliases.json?t=' + Math.floor(Date.now() / 3600000));
+    if (r.ok) _SEARCH_ALIASES = await r.json();
+  } catch {}
+  if (!_SEARCH_ALIASES) _SEARCH_ALIASES = {};
+}
+
+function searchCards(query, limit = 30) {
+  if (!_ALL_CARDS_INDEX) return [];
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return [];
+  // 숫자만 입력 → 직접 ID 매치
+  if (/^\d+$/.test(q)) {
+    const direct = _ALL_CARDS_INDEX.find(c => c.id === q);
+    return direct ? [direct] : [];
+  }
+  // 단어 분리 (공백 기준)
+  const words = q.split(/\s+/).filter(Boolean);
+  const matches = _ALL_CARDS_INDEX.filter(c => {
+    return words.every(w => {
+      if (c.nameLower.includes(w)) return true;
+      if (c.productNumber && c.productNumber.includes(w)) return true;
+      const aliases = _SEARCH_ALIASES?.[w] || [];
+      return aliases.some(a => c.nameLower.includes(a.toLowerCase()));
+    });
+  });
+  // 정렬: listingCount 높은 순 (인기 카드 먼저)
+  matches.sort((a, b) => {
+    const aN = parseInt((a.listingCount || '0').toString().replace(/\+/g, '')) || 0;
+    const bN = parseInt((b.listingCount || '0').toString().replace(/\+/g, '')) || 0;
+    return bN - aN;
+  });
+  return matches.slice(0, limit);
+}
+
+function renderSearchResults(results, query) {
+  const box = document.getElementById('cardSearchResults');
+  if (!box) return;
+  if (!query) { box.style.display = 'none'; return; }
+  if (!results.length) {
+    box.innerHTML = `<div style="padding:24px; text-align:center; color:var(--ink-mute); font-size:13px">"${escapeHtml(query)}" 일치 카드 없음 <br><span style="font-size:11px">한국어/일본어/영어/세트코드/SNKRDUNK ID 모두 가능</span></div>`;
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = results.map(c => {
+    const brandIcon = c.brand === 'pokemon' ? '⚡' : (c.brand === 'onepiece' ? '🏴‍☠️' : '🃏');
+    const priceText = c.minPrice ? `$${c.minPrice}` : '-';
+    return `
+    <div class="search-result-item" data-card-id="${c.id}" style="display:grid; grid-template-columns:40px 1fr auto; gap:10px; align-items:center; padding:8px 12px; border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.15s"
+         onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+      <div style="width:40px; height:54px; background:#f3f4f6; border-radius:4px; overflow:hidden; display:flex; align-items:center; justify-content:center">
+        ${c.thumbnailUrl ? `<img src="${c.thumbnailUrl}" alt="" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer" loading="lazy">` : `<span style="font-size:18px; opacity:0.3">🃏</span>`}
+      </div>
+      <div style="min-width:0">
+        <div style="font-size:13px; font-weight:700; color:#111; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${escapeHtml(c.name)}</div>
+        <div style="font-size:11px; color:var(--ink-sub); margin-top:3px">${brandIcon} ${escapeHtml(c.productNumber || '').toUpperCase()}</div>
+      </div>
+      <div style="text-align:right; padding-right:4px">
+        <div style="font-size:13px; font-weight:800; color:#111">${priceText}</div>
+        ${c.listingCount ? `<div style="font-size:10px; color:var(--ink-mute)">${escapeHtml(String(c.listingCount))} 매물</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  box.style.display = 'block';
+}
+
+// 검색 입력 핸들러 (debounced)
+let _SEARCH_TIMER = null;
+document.addEventListener('input', e => {
+  if (e.target.id !== 'cardSearchInput') return;
+  const q = e.target.value;
+  document.getElementById('cardSearchClear').style.display = q ? 'block' : 'none';
+  clearTimeout(_SEARCH_TIMER);
+  _SEARCH_TIMER = setTimeout(async () => {
+    await loadCardSearchData();
+    renderSearchResults(searchCards(q), q);
+  }, 250);
+});
+
+// X 버튼 → 검색 비우기
+document.addEventListener('click', e => {
+  if (e.target.id === 'cardSearchClear') {
+    const input = document.getElementById('cardSearchInput');
+    input.value = '';
+    document.getElementById('cardSearchResults').style.display = 'none';
+    e.target.style.display = 'none';
+    input.focus();
+  }
+});
+
+// 결과 클릭 → 카드 상세 페이지로
+document.addEventListener('click', e => {
+  const item = e.target.closest('.search-result-item');
+  if (!item) return;
+  const cardId = item.dataset.cardId;
+  if (!cardId) return;
+  // 검색 결과 닫기
+  document.getElementById('cardSearchResults').style.display = 'none';
+  document.getElementById('cardSearchInput').value = '';
+  document.getElementById('cardSearchClear').style.display = 'none';
+  // 차트 페이지로 이동 — 기존 라우팅 사용
+  location.hash = `#price/${cardId}`;
+});
+
+// 검색바 외부 클릭 시 결과 닫기
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('cardSearchWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('cardSearchResults').style.display = 'none';
+  }
+});
+
+// 검색 페이지 진입 시 미리 데이터 로드 (첫 검색 빠르게)
+window.addEventListener('hashchange', () => {
+  if (location.hash.startsWith('#price')) loadCardSearchData();
+});
+if (location.hash.startsWith('#price')) loadCardSearchData();
 
 /* ────────────────────────────────────
    가격·거래량 히스토리 차트 (Chart.js)
@@ -1668,13 +2039,185 @@ const SHOPS = {
      phone: "010-4849-7220",
      map: "https://naver.me/GSQ6LEoV"},
   ],
-  onepiece: []  // 원피스 공식 매장 등록 시 추가
+  onepiece: [
+    {name: "이수 듀얼파크",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 동작구 사당동 89-1 삼정빌딩 지하층",
+     hours: "평일 13:30~21:30 / 주말 10:30~19:30 (월·화 휴무)",
+     phone: "0507-1364-6212",
+     map: "https://naver.me/5OQNa7nC"},
+
+    {name: "티씨지라보",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 은평구 가좌로 251, 3층 (응암동)",
+     hours: "평일 13:30~19:30 / 주말 12:30~21:00 (화 휴무)",
+     phone: "010-6295-2006",
+     map: "https://naver.me/FqWtims9"},
+
+    {name: "티씨지샵 셔플",
+     image: "images/market/onepiece-logo.png",
+     addr: "부산광역시 동래구 충렬대로 134-1 제일빌딩 1층",
+     hours: "평일 14:00~21:00 / 주말 11:00~21:00 (화 휴무)",
+     phone: "0507-1439-5735",
+     map: "https://naver.me/xbA5PH8L"},
+
+    {name: "대구 듀얼챔프",
+     image: "images/market/onepiece-logo.png",
+     addr: "대구광역시 동구 송라로 66, 3층",
+     hours: "평일 15:10~19:00 / 주말 12:10~19:30 (월·화·수 휴무)",
+     phone: "0507-1491-3101",
+     map: "https://naver.me/5T0Id0Yp"},
+
+    {name: "트레이너 스쿨 대구",
+     image: "images/market/onepiece-logo.png",
+     addr: "대구광역시 달서구 성당동 488-1, 2층",
+     hours: "평일 15:00~21:00 / 주말 13:00~21:00 (월·화 휴무)",
+     phone: "0507-1334-2223",
+     map: "https://naver.me/5BcqbqAh"},
+
+    {name: "만수 듀얼존",
+     image: "images/market/onepiece-logo.png",
+     addr: "인천광역시 남동구 백범로 173, 5층 (만수동)",
+     hours: "평일 14:00~21:00 / 주말 10:30~19:00",
+     phone: "032-466-4088",
+     map: "https://naver.me/IxsNmf35"},
+
+    {name: "대화듀얼위너",
+     image: "images/market/onepiece-logo.png",
+     addr: "경기도 고양시 일산서구 대산로 219, 1동 2층 201호 (대화동, 한라프라자)",
+     hours: "평일 13:00~22:00 / 주말 11:00~22:00 (화 휴무)",
+     phone: "0507-1406-7813",
+     map: "https://naver.me/xf5smAGn"},
+
+    {name: "일산 듀얼팩토리",
+     image: "images/market/onepiece-logo.png",
+     addr: "경기도 고양시 일산동구 백석동 1209-3, 지하 1층",
+     hours: "평일 14:00~19:00 / 주말 11:30~20:00 (월·화 휴무)",
+     phone: "010-5105-2961",
+     map: "https://naver.me/FDnfgFJv"},
+
+    {name: "정무샵",
+     image: "images/market/onepiece-logo.png",
+     addr: "경기도 이천시 중리천로 14번길 25-12, 2층 (중리동)",
+     hours: "평일 14:00~22:00 / 주말 12:00~20:00 (화·수 휴무)",
+     phone: "0507-1381-0682",
+     map: "https://naver.me/GKURpXt6"},
+
+    {name: "보드게임카페 띵",
+     image: "images/market/onepiece-logo.png",
+     addr: "전북특별자치도 군산시 궁포3로 12, 2층 202호 (조촌동, 청하빌딩)",
+     hours: "평일 13:00~24:00 / 주말 13:00~01:00",
+     phone: "0507-1352-3618",
+     map: "https://naver.me/x8tp00vg"},
+
+    {name: "카드랩 사당점",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 동작구 동작대로1길 27, 5층 (사당동)",
+     hours: "13:00~22:00 (월·화 휴무)",
+     phone: "010-5965-8235",
+     map: "https://naver.me/Fw7ixIgT"},
+
+    {name: "목동 듀얼파크",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 양천구 신정중앙로 94 목마빌딩 지하",
+     hours: "평일 12:00~20:00 / 주말 10:30~20:00 (월 휴무)",
+     phone: "02-2602-6279",
+     map: "https://naver.me/GyYrzxck"},
+
+    {name: "플레이 아레나",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 마포구 동교로34길 21, 2층 (연남동)",
+     hours: "13:00~22:00",
+     phone: "0507-1352-7824",
+     map: "https://naver.me/5YFcg3nS"},
+
+    {name: "LAS TCG",
+     image: "images/market/onepiece-logo.png",
+     addr: "경기도 안산시 단원구 중앙대로 907, 2동 3층 302호 (고잔동, 안산종합상가)",
+     hours: "평일 14:00~22:00 / 주말 12:00~22:00 (월 휴무)",
+     phone: "0507-1386-9219",
+     map: "https://naver.me/ID3qD26u"},
+
+    {name: "카드슬래쉬",
+     image: "images/market/onepiece-logo.png",
+     addr: "충청북도 청주시 서원구 1순환로672번길 64, 3층 301호 (사창동)",
+     hours: "11:00~21:00 (월 휴무)",
+     phone: "0507-1468-1877",
+     map: "https://naver.me/GkU09oZm"},
+
+    {name: "티씨지짐",
+     image: "images/market/onepiece-logo.png",
+     addr: "경상남도 창원시 의창구 남산로 17번길 2, 2층",
+     hours: "평일 12:00~18:30 / 주말 11:00~19:00",
+     phone: "0507-1327-4616",
+     map: "https://naver.me/FXwo51dJ"},
+
+    {name: "XOXO굿즈샵",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 마포구 독막로 15길 24, 지하 1층",
+     hours: "매일 12:00~18:00 (토·일 휴무)",
+     phone: "070-7500-8668",
+     map: "https://naver.me/xOdmz9Xz"},
+
+    {name: "카드베이스 부산",
+     image: "images/market/onepiece-logo.png",
+     addr: "부산광역시 동래구 명륜로 129번길 54, 4층",
+     hours: "평일 14:00~22:00 / 주말 13:00~22:00",
+     phone: "0507-1491-9697",
+     map: "https://naver.me/5r3E3x9l"},
+
+    {name: "래빗츠컴퍼니",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 마포구 희우정로 112, 지하 1층",
+     hours: "매일 10:00~19:00 (토·일 휴무)",
+     phone: "070-8827-7105",
+     map: "https://naver.me/GkR3bCUV"},
+
+    {name: "이로아",
+     image: "images/market/onepiece-logo.png",
+     addr: "전북특별자치도 군산시 구영6길 134-3",
+     hours: "평일 13:00~20:00 / 주말 12:00~20:00",
+     phone: "063-465-0419",
+     map: "https://naver.me/xFLw19Mh"},
+
+    {name: "카드냥 역삼",
+     image: "images/market/onepiece-logo.png",
+     addr: "서울특별시 강남구 논현로77길 9, 4층 402호 (역삼동)",
+     hours: "평일 14:00~22:30 / 주말 13:00~22:30",
+     phone: "02-568-3778",
+     map: "https://naver.me/Gn0JU0zX"},
+
+    {name: "티씨지아레나",
+     image: "images/market/onepiece-logo.png",
+     addr: "인천광역시 미추홀구 염창로 77, 3층 (주안동)",
+     hours: "평일 13:00~22:00 / 주말 11:00~22:00 (월 휴무)",
+     map: "https://naver.me/GBveK0kF"},
+
+    {name: "휘게문고 현대프리미엄아울렛 대전점",
+     image: "images/market/onepiece-logo.png",
+     addr: "대전광역시 유성구 테크노중앙로 123, 2층",
+     hours: "매일 10:30~21:00",
+     phone: "042-332-2800",
+     map: "https://naver.me/5L7PS6eU"},
+  ]
+};
+
+// 공식매장 출처 (정보 허브 → 공식매장 페이지 우상단)
+const SHOP_SOURCE = {
+  pokemon:  { label: "출처: pokemonkorea.co.kr",   url: "https://pokemonkorea.co.kr/pokemon_cardshop" },
+  onepiece: { label: "출처: onepiece-cardgame.kr", url: "https://onepiece-cardgame.kr/shoplist.do" },
 };
 
 let SHOP_BRAND = 'pokemon';
 function renderShops() {
   const list = SHOPS[SHOP_BRAND] || [];
   const container = document.getElementById('shopList');
+  // 출처 링크 갱신
+  const srcEl = document.getElementById('shopSrc');
+  const src = SHOP_SOURCE[SHOP_BRAND];
+  if (srcEl && src) {
+    srcEl.innerHTML = `<a href="${src.url}" target="_blank" rel="noopener" style="color:var(--ink-sub); text-decoration:underline">${src.label}</a>`;
+  }
   if (!list.length) {
     container.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🏪</div><div class="empty-title">${SHOP_BRAND === 'pokemon' ? '포켓몬' : '원피스'} 공식 매장 정보가 곧 추가됩니다</div></div>`;
     return;
@@ -1725,9 +2268,9 @@ document.addEventListener('click', e => {
 document.addEventListener('click', e => {
   const tab = e.target.closest('#hubTabs .tab');
   if (!tab) return;
+  const which = tab.dataset.tab;
   document.querySelectorAll('#hubTabs .tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
-  const which = tab.dataset.tab;
   document.querySelectorAll('[data-hubpanel]').forEach(p => p.style.display = p.dataset.hubpanel === which ? '' : 'none');
 });
 
@@ -1901,7 +2444,7 @@ const ORIPAS = [
     bg: "#141414",
     logo: "images/beezie.svg",
     hot: true,
-    desc: "미국 기반 TCG·수집품 오리파 플랫폼. 포켓몬/원피스 등 다양한 카드를 취급합니다. 실시간 클로머신(크레인) 스타일 뽑기가 특징.",
+    desc: "미국 기반 TCG 오리파 플랫폼\n포켓몬·원피스 등 다양한 카드 취급",
     usage: [
       "Beezie 사이트 접속 후 이메일 또는 Apple/Google로 회원가입합니다.",
       "신용카드(Stripe) 또는 암호화폐로 크레딧을 충전합니다.",
@@ -1917,7 +2460,7 @@ const ORIPAS = [
     link: "https://phygitals.com/invite/087648",
     bg: "#141414",
     logo: "images/phygitals.JPG",
-    desc: "실물 카드와 디지털(NFT) 인증서를 연동한 차세대 오리파 플랫폼. 모든 카드에 진품 인증이 자동 발급됩니다.",
+    desc: "실물+디지털(NFT) 연동 오리파\n모든 카드에 진품 인증 자동 발급",
     usage: [
       "Phygitals 사이트 접속 후 초대 링크(087648)로 가입하면 보너스가 제공됩니다.",
       "지갑(MetaMask 등) 연결 또는 이메일 가입 후 USDC/신용카드로 결제합니다.",
@@ -1927,8 +2470,9 @@ const ORIPAS = [
     ]
   }
 ];
-// 이벤트 + 기타 — Cloudflare KV 백엔드 (/api/admin), 모든 방문자에게 동일하게 보임
+// 이벤트 + 카드쇼 + 기타 — Cloudflare KV 백엔드 (/api/admin), 모든 방문자에게 동일하게 보임
 let EVENTS = [];
+let CARDSHOWS = [];
 let ETC_LIST = [];
 
 // 관리자 비밀번호는 sessionStorage 에 임시 보관 (탭 닫으면 사라짐)
@@ -1979,15 +2523,17 @@ async function saveAdminData(type, items) {
 }
 
 async function loadAllAdminData() {
-  const [events, etc] = await Promise.all([
+  const [events, etc, cardshow] = await Promise.all([
     fetchAdminData('events'),
     fetchAdminData('etc'),
+    fetchAdminData('cardshow'),
   ]);
   EVENTS = events;
   ETC_LIST = etc;
+  CARDSHOWS = cardshow;
 }
 
-document.getElementById('applyList').innerHTML = APPLIES.map((a, i) => {
+const _applyHtml = APPLIES.map((a, i) => {
   const isMulti = !!a.multi && a.multi.length > 0;
   const ribbon = a.ribbon ? `<div style="position:absolute; top:10px; right:10px; background:#fff; color:#111; font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px; z-index:2">${a.ribbon}</div>` : '';
   const brandColor = a.brand === '포켓몬' ? '#fef2f2' : '#fff7ed';
@@ -2019,6 +2565,10 @@ document.getElementById('applyList').innerHTML = APPLIES.map((a, i) => {
     </div>
   </div>`;
 }).join('');
+['applyList', 'applyListHub'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = _applyHtml;
+});
 
 /* 응모 방법 모달 */
 function showApplyMethod(i) {
@@ -2046,15 +2596,28 @@ function showApplyMethod(i) {
   openAnyModal(html);
 }
 
-// 페이지 상단에 레퍼럴 안내 한 번만 표시
-const oripaList = document.getElementById('oripaList');
-const oripaSection = oripaList.parentElement;
-const refNotice = document.createElement('div');
-refNotice.style.cssText = 'font-size:12px; padding:10px 14px; background:#eff6ff; border:1px solid #dbeafe; border-radius:8px; margin-bottom:18px; color:#1e40af; line-height:1.5';
-refNotice.innerHTML = '💛 레퍼럴 링크 — 이 링크로 가입 시 사이트 운영자에게 소정의 보상이 제공됩니다.';
-oripaSection.insertBefore(refNotice, oripaList);
+// 페이지 상단에 레퍼럴 안내 한 번만 표시 (oripa 페이지 + hub 패널 양쪽)
+const _refNoticeHtml = `
+  <div style="font-size:12px; padding:10px 14px; background:#eff6ff; border:1px solid #dbeafe; border-radius:8px; margin-bottom:18px; color:#1e40af; line-height:1.5">
+    <div style="font-weight:700; margin-bottom:6px">💛 광고 (Affiliate) · 만 19세 이상 권장</div>
+    <div style="font-size:11px; color:#92400e; line-height:1.6">
+      본 페이지의 외부 링크 일부는 추천 가입 시 사이트 운영자에게 보상이 제공되는 <b>광고 링크</b>입니다.
+      외부 사이트 (Beezie, Phygitals 등) 이용 시 발생하는 거래는 사용자와 해당 외부 사이트 간의 책임이며,
+      본 사이트는 외부 서비스의 운영, 결제, 환불, 당첨 등에 일체 관여하지 않습니다.
+      사행성 콘텐츠 (랜덤 박스 등) 는 만 19세 이상에게 권장됩니다.
+    </div>
+  </div>`;
+['oripaList', 'oripaListHub'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el && el.parentElement && !el.parentElement.querySelector('.oripa-ref-notice')) {
+    const div = document.createElement('div');
+    div.className = 'oripa-ref-notice';
+    div.innerHTML = _refNoticeHtml;
+    el.parentElement.insertBefore(div, el);
+  }
+});
 
-oripaList.innerHTML = ORIPAS.map((o, i) => `
+const _oripaHtml = ORIPAS.map((o, i) => `
   <div class="oripa-tile" style="text-align:left; padding:0; overflow:hidden">
     <div style="background:${o.bg}; padding:36px 20px; text-align:center; position:relative; min-height:140px; display:flex; align-items:center; justify-content:center">
       ${o.hot ? '<div style="position:absolute; top:10px; right:10px; background:#ef4444; color:#fff; font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px">🔥 HOT</div>' : ''}
@@ -2063,7 +2626,7 @@ oripaList.innerHTML = ORIPAS.map((o, i) => `
         : `<div style="font-size:32px; font-weight:900; color:#fff; letter-spacing:-0.5px">${o.name}</div>`}
     </div>
     <div style="padding:16px">
-      <div style="font-size:13px; color:var(--ink-sub); line-height:1.6; margin-bottom:14px">${o.desc}</div>
+      <div style="font-size:13px; color:#374151; line-height:1.6; margin-bottom:14px; font-weight:500">${o.desc.replace(/\n/g, '<br>')}</div>
       ${o.tip ? `<div style="font-size:12px; padding:10px 12px; background:#fef3c7; border-radius:8px; margin-bottom:12px; color:#92400e; line-height:1.5"><b>💡 TIP:</b> ${o.tip}</div>` : ''}
       <div style="display:flex; gap:6px; flex-wrap:wrap">
         <a href="${o.link}" target="_blank" rel="noopener" class="btn primary" style="flex:1; min-width:120px; text-align:center">🎁 바로가기 →</a>
@@ -2072,6 +2635,10 @@ oripaList.innerHTML = ORIPAS.map((o, i) => `
       </div>
     </div>
   </div>`).join('');
+['oripaList', 'oripaListHub'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = _oripaHtml;
+});
 
 /* 오리파 사용법 모달 */
 function showOripaUsage(i) {
@@ -2083,7 +2650,7 @@ function showOripaUsage(i) {
       <button class="modal-close" onclick="closeAnyModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div style="font-size:13px; color:var(--ink-sub); margin-bottom:14px; line-height:1.6">${o.desc}</div>
+      <div style="font-size:13px; color:#374151; margin-bottom:14px; line-height:1.6; font-weight:500">${o.desc.replace(/\n/g, '<br>')}</div>
       <div style="font-size:14px; font-weight:700; margin-bottom:8px">📖 단계별 사용법</div>
       <ol style="margin:0; padding-left:20px; font-size:13px; line-height:1.8; color:#374151">
         ${o.usage.map(s => `<li>${s}</li>`).join('')}
@@ -2124,6 +2691,14 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 function nl2br(s) { return escapeHtml(s).replace(/\n/g, '<br>'); }
+// content 가 HTML 인지 plain text 인지 자동 판단해서 적절히 렌더
+function renderRichContent(s) {
+  if (!s) return '';
+  // HTML 태그가 있으면 그대로 (관리자가 Quill 로 작성한 HTML — 신뢰)
+  if (/<[a-z][^>]*>/i.test(s)) return s;
+  // plain text → 줄바꿈 br
+  return nl2br(s);
+}
 
 function renderEvents() {
   const targets = [document.getElementById('eventList'), document.getElementById('eventListHub')].filter(Boolean);
@@ -2140,7 +2715,7 @@ function renderEvents() {
         <div class="event-date">${escapeHtml(e.date || '')}</div>
         <div class="event-info">
           <div class="event-title">${escapeHtml(e.title || '')}</div>
-          ${e.content ? `<div class="event-meta" style="margin-top:4px; line-height:1.6">${nl2br(e.content)}</div>` : ''}
+          ${e.content ? `<div class="event-meta" style="margin-top:4px; line-height:1.6">${renderRichContent(e.content)}</div>` : ''}
           ${imgPart}
           ${linkPart}
         </div>
@@ -2163,7 +2738,7 @@ function renderEtc() {
       <div class="card" style="padding:14px 16px">
         ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>` : ''}
         <div style="font-size:15px; font-weight:700; color:#111">${escapeHtml(e.title || '')}</div>
-        ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.6; margin-top:6px">${nl2br(e.content)}</div>` : ''}
+        ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.6; margin-top:6px">${renderRichContent(e.content)}</div>` : ''}
         ${imgPart}
         ${linkPart}
       </div>`;
@@ -2171,18 +2746,47 @@ function renderEtc() {
   }
   targets.forEach(el => el.innerHTML = html);
 }
-// API 에서 데이터 로드 후 렌더 (이벤트/기타 페이지 진입 시 항상 최신)
+function renderCardshows() {
+  const target = document.getElementById('cardshowListHub');
+  if (!target) return;
+  if (!CARDSHOWS.length) {
+    target.innerHTML = `<div class="empty"><div class="empty-icon">🎪</div><div class="empty-title">등록된 카드쇼가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
+    return;
+  }
+  target.innerHTML = CARDSHOWS.map(e => {
+    const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기 →</a>` : '';
+    const imgPart = e.image ? `<div style="margin-top:10px"><img src="${escapeHtml(e.image)}" alt="" style="max-width:100%; max-height:280px; border-radius:8px; border:1px solid #e5e7eb; display:block" onerror="this.style.display='none'"></div>` : '';
+    return `
+    <div class="card" style="padding:14px 16px">
+      ${e.date ? `<div style="display:inline-block; font-size:11px; padding:2px 8px; background:#f3e8ff; color:#7c3aed; border-radius:4px; font-weight:700; margin-bottom:6px">🎪 ${escapeHtml(e.date)}</div>` : ''}
+      <div style="font-size:15px; font-weight:700; color:#111">${escapeHtml(e.title || '')}</div>
+      ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.6; margin-top:6px">${renderRichContent(e.content)}</div>` : ''}
+      ${imgPart}
+      ${linkPart}
+    </div>`;
+  }).join('');
+}
+// API 에서 데이터 로드 후 렌더 (이벤트/카드쇼/기타 페이지 진입 시 항상 최신)
 loadAllAdminData().then(() => {
   renderEvents();
   renderEtc();
+  renderCardshows();
   renderAdminList();
 });
 
 // ─── 관리자 페이지 ───
 let ADMIN_TAB = 'events';
 
-function adminCurrentArr() { return ADMIN_TAB === 'events' ? EVENTS : ETC_LIST; }
-function adminCurrentKey() { return ADMIN_TAB === 'events' ? 'events' : 'etc'; }
+function adminCurrentArr() {
+  if (ADMIN_TAB === 'events') return EVENTS;
+  if (ADMIN_TAB === 'cardshow') return CARDSHOWS;
+  return ETC_LIST;
+}
+function adminCurrentKey() {
+  if (ADMIN_TAB === 'events') return 'events';
+  if (ADMIN_TAB === 'cardshow') return 'cardshow';
+  return 'etc';
+}
 
 function renderAdminList() {
   const arr = adminCurrentArr();
@@ -2200,7 +2804,7 @@ function renderAdminList() {
       <div style="flex:1; min-width:0">
         ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:2px">${escapeHtml(e.date)}</div>` : ''}
         <div style="font-size:13px; font-weight:700; color:#111; margin-bottom:2px">${escapeHtml(e.title || '')}</div>
-        ${e.content ? `<div style="font-size:12px; color:#6b7280; line-height:1.5; max-height:60px; overflow:hidden">${nl2br(e.content)}</div>` : ''}
+        ${e.content ? `<div style="font-size:12px; color:#6b7280; line-height:1.5; max-height:60px; overflow:hidden">${renderRichContent(e.content)}</div>` : ''}
         ${e.link ? `<div style="font-size:11px; color:#1d4ed8; margin-top:4px; word-break:break-all">${escapeHtml(e.link)}</div>` : ''}
       </div>
       <div style="display:flex; flex-direction:column; gap:4px">
@@ -2210,83 +2814,171 @@ function renderAdminList() {
     </div>`).join('');
 }
 
+// ─── Quill 에디터 lazy 초기화 ───
+let _QUILL = null;
+let _QUILL_LOADING = null;
+function loadQuillJs() {
+  if (window.Quill) return Promise.resolve();
+  if (_QUILL_LOADING) return _QUILL_LOADING;
+  _QUILL_LOADING = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return _QUILL_LOADING;
+}
+
+async function ensureQuill() {
+  if (_QUILL) return _QUILL;
+  await loadQuillJs();
+  const target = document.getElementById('adminEditor');
+  if (!target) return null;
+  _QUILL = new Quill(target, {
+    theme: 'snow',
+    placeholder: '내용을 입력하세요. 이미지/링크/서식 자유롭게 사용 가능합니다.',
+    modules: {
+      toolbar: [
+        [{ header: [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ color: [] }, { background: [] }],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        [{ align: [] }],
+        ['blockquote', 'code-block'],
+        ['link', 'image', 'video'],
+        ['clean'],
+      ],
+    },
+  });
+  return _QUILL;
+}
+
+// 관리자 페이지 진입 시 Quill 초기화 (첫 진입에 한 번)
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#admin') ensureQuill();
+});
+if (location.hash === '#admin') ensureQuill();
+
 function adminClearForm() {
   document.getElementById('adminEditId').value = '';
   document.getElementById('adminTitle').value = '';
   document.getElementById('adminDate').value = '';
-  document.getElementById('adminContent').value = '';
-  document.getElementById('adminImage').value = '';
   document.getElementById('adminLink').value = '';
-  document.getElementById('adminImagePreview').style.display = 'none';
-  document.getElementById('adminFormTitle').textContent = ADMIN_TAB === 'events' ? '새 이벤트 추가' : '새 기타 항목 추가';
+  // 게시판 선택 — 현재 탭 따라 기본 선택
+  const board = document.getElementById('adminBoard');
+  if (board) board.value = ADMIN_TAB || 'events';
+  // Quill 비우기
+  if (_QUILL) _QUILL.setContents([]);
+  document.getElementById('adminFormTitle').textContent = '📝 새 글 작성';
 }
 
-// 이미지 URL 입력 시 즉시 미리보기
-document.addEventListener('input', e => {
-  if (e.target.id === 'adminImage') {
-    const url = e.target.value.trim();
-    const preview = document.getElementById('adminImagePreview');
-    const img = preview?.querySelector('img');
-    if (!preview || !img) return;
-    if (url && /^https?:\/\//.test(url)) {
-      img.src = url;
-      img.onload = () => preview.style.display = 'block';
-      img.onerror = () => preview.style.display = 'none';
-    } else {
-      preview.style.display = 'none';
-    }
-  }
-});
-
 async function adminSaveEntry() {
+  await ensureQuill();
   const editId = document.getElementById('adminEditId').value;
   const title = document.getElementById('adminTitle').value.trim();
   const date = document.getElementById('adminDate').value.trim();
-  const content = document.getElementById('adminContent').value.trim();
-  const image = document.getElementById('adminImage').value.trim();
   const link = document.getElementById('adminLink').value.trim();
+  const board = document.getElementById('adminBoard').value;
+  // Quill HTML 추출
+  const content = _QUILL ? _QUILL.root.innerHTML : '';
+  // 빈 컨텐츠 감지 (Quill 은 비어도 <p><br></p> 남김)
+  const isEmpty = !content || content === '<p><br></p>' || _QUILL.getText().trim().length === 0;
+
+  if (!board) { alert('게시판을 선택해주세요 (이벤트/기타)'); return; }
   if (!title) { alert('제목을 입력해주세요'); return; }
-  const key = adminCurrentKey();
-  const arr = [...adminCurrentArr()];
+  if (isEmpty) { alert('내용을 입력해주세요'); return; }
+
+  // 본문 일부에서 첫 이미지 URL 자동 추출 (썸네일 용)
+  const imgMatch = content.match(/<img[^>]+src="([^"]+)"/i);
+  const image = imgMatch ? imgMatch[1] : '';
+
+  // 게시판 → 데이터 배열 매핑
+  const ARR_MAP = {
+    events: () => EVENTS,
+    cardshow: () => CARDSHOWS,
+    etc: () => ETC_LIST,
+  };
+  const SET_MAP = {
+    events: (a) => { EVENTS = a; renderEvents(); },
+    cardshow: (a) => { CARDSHOWS = a; renderCardshows(); },
+    etc: (a) => { ETC_LIST = a; renderEtc(); },
+  };
+  const targetKey = board;
+  const targetArr = [...ARR_MAP[targetKey]()];
+
   if (editId) {
-    const idx = arr.findIndex(e => e.id === editId);
-    if (idx >= 0) arr[idx] = {...arr[idx], title, date, content, image, link};
+    const idx = targetArr.findIndex(e => e.id === editId);
+    if (idx >= 0) {
+      targetArr[idx] = { ...targetArr[idx], title, date, content, image, link };
+    } else {
+      // 다른 게시판으로 옮김 — 기존 위치에서 삭제 후 새 게시판에 추가
+      targetArr.unshift({
+        id: editId,
+        title, date, content, image, link,
+        createdAt: new Date().toISOString(),
+      });
+      // 어느 다른 게시판에 있었는지 찾아서 제거
+      for (const otherKey of ['events', 'cardshow', 'etc']) {
+        if (otherKey === targetKey) continue;
+        const otherArr = ARR_MAP[otherKey]();
+        if (otherArr.some(e => e.id === editId)) {
+          const cleaned = otherArr.filter(e => e.id !== editId);
+          const okOther = await saveAdminData(otherKey, cleaned);
+          if (!okOther) return;
+          SET_MAP[otherKey](cleaned);
+          break;
+        }
+      }
+    }
   } else {
-    arr.unshift({id: 'a' + Date.now() + Math.random().toString(36).slice(2,6), title, date, content, image, link, createdAt: new Date().toISOString()});
+    targetArr.unshift({
+      id: 'a' + Date.now() + Math.random().toString(36).slice(2, 6),
+      title, date, content, image, link,
+      createdAt: new Date().toISOString(),
+    });
   }
-  const ok = await saveAdminData(key, arr);
+
+  const ok = await saveAdminData(targetKey, targetArr);
   if (!ok) return;
-  if (key === 'events') { EVENTS = arr; renderEvents(); }
-  else { ETC_LIST = arr; renderEtc(); }
+  SET_MAP[targetKey](targetArr);
+
   adminClearForm();
   renderAdminList();
+  // 작성한 게시판 탭으로 자동 전환 (시각적 피드백)
+  if (ADMIN_TAB !== targetKey) {
+    ADMIN_TAB = targetKey;
+    document.querySelectorAll('#adminTabs .tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.adminTab === targetKey));
+    renderAdminList();
+  }
+  alert('✓ 저장되었습니다');
 }
 
-function adminEditEntry(id) {
+async function adminEditEntry(id) {
+  await ensureQuill();
   const arr = adminCurrentArr();
   const e = arr.find(x => x.id === id);
   if (!e) return;
   document.getElementById('adminEditId').value = e.id;
   document.getElementById('adminTitle').value = e.title || '';
   document.getElementById('adminDate').value = e.date || '';
-  document.getElementById('adminContent').value = e.content || '';
-  document.getElementById('adminImage').value = e.image || '';
   document.getElementById('adminLink').value = e.link || '';
-  // 이미지 미리보기 갱신
-  const preview = document.getElementById('adminImagePreview');
-  const img = preview?.querySelector('img');
-  if (preview && img) {
-    if (e.image && /^https?:\/\//.test(e.image)) {
-      img.src = e.image;
-      img.onload = () => preview.style.display = 'block';
-      img.onerror = () => preview.style.display = 'none';
+  document.getElementById('adminBoard').value = ADMIN_TAB; // 현재 탭 = 이 글의 게시판
+  // Quill 에 컨텐츠 주입 (HTML 또는 plain text)
+  if (_QUILL) {
+    if (e.content && /<[a-z]/i.test(e.content)) {
+      // HTML — innerHTML 로 직접
+      _QUILL.root.innerHTML = e.content;
+    } else if (e.content) {
+      // plain text — 줄바꿈 보존
+      _QUILL.setText(e.content);
     } else {
-      preview.style.display = 'none';
+      _QUILL.setContents([]);
     }
   }
-  document.getElementById('adminFormTitle').textContent = '✏ 편집중...';
-  // 폼 영역으로 스크롤
-  document.getElementById('adminTitle').scrollIntoView({behavior: 'smooth', block: 'center'});
+  document.getElementById('adminFormTitle').textContent = '✏ 글 수정';
+  document.getElementById('adminTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
   document.getElementById('adminTitle').focus();
 }
 
@@ -2297,12 +2989,13 @@ async function adminDeleteEntry(id) {
   const ok = await saveAdminData(key, arr);
   if (!ok) return;
   if (key === 'events') { EVENTS = arr; renderEvents(); }
+  else if (key === 'cardshow') { CARDSHOWS = arr; renderCardshows(); }
   else { ETC_LIST = arr; renderEtc(); }
   renderAdminList();
 }
 
 function adminExportJson() {
-  const data = {events: EVENTS, etc: ETC_LIST, exportedAt: new Date().toISOString()};
+  const data = {events: EVENTS, cardshow: CARDSHOWS, etc: ETC_LIST, exportedAt: new Date().toISOString()};
   const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2325,25 +3018,85 @@ document.addEventListener('click', e => {
 // (관리자 탭 클릭 시 자동 갱신은 위 핸들러에서 처리됨)
 
 /* ────────────────────────────────────
-   7. 내 정보 (관심 카드 + 보유 카드)
+   7. 내 정보 (D1 기반 — 로그인 후 동기화)
    ──────────────────────────────────── */
-let WATCHLIST = JSON.parse(localStorage.getItem('watchlist') || '[]');
-let HOLDINGS = JSON.parse(localStorage.getItem('holdings') || '[]');
+let HOLDINGS = [];
+let WATCHLIST = [];
+let _PF_RANGE = 180;
+let _PF_AGG_CHART = null;
+let _PF_BRAND_CHART = null;
+let _PF_GRADE_CHART = null;
+let _PF_PRICE_CACHE = {}; // cardId -> { name, image, brand, latestPrices: {psa10, psa9, raw} }
 
-function renderWatchlist() {
-  const list = document.getElementById('wlList');
-  const empty = document.getElementById('wlEmpty');
-  if (!WATCHLIST.length) { list.innerHTML = ''; empty.style.display = ''; return; }
-  empty.style.display = 'none';
-  list.innerHTML = WATCHLIST.map(w => `
-    <div class="card" style="padding:12px; display:block; cursor:pointer" onclick="window.open('${w.url}', '_blank')">
-      <div style="aspect-ratio:1/1; background:#fafafa; border-radius:8px; margin-bottom:8px; display:flex; align-items:center; justify-content:center">
-        ${w.image ? `<img src="${w.image}" style="max-width:100%; max-height:100%">` : '🃏'}
-      </div>
-      <div style="font-size:12px; font-weight:700">${w.name || '카드'}</div>
-      <div style="font-size:14px; font-weight:800; color:var(--accent); margin-top:4px">${fmtYen(w.price)}</div>
-      <div style="font-size:11px; color:var(--ink-sub)">${fmtKrw(w.price)}</div>
-    </div>`).join('');
+const GRADE_LABEL = { psa10: 'PSA 10', psa9: 'PSA 9', raw: 'A급', box: '박스' };
+const GRADE_COLOR = { psa10: '#fbbf24', psa9: '#9ca3af', raw: '#06b6d4', box: '#a78bfa' };
+const BRAND_COLOR = { pokemon: '#fbbf24', onepiece: '#dc2626', unknown: '#6b7280' };
+
+async function loadPortfolio() {
+  if (!CURRENT_USER) return null;
+  try {
+    const r = await fetch('/api/portfolio', { credentials: 'include' });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+// 카드 메타데이터 + 최신 가격 lookup (all-cards.json + history/{id}.json)
+async function loadCardMeta(cardId) {
+  if (_PF_PRICE_CACHE[cardId]) return _PF_PRICE_CACHE[cardId];
+  await loadCardSearchData();
+  const meta = (_ALL_CARDS_INDEX || []).find(c => c.id === cardId);
+  let history = null;
+  try {
+    const r = await fetch(`/data/history/${cardId}.json?t=${Math.floor(Date.now()/3600000)}`);
+    if (r.ok) history = await r.json();
+  } catch {}
+  const last = history?.history?.[history.history.length - 1] || {};
+  const result = {
+    name: meta?.name || `Card #${cardId}`,
+    image: meta?.thumbnailUrl || '',
+    brand: meta?.brand || 'unknown',
+    history: history?.history || [],
+    latestPrices: {
+      psa10: last.psa10_price || null,
+      psa9: last.psa9_price || null,
+      raw: last.raw_price || null,
+      box: meta?.minPrice ? Math.round(meta.minPrice * 150) : null, // box: USD → JPY 추정
+    },
+  };
+  _PF_PRICE_CACHE[cardId] = result;
+  return result;
+}
+
+async function refreshPortfolio() {
+  const gate = document.getElementById('pfLoginGate');
+  const main = document.getElementById('pfMain');
+  if (!CURRENT_USER) {
+    gate.style.display = '';
+    main.style.display = 'none';
+    return;
+  }
+  gate.style.display = 'none';
+  main.style.display = '';
+
+  const data = await loadPortfolio();
+  if (!data) return;
+  HOLDINGS = data.holdings || [];
+  WATCHLIST = data.watchlists || [];
+
+  document.getElementById('pfHoldCount').textContent = HOLDINGS.length;
+  document.getElementById('pfWatchCount').textContent = WATCHLIST.length;
+
+  // 메타 미리 로드
+  await Promise.all([
+    ...HOLDINGS.map(h => loadCardMeta(h.card_id)),
+    ...WATCHLIST.map(w => loadCardMeta(w.card_id)),
+  ]);
+
+  renderHoldings();
+  renderWatchlist();
+  renderAggChart();
+  renderDistributionCharts();
 }
 
 function renderHoldings() {
@@ -2357,69 +3110,216 @@ function renderHoldings() {
     document.getElementById('pfPnl').textContent = '¥0';
     document.getElementById('pfPct').textContent = '—';
     document.getElementById('pfBest').textContent = '—';
+    document.getElementById('pfBestPct').textContent = '—';
     document.getElementById('pfQty').textContent = '0종 / 0장';
+    document.getElementById('pfChartWrap').style.display = 'none';
     return;
   }
   empty.style.display = 'none';
+  document.getElementById('pfChartWrap').style.display = '';
+
   let totalValue = 0, totalCost = 0, totalQty = 0;
-  HOLDINGS.forEach(h => {
-    const cur = h.currentPrice || h.purchasePrice;
-    totalValue += cur * h.quantity;
-    totalCost += h.purchasePrice * h.quantity;
-    totalQty += h.quantity;
-  });
-  const pnl = totalValue - totalCost;
-  const pct = totalCost > 0 ? (pnl / totalCost * 100) : 0;
-  document.getElementById('pfValue').textContent = fmtYen(totalValue);
-  document.getElementById('pfCost').textContent = fmtYen(totalCost);
-  const pnlEl = document.getElementById('pfPnl');
-  pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmtYen(pnl);
-  pnlEl.className = 'pf-stat-val ' + (pnl >= 0 ? 'pos' : 'neg');
-  document.getElementById('pfPct').textContent = `${pnl >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`;
-  document.getElementById('pfQty').textContent = `${HOLDINGS.length}종 / ${totalQty}장`;
-  list.innerHTML = HOLDINGS.map((h, i) => {
-    const cur = h.currentPrice || h.purchasePrice;
-    const value = cur * h.quantity;
-    const cost = h.purchasePrice * h.quantity;
+  let bestName = '', bestPct = -Infinity;
+  const enriched = HOLDINGS.map(h => {
+    const meta = _PF_PRICE_CACHE[h.card_id] || {};
+    const cur = meta.latestPrices?.[h.grade] || h.buy_price;
+    const value = cur * h.qty;
+    const cost = h.buy_price * h.qty;
     const itemPnl = value - cost;
     const itemPct = cost > 0 ? (itemPnl / cost * 100) : 0;
-    const sign = itemPnl >= 0 ? 'pos' : 'neg';
+    if (itemPct > bestPct) { bestPct = itemPct; bestName = meta.name || ''; }
+    totalValue += value;
+    totalCost += cost;
+    totalQty += h.qty;
+    return { ...h, meta, cur, value, cost, itemPnl, itemPct };
+  });
+
+  const pnl = totalValue - totalCost;
+  const pct = totalCost > 0 ? (pnl / totalCost * 100) : 0;
+  document.getElementById('pfValue').textContent = '¥' + Math.round(totalValue).toLocaleString();
+  document.getElementById('pfCost').textContent = '¥' + Math.round(totalCost).toLocaleString();
+  const pnlEl = document.getElementById('pfPnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + '¥' + Math.round(Math.abs(pnl)).toLocaleString();
+  pnlEl.style.color = pnl >= 0 ? '#10b981' : '#ef4444';
+  const pctEl = document.getElementById('pfPct');
+  pctEl.textContent = `${pnl >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`;
+  pctEl.style.color = pnl >= 0 ? '#10b981' : '#ef4444';
+  document.getElementById('pfQty').textContent = `${HOLDINGS.length}종 / ${totalQty}장`;
+  if (bestName && bestPct > -Infinity) {
+    document.getElementById('pfBest').textContent = bestName.length > 18 ? bestName.slice(0, 18) + '…' : bestName;
+    document.getElementById('pfBestPct').textContent = `${bestPct >= 0 ? '+' : ''}${bestPct.toFixed(1)}%`;
+    document.getElementById('pfBestPct').style.color = bestPct >= 0 ? '#10b981' : '#ef4444';
+  }
+
+  list.innerHTML = enriched.map(h => {
+    const sign = h.itemPnl >= 0 ? '#10b981' : '#ef4444';
     return `
-      <div class="card" style="padding:12px">
-        <div style="aspect-ratio:1/1; background:#fafafa; border-radius:8px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; font-size:24px">${h.image ? `<img src="${h.image}" style="max-width:100%; max-height:100%">` : '🃏'}</div>
-        <div style="font-size:12px; font-weight:700">${h.name}</div>
-        <div style="font-size:10px; color:var(--ink-sub); margin:4px 0">매입 ${fmtYen(h.purchasePrice)} × ${h.quantity}장</div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px">
-          <div>
-            <div style="font-size:13px; font-weight:800">${fmtYen(value)}</div>
-            <div style="font-size:10px; color:var(--ink-sub)">${fmtKrw(value)}</div>
-          </div>
-          <div style="text-align:right">
-            <div class="pf-stat-val ${sign}" style="font-size:13px">${itemPnl >= 0 ? '+' : ''}${fmtYen(itemPnl)}</div>
-            <div class="pf-stat-sub ${sign}" style="font-size:11px">${itemPnl >= 0 ? '▲' : '▼'} ${Math.abs(itemPct).toFixed(1)}%</div>
-          </div>
+    <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:60px 1fr auto; gap:12px; align-items:center; cursor:pointer" onclick="location.hash='#price/${h.card_id}'">
+      <div style="width:60px; height:78px; background:#f3f4f6; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center">
+        ${h.meta.image ? `<img src="${escapeHtml(h.meta.image)}" alt="" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer">` : `<span style="font-size:24px; opacity:0.3">🃏</span>`}
+      </div>
+      <div style="min-width:0">
+        <div style="font-size:13px; font-weight:700; color:#111; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${escapeHtml(h.meta.name || '')}</div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:4px; flex-wrap:wrap">
+          <span style="font-size:10px; padding:2px 7px; background:${GRADE_COLOR[h.grade]}22; color:#374151; border-radius:4px; font-weight:700">${GRADE_LABEL[h.grade]}</span>
+          <span style="font-size:11px; color:var(--ink-sub)">매입 ¥${(h.buy_price).toLocaleString()} × ${h.qty}장</span>
         </div>
-        <button class="btn" style="margin-top:8px; width:100%; font-size:11px" onclick="removeHolding(${i})">삭제</button>
-      </div>`;
+      </div>
+      <div style="text-align:right; padding-right:6px">
+        <div style="font-size:14px; font-weight:800; color:#111">¥${Math.round(h.value).toLocaleString()}</div>
+        <div style="font-size:12px; font-weight:700; color:${sign}">${h.itemPnl >= 0 ? '+' : ''}¥${Math.round(Math.abs(h.itemPnl)).toLocaleString()}</div>
+        <div style="font-size:11px; color:${sign}">${h.itemPnl >= 0 ? '▲' : '▼'} ${Math.abs(h.itemPct).toFixed(1)}%</div>
+        <button class="btn" style="margin-top:6px; padding:3px 8px; font-size:11px; cursor:pointer" onclick="event.stopPropagation(); removeHoldingApi(${h.id})">🗑</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
-function openPfAdd() {
-  const name = prompt('카드 이름을 입력하세요:');
-  if (!name) return;
-  const price = parseFloat(prompt('매입가 (¥):'));
-  if (!price || price <= 0) { alert('가격을 정확히 입력해주세요'); return; }
-  const qty = parseInt(prompt('수량:', '1')) || 1;
-  HOLDINGS.push({name, purchasePrice: price, quantity: qty, currentPrice: price, addedAt: Date.now()});
-  localStorage.setItem('holdings', JSON.stringify(HOLDINGS));
-  renderHoldings();
+function renderWatchlist() {
+  const list = document.getElementById('wlList');
+  const empty = document.getElementById('wlEmpty');
+  if (!WATCHLIST.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+  list.innerHTML = WATCHLIST.map(w => {
+    const meta = _PF_PRICE_CACHE[w.card_id] || {};
+    const cur = meta.latestPrices?.[w.grade] || meta.latestPrices?.psa10 || meta.latestPrices?.raw;
+    return `
+    <div class="card" style="padding:12px; display:block; cursor:pointer" onclick="location.hash='#price/${w.card_id}'">
+      <div style="width:100%; aspect-ratio:3/4; background:#f3f4f6; border-radius:8px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; overflow:hidden">
+        ${meta.image ? `<img src="${escapeHtml(meta.image)}" alt="" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">🃏</span>`}
+      </div>
+      <div style="font-size:12px; font-weight:700; color:#111; line-height:1.3; height:32px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${escapeHtml(meta.name || '')}</div>
+      <div style="display:flex; gap:6px; align-items:center; margin-top:6px">
+        <span style="font-size:10px; padding:2px 6px; background:${GRADE_COLOR[w.grade]||'#f3f4f6'}22; color:#374151; border-radius:4px; font-weight:700">${GRADE_LABEL[w.grade]||'?'}</span>
+        <span style="font-size:13px; font-weight:800; color:#111; margin-left:auto">${cur ? '¥'+cur.toLocaleString() : '—'}</span>
+      </div>
+      <button class="btn" style="margin-top:8px; width:100%; padding:5px; font-size:11px; cursor:pointer" onclick="event.stopPropagation(); removeWatchlistApi(${w.id})">제거</button>
+    </div>`;
+  }).join('');
 }
-function removeHolding(i) {
-  if (!confirm('이 카드를 삭제할까요?')) return;
-  HOLDINGS.splice(i, 1);
-  localStorage.setItem('holdings', JSON.stringify(HOLDINGS));
-  renderHoldings();
+
+async function removeHoldingApi(id) {
+  if (!confirm('이 카드를 포트폴리오에서 삭제할까요?')) return;
+  const r = await fetch(`/api/portfolio/holding/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (r.ok) { showToast('삭제되었습니다', 'info'); refreshPortfolio(); }
+  else showToast('삭제 실패', 'error');
 }
+
+async function removeWatchlistApi(id) {
+  const r = await fetch(`/api/portfolio/watchlist/${id}`, { method: 'DELETE', credentials: 'include' });
+  if (r.ok) { showToast('관심에서 제거', 'info'); refreshPortfolio(); }
+  else showToast('제거 실패', 'error');
+}
+
+// 합산 평가액 차트 — 일자별 holdings 가치 합산
+async function renderAggChart() {
+  if (!HOLDINGS.length) return;
+  await loadChartJs();
+  // 모든 holdings 의 history 일자별 합산
+  const dateValues = {}; // date -> total value
+  for (const h of HOLDINGS) {
+    const meta = _PF_PRICE_CACHE[h.card_id];
+    if (!meta?.history) continue;
+    const cutoff = new Date(Date.now() - _PF_RANGE * 86400 * 1000).toISOString().slice(0, 10);
+    let lastKnown = null;
+    for (const day of meta.history) {
+      if (day.date < cutoff) continue;
+      const price = day[`${h.grade}_price`] || lastKnown;
+      if (price) lastKnown = price;
+      if (lastKnown) {
+        dateValues[day.date] = (dateValues[day.date] || 0) + lastKnown * h.qty;
+      }
+    }
+  }
+  const dates = Object.keys(dateValues).sort();
+  const values = dates.map(d => dateValues[d]);
+
+  const canvas = document.getElementById('pfAggChart');
+  if (!canvas) return;
+  if (_PF_AGG_CHART) _PF_AGG_CHART.destroy();
+  _PF_AGG_CHART = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: '총 평가액',
+        data: values,
+        borderColor: '#14b8a6',
+        backgroundColor: 'rgba(20,184,166,0.12)',
+        borderWidth: 2,
+        tension: 0.25,
+        fill: true,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => '¥' + Math.round(ctx.parsed.y).toLocaleString() } },
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkipPadding: 20 }, grid: { display: false } },
+        y: { ticks: { font: { size: 10 }, callback: v => '¥' + (v/1000).toFixed(0) + 'K' } },
+      },
+    },
+  });
+}
+
+async function renderDistributionCharts() {
+  if (!HOLDINGS.length) return;
+  await loadChartJs();
+  // 브랜드별 / 등급별 평가액 합산
+  const byBrand = {}, byGrade = {};
+  for (const h of HOLDINGS) {
+    const meta = _PF_PRICE_CACHE[h.card_id];
+    const cur = meta?.latestPrices?.[h.grade] || h.buy_price;
+    const value = cur * h.qty;
+    const brand = meta?.brand || 'unknown';
+    byBrand[brand] = (byBrand[brand] || 0) + value;
+    byGrade[h.grade] = (byGrade[h.grade] || 0) + value;
+  }
+  const drawDoughnut = (canvasId, dataMap, colorMap, labelMap) => {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    const labels = Object.keys(dataMap);
+    return new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: labels.map(k => labelMap?.[k] || k),
+        datasets: [{
+          data: labels.map(k => dataMap[k]),
+          backgroundColor: labels.map(k => colorMap[k] || '#9ca3af'),
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 } } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label}: ¥${Math.round(ctx.parsed).toLocaleString()}` } },
+        },
+      },
+    });
+  };
+  if (_PF_BRAND_CHART) _PF_BRAND_CHART.destroy();
+  if (_PF_GRADE_CHART) _PF_GRADE_CHART.destroy();
+  _PF_BRAND_CHART = drawDoughnut('pfBrandChart', byBrand, BRAND_COLOR, { pokemon:'⚡ 포켓몬', onepiece:'🏴‍☠️ 원피스', unknown:'기타' });
+  _PF_GRADE_CHART = drawDoughnut('pfGradeChart', byGrade, GRADE_COLOR, GRADE_LABEL);
+}
+
+// 차트 기간 토글
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#pfChartRange button');
+  if (!btn) return;
+  document.querySelectorAll('#pfChartRange button').forEach(b => {
+    b.style.background = ''; b.style.color = ''; b.style.borderColor = '';
+  });
+  btn.style.background = '#111'; btn.style.color = '#fff'; btn.style.borderColor = '#111';
+  _PF_RANGE = parseInt(btn.dataset.r);
+  renderAggChart();
+});
 
 // 내 정보 탭
 document.addEventListener('click', e => {
@@ -2430,6 +3330,19 @@ document.addEventListener('click', e => {
   const which = tab.dataset.mytab;
   document.querySelectorAll('[data-mypanel]').forEach(p => p.style.display = p.dataset.mypanel === which ? '' : 'none');
 });
+
+// 포트폴리오 페이지 진입 시 자동 새로고침
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#portfolio') refreshPortfolio();
+});
+if (location.hash === '#portfolio') setTimeout(() => refreshPortfolio(), 200);
+
+// 로그인 후 포트폴리오 자동 갱신
+const _origRenderAuthStatus = renderAuthStatus;
+renderAuthStatus = function() {
+  _origRenderAuthStatus();
+  if (location.hash === '#portfolio') refreshPortfolio();
+};
 
 /* ────────────────────────────────────
    8. 모달 인프라 (응모 방법, 오리파 사용법, EV 계산기 등)
@@ -2456,10 +3369,354 @@ function closeAnyModal() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnyModal(); });
 
 /* ────────────────────────────────────
-   9. 초기화 — 페이지 진입
+   9. 인증 (Magic Link) + 포트폴리오 / 관심 추가
+   ──────────────────────────────────── */
+let CURRENT_USER = null;
+
+async function fetchAuthMe() {
+  try {
+    const r = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.user || null;
+  } catch { return null; }
+}
+
+function renderAuthStatus() {
+  const box = document.getElementById('authStatus');
+  if (!box) return;
+  if (CURRENT_USER) {
+    const initial = (CURRENT_USER.email || '?').charAt(0).toUpperCase();
+    box.innerHTML = `
+      <div style="display:flex; gap:8px; align-items:center; padding:6px 0">
+        <div style="width:32px; height:32px; border-radius:50%; background:#14b8a6; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0">${initial}</div>
+        <div style="flex:1; min-width:0">
+          <div style="font-size:11px; color:var(--ink-mute)">로그인됨</div>
+          <div style="font-size:12px; font-weight:600; color:#111; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(CURRENT_USER.email)}</div>
+        </div>
+      </div>
+      <button class="btn" onclick="doLogout()" style="width:100%; cursor:pointer; padding:7px; font-size:11px; margin-top:4px">로그아웃</button>`;
+  } else {
+    box.innerHTML = `<button id="loginBtn" class="btn primary" style="width:100%; cursor:pointer; padding:10px; font-size:13px">📧 이메일로 로그인</button>`;
+  }
+}
+
+async function doLogout() {
+  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+  CURRENT_USER = null;
+  renderAuthStatus();
+  showToast('로그아웃되었습니다', 'info');
+}
+
+function openLoginModal(contextNote) {
+  const noteHtml = contextNote
+    ? `<div style="background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:11px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.5">💡 ${escapeHtml(contextNote)}</div>`
+    : '';
+  openAnyModal(`
+    <div class="modal-head">
+      <h3>📧 로그인</h3>
+      <button class="modal-close" onclick="closeAnyModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:24px">
+      ${noteHtml}
+      <p style="color:#4b5563; font-size:13px; line-height:1.65; margin:0 0 16px">
+        이메일을 입력하면 <b>로그인 링크</b>가 메일로 전송됩니다.<br>
+        <span style="color:var(--ink-mute); font-size:12px">비밀번호 없음 · 회원가입 별도 X · 처음 들어와도 자동 가입</span>
+      </p>
+      <input id="loginEmailInput" type="email" placeholder="your@email.com" autocomplete="email"
+             style="width:100%; padding:12px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:12px">
+
+      <!-- 약관 동의 체크박스 -->
+      <div style="background:#f9fafb; border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; font-size:12px">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:4px 0">
+          <input type="checkbox" id="agreeAll" style="width:14px; height:14px; cursor:pointer">
+          <span style="font-weight:700; color:#111">전체 동의</span>
+        </label>
+        <hr style="border:none; border-top:1px solid var(--line); margin:6px 0">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 0">
+          <input type="checkbox" id="agreePrivacy" style="width:13px; height:13px; cursor:pointer" class="agreeItem">
+          <span style="color:#374151">[필수] <a href="/privacy.html" target="_blank" style="color:#1d4ed8; text-decoration:underline">개인정보처리방침</a> 동의</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 0">
+          <input type="checkbox" id="agreeTerms" style="width:13px; height:13px; cursor:pointer" class="agreeItem">
+          <span style="color:#374151">[필수] <a href="/terms.html" target="_blank" style="color:#1d4ed8; text-decoration:underline">이용약관</a> 동의</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 0">
+          <input type="checkbox" id="agreeAge" style="width:13px; height:13px; cursor:pointer" class="agreeItem">
+          <span style="color:#374151">[필수] 만 14세 이상입니다</span>
+        </label>
+      </div>
+
+      <button id="loginSubmit" class="btn primary" style="width:100%; padding:12px; font-size:14px; cursor:pointer">로그인 링크 받기 →</button>
+      <div id="loginMsg" style="font-size:12px; margin-top:10px; min-height:18px; line-height:1.5"></div>
+    </div>`);
+  // 전체 동의 토글 + 포커스
+  setTimeout(() => {
+    const all = document.getElementById('agreeAll');
+    if (all) {
+      all.addEventListener('change', () => {
+        document.querySelectorAll('.agreeItem').forEach(cb => cb.checked = all.checked);
+      });
+    }
+    document.querySelectorAll('.agreeItem').forEach(cb => cb.addEventListener('change', () => {
+      const allChecked = Array.from(document.querySelectorAll('.agreeItem')).every(c => c.checked);
+      if (all) all.checked = allChecked;
+    }));
+    document.getElementById('loginEmailInput')?.focus();
+  }, 100);
+}
+
+async function submitLogin() {
+  const input = document.getElementById('loginEmailInput');
+  const btn = document.getElementById('loginSubmit');
+  const msg = document.getElementById('loginMsg');
+  const email = (input?.value || '').trim().toLowerCase();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '올바른 이메일을 입력해주세요';
+    return;
+  }
+  // 약관 동의 검증
+  const agreePrivacy = document.getElementById('agreePrivacy')?.checked;
+  const agreeTerms = document.getElementById('agreeTerms')?.checked;
+  const agreeAge = document.getElementById('agreeAge')?.checked;
+  if (!agreePrivacy || !agreeTerms || !agreeAge) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '필수 동의 항목 3가지를 모두 체크해주세요';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '발송 중...';
+  msg.style.color = '#6b7280';
+  msg.textContent = '';
+  try {
+    const r = await fetch('/api/auth/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const d = await r.json();
+    if (r.ok && d.ok) {
+      msg.style.color = '#10b981';
+      msg.innerHTML = `✓ <b>${escapeHtml(email)}</b> 메일함 확인하세요. (스팸함도 같이 보세요)<br><span style="color:var(--ink-mute); font-size:11px">15분 안에 링크 클릭 → 자동 로그인</span>`;
+      btn.style.display = 'none';
+      input.disabled = true;
+    } else {
+      msg.style.color = '#dc2626';
+      msg.textContent = d.message || d.error || '발송 실패. 잠시 후 다시 시도해주세요.';
+      btn.disabled = false;
+      btn.textContent = '로그인 링크 받기 →';
+    }
+  } catch (e) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '네트워크 에러: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '로그인 링크 받기 →';
+  }
+}
+
+// 클릭/Enter 위임
+document.addEventListener('click', e => {
+  if (e.target.id === 'loginBtn') openLoginModal();
+  if (e.target.id === 'loginSubmit') submitLogin();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement?.id === 'loginEmailInput') submitLogin();
+});
+
+// 토스트 알림
+function showToast(message, type = 'success') {
+  let el = document.getElementById('toastBox');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toastBox';
+    el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none';
+    document.body.appendChild(el);
+  }
+  const colors = {
+    success: { bg: '#10b981', text: '#fff' },
+    error: { bg: '#dc2626', text: '#fff' },
+    info: { bg: '#374151', text: '#fff' },
+  };
+  const c = colors[type] || colors.info;
+  const t = document.createElement('div');
+  t.style.cssText = `background:${c.bg}; color:${c.text}; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:600; box-shadow:0 6px 16px rgba(0,0,0,0.15); animation:toastIn 0.3s; pointer-events:auto`;
+  t.textContent = message;
+  el.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+// /?login=success URL 파라미터 감지 (Magic Link 클릭 후 redirect)
+(function() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('login') === 'success') {
+    showToast('로그인 완료! 환영합니다 🎉', 'success');
+    params.delete('login');
+    const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
+    history.replaceState(null, '', clean);
+  }
+})();
+
+// 페이지 로드 시 인증 상태 확인
+fetchAuthMe().then(user => {
+  CURRENT_USER = user;
+  renderAuthStatus();
+});
+
+/* ─── 포트폴리오 / 관심 추가 모달 ─── */
+async function requireLoginThen(callback, contextNote) {
+  if (CURRENT_USER) return callback();
+  openLoginModal(contextNote);
+}
+
+window.openAddToPortfolio = function(cardId, cardName, cardImage, suggestedPrice, suggestedGrade) {
+  requireLoginThen(() => {
+    const cur = (suggestedPrice || '').toString();
+    openAnyModal(`
+      <div class="modal-head">
+        <h3>📋 포트폴리오 추가</h3>
+        <button class="modal-close" onclick="closeAnyModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px">
+        <div style="display:flex; gap:12px; align-items:center; padding:10px; background:#f9fafb; border-radius:8px; margin-bottom:16px">
+          ${cardImage ? `<img src="${cardImage}" style="width:48px; height:60px; object-fit:contain; flex-shrink:0">` : ''}
+          <div style="flex:1; min-width:0">
+            <div style="font-size:11px; color:var(--ink-mute)">선택된 카드</div>
+            <div style="font-size:13px; font-weight:700; color:#111; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${escapeHtml(cardName)}</div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <label style="font-size:12px; font-weight:700; color:#374151">등급
+            <select id="addGrade" style="width:100%; margin-top:4px; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px">
+              <option value="psa10" ${suggestedGrade === 'psa10' ? 'selected' : ''}>PSA 10</option>
+              <option value="psa9" ${suggestedGrade === 'psa9' ? 'selected' : ''}>PSA 9</option>
+              <option value="raw" ${suggestedGrade === 'raw' ? 'selected' : ''}>A급 (싱글)</option>
+              <option value="box" ${suggestedGrade === 'box' ? 'selected' : ''}>박스</option>
+            </select>
+          </label>
+          <div style="display:grid; grid-template-columns:1fr 100px; gap:10px">
+            <label style="font-size:12px; font-weight:700; color:#374151">매수가 (¥)
+              <input id="addBuyPrice" type="number" min="0" value="${cur}" placeholder="예: 540000"
+                     style="width:100%; margin-top:4px; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px">
+            </label>
+            <label style="font-size:12px; font-weight:700; color:#374151">수량
+              <input id="addQty" type="number" min="1" value="1"
+                     style="width:100%; margin-top:4px; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px">
+            </label>
+          </div>
+          <label style="font-size:12px; font-weight:700; color:#374151">매수일
+            <input id="addBuyDate" type="date" value="${new Date().toISOString().slice(0,10)}"
+                   style="width:100%; margin-top:4px; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px">
+          </label>
+          <label style="font-size:12px; font-weight:700; color:#374151">메모 (선택)
+            <input id="addNote" type="text" maxlength="100" placeholder="예: 카드샵에서 구매"
+                   style="width:100%; margin-top:4px; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px">
+          </label>
+          <div id="addPortfolioMsg" style="font-size:12px; min-height:16px"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" onclick="closeAnyModal()">취소</button>
+        <button class="btn primary" onclick="submitAddPortfolio('${cardId}')">💾 추가</button>
+      </div>`);
+    setTimeout(() => document.getElementById('addBuyPrice')?.focus(), 100);
+  }, '포트폴리오에 카드를 추가하려면 로그인이 필요합니다');
+};
+
+window.submitAddPortfolio = async function(cardId) {
+  const grade = document.getElementById('addGrade').value;
+  const buy_price = parseInt(document.getElementById('addBuyPrice').value);
+  const qty = parseInt(document.getElementById('addQty').value);
+  const buy_date = document.getElementById('addBuyDate').value;
+  const note = document.getElementById('addNote').value.trim();
+  const msg = document.getElementById('addPortfolioMsg');
+  if (!buy_price || buy_price < 0) { msg.style.color = '#dc2626'; msg.textContent = '매수가를 입력해주세요'; return; }
+  if (!qty || qty < 1) { msg.style.color = '#dc2626'; msg.textContent = '수량은 1 이상이어야 합니다'; return; }
+  msg.style.color = '#6b7280';
+  msg.textContent = '저장 중...';
+  try {
+    const r = await fetch('/api/portfolio/holding', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ card_id: cardId, grade, buy_price, qty, buy_date, note: note || null }),
+    });
+    const d = await r.json();
+    if (r.ok && d.ok) {
+      closeAnyModal();
+      showToast('포트폴리오에 추가되었습니다 ✓', 'success');
+    } else {
+      msg.style.color = '#dc2626';
+      msg.textContent = d.message || d.error || '추가 실패';
+    }
+  } catch (e) {
+    msg.style.color = '#dc2626';
+    msg.textContent = '네트워크 에러: ' + e.message;
+  }
+};
+
+window.openAddToWatchlist = function(cardId, cardName, suggestedGrade) {
+  requireLoginThen(async () => {
+    const r = await fetch('/api/portfolio/watchlist', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ card_id: cardId, grade: suggestedGrade || 'psa10' }),
+    });
+    if (r.ok) showToast('관심 목록에 추가되었습니다 ⭐', 'success');
+    else showToast('추가 실패', 'error');
+  }, '관심 카드에 추가하려면 로그인이 필요합니다');
+};
+
+/* ────────────────────────────────────
+   10. 초기화 — 페이지 진입
    ──────────────────────────────────── */
 const initialPage = (location.hash || '#home').replace('#', '') || 'home';
 go(initialPage);
+
+/* ────────────────────────────────────
+   11. PWA — Service Worker 등록 + "홈에 추가" 프롬프트
+   ──────────────────────────────────── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[PWA] SW registered:', reg.scope))
+      .catch(err => console.warn('[PWA] SW register fail:', err));
+  });
+}
+
+// 설치 프롬프트 (Android Chrome)
+let _PWA_DEFERRED_PROMPT = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _PWA_DEFERRED_PROMPT = e;
+  // 사이드바 인증 영역 위에 작은 "앱으로 설치" 버튼 표시 (선택)
+  const authBox = document.getElementById('authStatus');
+  if (authBox && !document.getElementById('pwaInstallBtn')) {
+    const btn = document.createElement('button');
+    btn.id = 'pwaInstallBtn';
+    btn.className = 'btn';
+    btn.textContent = '📱 앱으로 설치';
+    btn.style.cssText = 'width:100%; cursor:pointer; padding:8px; font-size:12px; margin-bottom:8px';
+    btn.onclick = async () => {
+      if (!_PWA_DEFERRED_PROMPT) return;
+      _PWA_DEFERRED_PROMPT.prompt();
+      const { outcome } = await _PWA_DEFERRED_PROMPT.userChoice;
+      if (outcome === 'accepted') {
+        showToast('앱이 설치되었습니다 ✓', 'success');
+        btn.remove();
+      }
+      _PWA_DEFERRED_PROMPT = null;
+    };
+    authBox.parentNode.insertBefore(btn, authBox);
+  }
+});
+
+// 이미 설치된 경우 — 설치 버튼 안 보임
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwaInstallBtn')?.remove();
+  console.log('[PWA] installed');
+});
 </script>
 </body>
 </html>

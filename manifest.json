@@ -1,0 +1,57 @@
+{
+  "name": "TCG Hub — 포켓몬 · 원피스 카드 시세",
+  "short_name": "TCG Hub",
+  "description": "SNKRDUNK 라이브 카드 시세 · 포트폴리오 추적 · 6개월 가격 차트",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fafafa",
+  "theme_color": "#14b8a6",
+  "lang": "ko",
+  "dir": "ltr",
+  "categories": ["finance", "shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "images/brand-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "images/brand-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2314b8a6%22/><text y=%22.85em%22 x=%2250%22 text-anchor=%22middle%22 font-size=%2270%22>🃏</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "카드 시세",
+      "short_name": "시세",
+      "description": "SNKRDUNK 라이브 카드 시세",
+      "url": "/#price",
+      "icons": [{ "src": "images/brand-logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "내 포트폴리오",
+      "short_name": "포트폴리오",
+      "description": "보유 카드 손익",
+      "url": "/#portfolio",
+      "icons": [{ "src": "images/brand-logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "정보 허브",
+      "short_name": "정보",
+      "description": "뉴스 · 매장 · 이벤트",
+      "url": "/#hub",
+      "icons": [{ "src": "images/brand-logo.png", "sizes": "192x192" }]
+    }
+  ]
+}

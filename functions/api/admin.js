@@ -11,7 +11,7 @@
  *      Header: X-Admin-Password: <password>
  */
 
-const ALLOWED_TYPES = new Set(["events", "etc"]);
+const ALLOWED_TYPES = new Set(["events", "etc", "cardshow"]);
 const KEY_PREFIX = "admin_";
 
 const json = (obj, status = 200) =>

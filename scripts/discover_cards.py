@@ -1,13 +1,19 @@
 """
-SNKRDUNK 카드 카탈로그 전수 수집 (로컬 PC 실행 전용)
+SNKRDUNK 카탈로그 전수 수집 — listing API 직접 호출 버전
 
-목적: 백필 대상 카드 ID 풀을 확장.
-기본 daily scraper 는 TOP 10 + 30 cards × 2 brands = ~70 카드만 추적.
-이 스크립트는 SNKRDUNK pokemon / onepiece 카드 카테고리를
-끝까지 스크롤해서 *모든* product ID 를 수집한다.
+API: GET /en/v1/trading-cards?brandId=X&categoryId=Y&page=N&perPage=200&order=popular
 
-결과: data/all-cards.json
-이후 backfill_history.py 가 이 파일이 있으면 우선 사용.
+응답 구조:
+{
+  "tradingCards": [
+    {"id": 674424, "productNumber": "...", "name": "...", "minPrice": 13,
+     "thumbnailUrl": "...", "releasedAt": "...", "listingCount": "88", ...},
+    ...
+  ]
+}
+
+페이지네이션 — 응답이 빈 배열일 때까지 page 증가.
+Selenium 없이 plain HTTP request — 빠르고 안정적, 만 단위 카드 가능.
 
 사용법:
   python scripts/discover_cards.py
@@ -16,127 +22,145 @@ SNKRDUNK 카드 카탈로그 전수 수집 (로컬 PC 실행 전용)
   python scripts/discover_cards.py pokemon
       → 포켓몬만
 
-  python scripts/discover_cards.py --include-box
-      → 박스도 함께 수집 (기본은 카드만)
+  python scripts/discover_cards.py --per-page=200
+      → 페이지당 200개 (기본 100)
 
-소요시간: 카드 수에 따라 5-30분 (수만 장이면 더 길 수 있음)
+  python scripts/discover_cards.py --include-box
+      → 박스 카테고리 (14)도 함께 수집
 """
 
 import json
-import re
-import time
 import sys
+import time
+import urllib.request
+import urllib.error
 from pathlib import Path
 from datetime import datetime, timezone
-
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DATA_DIR.mkdir(exist_ok=True)
+COOKIES_FILE = ROOT / "cookies.json"
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
-# SNKRDUNK 카테고리:
-#   카드(개별 카드): categoryId=25
-#   박스(언오픈 box): categoryId=14
-TARGETS = {
-    "pokemon-card":   "https://snkrdunk.com/jp/brands/pokemon/trading-cards?categoryId=25&slide=right",
-    "onepiece-card":  "https://snkrdunk.com/jp/brands/onepiece/trading-cards?categoryId=25&slide=right",
-    "pokemon-box":    "https://snkrdunk.com/jp/brands/pokemon/trading-cards?categoryId=14",
-    "onepiece-box":   "https://snkrdunk.com/jp/brands/onepiece/trading-cards?categoryId=14",
-}
+# 카테고리 ID
+CATEGORY_CARD = 25
+CATEGORY_BOX = 14
 
 
-def make_driver():
-    opts = Options()
-    opts.add_argument("--headless=new")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--disable-blink-features=AutomationControlled")
-    opts.add_argument("--window-size=1280,3000")
-    opts.add_argument(f"--user-agent={UA}")
-    opts.add_argument("--lang=ja-JP")
-    return webdriver.Chrome(options=opts)
-
-
-def scroll_to_end(driver, label="", max_idle_rounds=15, pause=1.6, max_rounds=3000):
-    """무한 스크롤 — N번 연속 새 컨텐츠 안 나오면 종료"""
-    last_count = 0
-    idle = 0
-    rounds = 0
-    print(f"    스크롤 시작...")
-    while idle < max_idle_rounds and rounds < max_rounds:
-        rounds += 1
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(pause)
-        # 현재까지 발견된 product 링크 수
-        try:
-            count = driver.execute_script("""
-                return new Set(
-                    Array.from(document.querySelectorAll('a[href*="/apparels/"]'))
-                      .map(a => {
-                        const m = a.href.match(/\\/apparels\\/(\\d+)/);
-                        return m ? m[1] : null;
-                      })
-                      .filter(x => x)
-                ).size;
-            """)
-        except Exception:
-            count = last_count
-        if count > last_count:
-            if rounds % 5 == 0 or count - last_count > 50:
-                print(f"      [round {rounds}] {label} 누적 {count}개")
-            last_count = count
-            idle = 0
-        else:
-            idle += 1
-            if idle == max_idle_rounds // 2:
-                print(f"      ... idle {idle}/{max_idle_rounds}")
-    print(f"    ✓ 스크롤 종료 ({rounds}라운드, 총 {last_count}개 발견)")
-    return last_count
-
-
-def extract_ids(driver):
-    """현재 페이지에서 모든 /apparels/{id} 링크 추출"""
-    ids = driver.execute_script("""
-        return Array.from(new Set(
-            Array.from(document.querySelectorAll('a[href*="/apparels/"]'))
-              .map(a => {
-                const m = a.href.match(/\\/apparels\\/(\\d+)/);
-                return m ? m[1] : null;
-              })
-              .filter(x => x)
-        ));
-    """)
-    return ids or []
-
-
-def discover(driver, key, url):
-    print(f"\n[{key}] {url}")
+def load_cookie_header():
+    if not COOKIES_FILE.exists():
+        return ""
     try:
-        driver.get(url)
-    except Exception as e:
-        print(f"    ⚠ 페이지 로드 실패: {e}")
-        return []
-    time.sleep(3)
-    # 스크롤 무한
-    scroll_to_end(driver, label=key)
-    ids = extract_ids(driver)
-    print(f"    → 최종 {len(ids)}개 ID 추출")
-    return ids
+        cookies = json.loads(COOKIES_FILE.read_text("utf-8"))
+        return "; ".join(f"{c['name']}={c['value']}" for c in cookies if c.get("name"))
+    except Exception:
+        return ""
+
+
+COOKIE_HEADER = load_cookie_header()
+
+
+def fetch_listing_page(brand, category, page, per_page=100, order="popular"):
+    """SNKRDUNK listing API — 1페이지 fetch"""
+    url = (f"https://snkrdunk.com/en/v1/trading-cards"
+           f"?brandId={brand}&categoryId={category}&page={page}&perPage={per_page}&order={order}")
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Accept": "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cookie": COOKIE_HEADER,
+        "Referer": f"https://snkrdunk.com/en/brands/{brand}/trading-cards?categoryId={category}",
+    })
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def discover_category(brand, category, per_page=100, order="popular", max_pages=500):
+    """1개 brand+category 의 전체 카드 페이지네이션 수집"""
+    all_cards = []
+    seen_ids = set()
+    page = 1
+    consecutive_empty = 0
+
+    while page <= max_pages:
+        try:
+            d = fetch_listing_page(brand, category, page, per_page, order)
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                wait = 5 + page // 50
+                print(f"      [429] rate limit — {wait}s 대기")
+                time.sleep(wait)
+                continue
+            print(f"      ⚠ page {page}: HTTP {e.code} {e.reason}")
+            break
+        except Exception as e:
+            print(f"      ⚠ page {page}: {e}")
+            time.sleep(2)
+            continue
+
+        items = d.get("tradingCards") or []
+        if not items:
+            consecutive_empty += 1
+            if consecutive_empty >= 2:
+                print(f"      page {page}: 빈 응답 2회 연속 → 종료")
+                break
+            page += 1
+            continue
+        consecutive_empty = 0
+
+        new_count = 0
+        for item in items:
+            cid = str(item.get("id", ""))
+            if not cid or cid in seen_ids:
+                continue
+            seen_ids.add(cid)
+            all_cards.append({
+                "id": cid,
+                "name": item.get("name"),
+                "productNumber": item.get("productNumber"),
+                "thumbnailUrl": item.get("thumbnailUrl"),
+                "releasedAt": item.get("releasedAt"),
+                "minPrice": item.get("minPrice"),
+                "currency": "USD",  # API returns USD
+                "listingCount": item.get("listingCount"),
+            })
+            new_count += 1
+
+        if new_count == 0:
+            # 받았는데 모두 중복 → 이미 마지막
+            print(f"      page {page}: 새 ID 0개 → 종료")
+            break
+
+        if page % 10 == 0 or page <= 3:
+            print(f"      page {page}: 누적 {len(all_cards)}개")
+
+        page += 1
+        time.sleep(0.25)  # rate limit 보수적
+
+    return all_cards
 
 
 def main():
     args = sys.argv[1:]
     include_box = "--include-box" in args
-    pos_args = [a for a in args if not a.startswith("--")]
+    per_page = 100
+    order = "popular"
+    for a in args:
+        if a.startswith("--per-page="):
+            try:
+                per_page = int(a.split("=", 1)[1])
+            except Exception:
+                pass
+        elif a.startswith("--order="):
+            order = a.split("=", 1)[1]
 
-    selected_brands = None
+    selected_brands = ["pokemon", "onepiece"]
+    pos_args = [a for a in args if not a.startswith("--")]
     if pos_args:
         b = pos_args[0].lower()
         if b in ("pokemon", "포켓몬"):
@@ -144,74 +168,82 @@ def main():
         elif b in ("onepiece", "원피스"):
             selected_brands = ["onepiece"]
 
-    targets = {}
-    for k, v in TARGETS.items():
-        brand, kind = k.split("-")
-        if selected_brands and brand not in selected_brands:
-            continue
-        if kind == "box" and not include_box:
-            continue
-        targets[k] = v
+    categories = [(CATEGORY_CARD, "card")]
+    if include_box:
+        categories.append((CATEGORY_BOX, "box"))
 
-    print(f"================================================")
-    print(f"SNKRDUNK 카탈로그 전수 수집")
-    print(f"대상: {list(targets.keys())}")
-    print(f"================================================")
+    print("================================================")
+    print("SNKRDUNK 카탈로그 전수 수집 (listing API)")
+    print(f"브랜드: {selected_brands}")
+    print(f"카테고리: {[k for _, k in categories]}")
+    print(f"perPage: {per_page} / order: {order}")
+    print(f"쿠키: {'있음' if COOKIE_HEADER else '없음 (anonymous)'}")
+    print("================================================")
 
-    by_target = {}
-    driver = make_driver()
-    try:
-        for k, url in targets.items():
-            try:
-                ids = discover(driver, k, url)
-                by_target[k] = ids
-            except Exception as e:
-                print(f"⚠ {k} 실패: {e}")
-                by_target[k] = []
-    finally:
-        driver.quit()
+    by_brand = {b: {"card": [], "box": []} for b in selected_brands}
 
-    # 종합
-    by_brand = {"pokemon": set(), "onepiece": set()}
-    only_cards = set()
-    only_boxes = set()
-    for k, ids in by_target.items():
-        brand, kind = k.split("-")
-        if brand in by_brand:
-            by_brand[brand].update(ids)
-        if kind == "card":
-            only_cards.update(ids)
-        else:
-            only_boxes.update(ids)
+    for brand in selected_brands:
+        for cat_id, cat_kind in categories:
+            print(f"\n[{brand} / {cat_kind}] 수집 중...")
+            t0 = time.time()
+            cards = discover_category(brand, cat_id, per_page=per_page, order=order)
+            elapsed = time.time() - t0
+            print(f"  ✓ {brand}/{cat_kind}: {len(cards)}개 ({elapsed:.1f}초)")
+            by_brand[brand][cat_kind] = cards
+
+    # 정리
+    all_cards_list = []
+    only_card_ids = set()
+    only_box_ids = set()
+    by_brand_ids = {}
+
+    for brand, cats in by_brand.items():
+        ids_for_brand = set()
+        for c in cats["card"]:
+            c["brand"] = brand
+            c["kind"] = "card"
+            all_cards_list.append(c)
+            only_card_ids.add(c["id"])
+            ids_for_brand.add(c["id"])
+        for c in cats["box"]:
+            c["brand"] = brand
+            c["kind"] = "box"
+            all_cards_list.append(c)
+            only_box_ids.add(c["id"])
+            ids_for_brand.add(c["id"])
+        by_brand_ids[brand] = sorted(ids_for_brand)
 
     out = {
         "fetchedAt": datetime.now(timezone.utc).isoformat(),
-        "byTarget": {k: ids for k, ids in by_target.items()},
-        "byBrand": {b: sorted(ids) for b, ids in by_brand.items() if ids},
-        "cards": sorted(only_cards),
-        "boxes": sorted(only_boxes) if include_box else [],
-        "all": sorted(only_cards | only_boxes),
+        "byBrand": by_brand_ids,
+        "cards": sorted(only_card_ids),       # 카드 ID — 백필 기본 대상
+        "boxes": sorted(only_box_ids) if include_box else [],
+        "all": sorted(only_card_ids | only_box_ids),
+        "details": all_cards_list,            # 풀 메타데이터 (이름, 썸네일 등)
     }
     out_path = DATA_DIR / "all-cards.json"
     out_path.write_bytes(json.dumps(out, ensure_ascii=False, indent=2).encode("utf-8"))
 
-    total_cards = len(only_cards)
-    total_boxes = len(only_boxes)
+    total_cards = len(only_card_ids)
+    total_boxes = len(only_box_ids)
     print(f"\n================================================")
     print(f"✓ data/all-cards.json 저장")
     print(f"   카드: {total_cards}개")
     if include_box:
         print(f"   박스: {total_boxes}개")
-    for brand, ids in by_brand.items():
-        if ids:
-            print(f"   {brand}: {len(ids)}개")
+    for brand, ids in by_brand_ids.items():
+        print(f"   {brand}: {len(ids)}개")
     print(f"================================================")
-    print(f"\n다음 단계 — 전체 백필:")
-    print(f"  python scripts/backfill_history.py --resume --no-volume")
-    print(f"   → 가격 라인만 빠르게 (예상 {int(total_cards*3/60)}분)")
-    print(f"")
-    print(f"  python scripts/backfill_history.py --resume")
-    print(f"   → 가격 + 거래량 정밀 (예상 {int(total_cards*60/60)}시간)")
+
+    if total_cards > 100:
+        eta_no_vol_min = max(1, total_cards * 3 // 60)
+        eta_with_vol_hr = max(1, total_cards * 25 // 3600)
+        print(f"\n다음 단계 — 전체 백필:")
+        print(f"  python scripts/backfill_history.py --resume --days=180 --no-volume")
+        print(f"   → 가격 라인만 (예상 ~{eta_no_vol_min}분)")
+        print(f"")
+        print(f"  python scripts/backfill_history.py --resume --days=180 --max-pages=10")
+        print(f"   → 가격+거래량 (예상 ~{eta_with_vol_hr}시간)")
 
 
 if __name__ == "__main__":

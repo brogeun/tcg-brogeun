@@ -1694,9 +1694,40 @@ async function renderGradesPanel(productId, product) {
   grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px,1fr))';
   grid.innerHTML = ORDER.map(k => renderBlock(k, null)).join('');
   try {
+    // 1순위: cards-detail.json (TOP10 위주 — 풍부한 메타: lowest_ask, active_count 등)
     const data = await loadCardsDetail();
     const card = data?.cards?.[productId];
-    const grades = card?.grades || {};
+    let grades = card?.grades || {};
+
+    // 2순위 폴백: data/history/{id}.json — 백필된 6,600+ 카드에 PSA10/9/raw 가격 있음
+    const hasAnyData = ORDER.some(k => grades[k] && Object.keys(grades[k]).length > 0);
+    if (!hasAnyData) {
+      try {
+        const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
+        if (r.ok) {
+          const hist = await r.json();
+          const points = hist.history || [];
+          // 최신 일자부터 역순으로 보면서 각 등급 첫 가격 채택
+          const latest = { psa10: null, psa9: null, raw: null };
+          for (let i = points.length - 1; i >= 0; i--) {
+            const p = points[i];
+            if (latest.psa10 == null && p.psa10_price) latest.psa10 = p.psa10_price;
+            if (latest.psa9 == null && p.psa9_price) latest.psa9 = p.psa9_price;
+            if (latest.raw == null && p.raw_price) latest.raw = p.raw_price;
+            if (latest.psa10 && latest.psa9 && latest.raw) break;
+          }
+          grades = {};
+          for (const k of ORDER) {
+            if (latest[k] != null) {
+              grades[k] = { lowest_ask: latest[k], currency: 'JPY' };
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('history fallback fail:', e);
+      }
+    }
+
     grid.innerHTML = ORDER.map(k => renderBlock(k, grades[k])).join('');
   } catch (e) {
     console.warn('grades load fail:', e);

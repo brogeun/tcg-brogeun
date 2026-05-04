@@ -5,6 +5,12 @@ on:
     # 04:00 KST = 19:00 UTC (전날)
     - cron: '0 19 * * *'
   workflow_dispatch:  # 수동 실행 버튼
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'data/**'         # data 자동 커밋이 무한 루프 트리거 방지
+      - 'scripts/**'      # 스크립트 변경은 다음 cron 까지 대기
+      - '**/*.md'         # README 등 문서 변경은 배포 불필요
 
 permissions:
   contents: write  # data/*.json 커밋 권한
@@ -27,26 +33,31 @@ jobs:
           python-version: '3.11'
 
       - name: Setup Chrome browser
+        if: github.event_name != 'push'
         uses: browser-actions/setup-chrome@latest
         with:
           chrome-version: stable
 
       - name: Install Python dependencies
+        if: github.event_name != 'push'
         run: |
           python -m pip install --upgrade pip
           pip install "selenium>=4.20.0" "webdriver-manager>=4.0.0"
 
       - name: Run scraper
+        if: github.event_name != 'push'
         run: python scripts/scrape_snkrdunk.py
         env:
           PYTHONUNBUFFERED: "1"
 
       - name: Run news scraper (한국 TCG 뉴스 - 4·5월)
+        if: github.event_name != 'push'
         run: python scripts/scrape_news.py || echo "news scrape failed (non-fatal)"
         env:
           PYTHONUNBUFFERED: "1"
 
       - name: Commit JSON updates (if any)
+        if: github.event_name != 'push'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "🤖 Daily SNKRDUNK scrape — auto-update"

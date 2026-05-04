@@ -181,31 +181,48 @@ def main():
         except Exception:
             existing = {}
 
-    # 신규 alias 추가 — 한글 → 일본어 (1순위) + 영어 → 일본어 (2순위)
+    # 신규 alias 추가 — 한글/영어 → [영어, 일본어] 배열 (SNKRDUNK 영어/일본어 둘 다 매칭)
     added = 0
     overwrote = 0
+
+    def merge_alias(key, values):
+        """key 의 alias 에 values 배열 합치기 (중복 제거, 배열 보장)"""
+        nonlocal added, overwrote
+        if not key:
+            return
+        existing_val = existing.get(key)
+        # 기존이 문자열/배열/None 모두 처리
+        if existing_val is None:
+            existing_arr = []
+            added += 1
+        elif isinstance(existing_val, list):
+            existing_arr = list(existing_val)
+            overwrote += 1
+        else:
+            existing_arr = [str(existing_val)]
+            overwrote += 1
+        # values 합치기 (중복 제거)
+        for v in values:
+            if v and v not in existing_arr:
+                existing_arr.append(v)
+        existing[key] = existing_arr
+
     for m in matched:
         ko, en, ja = m["ko"], m["en"], m["ja"]
-        if not ja:
+        if not en and not ja:
             continue
-        # 한글 → 일본어
+        # alias 에 들어갈 후보 — 영어 + 일본어 (둘 다 SNKRDUNK 카드명에 등장)
+        targets = [v for v in [en, ja] if v]
+        # 한글 → [영어, 일본어]
         if ko:
-            if ko not in existing:
-                added += 1
-            else:
-                overwrote += 1
-            existing[ko] = ja
-        # 영어 (소문자) → 일본어
-        en_lo = en.lower()
-        if en_lo and en_lo != ja.lower():
-            if en_lo not in existing:
-                added += 1
-            existing[en_lo] = ja
-        # PokéAPI 의 한글도 alias 로 추가 (사용자 한글과 다를 때)
+            merge_alias(ko, targets)
+        # 영어 소문자 → [영어, 일본어]  (영문으로 검색해도 동작)
+        if en:
+            merge_alias(en.lower(), targets)
+        # PokéAPI 의 한글이 사용자 한글과 다를 때 — 그것도 alias 로
         api_ko = m.get("api_ko")
-        if api_ko and api_ko != ko and api_ko not in existing:
-            existing[api_ko] = ja
-            added += 1
+        if api_ko and api_ko != ko:
+            merge_alias(api_ko, targets)
 
     # 알파벳 순 정렬해서 저장
     sorted_existing = dict(sorted(existing.items()))

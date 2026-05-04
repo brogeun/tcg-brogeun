@@ -1754,8 +1754,10 @@ function searchCards(query, limit = 30) {
     return words.every(w => {
       if (c.nameLower.includes(w)) return true;
       if (c.productNumber && c.productNumber.includes(w)) return true;
-      const aliases = _SEARCH_ALIASES?.[w] || [];
-      return aliases.some(a => c.nameLower.includes(a.toLowerCase()));
+      // alias 가 문자열 또는 배열 둘 다 지원
+      const rawAlias = _SEARCH_ALIASES?.[w];
+      const aliases = Array.isArray(rawAlias) ? rawAlias : (rawAlias ? [rawAlias] : []);
+      return aliases.some(a => c.nameLower.includes(String(a).toLowerCase()));
     });
   });
   // 정렬: listingCount 높은 순 (인기 카드 먼저)

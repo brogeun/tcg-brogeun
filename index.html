@@ -1750,14 +1750,37 @@ function searchCards(query, limit = 30) {
   }
   // 단어 분리 (공백 기준)
   const words = q.split(/\s+/).filter(Boolean);
+
+  // 단어별로 매칭되는 alias 값들 미리 계산 (부분 매칭 — "리자" → "리자몽","리자드" 모두)
+  function getAliasValues(w) {
+    const out = new Set();
+    if (!_SEARCH_ALIASES) return out;
+    // 1) 정확 매칭
+    const exact = _SEARCH_ALIASES[w];
+    if (exact) {
+      const arr = Array.isArray(exact) ? exact : [exact];
+      arr.forEach(v => out.add(String(v).toLowerCase()));
+    }
+    // 2) 부분 매칭 — alias 키에 query 가 포함된 모든 값
+    for (const k in _SEARCH_ALIASES) {
+      if (k.toLowerCase().includes(w) && k !== w) {
+        const v = _SEARCH_ALIASES[k];
+        const arr = Array.isArray(v) ? v : [v];
+        arr.forEach(x => out.add(String(x).toLowerCase()));
+      }
+    }
+    return out;
+  }
+  const wordAliases = words.map(w => ({ w, aliases: getAliasValues(w) }));
+
   const matches = _ALL_CARDS_INDEX.filter(c => {
-    return words.every(w => {
+    return wordAliases.every(({w, aliases}) => {
       if (c.nameLower.includes(w)) return true;
       if (c.productNumber && c.productNumber.includes(w)) return true;
-      // alias 가 문자열 또는 배열 둘 다 지원
-      const rawAlias = _SEARCH_ALIASES?.[w];
-      const aliases = Array.isArray(rawAlias) ? rawAlias : (rawAlias ? [rawAlias] : []);
-      return aliases.some(a => c.nameLower.includes(String(a).toLowerCase()));
+      for (const a of aliases) {
+        if (c.nameLower.includes(a)) return true;
+      }
+      return false;
     });
   });
   // 정렬: listingCount 높은 순 (인기 카드 먼저)

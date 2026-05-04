@@ -536,9 +536,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         </div>
       </div>
       <style>
-        /* 홈 — topbar 검색 숨김 */
-        body[data-page="home"] .topbar .search { display: none !important; }
-        body[data-page="home"] .topbar .mobile-search-toggle { display: none !important; }
         /* 홈 메뉴 카드 (컴팩트) */
         .home-menu-card {
           cursor: pointer;
@@ -1145,7 +1142,7 @@ function go(pageOrPath) {
   }
   // 페이지별 초기화
   if (page === 'price') initPrice(productId);
-  if (page === 'portfolio') renderWatchlist(), renderHoldings();
+  if (page === 'portfolio') refreshPortfolio();
   // 스크롤 맨 위로
   window.scrollTo({top: 0, behavior: 'instant'});
 }
@@ -1195,7 +1192,7 @@ window.addEventListener('popstate', e => {
     n.classList.toggle('active', n.dataset.nav === page);
   });
   if (page === 'price') initPrice(productId);
-  if (page === 'portfolio') renderWatchlist(), renderHoldings();
+  if (page === 'portfolio') refreshPortfolio();
 });
 
 /* ────────────────────────────────────

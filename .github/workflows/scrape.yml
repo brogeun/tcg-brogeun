@@ -56,12 +56,18 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
+      - name: Fetch FX rates (Naver USD/KRW, JPY/KRW)
+        if: github.event_name != 'push'
+        run: python scripts/fetch_fx_rates.py || echo "fx fetch failed (non-fatal)"
+        env:
+          PYTHONUNBUFFERED: "1"
+
       - name: Commit JSON updates (if any)
         if: github.event_name != 'push'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "🤖 Daily SNKRDUNK scrape — auto-update"
-          file_pattern: "data/*.json data/history/*.json"
+          file_pattern: "data/*.json data/history/*.json data/fx-rates.json"
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 

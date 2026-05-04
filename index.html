@@ -931,9 +931,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <!-- 메인 평가액 카드 (큰 숫자) -->
         <div class="pf-hero">
           <div class="pf-hero-label">💰 총 평가액</div>
-          <div class="pf-hero-val" id="pfValue">¥0</div>
+          <div class="pf-hero-val" id="pfValue">₩0</div>
           <div class="pf-hero-pnl" id="pfPnlBadge">
-            <span id="pfPnl">¥0</span>
+            <span id="pfPnl">₩0</span>
             <span id="pfPct" style="margin-left:6px; font-size:13px">—</span>
           </div>
           <div style="font-size:11px; color:var(--ink-mute); margin-top:8px" id="pfQty">0종 / 0장</div>
@@ -943,7 +943,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="pf-stats" id="pfStats">
           <div class="pf-stat">
             <div class="pf-stat-label">📥 총 매입가</div>
-            <div class="pf-stat-val" id="pfCost">¥0</div>
+            <div class="pf-stat-val" id="pfCost">₩0</div>
             <div class="pf-stat-sub" style="color:var(--ink-mute)">실제 투입 금액</div>
           </div>
           <div class="pf-stat">
@@ -1196,32 +1196,44 @@ window.addEventListener('popstate', e => {
 });
 
 /* ────────────────────────────────────
-   2. 환율 (JPY → KRW)
+   2. 환율 — Naver 금융 (USD/KRW, JPY/KRW)
+       data/fx-rates.json 으로부터 로드 (매일 04:00 KST GitHub Actions 갱신)
    ──────────────────────────────────── */
-let JPY_KRW = 9.5;
+let JPY_KRW = 9.5;     // 기본값 (1 JPY = 9.5 KRW)
+let USD_KRW = 1370;    // 기본값 (1 USD = 1370 KRW)
+let FX_UPDATED = null;
 (async () => {
   try {
-    const cached = JSON.parse(localStorage.getItem('fx_jpy_krw') || 'null');
-    if (cached && Date.now() - cached.ts < 86400000) { JPY_KRW = cached.rate; return; }
-    const r = await fetch('https://api.exchangerate-api.com/v4/latest/JPY');
-    const d = await r.json();
-    if (d?.rates?.KRW) {
-      JPY_KRW = d.rates.KRW;
-      localStorage.setItem('fx_jpy_krw', JSON.stringify({rate: JPY_KRW, ts: Date.now()}));
+    const r = await fetch('/data/fx-rates.json?t=' + Math.floor(Date.now() / 3600000));
+    if (r.ok) {
+      const d = await r.json();
+      if (d.rates?.JPY) JPY_KRW = d.rates.JPY;
+      if (d.rates?.USD) USD_KRW = d.rates.USD;
+      FX_UPDATED = d.updated;
+      console.log('[fx] loaded — USD:', USD_KRW, 'JPY:', JPY_KRW, 'updated:', FX_UPDATED);
     }
-  } catch (e) {}
+  } catch (e) {
+    // fallback — exchangerate-api.com (외부)
+    try {
+      const r = await fetch('https://api.exchangerate-api.com/v4/latest/JPY');
+      const d = await r.json();
+      if (d?.rates?.KRW) JPY_KRW = d.rates.KRW;
+    } catch {}
+  }
 })();
-// currency 미지정시 JPY 가정 (구 데이터 호환). USD 면 $ 표시.
-const fmtYen = (n, cur) => {
-  if (n == null) return '—';
-  if (cur === 'USD') return '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits: 2});
-  return '¥' + Math.round(n).toLocaleString();
-};
+// 모든 가격 → KRW 단일 표시 (소수점 절사)
 const fmtKrw = (n, cur) => {
   if (n == null) return '—';
-  // USD → KRW 임시 환율 1400 (정확한 값은 추후 별도 fetch 가능)
-  const rate = cur === 'USD' ? 1400 : JPY_KRW;
-  return '₩' + Math.round(n * rate).toLocaleString();
+  const rate = cur === 'USD' ? USD_KRW : JPY_KRW;
+  return '₩' + Math.floor(n * rate).toLocaleString();
+};
+// 호환용 (옛날 코드가 아직 fmtYen 호출하는 곳들 — 결국 KRW 표시)
+const fmtYen = fmtKrw;
+// 환율 적용된 KRW 숫자값 (차트 등 raw 숫자 필요한 곳)
+const toKrw = (n, cur) => {
+  if (n == null || isNaN(n)) return null;
+  const rate = cur === 'USD' ? USD_KRW : JPY_KRW;
+  return Math.floor(n * rate);
 };
 
 /* ────────────────────────────────────
@@ -1646,15 +1658,20 @@ async function renderGradesPanel(productId, product) {
   }
 
   // ───────── 카드: PSA10 / PSA9 / A급(싱글) 3칸 ─────────
-  if (header) header.innerHTML = '📊 등급별 SNKRDUNK 최저가 (USD)';
+  if (header) header.innerHTML = '📊 등급별 SNKRDUNK 최저가';
   const ORDER = ['psa10','psa9','raw'];
   const GRADE_INFO = {
     psa10: { label: 'PSA 10',  color: '#fbbf24', bg: '#fffbeb' },
     psa9:  { label: 'PSA 9',   color: '#9ca3af', bg: '#f3f4f6' },
     raw:   { label: 'A급(싱글)', color: '#06b6d4', bg: '#ecfeff' },
   };
-  const fmtPrice = (val, cur) => fmtYen(val, cur);
-  const fmtSecondary = (val, cur) => fmtKrw(val, cur);
+  // 메인 = KRW, 서브 = SNKRDUNK 원본 통화 (참고용)
+  const fmtPrice = (val, cur) => fmtKrw(val, cur);
+  const fmtSecondary = (val, cur) => {
+    if (val == null) return '—';
+    if (cur === 'USD') return '$' + Number(val).toLocaleString(undefined, {maximumFractionDigits: 2});
+    return '¥' + Math.round(val).toLocaleString();
+  };
   const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
     // 신 스키마: lowest_ask (active 매물 최저가, SNKRDUNK 헤드라인)
@@ -1664,7 +1681,7 @@ async function renderGradesPanel(productId, product) {
     if (val && val > 0) {
       const activeCount = g.active_count ?? g.unsold_count;
       const afterFilter = g.after_filter;
-      let subline;
+      let subline = '';
       if (g.lowest_ask != null && activeCount != null) {
         // 신 스키마 — active listing 최저가
         const filterTxt = (afterFilter != null && afterFilter < activeCount) ? ` (outlier 제외 ${afterFilter}건)` : '';
@@ -1672,15 +1689,16 @@ async function renderGradesPanel(productId, product) {
       } else if (g.recent_avg != null) {
         const soldCount = g.sold_count;
         subline = `최근 5건 평균${soldCount ? ` (총 거래 ${soldCount}건)` : ''}`;
-      } else {
-        subline = `${g.count || g.active_count || '?'}건`;
+      } else if (g.count != null || g.active_count != null) {
+        subline = `${g.count || g.active_count}건`;
       }
+      // count 정보 없으면 subline 안 보임 (history 폴백 경우)
       return `
         <div style="background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px">
           <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
           <div style="font-size:15px; font-weight:800; color:#111">${fmtPrice(val, cur||'USD')}</div>
           <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtSecondary(val, cur||'USD')}</div>
-          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${subline}</div>
+          ${subline ? `<div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${subline}</div>` : ''}
         </div>`;
     }
     return `
@@ -2112,10 +2130,12 @@ function drawHistoryChart(productId, history) {
   rows = applyRollingOutlierFilter(rows, priceKey);
 
   const labels = rows.map(r => r.date);
-  const prices = rows.map(r => r[priceKey]);
+  // 원본 JPY 가격 → KRW 환산 (소수점 절사)
+  const pricesJpy = rows.map(r => r[priceKey]);
+  const prices = pricesJpy.map(p => p != null ? Math.floor(p * JPY_KRW) : null);
   const vols = rows.map(r => r[volKey] || 0);
 
-  // 헤더 — 현재가 + 변동률
+  // 헤더 — 현재가 + 변동률 (KRW 표시)
   const validPrices = prices.filter(v => v != null && v > 0);
   const headerPrice = document.getElementById(`histPrice-${productId}`);
   const headerChange = document.getElementById(`histChange-${productId}`);
@@ -2126,14 +2146,14 @@ function drawHistoryChart(productId, history) {
     const pct = ((cur - start) / start) * 100;
     const sign = pct >= 0 ? '+' : '';
     const color = pct >= 0 ? '#10b981' : '#ef4444';
-    if (headerPrice) headerPrice.textContent = '¥' + Math.round(cur).toLocaleString();
+    if (headerPrice) headerPrice.textContent = '₩' + Math.floor(cur).toLocaleString();
     if (headerChange) {
       headerChange.textContent = `${sign}${pct.toFixed(1)}%`;
       headerChange.style.color = color;
     }
     if (headerRange) headerRange.textContent = `${rows.length}일치 (${labels[0]} ~ ${labels[labels.length-1]})`;
   } else if (validPrices.length === 1) {
-    if (headerPrice) headerPrice.textContent = '¥' + Math.round(validPrices[0]).toLocaleString();
+    if (headerPrice) headerPrice.textContent = '₩' + Math.floor(validPrices[0]).toLocaleString();
     if (headerChange) headerChange.textContent = '데이터 누적 중';
     if (headerRange) headerRange.textContent = `${rows.length}일치`;
   }
@@ -2169,7 +2189,7 @@ function drawHistoryChart(productId, history) {
       datasets: [
         {
           type: 'line',
-          label: '가격 (¥)',
+          label: '가격 (₩)',
           data: prices,
           borderColor: '#14b8a6',
           backgroundColor: 'rgba(20, 184, 166, 0.12)',
@@ -2209,7 +2229,7 @@ function drawHistoryChart(productId, history) {
             label: ctx => {
               if (ctx.dataset.type === 'bar') return `거래량: ${ctx.parsed.y}건`;
               const v = ctx.parsed.y;
-              return v == null ? '가격: —' : `가격: ¥${v.toLocaleString()}`;
+              return v == null ? '가격: —' : `가격: ₩${v.toLocaleString()}`;
             },
           },
         },
@@ -2223,7 +2243,7 @@ function drawHistoryChart(productId, history) {
           position: 'left',
           ticks: {
             font: { size: 10 },
-            callback: v => '¥' + v.toLocaleString(),
+            callback: v => '₩' + v.toLocaleString(),
           },
           grid: { color: 'rgba(0,0,0,0.05)' },
         },
@@ -3607,9 +3627,9 @@ function renderHoldings() {
   if (!HOLDINGS.length) {
     list.innerHTML = '';
     empty.style.display = '';
-    document.getElementById('pfValue').textContent = '¥0';
-    document.getElementById('pfCost').textContent = '¥0';
-    document.getElementById('pfPnl').textContent = '¥0';
+    document.getElementById('pfValue').textContent = '₩0';
+    document.getElementById('pfCost').textContent = '₩0';
+    document.getElementById('pfPnl').textContent = '₩0';
     document.getElementById('pfPct').textContent = '—';
     document.getElementById('pfBest').textContent = '—';
     document.getElementById('pfBestPct').textContent = '—';
@@ -3643,10 +3663,11 @@ function renderHoldings() {
 
   const pnl = totalValue - totalCost;
   const pct = totalCost > 0 ? (pnl / totalCost * 100) : 0;
-  document.getElementById('pfValue').textContent = '¥' + Math.round(totalValue).toLocaleString();
-  document.getElementById('pfCost').textContent = '¥' + Math.round(totalCost).toLocaleString();
+  // 포트폴리오 — JPY 원본 → KRW 환산 (모든 가격 통일)
+  document.getElementById('pfValue').textContent = '₩' + Math.floor(totalValue * JPY_KRW).toLocaleString();
+  document.getElementById('pfCost').textContent = '₩' + Math.floor(totalCost * JPY_KRW).toLocaleString();
   const pnlEl = document.getElementById('pfPnl');
-  pnlEl.textContent = (pnl >= 0 ? '+' : '') + '¥' + Math.round(Math.abs(pnl)).toLocaleString();
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + '₩' + Math.floor(Math.abs(pnl) * JPY_KRW).toLocaleString();
   const pctEl = document.getElementById('pfPct');
   pctEl.textContent = `${pnl >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`;
   // hero pnl badge 색상 (pos/neg)
@@ -3682,8 +3703,8 @@ function renderHoldings() {
         </div>
       </div>
       <div style="text-align:right; padding-right:6px">
-        <div style="font-size:14px; font-weight:800; color:#111">¥${Math.round(h.value).toLocaleString()}</div>
-        <div style="font-size:12px; font-weight:700; color:${sign}">${h.itemPnl >= 0 ? '+' : ''}¥${Math.round(Math.abs(h.itemPnl)).toLocaleString()}</div>
+        <div style="font-size:14px; font-weight:800; color:#111">₩${Math.floor(h.value * JPY_KRW).toLocaleString()}</div>
+        <div style="font-size:12px; font-weight:700; color:${sign}">${h.itemPnl >= 0 ? '+' : ''}₩${Math.floor(Math.abs(h.itemPnl) * JPY_KRW).toLocaleString()}</div>
         <div style="font-size:11px; color:${sign}">${h.itemPnl >= 0 ? '▲' : '▼'} ${Math.abs(h.itemPct).toFixed(1)}%</div>
         <button class="btn" style="margin-top:6px; padding:3px 8px; font-size:11px; cursor:pointer" onclick="event.stopPropagation(); removeHoldingApi(${h.id})">🗑</button>
       </div>
@@ -3773,7 +3794,7 @@ async function renderAggChart() {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => '¥' + Math.round(ctx.parsed.y).toLocaleString() } },
+        tooltip: { callbacks: { label: ctx => '₩' + Math.floor(ctx.parsed.y * JPY_KRW).toLocaleString() } },
       },
       scales: {
         x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkipPadding: 20 }, grid: { display: false } },
@@ -3814,7 +3835,7 @@ async function renderDistributionCharts() {
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { position: 'bottom', labels: { font: { size: 11 } } },
-          tooltip: { callbacks: { label: ctx => `${ctx.label}: ¥${Math.round(ctx.parsed).toLocaleString()}` } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label}: ₩${Math.floor(ctx.parsed * JPY_KRW).toLocaleString()}` } },
         },
       },
     });

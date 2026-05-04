@@ -1,7 +1,7 @@
 {
   "id": "702702",
-  "updatedAt": "2026-05-04T06:04:59.618510+00:00",
-  "source": "extended (sales-chart 9999일)",
+  "updatedAt": "2026-05-04T16:26:27.370168+00:00",
+  "source": "backfill (sales-chart + sales-history)",
   "history": [
     {
       "date": "2025-09-29",
@@ -9,11 +9,17 @@
     },
     {
       "date": "2025-09-30",
-      "raw_price": 1000
+      "raw_price": 1000,
+      "raw_vol": 1
     },
     {
       "date": "2025-10-01",
-      "raw_price": 1000
+      "raw_price": 1000,
+      "raw_vol": 2
+    },
+    {
+      "date": "2025-10-02",
+      "raw_vol": 1
     },
     {
       "date": "2026-01-05",
@@ -238,7 +244,13 @@
     },
     {
       "date": "2026-05-03",
-      "psa10_price": 6600
+      "psa10_price": 6755,
+      "raw_price": 1000
+    },
+    {
+      "date": "2026-05-05",
+      "psa10_vol": 5,
+      "raw_vol": 1
     }
   ]
 }

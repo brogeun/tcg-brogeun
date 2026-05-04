@@ -1,11 +1,15 @@
 {
   "id": "102412",
-  "updatedAt": "2026-05-03T22:25:24.638640+00:00",
-  "source": "extended (sales-chart 365일)",
+  "updatedAt": "2026-05-04T09:13:51.619663+00:00",
+  "source": "backfill (sales-chart + sales-history)",
   "history": [
     {
       "date": "2025-10-22",
       "raw_price": 1100
+    },
+    {
+      "date": "2025-10-23",
+      "raw_vol": 1
     },
     {
       "date": "2025-11-05",
@@ -342,19 +346,20 @@
     },
     {
       "date": "2026-04-29",
-      "psa10_price": 60036
+      "psa10_price": 60036,
+      "psa10_vol": 1
     },
     {
       "date": "2026-04-30",
       "psa10_price": 61833,
-      "psa10_vol": 1,
+      "psa10_vol": 2,
       "psa9_price": 9980,
       "raw_price": 10620
     },
     {
       "date": "2026-05-01",
       "psa10_price": 66000,
-      "psa10_vol": 6,
+      "psa10_vol": 4,
       "psa9_vol": 1,
       "raw_price": 12000,
       "raw_vol": 4
@@ -362,13 +367,17 @@
     {
       "date": "2026-05-02",
       "psa10_vol": 1,
-      "raw_price": 9800,
+      "raw_price": 9699,
       "raw_vol": 2
     },
     {
       "date": "2026-05-03",
-      "raw_vol": 1,
-      "raw_price": 9800
+      "raw_price": 9800,
+      "raw_vol": 1
+    },
+    {
+      "date": "2026-05-04",
+      "raw_vol": 6
     }
   ]
 }

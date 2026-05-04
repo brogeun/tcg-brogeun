@@ -338,7 +338,14 @@ def main():
                 custom = [a]
                 break
 
+    history_only = "--history-only" in args
     card_ids = custom if custom else collect_card_ids()
+    if history_only:
+        # 기존 history 파일이 있는 카드만 — 데이터 없는 카드 (16,494장) skip
+        existing_ids = {f.stem for f in HISTORY_DIR.glob("*.json")}
+        before = len(card_ids)
+        card_ids = [c for c in card_ids if c in existing_ids]
+        print(f"ℹ --history-only 모드: 데이터 있는 카드만 ({before:,} → {len(card_ids):,})")
     if not card_ids:
         print("⚠ 백필할 카드 ID 가 없습니다. data/cards-detail.json 또는 top10-*.json 이 있는지 확인하세요.")
         print("  GitHub Actions scrape 를 한 번 돌리면 ID 가 채워집니다.")
@@ -348,6 +355,7 @@ def main():
     print(f"백필 대상: {len(card_ids)} 카드")
     print(f"거래량 수집: {'ON (--no-volume 으로 끔)' if with_volume else 'OFF'}")
     print(f"Resume 모드: {'ON' if resume else 'OFF'}")
+    print(f"history-only 모드: {'ON' if history_only else 'OFF'}")
     print(f"max-pages (sales-history): {max_pages}")
     print(f"days 컷오프: {f'최근 {days_limit}일' if days_limit else '전체 (제한 없음)'}")
     print(f"쿠키: {'있음' if COOKIE_HEADER else '없음 (anonymous)'}")

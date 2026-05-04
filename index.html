@@ -1397,6 +1397,18 @@ function initPrice(productId) {
   loadPriceGrid();
 }
 
+/* ─────────── 상세 패널 닫기 → 카드 리스트로 복귀 ─────────── */
+window.closePriceDetail = function() {
+  const panel = document.getElementById('priceDetailPanel');
+  if (panel) panel.style.display = 'none';
+  // URL 해시에서 productId 제거 (#price/12345 → #price)
+  if (location.hash.includes('/')) {
+    history.pushState({page: 'price'}, '', '#price');
+  }
+  // 페이지 맨 위로
+  window.scrollTo({top: 0, behavior: 'smooth'});
+};
+
 /* ─────────── 카드 상세 (등급별 가격) 캐시 ─────────── */
 let CARDS_DETAIL_CACHE = null;
 async function loadCardsDetail() {
@@ -1450,6 +1462,36 @@ async function showPriceDetailPanel(productId) {
     }
   }
 
+  // 최종 fallback — all-cards.json (23,102 카드 풀)
+  // 검색은 이 풀에서 되니까 검색→클릭 흐름에선 무조건 여기서 잡힘
+  if (!product) {
+    try {
+      if (!window._ALL_CARDS_DETAILS) {
+        const r = await fetch(`/data/all-cards.json?t=${Math.floor(Date.now()/3600000)}`);
+        if (r.ok) {
+          const d = await r.json();
+          window._ALL_CARDS_DETAILS = d.details || [];
+        }
+      }
+      const found = (window._ALL_CARDS_DETAILS || []).find(c => String(c.id) === String(productId));
+      if (found) {
+        // all-cards.json 포맷 → showPriceDetailPanel 이 기대하는 포맷으로 변환
+        product = {
+          id: found.id,
+          name: found.name,
+          image: found.thumbnailUrl,
+          lastPrice: found.minPrice,
+          lowestAsk: found.minPrice,
+          currency: found.currency || 'USD',
+          url: `https://snkrdunk.com/products/${found.id}`,
+          _brand: found.brand || 'pokemon',
+        };
+      }
+    } catch (e) {
+      console.error('[showPriceDetailPanel] all-cards fallback failed:', e);
+    }
+  }
+
   if (!product) {
     panel.innerHTML = `
       <div class="card" style="padding:20px">
@@ -1498,9 +1540,9 @@ async function showPriceDetailPanel(productId) {
                class="btn" style="text-decoration:none; cursor:pointer; padding:9px 16px; font-size:13px">
               🛒 SNKRDUNK →
             </a>
-            <button class="btn" type="button" title="맨 위로" aria-label="맨 위로"
+            <button class="btn" type="button" title="카드 리스트로" aria-label="카드 리스트로"
                     style="cursor:pointer; padding:9px 12px; font-size:16px; margin-left:auto"
-                    onclick="window.scrollTo({top:0, behavior:'smooth'})">
+                    onclick="closePriceDetail()">
               ↑
             </button>
           </div>

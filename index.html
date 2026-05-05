@@ -991,6 +991,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
               <button class="btn" data-r="30" style="font-size:11px; padding:4px 10px; cursor:pointer">30일</button>
               <button class="btn" data-r="90" style="font-size:11px; padding:4px 10px; cursor:pointer">90일</button>
               <button class="btn" data-r="180" style="font-size:11px; padding:4px 10px; cursor:pointer; background:#111; color:#fff; border-color:#111">180일</button>
+              <button class="btn" data-r="9999" style="font-size:11px; padding:4px 10px; cursor:pointer">전체</button>
             </div>
           </div>
           <div style="position:relative; height:240px">
@@ -3752,7 +3753,7 @@ function renderHoldings() {
   list.innerHTML = enriched.map(h => {
     const sign = h.itemPnl >= 0 ? '#10b981' : '#ef4444';
     return `
-    <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:60px 1fr auto; gap:12px; align-items:center; cursor:pointer" onclick="location.hash='#price/${h.card_id}'">
+    <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:60px 1fr auto; gap:12px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}')">
       <div style="width:60px; height:78px; background:#f3f4f6; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center">
         ${h.meta.image ? `<img src="${escapeHtml(h.meta.image)}" alt="" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer">` : `<span style="font-size:24px; opacity:0.3">🃏</span>`}
       </div>
@@ -3781,20 +3782,27 @@ function renderWatchlist() {
   list.innerHTML = WATCHLIST.map(w => {
     const meta = _PF_PRICE_CACHE[w.card_id] || {};
     const cur = meta.latestPrices?.[w.grade] || meta.latestPrices?.psa10 || meta.latestPrices?.raw;
+    const krwPrice = cur ? '₩' + Math.floor(cur * JPY_KRW).toLocaleString() : '—';
     return `
-    <div class="card" style="padding:12px; display:block; cursor:pointer" onclick="location.hash='#price/${w.card_id}'">
-      <div style="width:100%; aspect-ratio:3/4; background:#f3f4f6; border-radius:8px; margin-bottom:8px; display:flex; align-items:center; justify-content:center; overflow:hidden">
-        ${meta.image ? `<img src="${escapeHtml(meta.image)}" alt="" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">🃏</span>`}
+    <div class="card" style="padding:12px; display:block; cursor:pointer" onclick="goCardDetail('${w.card_id}')">
+      <div style="width:100%; aspect-ratio:5/7; background:#f3f4f6; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; overflow:hidden">
+        ${meta.image ? `<img src="${escapeHtml(meta.image)}" alt="" style="width:100%; height:100%; object-fit:cover" referrerpolicy="no-referrer">` : `<span style="font-size:48px; opacity:0.3">🃏</span>`}
       </div>
       <div style="font-size:12px; font-weight:700; color:#111; line-height:1.3; height:32px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${escapeHtml(meta.name || '')}</div>
       <div style="display:flex; gap:6px; align-items:center; margin-top:6px">
         <span style="font-size:10px; padding:2px 6px; background:${GRADE_COLOR[w.grade]||'#f3f4f6'}22; color:#374151; border-radius:4px; font-weight:700">${GRADE_LABEL[w.grade]||'?'}</span>
-        <span style="font-size:13px; font-weight:800; color:#111; margin-left:auto">${cur ? '¥'+cur.toLocaleString() : '—'}</span>
+        <span style="font-size:13px; font-weight:800; color:#111; margin-left:auto">${krwPrice}</span>
       </div>
       <button class="btn" style="margin-top:8px; width:100%; padding:5px; font-size:11px; cursor:pointer" onclick="event.stopPropagation(); removeWatchlistApi(${w.id})">제거</button>
     </div>`;
   }).join('');
 }
+
+// 관심 카드 → 카드 시세 상세 페이지로 이동 + 맨 위로 스크롤
+window.goCardDetail = function(cardId) {
+  location.hash = `#price/${cardId}`;
+  setTimeout(() => window.scrollTo({top: 0, behavior: 'smooth'}), 50);
+};
 
 async function removeHoldingApi(id) {
   if (!confirm('이 카드를 포트폴리오에서 삭제할까요?')) return;
@@ -3830,7 +3838,8 @@ async function renderAggChart() {
     }
   }
   const dates = Object.keys(dateValues).sort();
-  const values = dates.map(d => dateValues[d]);
+  // JPY 합산 → KRW 변환
+  const valuesKrw = dates.map(d => Math.floor(dateValues[d] * JPY_KRW));
 
   const canvas = document.getElementById('pfAggChart');
   if (!canvas) return;
@@ -3841,7 +3850,7 @@ async function renderAggChart() {
       labels: dates,
       datasets: [{
         label: '총 평가액',
-        data: values,
+        data: valuesKrw,
         borderColor: '#14b8a6',
         backgroundColor: 'rgba(20,184,166,0.12)',
         borderWidth: 2,
@@ -3855,11 +3864,11 @@ async function renderAggChart() {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => '₩' + Math.floor(ctx.parsed.y * JPY_KRW).toLocaleString() } },
+        tooltip: { callbacks: { label: ctx => '₩' + Math.floor(ctx.parsed.y).toLocaleString() } },
       },
       scales: {
         x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkipPadding: 20 }, grid: { display: false } },
-        y: { ticks: { font: { size: 10 }, callback: v => '¥' + (v/1000).toFixed(0) + 'K' } },
+        y: { ticks: { font: { size: 10 }, callback: v => '₩' + (v/10000).toFixed(0) + '만' } },
       },
     },
   });

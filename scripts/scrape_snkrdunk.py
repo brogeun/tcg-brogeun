@@ -776,17 +776,50 @@ def main():
 
         any_new = False
         if is_box:
-            # 박스: 단일 가격 history (box_price)
-            points = fetch_chart_recent_box(cid)
-            for date, price in points:
+            # 박스: sales-history 페이지네이션으로 1박스 단가 + 거래량 (최근 7일)
+            from collections import defaultdict as _dd
+            box_prices = _dd(list)
+            box_vols = _dd(int)
+            for page in range(1, 5):  # daily 는 최근 5 페이지만 (~100 거래)
+                url = f"https://snkrdunk.com/v1/apparels/{cid}/sales-history?page={page}&per_page=20"
+                try:
+                    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json", "Referer": "https://snkrdunk.com/"})
+                    with urllib.request.urlopen(req, timeout=15) as r:
+                        d2 = json.loads(r.read().decode("utf-8"))
+                except Exception:
+                    break
+                items = d2.get("history") or []
+                if not items: break
+                from datetime import datetime as _dt, timedelta as _td
+                today_now = _dt.now()
+                for it in items:
+                    date_str = (it.get("date") or "").strip()
+                    m = re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
+                    if m: dt_str = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+                    else:
+                        m2 = re.match(r"(\d+)\s*(日|day)", date_str)
+                        dt_str = (today_now - _td(days=int(m2.group(1)))).strftime("%Y-%m-%d") if m2 else today_now.strftime("%Y-%m-%d")
+                    pr = it.get("price")
+                    if isinstance(pr, str):
+                        pm = re.search(r"([\d,]+)", pr.replace("¥", ""))
+                        pr = int(pm.group(1).replace(",", "")) if pm else None
+                    if pr is None: continue
+                    sz = it.get("size") or it.get("quantity") or 1
+                    if isinstance(sz, str):
+                        sm = re.search(r"(\d+)", sz)
+                        sz = int(sm.group(1)) if sm else 1
+                    sz = max(1, int(sz))
+                    box_prices[dt_str].append(pr // sz)
+                    box_vols[dt_str] += sz
+                if len(items) < 20: break
+                time.sleep(0.2)
+            for date, prs in box_prices.items():
+                avg = sum(prs) // len(prs)
                 if date not in by_date:
                     by_date[date] = {"date": date}
-                if "box_price" in by_date[date] and by_date[date]["box_price"] != price:
-                    by_date[date]["box_price"] = (by_date[date]["box_price"] + price) // 2
-                else:
-                    by_date[date]["box_price"] = price
+                by_date[date]["box_price"] = avg
+                by_date[date]["box_vol"] = box_vols[date]
                 any_new = True
-            time.sleep(0.3)
         else:
             # 카드: 등급별 sales-chart
             for grade, opt_id in GRADE_OPTION_IDS_HIST.items():

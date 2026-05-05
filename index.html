@@ -1687,6 +1687,13 @@ async function showPriceDetailPanel(productId) {
           </div>
         </div>
       </div>
+      <!-- 봉입 박스 섹션 (STEP E) -->
+      <div id="boxesPanel-${productId}" style="border-top:1px solid var(--line); padding:18px 20px; background:#fff">
+        <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px">📦 이 카드가 들어있는 박스</div>
+        <div id="boxesContent-${productId}">
+          <div style="font-size:12px; color:var(--ink-sub)">⏳ 박스 정보 불러오는 중...</div>
+        </div>
+      </div>
     </div>
     <style>
       @media (max-width: 640px) {
@@ -1703,6 +1710,48 @@ async function showPriceDetailPanel(productId) {
     const wrap = document.getElementById(`historyWrap-${productId}`);
     if (wrap) wrap.style.display = 'none';
   }
+  // 봉입 박스 섹션 (카드만)
+  if (isCardProduct(product.name)) {
+    renderBoxesPanel(productId);
+  } else {
+    const bp = document.getElementById(`boxesPanel-${productId}`);
+    if (bp) bp.style.display = 'none';
+  }
+}
+
+/* ─────────── 봉입 박스 섹션 (STEP E) ─────────── */
+async function renderBoxesPanel(productId) {
+  const wrap = document.getElementById(`boxesContent-${productId}`);
+  if (!wrap) return;
+
+  if (!window._CARD_TO_BOX) {
+    try {
+      const r = await fetch('/data/card-to-box.json?t=' + Math.floor(Date.now()/3600000));
+      window._CARD_TO_BOX = r.ok ? ((await r.json()).cards || {}) : {};
+    } catch { window._CARD_TO_BOX = {}; }
+  }
+
+  const boxes = window._CARD_TO_BOX[String(productId)] || [];
+  if (!boxes.length) {
+    wrap.innerHTML = `<div style="font-size:12px; color:var(--ink-sub)">박스 정보 없음 (자동 매핑 누락)</div>`;
+    return;
+  }
+
+  wrap.innerHTML = boxes.map(b => {
+    const isReprint = b.cardSetCode && b.cardSetCode !== b.setCode;
+    const variantLabel = b.variant && b.variant !== 'base'
+      ? `<span style="font-size:10px; padding:2px 6px; background:#dbeafe; color:#1e40af; border-radius:4px; font-weight:700">${b.variant.toUpperCase()}</span>` : '';
+    const reprintLabel = isReprint
+      ? `<span style="font-size:10px; padding:2px 6px; background:#fef3c7; color:#92400e; border-radius:4px; font-weight:700">재록</span>` : '';
+    return `
+      <button class="btn" type="button"
+              onclick="closePriceDetail(); setTimeout(()=>openSetGrid('${b.setCode}', '${escapeHtml(b.setName)}', ''), 200)"
+              style="display:inline-flex; align-items:center; gap:8px; padding:9px 14px; margin-right:8px; margin-bottom:8px; cursor:pointer; background:#fff; border:1px solid var(--line); border-radius:8px">
+        <span style="font-weight:800; font-size:13px; color:#111">${b.setCode}</span>
+        <span style="font-size:12px; color:var(--ink-sub); max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(b.setName)}</span>
+        ${variantLabel}${reprintLabel}
+      </button>`;
+  }).join('');
 }
 
 // 카드 식별: 이름에 [세트코드 번호] 대괄호가 있으면 카드, 아니면 박스 (Python 분류 로직 동일)
@@ -2977,16 +3026,30 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
       <div style="font-size:12px; color:var(--ink-sub); margin-bottom:14px; padding:0 4px">${cards.length} 카드 · 클릭하면 시세 페이지로</div>
       <div class="set-card-grid">
         ${cards.map(c => {
-          // 카드번호 첫 부분만 (001/193 → 001)
+          // baseNumber 우선 (variant 없는 base) — 매칭에 사용. 없으면 number 에서 추출
           const num = (c.number || '').split('/')[0].trim();
-          // SNKRDUNK 검색용 — 세트코드 + 번호 (예: "M4 001") 가장 정확
-          const searchKey = num ? `${setCode} ${num}` : (c.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+          const baseNum = (c.baseNumber || num.split('_')[0] || '').trim();
+          // 카드의 진짜 set (재록 카드는 다른 set, 예: OP-15 박스에 OP14-005 재록)
+          const cardSetCode = (c.setCode || setCode).toUpperCase();
+          // SNKRDUNK 검색용 — 카드의 실제 setCode + base number
+          const searchKey = baseNum ? `${cardSetCode} ${baseNum}` : (c.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+          // 카드 번호 표시: 다른 set 의 재록이면 "OP14-005" 형태, 같은 set 이면 "001" 또는 "001_P1"
+          const displayNum = (cardSetCode !== setCode.toUpperCase())
+            ? `${cardSetCode}-${c.number || ''}`
+            : (c.number || '');
+          // variant suffix (p1, p2 등) 별도 저장 — SNKRDUNK 의 -P / -SP / -SPC 매칭용
+          const variantSuffix = (c.fullId || c.number || '').includes('_')
+            ? (c.fullId || c.number).split('_').pop().toLowerCase()
+            : '';
           return `
-          <div class="set-card-item" data-card-name="${escapeHtml(c.name || '')}" data-card-search="${escapeHtml(searchKey)}">
+          <div class="set-card-item"
+               data-card-name="${escapeHtml(c.name || '')}"
+               data-card-search="${escapeHtml(searchKey)}"
+               data-card-variant="${escapeHtml(variantSuffix)}">
             <div class="set-card-img">
               ${c.image ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">🃏</span>`}
             </div>
-            <div class="set-card-num">${escapeHtml(c.number || '')}</div>
+            <div class="set-card-num">${escapeHtml(displayNum)}</div>
           </div>`;
         }).join('')}
       </div>`;
@@ -3022,27 +3085,82 @@ document.addEventListener('click', async e => {
   const cardName = item.dataset.cardName || '';
   const cardImage = item.querySelector('img')?.src || '';
 
-  // SNKRDUNK 매칭 시도 — productNumber 패턴 (예: pkmn-tcg-M4-001)
+  // SNKRDUNK 매칭 — productNumber + variant 정확 매칭 (v2)
   await loadCardSearchData();
   const setCode = (searchKey.split(' ')[0] || '').toUpperCase();
   const numRaw = (searchKey.split(' ')[1] || '').trim();
-  // 0 제거 버전 + 패딩 3자리 버전 둘 다 시도 (단 numRaw 자체가 비어있지 않을 때만)
-  let snkrdunkId = null;
-  if (_ALL_CARDS_INDEX && numRaw) {
-    const setLower = setCode.toLowerCase();
-    const numStripped = numRaw.replace(/^0+/, '') || numRaw;  // "001" → "1", "1" → "1"
-    const numPadded = numRaw.padStart(3, '0');                  // "1" → "001", "001" → "001"
+  const variantSuffix = (item.dataset.cardVariant || '').toLowerCase();  // 'p1', 'p2', 'p3', ''
 
-    // productNumber 정확 매칭 — 카드 끝부분 매치
-    // 포켓몬: "pkmn-tcg-m4-001" (prefix 있음) → endsWith("-m4-001")
-    // 원피스: "op15-001" (prefix 없음) → 정확히 같음 또는 endsWith
-    const padTail = `${setLower}-${numPadded}`;     // "op15-001" 또는 "m4-001"
-    const stripTail = `${setLower}-${numStripped}`; // "op15-1"  또는 "m4-1"
-    const match = _ALL_CARDS_INDEX.find(c => {
+  let snkrdunkId = null;
+
+  // override 우선 (수동 매핑 파일)
+  try {
+    if (!window._OVERRIDE_MAP) {
+      const r = await fetch('/data/onepiece-card-overrides.json?t=' + Math.floor(Date.now()/3600000));
+      window._OVERRIDE_MAP = r.ok ? await r.json() : {};
+    }
+    const numPadded = numRaw.padStart(3, '0');
+    const overrideKey = variantSuffix
+      ? `${setCode}-${numPadded}_${variantSuffix.toUpperCase()}`
+      : `${setCode}-${numPadded}`;
+    if (window._OVERRIDE_MAP[overrideKey]) {
+      snkrdunkId = window._OVERRIDE_MAP[overrideKey];
+    }
+  } catch (e) {}
+
+  if (!snkrdunkId && _ALL_CARDS_INDEX && numRaw) {
+    const setLower = setCode.toLowerCase();
+    const numStripped = numRaw.replace(/^0+/, '') || numRaw;
+    const numPadded = numRaw.padStart(3, '0');
+    const padTail = `${setLower}-${numPadded}`;
+    const stripTail = `${setLower}-${numStripped}`;
+
+    // 1차: productNumber 매칭
+    const candidates = _ALL_CARDS_INDEX.filter(c => {
       const pn = (c.productNumber || '').toLowerCase();
       return pn === padTail || pn === stripTail ||
              pn.endsWith(`-${padTail}`) || pn.endsWith(`-${stripTail}`);
     });
+
+    // 2차: 일본판 (영문판 [EN] / [CHN] 제외)
+    const jpOnly = candidates.filter(c => !/\[(EN|CHN)\]/i.test(c.name || ''));
+    let pool = jpOnly.length ? jpOnly : candidates;
+
+    // 3차: 메인 booster pack 우선 (promo / event 후순위)
+    const isPromoOrEvent = (name) =>
+      /Champion|Wanted|Aisa|Tournament|Prize|Flagship|Promotion\s*Card\s*Set/i.test(name || '');
+    const mainPool = pool.filter(c => !isPromoOrEvent(c.name));
+    pool = mainPool.length ? mainPool : pool;
+
+    pool = pool.sort((a, b) => parseInt(a.id || 0) - parseInt(b.id || 0));
+
+    // 4차: variant 분류 (확장 — R-RP, GSP 등 추가 패턴)
+    const classifySnkrdunk = (name) => {
+      const n = name || '';
+      if (/-SPC[\s\[\(]/.test(n)) return 'spc';
+      if (/-SP[\s\(]|\(Comic\s+Parallel\)/i.test(n)) return 'sp';
+      if (/-GSP[\s\[\(]/.test(n)) return 'gsp';     // Gold SP
+      if (/-RP[\s\[\(]/.test(n)) return 'rp';        // R-RP, SR-RP 등
+      if (/Premium\s*Card\s*Collection|25th\s*Anniversary|Memorial\s*Collection/i.test(n)) return 'premium';
+      if (/-P[\s\[\(]|\sParallel\s*\[/i.test(n)) return 'p';
+      return 'base';
+    };
+
+    const variantPriority = {
+      '':   ['base'],
+      'p1': ['p', 'rp', 'premium', 'sp', 'spc', 'base'],
+      'p2': ['sp', 'spc', 'rp', 'gsp', 'premium', 'p', 'base'],
+      'p3': ['spc', 'gsp', 'premium', 'sp', 'rp', 'p', 'base'],
+    };
+    const priority = variantPriority[variantSuffix] || ['base'];
+
+    let match = null;
+    for (const target of priority) {
+      match = pool.find(c => classifySnkrdunk(c.name) === target);
+      if (match) break;
+    }
+    if (!match) match = pool[0];
+
     if (match) snkrdunkId = match.id;
   }
 
@@ -3946,7 +4064,11 @@ function renderHoldings() {
   const gradeValue = { psa10: 0, psa9: 0, raw: 0 };
   const enriched = HOLDINGS.map(h => {
     const meta = _PF_PRICE_CACHE[h.card_id] || {};
-    const cur = meta.latestPrices?.[h.grade] || h.buy_price;
+    // 박스는 grade 무시하고 latestPrices.box 사용
+    const isBox = meta.kind === 'box' || /\b(Box|ボックス|BOX|Booster|パック|박스)\b/i.test(meta.name || '');
+    const cur = isBox
+      ? (meta.latestPrices?.box || h.buy_price)
+      : (meta.latestPrices?.[h.grade] || h.buy_price);
     const value = cur * h.qty;
     const cost = h.buy_price * h.qty;
     const itemPnl = value - cost;
@@ -4117,7 +4239,10 @@ async function renderDistributionCharts() {
   const byBrand = {}, byGrade = {};
   for (const h of HOLDINGS) {
     const meta = _PF_PRICE_CACHE[h.card_id];
-    const cur = meta?.latestPrices?.[h.grade] || h.buy_price;
+    const isBox = meta?.kind === 'box' || /\b(Box|ボックス|BOX|Booster|パック|박스)\b/i.test(meta?.name || '');
+    const cur = isBox
+      ? (meta?.latestPrices?.box || h.buy_price)
+      : (meta?.latestPrices?.[h.grade] || h.buy_price);
     const value = cur * h.qty;
     const brand = meta?.brand || 'unknown';
     byBrand[brand] = (byBrand[brand] || 0) + value;

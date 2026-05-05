@@ -234,9 +234,17 @@ def scrape_pokemon(driver, src: dict) -> list:
         if href.startswith("#") or href.startswith("javascript:") or len(href) < 10:
             continue
         date = parse_date(it.get("dateText", "")) or ""
+        img_abs = absolutize(it.get("img", ""), src["base_url"])
+        # image URL 에서 YYYYMMDD 추출 (게시글 진짜 발매일) — date 비어있거나 오늘이면 우선 적용
+        from datetime import datetime as _dt
+        today_str = _dt.now().strftime("%Y-%m-%d")
+        if not date or date == today_str:
+            m_img = re.search(r'(20\d{2})(\d{2})(\d{2})_\d', img_abs)
+            if m_img:
+                date = f"{m_img.group(1)}-{m_img.group(2)}-{m_img.group(3)}"
         out.append({
             "title": title[:120],
-            "image": absolutize(it.get("img", ""), src["base_url"]),
+            "image": img_abs,
             "link": absolutize(href, src["base_url"]),
             "date": date,
             "source": src["key"],
@@ -419,10 +427,17 @@ def main():
             existing_items = []
 
     existing_links = {it.get("link") for it in existing_items if it.get("link")}
+    existing_by_title = {(it.get("title") or "").strip(): it for it in existing_items}
     added = 0
     for fresh in fresh_items:
         if fresh.get("link") in existing_links:
             continue
+        # 같은 title 있으면 기존 date 보존 (link 만 바뀐 경우)
+        ftitle = (fresh.get("title") or "").strip()
+        if ftitle in existing_by_title:
+            old_date = existing_by_title[ftitle].get("date")
+            if old_date:
+                fresh["date"] = old_date
         existing_items.append(fresh)
         existing_links.add(fresh.get("link"))
         added += 1

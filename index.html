@@ -3610,14 +3610,45 @@ async function loadPortfolio() {
 async function loadCardMeta(cardId) {
   if (_PF_PRICE_CACHE[cardId]) return _PF_PRICE_CACHE[cardId];
   await loadCardSearchData();
-  const meta = (_ALL_CARDS_INDEX || []).find(c => c.id === cardId);
+  let meta = (_ALL_CARDS_INDEX || []).find(c => c.id === cardId);
 
   // 1순위: cards-detail.json — TOP10 인기 카드의 lowest_ask (카드 시세 페이지와 동일 데이터)
   let detailGrades = null;
+  let detailProduct = null;
   try {
     const detailData = await loadCardsDetail();
-    detailGrades = detailData?.cards?.[cardId]?.grades || null;
+    const card = detailData?.cards?.[cardId];
+    detailGrades = card?.grades || null;
+    detailProduct = card?.product || card || null;
   } catch {}
+
+  // box 폴백 — all-cards.json 에 없으면 price-{brand}-box.json / top10-{brand}.json 에서 찾기
+  if (!meta) {
+    for (const brand of ['pokemon', 'onepiece']) {
+      for (const file of [`price-${brand}-box`, `price-${brand}-card`, `top10-${brand}`]) {
+        if (meta) break;
+        try {
+          const r = await fetch(`/data/${file}.json?t=${Math.floor(Date.now()/3600000)}`);
+          if (!r.ok) continue;
+          const d = await r.json();
+          const found = (d.products || []).find(p => String(p.id) === String(cardId));
+          if (found) {
+            meta = {
+              id: String(cardId),
+              name: found.name,
+              thumbnailUrl: found.image,
+              brand: brand,
+              minPrice: found.lastPrice ?? found.lowestAsk,
+              currency: found.currency || 'JPY',
+              kind: file.includes('box') ? 'box' : 'card',
+            };
+            break;
+          }
+        } catch {}
+      }
+      if (meta) break;
+    }
+  }
 
   // 2순위: history 파일 — 백필된 6,600+ 카드 모두
   let history = null;
@@ -3777,7 +3808,7 @@ function renderHoldings() {
     return `
     <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}')">
       <div style="width:90px; height:126px; background:#f3f4f6; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center">
-        ${h.meta.image ? `<img src="${escapeHtml(h.meta.image)}" alt="" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer">` : `<span style="font-size:24px; opacity:0.3">🃏</span>`}
+        ${h.meta.image ? `<img src="${escapeHtml(h.meta.image)}" alt="" style="width:100%; height:100%; object-fit:cover" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">${h.grade === 'box' ? '📦' : '🃏'}</span>`}
       </div>
       <div style="min-width:0">
         <div style="font-size:13px; font-weight:700; color:#111; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${escapeHtml(h.meta.name || '')}</div>

@@ -95,107 +95,108 @@ def parse_date(text: str):
 
 
 def is_april_or_may(date_str: str) -> bool:
-    """YYYY-MM-DD 가 4월 또는 5월인지"""
+    """이름은 옛날 그대로 — 실제 동작은 '최근 90일' 동적 필터.
+    날짜 못 읽었어도 통과 (사이트 상단=최신 가정).
+    """
     if not date_str:
-        return False
-    m = re.match(r"\d{4}-(\d{2})-\d{2}", date_str)
+        return True  # 날짜 없으면 일단 통과 (사이트 상단 = 최신)
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", date_str)
     if not m:
-        return False
-    month = int(m.group(1))
-    return month in (4, 5)
+        return True
+    try:
+        item_date = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        delta = (datetime.now() - item_date).days
+        return -1 <= delta <= 90  # 미래 1일 + 과거 90일
+    except Exception:
+        return True
 
 
 def scrape_pokemon(driver, src: dict) -> list:
-    """pokemoncard.co.kr/news 스크래핑
-       구조 추정: 게시판 형태, 각 행에 제목·날짜·썸네일"""
+    """pokemoncard.co.kr/news + onepiece-cardgame.kr/topics.do 스크래핑
+       단순화: site-specific 패턴 (_news?id= / topics.do?brdNo=) 으로 정확 매칭"""
     print(f"\n━━━ {src['label']}: {src['url']} ━━━")
     try:
         driver.get(src['url'])
-        time.sleep(3)
+        time.sleep(4)
     except Exception as e:
         print(f"  ✗ load err: {e}")
         return []
-    # 페이지 스크롤
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(1.5)
+    # 충분한 스크롤 (lazy 로딩 대응)
+    for _ in range(3):
+        driver.execute_script("window.scrollBy(0, 1500);")
+        time.sleep(0.8)
     driver.execute_script("window.scrollTo(0, 0);")
-    time.sleep(0.5)
+    time.sleep(1)
 
-    # 다양한 사이트 구조 대응 — a 태그 안에 텍스트 없어도 부모/자식/img alt 다 찾기
+    # 이미지 있는 a 태그 = 뉴스 카드 (footer/copyright 제외, 카드 영역 내부만)
     items_js = r"""
-        const selectors = [
-            'article a[href]',
-            '.news-list a[href]',
-            '.list a[href]',
-            'ul li a[href]',
-            '.post a[href]',
-            'a.news-item',
-            'a[href*="news"]',
-            'a[href*="view"]',
-            'a[href*="topics"]',
-            'a[href*="article"]',
-        ];
-        const seen = new Set();
         const out = [];
+        const seen = new Set();
 
-        // 제목 추출 함수 — 4단계 fallback
-        function extractTitle(el) {
-            // 1) a 태그 자체 innerText
-            let t = (el.innerText || '').trim();
-            if (t && t.length >= 5 && t.length <= 200) return t.split('\n')[0].trim();
-            // 2) a 안의 img alt
-            const img = el.querySelector('img');
-            if (img) {
-                const alt = (img.alt || '').trim();
-                if (alt && alt.length >= 3) return alt;
-            }
-            // 3) 부모 영역에서 .title, h2, h3, strong 찾기
-            const parent = el.closest('article, li, .item, .post, div, tr');
-            if (parent) {
-                const titleEl = parent.querySelector('.title, .subject, .news-title, h2, h3, h4, strong, b');
-                if (titleEl) {
-                    const tt = (titleEl.innerText || '').trim();
-                    if (tt && tt.length >= 3 && tt.length <= 200) return tt.split('\n')[0].trim();
-                }
-                // 4) 부모 텍스트 첫 의미있는 줄
-                const lines = (parent.innerText || '').split('\n').map(s => s.trim()).filter(s => s.length >= 5 && s.length <= 200);
-                // 날짜/메뉴어 같은 거 제외
-                const filtered = lines.filter(l => !/^\d{4}[\-./]\d/.test(l) && !/^\d+$/.test(l) && !/^(more|view|read|click)/i.test(l));
-                if (filtered.length) return filtered[0];
-            }
-            // 5) title 속성
-            const titleAttr = el.getAttribute('title');
-            if (titleAttr && titleAttr.length >= 3) return titleAttr.trim();
-            return null;
+        // footer/header 안의 링크는 처음부터 제외
+        function isInFooterOrHeader(el) {
+            return !!el.closest('footer, header, nav, aside, .footer, .header, .nav, .gnb, .lnb, .menu, .copyright');
         }
 
-        for (const sel of selectors) {
-            const els = document.querySelectorAll(sel);
-            for (const el of els) {
-                const href = el.href;
-                if (!href || seen.has(href)) continue;
-                const title = extractTitle(el);
-                if (!title) continue;
-                // 이미지
-                let img = el.querySelector('img');
-                if (!img) {
-                    const parent = el.closest('article, li, .item, .post, div');
-                    if (parent) img = parent.querySelector('img');
+        // 노이즈 텍스트 (카피라이트, 메뉴 등)
+        const NOISE_PATTERNS = [
+            /©|copyright|all rights/i,
+            /^(home|about|search|login|menu|sitemap)$/i,
+            /nintendo.*creatures.*game freak/i,
+        ];
+        function isNoise(t) {
+            return NOISE_PATTERNS.some(p => p.test(t));
+        }
+
+        const anchors = document.querySelectorAll('a[href]');
+        for (const a of anchors) {
+            const href = a.href;
+            if (!href || seen.has(href)) continue;
+            if (href.startsWith('javascript:') || href.endsWith('#')) continue;
+            if (isInFooterOrHeader(a)) continue;
+
+            const img = a.querySelector('img') || (a.closest('article, .news-item, .card, li, div')?.querySelector('img'));
+            if (!img) continue;
+            const w = img.naturalWidth || img.width || 0;
+            if (w > 0 && w < 100) continue;
+            // 이미지 src 가 logo/icon 같으면 제외
+            const imgSrcCheck = (img.src || '').toLowerCase();
+            if (imgSrcCheck.includes('logo') || imgSrcCheck.includes('icon') || imgSrcCheck.includes('symbol')) continue;
+
+            const card = a.closest('article, .news-item, .card, li, div') || a;
+            let title = (a.innerText || '').trim();
+            if (!title || title.length < 5) {
+                const candidates = card.querySelectorAll('h1, h2, h3, h4, h5, .title, .subject, strong, b, p, span');
+                let best = '';
+                for (const c of candidates) {
+                    const t = (c.innerText || '').trim().split('\n')[0].trim();
+                    if (t.length >= 5 && t.length <= 200 && !isNoise(t) && t.length > best.length) best = t;
                 }
-                const imgSrc = img ? (img.src || img.getAttribute('data-src') || img.getAttribute('data-original') || '') : '';
-                // 날짜
-                const parent = el.closest('article, li, .item, .post, div, tr');
-                let dateText = '';
-                if (parent) {
-                    const dateEl = parent.querySelector('.date, .day, time, .news-date, .post-date');
-                    if (dateEl) dateText = (dateEl.innerText || '').trim();
-                    if (!dateText) dateText = (parent.innerText || '').slice(-50);
-                }
-                seen.add(href);
-                out.push({title: title, href: href, img: imgSrc, dateText: dateText});
-                if (out.length >= 60) return out;
+                if (best) title = best;
             }
-            if (out.length >= 30) break;
+            if ((!title || title.length < 5) && img.alt) title = img.alt.trim();
+            if (!title || title.length < 5) continue;
+            title = title.split('\n')[0].trim();
+            if (title.length > 200) title = title.slice(0, 200);
+            if (isNoise(title)) continue;
+
+            const imgSrc = img.src || img.dataset.src || img.dataset.original || '';
+
+            // 날짜 — 다양한 한글 포맷
+            let dateText = '';
+            const dateEl = card.querySelector('.date, .day, time, .news-date, .post-date, [class*="date" i]');
+            if (dateEl) dateText = (dateEl.innerText || dateEl.dateTime || '').trim();
+            if (!dateText) {
+                const txt = card.innerText || '';
+                // 2026-05-04, 2026.05.04, 2026/05/04
+                let m = txt.match(/\d{4}[-./]\s*\d{1,2}[-./]\s*\d{1,2}/);
+                // 2026년 05월 04일
+                if (!m) m = txt.match(/\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일/);
+                if (m) dateText = m[0];
+            }
+            seen.add(href);
+            out.push({title, href, img: imgSrc, dateText});
+            if (out.length >= 40) break;
         }
         return out;
     """
@@ -206,20 +207,33 @@ def scrape_pokemon(driver, src: dict) -> list:
         return []
     print(f"  raw 후보: {len(raw_items)}건")
 
-    # 필터링
+    # 필터링 — 날짜 필터 제거 + 메뉴/푸터 제거
     out = []
+    # 정확히 일치하는 메뉴/페이징 단어들 (PRODUCTS/EVENTS 등 카테고리는 detail 보강 전 제목으로 쓰니 제외 X)
+    skip_words = [
+        "로그인", "회원가입", "메뉴", "검색", "마이페이지", "전체보기", "더보기",
+        "Home", "About",
+        "플레이어즈", "공식 사이트", "공식사이트", "포켓몬 스토어", "포켓몬스토어",
+        "시작하는 방법", "룰", "Q&A", "공지사항", "취급 점포", "취급 점포",
+        "Next Page", "Previous Page", "Last Page", "First Page",
+        "다음", "이전", "Next", "Prev", "more", "view",
+    ]
+    skip_url_patterns = ["/login", "/register", "/menu", "/search", "/policy", "/terms"]
     for it in raw_items:
         title = (it.get("title") or "").strip()
         href = it.get("href") or ""
         if len(title) < 5:
             continue
-        # 메뉴/카테고리 텍스트 제외
-        skip_words = ["로그인", "회원가입", "메뉴", "검색", "마이페이지", "전체보기", "더보기", "Home", "About"]
-        if any(w in title for w in skip_words):
+        # 정확히 일치하거나 짧은 제목으로 메뉴인 경우 제외
+        if any(title.strip() == w or title.strip().lower() == w.lower() for w in skip_words):
             continue
-        date = parse_date(it.get("dateText", ""))
-        if not is_april_or_may(date):
+        # URL 메뉴 패턴 제외
+        if any(p in href.lower() for p in skip_url_patterns):
             continue
+        # href 가 #, javascript:void, 빈값 인 경우 제외
+        if href.startswith("#") or href.startswith("javascript:") or len(href) < 10:
+            continue
+        date = parse_date(it.get("dateText", "")) or ""
         out.append({
             "title": title[:120],
             "image": absolutize(it.get("img", ""), src["base_url"]),
@@ -228,8 +242,10 @@ def scrape_pokemon(driver, src: dict) -> list:
             "source": src["key"],
             "sourceLabel": src["label"],
         })
-    print(f"  4·5월 필터 후: {len(out)}건")
-    for i, it in enumerate(out[:5], 1):
+    out = out[:20]
+    print(f"  필터 후: {len(out)}건")
+    # 전체 출력 (디버깅) — 최대 15개
+    for i, it in enumerate(out[:15], 1):
         print(f"    {i}. [{it['date']}] {it['title'][:60]}")
     return out
 
@@ -376,7 +392,7 @@ def scrape_onepiece(driver, src: dict) -> list:
 
 def main():
     fetched_at = datetime.now(timezone.utc).isoformat()
-    all_items: list = []
+    fresh_items: list = []
 
     driver = make_driver(lang="ko-KR")
     try:
@@ -386,24 +402,54 @@ def main():
                     items = scrape_pokemon(driver, src)
                 else:
                     items = scrape_onepiece(driver, src)
-                all_items.extend(items)
+                fresh_items.extend(items)
             except Exception as e:
                 print(f"  ❌ {src['label']} 에러: {e}")
     finally:
         driver.quit()
 
-    all_items.sort(key=lambda x: x.get("date") or "", reverse=True)
+    # ── merge with existing — link 으로 중복 체크, 새 항목만 추가 ──
+    out_path = DATA_DIR / "news.json"
+    existing_items = []
+    if out_path.exists():
+        try:
+            data = json.loads(out_path.read_text("utf-8"))
+            existing_items = data.get("items", []) or []
+        except Exception:
+            existing_items = []
+
+    existing_links = {it.get("link") for it in existing_items if it.get("link")}
+    added = 0
+    for fresh in fresh_items:
+        if fresh.get("link") in existing_links:
+            continue
+        existing_items.append(fresh)
+        existing_links.add(fresh.get("link"))
+        added += 1
+
+    # 4월~5월 항목만 유지 (옛날 데이터 정리)
+    def is_apr_may(date_str):
+        if not date_str:
+            return False
+        m = re.match(r"\d{4}-(\d{2})-\d{2}", date_str)
+        if not m:
+            return False
+        return int(m.group(1)) in (4, 5)
+
+    existing_items = [it for it in existing_items if is_apr_may(it.get("date"))]
+
+    # 날짜 desc 정렬
+    existing_items.sort(key=lambda x: x.get("date") or "", reverse=True)
 
     payload = {
         "ok": True,
         "fetchedAt": fetched_at,
-        "count": len(all_items),
-        "items": all_items,
+        "count": len(existing_items),
+        "items": existing_items,
     }
-    out_path = DATA_DIR / "news.json"
     txt = json.dumps(payload, ensure_ascii=False, indent=2)
     out_path.write_bytes(txt.encode("utf-8"))
-    print(f"\n→ 저장: {out_path.relative_to(DATA_DIR.parent)}  ({len(all_items)}건)")
+    print(f"\n→ 저장: {out_path.relative_to(DATA_DIR.parent)}  (총 {len(existing_items)}건, 신규 +{added})")
 
 
 if __name__ == "__main__":

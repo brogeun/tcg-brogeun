@@ -3010,23 +3010,59 @@ document.addEventListener('click', e => {
   openSetGrid(code, name, url);
 });
 
-// 그리드 카드 클릭 → 카드 시세 페이지 검색으로 이동
-document.addEventListener('click', e => {
+// 그리드 카드 클릭 → SNKRDUNK 매칭 있으면 시세 페이지, 없으면 정보만 표시
+document.addEventListener('click', async e => {
   const item = e.target.closest('.set-card-item[data-card-search]');
   if (!item) return;
+  const searchKey = item.dataset.cardSearch || '';
+  const cardName = item.dataset.cardName || '';
+  const cardImage = item.querySelector('img')?.src || '';
+
+  // SNKRDUNK 매칭 시도 — productNumber 패턴 (예: pkmn-tcg-M4-001)
+  await loadCardSearchData();
+  const setCode = (searchKey.split(' ')[0] || '').toUpperCase();
+  const num = (searchKey.split(' ')[1] || '').replace(/^0+/, '');
+  let snkrdunkId = null;
+  if (_ALL_CARDS_INDEX) {
+    const match = _ALL_CARDS_INDEX.find(c => {
+      const pn = (c.productNumber || '').toLowerCase();
+      // pkmn-tcg-M4-001 / pkmn-tcg-M4-1 패턴 시도
+      const setLower = setCode.toLowerCase();
+      const numNoZero = num;
+      const numWithZero = num.padStart(3, '0');
+      return pn.includes(`-${setLower}-${numWithZero}`) ||
+             pn.includes(`-${setLower}-${numNoZero}`) ||
+             pn === `pkmn-tcg-${setLower}-${numWithZero}` ||
+             pn === `pkmn-tcg-${setLower}-${numNoZero}`;
+    });
+    if (match) snkrdunkId = match.id;
+  }
+
   closeAnyModal();
-  // 우선순위 1: setCode + 번호 (예: "M4 001") — 가장 정확
-  // 우선순위 2: 카드 이름 fallback
-  const searchKey = item.dataset.cardSearch || item.dataset.cardName || '';
-  go('price');
-  setTimeout(() => {
-    const input = document.getElementById('cardSearchInput');
-    if (input) {
-      input.value = searchKey;
-      input.dispatchEvent(new Event('input', {bubbles: true}));
-      input.focus();
-    }
-  }, 100);
+
+  if (snkrdunkId) {
+    // SNKRDUNK 매칭 성공 — 풀 시세 페이지
+    location.hash = `#price/${snkrdunkId}`;
+    setTimeout(() => window.scrollTo({top: 0, behavior: 'smooth'}), 50);
+  } else {
+    // 매칭 실패 — 정보만 표시 모달
+    openAnyModal(`
+      <div class="modal-head">
+        <h3>🃏 카드 정보</h3>
+        <button class="modal-close" onclick="closeAnyModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:24px; text-align:center">
+        ${cardImage ? `<img src="${escapeHtml(cardImage)}" alt="${escapeHtml(cardName)}" style="max-width:280px; max-height:380px; width:auto; height:auto; border-radius:8px; margin:0 auto 18px; display:block" referrerpolicy="no-referrer">` : ''}
+        <div style="font-size:15px; font-weight:700; color:#111; margin-bottom:8px; line-height:1.4">${escapeHtml(cardName)}</div>
+        <div style="font-size:13px; color:var(--ink-sub); margin-bottom:16px">
+          📭 SNKRDUNK 거래 데이터 없음
+        </div>
+        <div style="font-size:11px; color:var(--ink-mute); line-height:1.6">
+          이 카드는 SNKRDUNK 에서 거래되지 않거나<br>
+          데이터가 아직 수집되지 않았습니다.
+        </div>
+      </div>`);
+  }
 });
 document.addEventListener('click', e => {
   const tab = e.target.closest('#ciTabs .tab');

@@ -3615,16 +3615,26 @@ async function loadCardMeta(cardId) {
     const r = await fetch(`/data/history/${cardId}.json?t=${Math.floor(Date.now()/3600000)}`);
     if (r.ok) history = await r.json();
   } catch {}
-  const last = history?.history?.[history.history.length - 1] || {};
+  // 각 등급별로 역순 스캔 — 가장 최근 non-null 가격 찾기
+  // (마지막 1일에 PSA10 거래 없을 수 있으니 그 이전 기록까지 거슬러 올라감)
+  const points = history?.history || [];
+  const latest = { psa10: null, psa9: null, raw: null };
+  for (let i = points.length - 1; i >= 0; i--) {
+    const p = points[i];
+    if (latest.psa10 == null && p.psa10_price) latest.psa10 = p.psa10_price;
+    if (latest.psa9 == null && p.psa9_price) latest.psa9 = p.psa9_price;
+    if (latest.raw == null && p.raw_price) latest.raw = p.raw_price;
+    if (latest.psa10 && latest.psa9 && latest.raw) break;
+  }
   const result = {
     name: meta?.name || `Card #${cardId}`,
     image: meta?.thumbnailUrl || '',
     brand: meta?.brand || 'unknown',
-    history: history?.history || [],
+    history: points,
     latestPrices: {
-      psa10: last.psa10_price || null,
-      psa9: last.psa9_price || null,
-      raw: last.raw_price || null,
+      psa10: latest.psa10,
+      psa9: latest.psa9,
+      raw: latest.raw,
       box: meta?.minPrice ? Math.round(meta.minPrice * 150) : null, // box: USD → JPY 추정
     },
   };

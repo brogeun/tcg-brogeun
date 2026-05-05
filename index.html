@@ -3925,7 +3925,7 @@ function openAnyModal(innerHtml, size) {
     document.body.appendChild(modal);
   }
   const maxWidth = size === 'wide' ? '720px' : '480px';
-  modal.innerHTML = `<div class="modal-box" style="max-width:${maxWidth}" onclick="event.stopPropagation()">${innerHtml}</div>`;
+  modal.innerHTML = `<div class="modal-box" style="max-width:${maxWidth}">${innerHtml}</div>`;
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }

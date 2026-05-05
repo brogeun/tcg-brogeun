@@ -1,0 +1,62 @@
+name: Pokemon New Set Detect
+
+# 매주 월요일 오전 9시 KST — 신규 세트 감지만 (자동 fetch X)
+# 발견 시 GitHub Issue 자동 생성
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Detect new sets
+        id: detect
+        run: |
+          python scripts/sync_pokemon.py --dry-run > detect_output.txt 2>&1 || true
+          cat detect_output.txt
+          if grep -q "🆕 신규 후보" detect_output.txt; then
+            echo "has_new=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_new=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create issue if new sets found
+        if: steps.detect.outputs.has_new == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('detect_output.txt', 'utf8');
+            // 이미 같은 제목 issue 있으면 스킵
+            const today = new Date().toISOString().split('T')[0];
+            const title = `🃏 포켓몬 신규 세트 감지 (${today})`;
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'auto-detect',
+            });
+            if (existing.data.some(i => i.title.startsWith('🃏 포켓몬 신규 세트 감지'))) {
+              console.log('이미 open issue 있음. skip.');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: `자동 감지 결과:\n\n\`\`\`\n${output}\n\`\`\`\n\n**해야 할 일** (사용자 PC 에서):\n\n\`\`\`\ncd "C:\\Users\\pc\\Desktop\\TCG project\\TCG 프로젝트"\n# 1. fetch_set_cards.py 의 POKEMON_SETS 에 신규 세트 추가\n# 2. python scripts/fetch_set_cards.py\n# 3. python scripts/build_card_to_box.py\n# 4. git add data/cards-by-set/ images/sets/\n# 5. git commit -m "Pokemon 신규 세트 추가" && git push\n# 6. npx wrangler pages deploy . --project-name=tcghubrogeun --commit-dirty=true\n\`\`\``,
+              labels: ['auto-detect'],
+            });

@@ -3680,6 +3680,19 @@ async function loadCardMeta(cardId) {
     return val; // JPY 그대로
   };
 
+  // 박스 가격 — meta.minPrice 의 currency 존중 (JPY/USD 둘 다 처리)
+  let boxJpy = null;
+  if (meta?.minPrice) {
+    const boxCur = meta.currency || 'JPY';
+    boxJpy = convertToJpy(meta.minPrice, boxCur);
+  }
+  // 박스 상품은 detailProduct 에 더 신선한 가격 있을 수 있음 (cards-detail.json)
+  if (detailProduct?.lastPrice ?? detailProduct?.lowestAsk) {
+    const v = detailProduct.lastPrice ?? detailProduct.lowestAsk;
+    const c = detailProduct.currency || 'JPY';
+    boxJpy = convertToJpy(v, c);
+  }
+
   const result = {
     name: meta?.name || `Card #${cardId}`,
     image: meta?.thumbnailUrl || '',
@@ -3689,7 +3702,7 @@ async function loadCardMeta(cardId) {
       psa10: convertToJpy(pickPrice('psa10'), detailGrades?.psa10?.currency),
       psa9: convertToJpy(pickPrice('psa9'), detailGrades?.psa9?.currency),
       raw: convertToJpy(pickPrice('raw'), detailGrades?.raw?.currency),
-      box: meta?.minPrice ? Math.round((meta.minPrice * USD_KRW) / JPY_KRW) : null,
+      box: boxJpy,
     },
   };
   _PF_PRICE_CACHE[cardId] = result;

@@ -46,11 +46,10 @@ def discover_remote_series():
     # <option value="550115">ブースターパック 神の島の冒険【OP-15】</option> 같은 패턴
     for m in re.finditer(r'<option\s+value=["\']?(\d{6,})["\']?[^>]*>([^<]+)</option>', html):
         sid, label = m.group(1), m.group(2).strip()
-        # OP-XX, EB-XX, ST-XX, PRB-XX 코드 추출
-        cm = re.search(r'(?:OP|EB|ST|PRB)[-]?(\d+[A-Z]?)', label.upper())
+        # OP-XX, EB-XX, ST-XX, PRB-XX 코드 추출 (label 어디든)
+        cm = re.search(r'(OP|EB|ST|PRB)[-]?(\d+[A-Z]?)', label.upper())
         if cm:
-            prefix = re.match(r'(OP|EB|ST|PRB)', label.upper()).group(1)
-            code = f"{prefix}{cm.group(1).zfill(2)}"
+            code = f"{cm.group(1)}{cm.group(2).zfill(2)}"
             series.append((code, sid, label))
     return series
 

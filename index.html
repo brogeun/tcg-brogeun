@@ -1603,7 +1603,7 @@ async function showPriceDetailPanel(productId) {
             </div>
           </div>
           <div style="margin-top:8px; font-size:10px; color:var(--ink-mute); line-height:1.6">
-            🔵 가격(JPY) · ▮ 거래량 · 7일 rolling outlier 필터 적용 (median × [0.4, 2.5] 범위 외 제외)
+            🔵 가격(KRW) · ▮ 거래량 · 7일 rolling outlier 필터 적용 (median × [0.4, 2.5] 범위 외 제외)
           </div>
         </div>
       </div>
@@ -4121,7 +4121,9 @@ async function requireLoginThen(callback, contextNote) {
 
 window.openAddToPortfolio = function(cardId, cardName, cardImage, suggestedPrice, suggestedGrade) {
   requireLoginThen(() => {
-    const cur = (suggestedPrice || '').toString();
+    // 추천가 (JPY) → KRW 로 환산해서 placeholder 로 표시
+    const suggestedKrw = suggestedPrice ? Math.floor(suggestedPrice * JPY_KRW) : '';
+    const cur = suggestedKrw.toString();
     openAnyModal(`
       <div class="modal-head">
         <h3>📋 포트폴리오 추가</h3>
@@ -4145,8 +4147,8 @@ window.openAddToPortfolio = function(cardId, cardName, cardImage, suggestedPrice
             </select>
           </label>
           <div style="display:grid; grid-template-columns:1fr 100px; gap:10px">
-            <label style="font-size:12px; font-weight:700; color:#374151">매수가 (¥)
-              <input id="addBuyPrice" type="number" min="0" value="${cur}" placeholder="예: 540000"
+            <label style="font-size:12px; font-weight:700; color:#374151">매수가 (₩)
+              <input id="addBuyPrice" type="number" min="0" value="${cur}" placeholder="예: 5400000"
                      style="width:100%; margin-top:4px; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px">
             </label>
             <label style="font-size:12px; font-weight:700; color:#374151">수량
@@ -4175,7 +4177,9 @@ window.openAddToPortfolio = function(cardId, cardName, cardImage, suggestedPrice
 
 window.submitAddPortfolio = async function(cardId) {
   const grade = document.getElementById('addGrade').value;
-  const buy_price = parseInt(document.getElementById('addBuyPrice').value);
+  // 사용자는 ₩ 단위로 입력 → DB 는 JPY 기준 (다른 데이터와 일관성)
+  const buy_price_krw = parseInt(document.getElementById('addBuyPrice').value);
+  const buy_price = buy_price_krw ? Math.round(buy_price_krw / JPY_KRW) : 0;
   const qty = parseInt(document.getElementById('addQty').value);
   const buy_date = document.getElementById('addBuyDate').value;
   const note = document.getElementById('addNote').value.trim();

@@ -553,9 +553,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </style>
 
       <h3 style="margin:0 0 12px; font-size:15px">브랜드별 시세</h3>
-      <!-- 포켓몬/원피스 컴팩트 타일 (2열) -->
-      <div class="grid cols-2" style="margin-bottom:14px">
-        <div class="brand-tile" data-home-brand="pokemon" style="cursor:pointer">
+      <!-- 포켓몬/원피스 + TOP10 — grid-template-areas 로 데스크톱·모바일 자연스럽게 배치 -->
+      <div class="home-brands-grid">
+        <div class="brand-tile" data-home-brand="pokemon" style="cursor:pointer; grid-area:p-tile">
           <div class="brand-tile-img">
             <img src="images/pokemon-box.jpg" alt="포켓몬" onerror="this.parentElement.textContent='⚡'; this.parentElement.style.fontSize='64px'">
           </div>
@@ -564,7 +564,20 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <div class="brand-tile-sub" id="homeBrandSubPokemon">인기 TOP 10 시세 ↓</div>
           </div>
         </div>
-        <div class="brand-tile" data-home-brand="onepiece" style="cursor:pointer">
+
+        <!-- 포켓몬 TOP 10 -->
+        <div data-home-top="pokemon" style="display:none; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px; grid-area:p-top">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
+            <div>
+              <div style="font-size:15px; font-weight:800; color:#111">⚡ 포켓몬 인기 카드 TOP 10</div>
+              <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
+            </div>
+            <button class="btn" type="button" data-home-more="pokemon" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
+          </div>
+          <div data-home-top-list="pokemon" class="home-top-grid"></div>
+        </div>
+
+        <div class="brand-tile" data-home-brand="onepiece" style="cursor:pointer; grid-area:o-tile">
           <div class="brand-tile-img">
             <img src="images/onepiece-box.jpg" alt="원피스" onerror="this.parentElement.textContent='🏴‍☠️'; this.parentElement.style.fontSize='64px'">
           </div>
@@ -573,31 +586,43 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <div class="brand-tile-sub" id="homeBrandSubOnepiece">인기 TOP 10 시세 ↓</div>
           </div>
         </div>
-      </div>
 
-      <!-- 포켓몬 TOP 10 — 클릭 시 펼쳐짐 (2열 타일 아래 full-width) -->
-      <div data-home-top="pokemon" style="display:none; margin-bottom:18px; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
-          <div>
-            <div style="font-size:15px; font-weight:800; color:#111">⚡ 포켓몬 인기 카드 TOP 10</div>
-            <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
+        <!-- 원피스 TOP 10 -->
+        <div data-home-top="onepiece" style="display:none; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px; grid-area:o-top">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
+            <div>
+              <div style="font-size:15px; font-weight:800; color:#111">🏴‍☠️ 원피스 인기 카드 TOP 10</div>
+              <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
+            </div>
+            <button class="btn" type="button" data-home-more="onepiece" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
           </div>
-          <button class="btn" type="button" data-home-more="pokemon" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
+          <div data-home-top-list="onepiece" class="home-top-grid"></div>
         </div>
-        <div data-home-top-list="pokemon" class="home-top-grid"></div>
       </div>
-
-      <!-- 원피스 TOP 10 — 클릭 시 펼쳐짐 -->
-      <div data-home-top="onepiece" style="display:none; margin-bottom:18px; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px">
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
-          <div>
-            <div style="font-size:15px; font-weight:800; color:#111">🏴‍☠️ 원피스 인기 카드 TOP 10</div>
-            <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
-          </div>
-          <button class="btn" type="button" data-home-more="onepiece" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
-        </div>
-        <div data-home-top-list="onepiece" class="home-top-grid"></div>
-      </div>
+      <style>
+        /* 데스크톱: 2열 (tile 옆-옆), TOP10은 풀 너비로 아래 */
+        .home-brands-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          grid-template-areas:
+            "p-tile o-tile"
+            "p-top  p-top"
+            "o-top  o-top";
+          gap: 14px;
+          margin-bottom: 18px;
+        }
+        /* 모바일: 1열 — 각 브랜드 바로 아래 TOP10 inline 펼침 */
+        @media (max-width: 640px) {
+          .home-brands-grid {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+              "p-tile"
+              "p-top"
+              "o-tile"
+              "o-top";
+          }
+        }
+      </style>
 
       <style>
         .home-top-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px; }

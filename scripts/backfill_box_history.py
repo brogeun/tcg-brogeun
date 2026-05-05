@@ -28,6 +28,66 @@ def load_json(p):
     return json.loads(Path(p).read_bytes().rstrip(b'\x00').rstrip().decode('utf-8'))
 
 
+def fetch_volume_box(cid, days_limit=None, max_pages=200):
+    """박스 sales-history 페이지네이션 (1박스 단가 + 일 거래수)
+    return: (counts dict, prices dict — date → 평균 단가)"""
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    import re as _re
+    counts = defaultdict(int)
+    prices = defaultdict(list)
+    today = datetime.now()
+    cutoff = (today - timedelta(days=days_limit)).strftime("%Y-%m-%d") if days_limit else "0000-00-00"
+    stopped_early = False
+    for page in range(1, max_pages + 1):
+        url = f"https://snkrdunk.com/v1/apparels/{cid}/sales-history?page={page}&per_page=20"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": UA,
+            "Accept": "application/json",
+            "Referer": "https://snkrdunk.com/",
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                d = json.loads(r.read().decode("utf-8"))
+        except Exception:
+            break
+        items = d.get("history") or []
+        if not items:
+            break
+        for it in items:
+            date_str = (it.get("date") or "").strip()
+            m = _re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
+            if m:
+                d2 = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+            else:
+                m2 = _re.match(r"(\d+)\s*(日|時間|分|秒|hour|day|min)", date_str)
+                if m2 and m2.group(2) in ("日", "day"):
+                    d2 = (today - timedelta(days=int(m2.group(1)))).strftime("%Y-%m-%d")
+                else:
+                    d2 = today.strftime("%Y-%m-%d")
+            if d2 < cutoff:
+                stopped_early = True
+                continue
+            counts[d2] += 1
+            # 가격 추출 — "30,499" / "¥30,499" / 정수 / 객체
+            price_raw = it.get("price")
+            if isinstance(price_raw, dict):
+                price_raw = price_raw.get("amount") or price_raw.get("price")
+            if isinstance(price_raw, (int, float)):
+                prices[d2].append(int(price_raw))
+            elif isinstance(price_raw, str):
+                pm = _re.search(r"([\d,]+)", price_raw.replace("¥", ""))
+                if pm:
+                    prices[d2].append(int(pm.group(1).replace(",", "")))
+        if stopped_early:
+            break
+        if len(items) < 20:
+            break
+        time.sleep(0.3)
+    avg_prices = {d: sum(p) // len(p) for d, p in prices.items() if p}
+    return dict(counts), avg_prices
+
+
 def fetch_chart(cid, range_arg="all", debug=False):
     """박스 sales-chart 시도 — 여러 URL 패턴 + range 옵션"""
     urls = [
@@ -120,10 +180,29 @@ def main():
         except Exception:
             existing = {"id": cid, "history": []}
         by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
-        for date, price in points:
+
+        # sales-history → 1박스 단가 + 거래량 (전체 발매부터)
+        vols, sh_prices = fetch_volume_box(cid, days_limit=None, max_pages=200)
+        for date, count in vols.items():
+            if date not in by_date:
+                by_date[date] = {"date": date}
+            by_date[date]["box_vol"] = count
+        for date, price in sh_prices.items():
             if date not in by_date:
                 by_date[date] = {"date": date}
             by_date[date]["box_price"] = price
+
+        # sales-chart → fallback (sales-history 가 비는 옛날 날짜만)
+        for date, _price in points:
+            if date not in by_date:
+                by_date[date] = {"date": date}
+            # sales-chart 의 _price 는 일 매출합 → 거래량으로 나눠 단가 추정
+            if "box_price" not in by_date[date]:
+                vol = by_date[date].get("box_vol", 0)
+                if vol > 0:
+                    by_date[date]["box_price"] = _price // vol
+                # vol 정보 없는 옛날 데이터는 단가 X (chart 누락)
+
         new_hist = sorted(by_date.values(), key=lambda h: h.get("date", ""))
         out = {
             "id": cid,
@@ -137,8 +216,8 @@ def main():
         with open(hp, "w", encoding="utf-8", newline="\n") as f:
             f.write(json.dumps(out, ensure_ascii=False, indent=2))
         success += 1
-        print(f"      ✓ {len(points)} points / 누적 {len(new_hist)} dates")
-        # 첫 / 마지막 date
+        total_vol = sum(h.get('box_vol', 0) for h in new_hist)
+        print(f"      ✓ {len(points)} 차트 / {len(vols)} 거래일 (전체 거래량 {total_vol}건) / 누적 {len(new_hist)} dates")
         if new_hist:
             print(f"        {new_hist[0]['date']} ~ {new_hist[-1]['date']}")
         time.sleep(0.5)

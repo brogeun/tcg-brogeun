@@ -115,9 +115,14 @@ def main():
     local_codes = {c for c, _ in local}
     print(f"  → 로컬: {len(local)} series 등록됨")
 
+    # OP / EB 만 (Start Deck ST, Premium Booster PRB 등은 제외)
+    ALLOWED_PREFIXES = ('OP', 'EB')
+
     new_entries = []
     for code, sid, label in remote:
         if code not in local_codes:
+            if not code.startswith(ALLOWED_PREFIXES):
+                continue  # ST/PRB 등 제외
             new_entries.append((code, sid))
             print(f"  🆕 신규: {code} (ID={sid}) {label[:40]}")
 

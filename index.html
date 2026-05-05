@@ -550,8 +550,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="hero">
         <h2>오늘의 TCG, 한 눈에.</h2>
         <p>SNKRDUNK 라이브 시세부터 응모, 오리파까지. 포켓몬 · 원피스 카드를 위한 올인원 허브.</p>
-        <!-- 메뉴 카드 3종 (hero 안에 통합, 컴팩트) -->
-        <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-top:14px">
+        <!-- 메뉴 카드 4종 (hero 안에 통합, 컴팩트) -->
+        <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-top:14px">
           <div class="home-menu-card" data-nav="price">
             <div class="home-menu-icon">💰</div>
             <div class="home-menu-name">시세</div>
@@ -566,6 +566,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <div class="home-menu-icon">🃏</div>
             <div class="home-menu-name">카드</div>
             <div class="home-menu-sub">확장팩 · 발매 정보</div>
+          </div>
+          <div class="home-menu-card" data-nav="centering">
+            <div class="home-menu-icon">📏</div>
+            <div class="home-menu-name">센터링툴</div>
+            <div class="home-menu-sub">PSA·BGS 자가진단</div>
           </div>
         </div>
       </div>
@@ -736,6 +741,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="tab" data-subtab="cardshow">🎪 카드쇼</div>
         <div class="tab" data-subtab="apply">🎟 응모</div>
         <div class="tab" data-subtab="oripa">🎁 오리파</div>
+        <div class="tab" data-subtab="grading">🏷 그레이딩</div>
+        <div class="tab" data-subtab="centeringtool">📏 센터링툴</div>
         <div class="tab" data-subtab="etc">📦 기타</div>
       </div>
       <style>
@@ -801,6 +808,30 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div data-hubpanel="oripa" style="display:none">
         <div class="grid cols-2" id="oripaListHub"></div>
+      </div>
+      <div data-hubpanel="grading" style="display:none">
+        <div id="gradingListHub" style="display:flex; flex-direction:column; gap:12px"></div>
+      </div>
+      <div data-hubpanel="centeringtool" style="display:none">
+        <!-- 센터링 툴 진입 카드 -->
+        <div data-nav="centering" style="cursor:pointer; background:linear-gradient(135deg,#fef3c7,#fde68a); border:1px solid #fcd34d; border-radius:12px; padding:24px 22px; margin-bottom:14px; transition:transform 0.2s">
+          <div style="display:flex; align-items:center; gap:18px">
+            <div style="font-size:48px">📏</div>
+            <div style="flex:1; min-width:0">
+              <div style="font-size:18px; font-weight:800; color:#78350f; margin-bottom:6px">카드 센터링 측정 →</div>
+              <div style="font-size:13px; color:#92400e; line-height:1.6">PSA · BGS 그레이딩 보내기 전 자가진단<br>앞/뒷면 동시 측정 · AI 분석 (Gemini, 일 4회 무료)</div>
+            </div>
+            <div style="font-size:24px; color:#92400e">→</div>
+          </div>
+        </div>
+        <div style="background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px 20px; font-size:13px; color:#6b7280; line-height:1.7">
+          <div style="font-weight:800; color:#374151; margin-bottom:8px; font-size:14px">💡 사용법</div>
+          1. 슬리브 없는 카드 정면 사진 (단색 배경 권장)<br>
+          2. 앞면 + 뒷면 둘 다 업로드 (앨범 또는 카메라)<br>
+          3. 8개 핸들로 inner/outer 영역 미세 조정<br>
+          4. PSA · BGS 추정 등급 자동 계산<br>
+          5. AI 분석 (선택) — 모서리 · 엣지 · 표면 · PSA10 가능성
+        </div>
       </div>
       <div data-hubpanel="etc" style="display:none">
         <div id="etcListHub" style="display:flex; flex-direction:column; gap:12px"></div>
@@ -890,6 +921,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <option value="">📋 게시판을 선택해주세요</option>
             <option value="events">✨ 이벤트</option>
             <option value="cardshow">🎪 카드쇼</option>
+            <option value="grading">🏷 그레이딩</option>
             <option value="etc">📦 기타</option>
           </select>
           <input id="adminDate" placeholder="📅 날짜 (선택 — 예: 2026.05.22)" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
@@ -924,6 +956,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="tabs pill" id="adminTabs" style="margin-bottom:12px">
         <div class="tab active" data-admin-tab="events">✨ 이벤트</div>
         <div class="tab" data-admin-tab="cardshow">🎪 카드쇼</div>
+        <div class="tab" data-admin-tab="grading">🏷 그레이딩</div>
         <div class="tab" data-admin-tab="etc">📦 기타</div>
       </div>
       <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:8px" id="adminListLabel">📋 현재 등록된 이벤트</div>
@@ -938,6 +971,96 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .ql-editor img { max-width:100%; height:auto; border-radius:6px; margin:6px 0; }
         .ql-editor a { color:#1d4ed8; text-decoration:underline; }
       </style>
+    </section>
+
+    <!-- 센터링 툴 (카드 그레이딩 자가진단 + AI 분석) -->
+    <section class="page" data-page="centering">
+      <div class="page-head">
+        <h1 class="page-title">📏 카드 센터링 측정</h1>
+        <p class="page-sub">PSA · BGS 그레이딩 전 자가진단 · 앞/뒷면 동시 · AI 분석 (일 4회 무료)</p>
+      </div>
+      <div style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px">
+        <div style="font-size:13px; color:#6b7280; margin-bottom:14px; line-height:1.7">
+          💡 <b>사용법</b>: 슬리브 없는 카드 정면 사진 (단색 배경 권장) — 앞면 + 뒷면 둘 다 업로드 → 자동 감지 후 핸들 조정 → 등급 측정
+        </div>
+        <!-- 앞/뒤 업로드 영역 -->
+        <div id="centeringUploadArea" style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
+          <!-- 앞면 -->
+          <div class="centering-upload-slot" data-side="front" style="border:2px dashed #d1d5db; border-radius:10px; padding:24px 14px; text-align:center; cursor:pointer; transition:all 0.2s">
+            <div style="font-size:11px; font-weight:800; color:#3b82f6; margin-bottom:8px">앞면 (FRONT)</div>
+            <div style="font-size:36px; margin-bottom:8px; opacity:0.5">⬆️</div>
+            <div style="font-size:12px; color:#9ca3af; margin-bottom:10px">드래그앤드롭 또는 선택</div>
+            <input type="file" data-centering-file="front" accept="image/*" style="display:none">
+            <input type="file" data-centering-file="front-camera" accept="image/*" capture="environment" style="display:none">
+            <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap">
+              <button class="btn primary" type="button" data-centering-btn="front-album" style="cursor:pointer; padding:6px 14px; font-size:12px">📁 앨범</button>
+              <button class="btn" type="button" data-centering-btn="front-camera" style="cursor:pointer; padding:6px 14px; font-size:12px">📷 카메라</button>
+            </div>
+            <div data-centering-thumb="front" style="display:none; margin-top:10px"></div>
+          </div>
+          <!-- 뒷면 -->
+          <div class="centering-upload-slot" data-side="back" style="border:2px dashed #d1d5db; border-radius:10px; padding:24px 14px; text-align:center; cursor:pointer; transition:all 0.2s">
+            <div style="font-size:11px; font-weight:800; color:#10b981; margin-bottom:8px">뒷면 (BACK)</div>
+            <div style="font-size:36px; margin-bottom:8px; opacity:0.5">⬆️</div>
+            <div style="font-size:12px; color:#9ca3af; margin-bottom:10px">드래그앤드롭 또는 선택</div>
+            <input type="file" data-centering-file="back" accept="image/*" style="display:none">
+            <input type="file" data-centering-file="back-camera" accept="image/*" capture="environment" style="display:none">
+            <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap">
+              <button class="btn primary" type="button" data-centering-btn="back-album" style="cursor:pointer; padding:6px 14px; font-size:12px">📁 앨범</button>
+              <button class="btn" type="button" data-centering-btn="back-camera" style="cursor:pointer; padding:6px 14px; font-size:12px">📷 카메라</button>
+            </div>
+            <div data-centering-thumb="back" style="display:none; margin-top:10px"></div>
+          </div>
+        </div>
+
+        <!-- 측정 영역 (앞/뒤 둘 다 업로드 후 표시) -->
+        <div id="centeringWorkspace" style="display:none; margin-top:18px">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px">
+            <!-- 앞면 측정 -->
+            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px">
+              <div style="font-size:12px; font-weight:800; color:#3b82f6; margin-bottom:8px">앞면</div>
+              <canvas data-centering-canvas="front" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px"></canvas>
+              <div style="margin-top:10px; font-size:12px; color:#374151">
+                좌/우: <span data-centering-lr="front">-</span> · <b data-centering-lrpct="front">-/-</b><br>
+                상/하: <span data-centering-tb="front">-</span> · <b data-centering-tbpct="front">-/-</b>
+              </div>
+            </div>
+            <!-- 뒷면 측정 -->
+            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px">
+              <div style="font-size:12px; font-weight:800; color:#10b981; margin-bottom:8px">뒷면</div>
+              <canvas data-centering-canvas="back" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px"></canvas>
+              <div style="margin-top:10px; font-size:12px; color:#374151">
+                좌/우: <span data-centering-lr="back">-</span> · <b data-centering-lrpct="back">-/-</b><br>
+                상/하: <span data-centering-tb="back">-</span> · <b data-centering-tbpct="back">-/-</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- 등급 추정 + AI -->
+          <div style="margin-top:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px">
+            <div style="background:linear-gradient(135deg,#fef3c7,#fde68a); border:1px solid #fcd34d; border-radius:10px; padding:14px">
+              <div style="font-size:11px; font-weight:700; color:#92400e; margin-bottom:6px">🏆 앞면 추정 등급</div>
+              <div data-centering-grades="front" style="font-size:13px; color:#78350f; line-height:1.7">-</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe); border:1px solid #93c5fd; border-radius:10px; padding:14px">
+              <div style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:6px">🏆 뒷면 추정 등급</div>
+              <div data-centering-grades="back" style="font-size:13px; color:#1e40af; line-height:1.7">-</div>
+            </div>
+          </div>
+
+          <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap">
+            <button class="btn primary" type="button" id="centeringAIBtn" style="cursor:pointer; padding:10px 18px; font-size:13px; font-weight:700; flex:1">
+              ✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8">(오늘 0/4)</span>
+            </button>
+            <button class="btn" type="button" onclick="resetCentering()" style="cursor:pointer; padding:10px 16px; font-size:12px">↻ 다른 카드</button>
+          </div>
+          <!-- AI 분석 결과 -->
+          <div id="centeringAIResult" style="display:none; margin-top:14px; background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px">
+            <div style="font-size:13px; font-weight:800; color:#1e40af; margin-bottom:8px">🤖 Gemini AI 종합 분석</div>
+            <div id="centeringAIText" style="font-size:13px; color:#1f2937; line-height:1.7; white-space:pre-wrap"></div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- 내 정보 (포트폴리오 + 관심 카드) -->
@@ -1010,10 +1133,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <div class="pf-stat-val" id="pfBest" style="font-size:14px; line-height:1.4">—</div>
             <div class="pf-stat-sub" id="pfBestPct">—</div>
           </div>
-          <div class="pf-stat">
-            <div class="pf-stat-label">📦 등급별 분포</div>
-            <div class="pf-stat-val" id="pfGradeMix" style="font-size:13px; line-height:1.5">—</div>
-            <div class="pf-stat-sub" style="color:var(--ink-mute)">PSA10 · PSA9 · 미개봉</div>
+          <div class="pf-stat" data-nav="centering" style="cursor:pointer; background:linear-gradient(135deg,#fef3c7,#fde68a); border-color:#fcd34d">
+            <div class="pf-stat-label" style="color:#92400e">📏 센터링 툴</div>
+            <div class="pf-stat-val" style="font-size:14px; line-height:1.4; color:#78350f; font-weight:800">PSA · BGS 자가진단 →</div>
+            <div class="pf-stat-sub" style="color:#92400e">앞/뒷면 + AI 분석 (일 4회)</div>
           </div>
         </div>
 
@@ -1203,6 +1326,14 @@ function go(pageOrPath) {
   // 페이지별 초기화
   if (page === 'price') initPrice(productId);
   if (page === 'portfolio') refreshPortfolio();
+  if (page === 'centering') {
+    // 센터링 진입 시 핸들러 + 카운터 셋업 (DOMContentLoaded 이미 끝난 경우 대비)
+    setTimeout(() => {
+      if (typeof setupCentering === 'function') setupCentering();
+      if (typeof setupCenteringDrag === 'function') setupCenteringDrag();
+      if (typeof updateAICenteringCountUI === 'function') updateAICenteringCountUI();
+    }, 50);
+  }
   // 스크롤 맨 위로
   window.scrollTo({top: 0, behavior: 'instant'});
 }
@@ -1743,6 +1874,323 @@ async function renderPsaPopBadge(productId) {
       🏆 PSA10: ${psa10} · PSA9: ${psa9} · Total: ${total}
     </span>`;
 }
+
+/* ─────────── 센터링 툴 (PSA/BGS 자가진단 + Gemini AI, 앞/뒤 동시) ─────────── */
+const _CENTERING = {
+  // side('front'|'back') → { img, naturalWidth, naturalHeight, outer, inner, scale, dragHandle }
+  front: { img: null, outer: null, inner: null, scale: 1, dragHandle: null },
+  back: { img: null, outer: null, inner: null, scale: 1, dragHandle: null },
+};
+
+function getAICenteringCount() {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const data = JSON.parse(localStorage.getItem('aiCenteringCount') || '{}');
+    return data.date === today ? (data.count || 0) : 0;
+  } catch { return 0; }
+}
+function incAICenteringCount() {
+  const today = new Date().toISOString().slice(0, 10);
+  const cur = getAICenteringCount();
+  localStorage.setItem('aiCenteringCount', JSON.stringify({ date: today, count: cur + 1 }));
+  updateAICenteringCountUI();
+}
+function updateAICenteringCountUI() {
+  const el = document.getElementById('centeringAICount');
+  if (el) el.textContent = `(오늘 ${getAICenteringCount()}/4)`;
+}
+
+function setupCentering() {
+  ['front', 'back'].forEach(side => {
+    const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
+    if (!slot) return;
+    const fileAlbum = document.querySelector(`input[data-centering-file="${side}"]`);
+    const fileCamera = document.querySelector(`input[data-centering-file="${side}-camera"]`);
+    const btnAlbum = document.querySelector(`button[data-centering-btn="${side}-album"]`);
+    const btnCamera = document.querySelector(`button[data-centering-btn="${side}-camera"]`);
+
+    if (fileAlbum) fileAlbum.onchange = e => { const f = e.target.files[0]; if (f) loadCenteringImage(side, f); };
+    if (fileCamera) fileCamera.onchange = e => { const f = e.target.files[0]; if (f) loadCenteringImage(side, f); };
+    if (btnAlbum) btnAlbum.onclick = e => { e.stopPropagation(); fileAlbum.click(); };
+    if (btnCamera) btnCamera.onclick = e => { e.stopPropagation(); fileCamera.click(); };
+
+    slot.ondragover = e => { e.preventDefault(); slot.style.borderColor = '#3b82f6'; };
+    slot.ondragleave = e => { slot.style.borderColor = '#d1d5db'; };
+    slot.ondrop = e => {
+      e.preventDefault(); slot.style.borderColor = '#d1d5db';
+      const f = e.dataTransfer.files[0];
+      if (f && f.type.startsWith('image/')) loadCenteringImage(side, f);
+    };
+    slot.onclick = e => {
+      if (e.target.tagName !== 'BUTTON') fileAlbum.click();
+    };
+  });
+
+  const aiBtn = document.getElementById('centeringAIBtn');
+  if (aiBtn) aiBtn.onclick = aiAnalyzeCentering;
+  updateAICenteringCountUI();
+}
+
+function loadCenteringImage(side, file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const s = _CENTERING[side];
+      s.img = img;
+      s.naturalWidth = img.naturalWidth;
+      s.naturalHeight = img.naturalHeight;
+      const margin = Math.round(Math.min(img.naturalWidth, img.naturalHeight) * 0.06);
+      s.outer = { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
+      s.inner = { x: margin, y: margin, w: img.naturalWidth - margin * 2, h: img.naturalHeight - margin * 2 };
+
+      // 썸네일 표시 (업로드 슬롯 안)
+      const thumb = document.querySelector(`[data-centering-thumb="${side}"]`);
+      if (thumb) {
+        thumb.style.display = '';
+        thumb.innerHTML = `<img src="${e.target.result}" style="max-width:80px; max-height:120px; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,0.15)">`;
+      }
+
+      // 둘 다 업로드 됐는지 체크
+      if (_CENTERING.front.img && _CENTERING.back.img) {
+        document.getElementById('centeringWorkspace').style.display = '';
+        drawCentering('front');
+        drawCentering('back');
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetCentering() {
+  ['front', 'back'].forEach(side => {
+    _CENTERING[side] = { img: null, outer: null, inner: null, scale: 1, dragHandle: null };
+    const thumb = document.querySelector(`[data-centering-thumb="${side}"]`);
+    if (thumb) { thumb.style.display = 'none'; thumb.innerHTML = ''; }
+    const fa = document.querySelector(`input[data-centering-file="${side}"]`);
+    const fc = document.querySelector(`input[data-centering-file="${side}-camera"]`);
+    if (fa) fa.value = ''; if (fc) fc.value = '';
+  });
+  document.getElementById('centeringWorkspace').style.display = 'none';
+  document.getElementById('centeringAIResult').style.display = 'none';
+}
+
+function drawCentering(side) {
+  const s = _CENTERING[side];
+  const c = document.querySelector(`canvas[data-centering-canvas="${side}"]`);
+  if (!c || !s.img) return;
+  const wrap = c.parentElement;
+  const maxW = wrap.clientWidth - 24;
+  const maxH = 480;
+  const ratio = s.naturalWidth / s.naturalHeight;
+  let cw = maxW, ch = maxW / ratio;
+  if (ch > maxH) { ch = maxH; cw = ch * ratio; }
+  c.width = cw; c.height = ch;
+  s.scale = cw / s.naturalWidth;
+
+  const ctx = c.getContext('2d');
+  ctx.drawImage(s.img, 0, 0, cw, ch);
+
+  const o = scaleRect(s.outer, s.scale);
+  const i = scaleRect(s.inner, s.scale);
+  ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+  ctx.strokeRect(o.x, o.y, o.w, o.h);
+  ctx.strokeStyle = '#3b82f6'; ctx.setLineDash([6, 4]);
+  ctx.strokeRect(i.x, i.y, i.w, i.h);
+  ctx.setLineDash([]);
+  drawHandles(ctx, o, '#ec4899');
+  drawHandles(ctx, i, '#3b82f6');
+
+  updateCenteringMetrics(side);
+}
+
+function scaleRect(r, s) { return { x: r.x * s, y: r.y * s, w: r.w * s, h: r.h * s }; }
+
+function drawHandles(ctx, r, color) {
+  const pts = [
+    [r.x, r.y], [r.x + r.w / 2, r.y], [r.x + r.w, r.y],
+    [r.x, r.y + r.h / 2],            [r.x + r.w, r.y + r.h / 2],
+    [r.x, r.y + r.h], [r.x + r.w / 2, r.y + r.h], [r.x + r.w, r.y + r.h],
+  ];
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  pts.forEach(([x, y]) => {
+    ctx.fillRect(x - 6, y - 6, 12, 12);
+    ctx.strokeRect(x - 6, y - 6, 12, 12);
+  });
+}
+
+function getHandleAt(side, x, y) {
+  const s = _CENTERING[side];
+  for (const target of ['inner', 'outer']) {
+    const r = scaleRect(s[target], s.scale);
+    const pts = {
+      tl: [r.x, r.y], t: [r.x + r.w / 2, r.y], tr: [r.x + r.w, r.y],
+      l: [r.x, r.y + r.h / 2], rr: [r.x + r.w, r.y + r.h / 2],
+      bl: [r.x, r.y + r.h], b: [r.x + r.w / 2, r.y + r.h], br: [r.x + r.w, r.y + r.h],
+    };
+    for (const [name, [px, py]] of Object.entries(pts)) {
+      if (Math.abs(x - px) <= 10 && Math.abs(y - py) <= 10) {
+        return { target, point: name };
+      }
+    }
+  }
+  return null;
+}
+
+function updateCenteringMetrics(side) {
+  const s = _CENTERING[side];
+  const o = s.outer, i = s.inner;
+  const left = i.x - o.x;
+  const right = (o.x + o.w) - (i.x + i.w);
+  const top = i.y - o.y;
+  const bottom = (o.y + o.h) - (i.y + i.h);
+  const lrTotal = left + right;
+  const tbTotal = top + bottom;
+  const lPct = lrTotal > 0 ? Math.round(left / lrTotal * 100) : 50;
+  const rPct = 100 - lPct;
+  const tPct = tbTotal > 0 ? Math.round(top / tbTotal * 100) : 50;
+  const bPct = 100 - tPct;
+  const pxPerMm = o.w / 63;
+  const lMm = (left / pxPerMm).toFixed(2);
+  const rMm = (right / pxPerMm).toFixed(2);
+  const tMm = (top / pxPerMm).toFixed(2);
+  const bMm = (bottom / pxPerMm).toFixed(2);
+
+  document.querySelector(`[data-centering-lr="${side}"]`).textContent = `${lMm}mm / ${rMm}mm`;
+  document.querySelector(`[data-centering-lrpct="${side}"]`).textContent = `${lPct}% / ${rPct}%`;
+  document.querySelector(`[data-centering-tb="${side}"]`).textContent = `${tMm}mm / ${bMm}mm`;
+  document.querySelector(`[data-centering-tbpct="${side}"]`).textContent = `${tPct}% / ${bPct}%`;
+
+  const worse = Math.max(Math.abs(50 - lPct), Math.abs(50 - tPct));
+  const grades = estimateGrades(worse);
+  document.querySelector(`[data-centering-grades="${side}"]`).innerHTML =
+    `PSA: <b>${grades.psa}</b> · BGS: <b>${grades.bgs}</b>`;
+
+  // 측정값 저장 (AI 분석에 보냄)
+  s.metrics = { lPct, rPct, tPct, bPct, lMm, rMm, tMm, bMm, grades };
+}
+
+function estimateGrades(worse) {
+  // worse = 50% 와의 차이 (%) — 0 = perfect, 5 = 55/45
+  const psa = worse <= 5 ? '10' : worse <= 10 ? '9' : worse <= 15 ? '8' : '7-';
+  const bgs = worse <= 5 ? '10 (Pristine)' : worse <= 7 ? '9.5' : worse <= 10 ? '9' : '8.5-';
+  return { psa, bgs };
+}
+
+function setupCenteringDrag() {
+  ['front', 'back'].forEach(side => {
+    const c = document.querySelector(`canvas[data-centering-canvas="${side}"]`);
+    if (!c) return;
+    c.onmousedown = e => {
+      const rect = c.getBoundingClientRect();
+      _CENTERING[side].dragHandle = getHandleAt(side, e.clientX - rect.left, e.clientY - rect.top);
+    };
+    c.onmousemove = e => {
+      const s = _CENTERING[side];
+      if (!s.dragHandle) return;
+      const rect = c.getBoundingClientRect();
+      moveHandle(side, s.dragHandle, (e.clientX - rect.left) / s.scale, (e.clientY - rect.top) / s.scale);
+      drawCentering(side);
+    };
+    c.onmouseup = () => { _CENTERING[side].dragHandle = null; };
+    c.onmouseleave = () => { _CENTERING[side].dragHandle = null; };
+    c.ontouchstart = e => {
+      const t = e.touches[0]; const rect = c.getBoundingClientRect();
+      _CENTERING[side].dragHandle = getHandleAt(side, t.clientX - rect.left, t.clientY - rect.top);
+    };
+    c.ontouchmove = e => {
+      const s = _CENTERING[side];
+      if (!s.dragHandle) return;
+      e.preventDefault();
+      const t = e.touches[0]; const rect = c.getBoundingClientRect();
+      moveHandle(side, s.dragHandle, (t.clientX - rect.left) / s.scale, (t.clientY - rect.top) / s.scale);
+      drawCentering(side);
+    };
+    c.ontouchend = () => { _CENTERING[side].dragHandle = null; };
+  });
+}
+
+function moveHandle(side, handle, x, y) {
+  const r = _CENTERING[side][handle.target];
+  const right = r.x + r.w, bottom = r.y + r.h;
+  switch (handle.point) {
+    case 'tl': r.w = right - x; r.h = bottom - y; r.x = x; r.y = y; break;
+    case 't': r.h = bottom - y; r.y = y; break;
+    case 'tr': r.w = x - r.x; r.h = bottom - y; r.y = y; break;
+    case 'l': r.w = right - x; r.x = x; break;
+    case 'rr': r.w = x - r.x; break;
+    case 'bl': r.w = right - x; r.h = y - r.y; r.x = x; break;
+    case 'b': r.h = y - r.y; break;
+    case 'br': r.w = x - r.x; r.h = y - r.y; break;
+  }
+  if (r.w < 10) r.w = 10;
+  if (r.h < 10) r.h = 10;
+}
+
+async function aiAnalyzeCentering() {
+  if (!_CENTERING.front.img || !_CENTERING.back.img) {
+    alert('앞면 + 뒷면 이미지 둘 다 업로드해야 AI 분석 가능합니다.');
+    return;
+  }
+  const cur = getAICenteringCount();
+  if (cur >= 4) {
+    alert('오늘의 AI 분석 무료 한도 (4회) 도달. 내일 다시 시도하거나 광고 시청 후 추가 사용 (개발 중).');
+    return;
+  }
+  const btn = document.getElementById('centeringAIBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Gemini AI 분석 중... (15~30초)';
+
+  // 두 캔버스 → base64
+  const frontCanvas = document.querySelector('canvas[data-centering-canvas="front"]');
+  const backCanvas = document.querySelector('canvas[data-centering-canvas="back"]');
+  const frontB64 = frontCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+  const backB64 = backCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+
+  const frontMetrics = _CENTERING.front.metrics || {};
+  const backMetrics = _CENTERING.back.metrics || {};
+
+  try {
+    const r = await fetch('/api/centering-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        frontImage: frontB64,
+        backImage: backB64,
+        frontMetrics,
+        backMetrics,
+      }),
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      throw new Error(`API ${r.status}: ${err.slice(0, 120)}`);
+    }
+    const d = await r.json();
+    incAICenteringCount();
+    document.getElementById('centeringAIResult').style.display = '';
+    document.getElementById('centeringAIText').textContent = d.text || '(응답 없음)';
+  } catch (e) {
+    alert('AI 분석 실패: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8">(오늘 ${getAICenteringCount()}/4)</span>`;
+  }
+}
+
+// 페이지 진입 시 셋업
+document.addEventListener('DOMContentLoaded', () => {
+  setupCentering();
+  setupCenteringDrag();
+});
+// SPA 라우팅 시 (page=centering 진입) 도 셋업
+window.addEventListener('hashchange', () => {
+  if (location.hash.includes('centering')) {
+    setTimeout(() => { setupCentering(); setupCenteringDrag(); updateAICenteringCountUI(); }, 100);
+  }
+});
 
 /* ─────────── 봉입 박스 섹션 (STEP E) ─────────── */
 async function renderBoxesPanel(productId) {
@@ -2879,7 +3327,7 @@ document.addEventListener('click', e => {
 });
 
 // 허브 탭 — 상위 (news / shops / more) + 하위 (more 일 때 events / cardshow / apply / oripa / etc)
-const HUB_MORE_PANELS = ['events', 'cardshow', 'apply', 'oripa', 'etc'];
+const HUB_MORE_PANELS = ['events', 'cardshow', 'apply', 'oripa', 'grading', 'centeringtool', 'etc'];
 let HUB_SUB = 'events';
 
 function showHubPanel(which) {
@@ -3360,6 +3808,7 @@ const ORIPAS = [
 let EVENTS = [];
 let CARDSHOWS = [];
 let ETC_LIST = [];
+let GRADING_LIST = [];
 
 // 관리자 비밀번호는 sessionStorage 에 임시 보관 (탭 닫으면 사라짐)
 function getAdminPwd() { return sessionStorage.getItem('admin_pwd') || ''; }
@@ -3409,14 +3858,16 @@ async function saveAdminData(type, items) {
 }
 
 async function loadAllAdminData() {
-  const [events, etc, cardshow] = await Promise.all([
+  const [events, etc, cardshow, grading] = await Promise.all([
     fetchAdminData('events'),
     fetchAdminData('etc'),
     fetchAdminData('cardshow'),
+    fetchAdminData('grading'),
   ]);
   EVENTS = events;
   ETC_LIST = etc;
   CARDSHOWS = cardshow;
+  GRADING_LIST = grading;
 }
 
 const _applyHtml = APPLIES.map((a, i) => {
@@ -3610,6 +4061,27 @@ function renderEvents() {
   }
   targets.forEach(el => el.innerHTML = html);
 }
+function renderGrading() {
+  const target = document.getElementById('gradingListHub');
+  if (!target) return;
+  if (!GRADING_LIST.length) {
+    target.innerHTML = `<div class="empty"><div class="empty-icon">🏷</div><div class="empty-title">등록된 그레이딩 정보가 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
+    return;
+  }
+  target.innerHTML = GRADING_LIST.map(e => {
+    const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기 →</a>` : '';
+    const imgPart = e.image ? `<div style="margin-top:10px"><img src="${escapeHtml(e.image)}" alt="" style="max-width:100%; max-height:280px; border-radius:8px; border:1px solid #e5e7eb; display:block" onerror="this.style.display='none'"></div>` : '';
+    return `
+      <div class="card" style="padding:14px 16px">
+        ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>` : ''}
+        <div style="font-size:15px; font-weight:700; color:#111">${escapeHtml(e.title || '')}</div>
+        ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.6; margin-top:6px">${renderRichContent(e.content)}</div>` : ''}
+        ${imgPart}
+        ${linkPart}
+      </div>`;
+  }).join('');
+}
+
 function renderEtc() {
   const targets = [document.getElementById('etcList'), document.getElementById('etcListHub')].filter(Boolean);
   if (!targets.length) return;
@@ -3678,7 +4150,8 @@ function renderAdminList() {
   const arr = adminCurrentArr();
   const list = document.getElementById('adminEntryList');
   const label = document.getElementById('adminListLabel');
-  if (label) label.textContent = ADMIN_TAB === 'events' ? '📋 현재 등록된 이벤트' : '📋 현재 등록된 기타 항목';
+  const labelMap = { events: '📋 현재 등록된 이벤트', cardshow: '📋 현재 등록된 카드쇼', grading: '📋 현재 등록된 그레이딩', etc: '📋 현재 등록된 기타 항목' };
+  if (label) label.textContent = labelMap[ADMIN_TAB] || '📋 현재 등록된 항목';
   if (!list) return;
   if (!arr.length) {
     list.innerHTML = `<div class="empty" style="padding:24px"><div class="empty-icon">📭</div><div class="empty-sub">등록된 항목이 없습니다</div></div>`;
@@ -3783,11 +4256,13 @@ async function adminSaveEntry() {
   const ARR_MAP = {
     events: () => EVENTS,
     cardshow: () => CARDSHOWS,
+    grading: () => GRADING_LIST,
     etc: () => ETC_LIST,
   };
   const SET_MAP = {
     events: (a) => { EVENTS = a; renderEvents(); },
     cardshow: (a) => { CARDSHOWS = a; renderCardshows(); },
+    grading: (a) => { GRADING_LIST = a; renderGrading(); },
     etc: (a) => { ETC_LIST = a; renderEtc(); },
   };
   const targetKey = board;
@@ -3805,7 +4280,7 @@ async function adminSaveEntry() {
         createdAt: new Date().toISOString(),
       });
       // 어느 다른 게시판에 있었는지 찾아서 제거
-      for (const otherKey of ['events', 'cardshow', 'etc']) {
+      for (const otherKey of ['events', 'cardshow', 'grading', 'etc']) {
         if (otherKey === targetKey) continue;
         const otherArr = ARR_MAP[otherKey]();
         if (otherArr.some(e => e.id === editId)) {
@@ -3876,6 +4351,7 @@ async function adminDeleteEntry(id) {
   if (!ok) return;
   if (key === 'events') { EVENTS = arr; renderEvents(); }
   else if (key === 'cardshow') { CARDSHOWS = arr; renderCardshows(); }
+  else if (key === 'grading') { GRADING_LIST = arr; renderGrading(); }
   else { ETC_LIST = arr; renderEtc(); }
   renderAdminList();
 }

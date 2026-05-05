@@ -292,6 +292,40 @@ body.admin-active .admin-only { display: flex !important; }
 .set-tile-name { font-size: 14px; font-weight: 700; margin: 4px 0; line-height: 1.3; }
 .set-tile-meta { font-size: 11px; color: var(--ink-mute); }
 
+/* 세트 카드 그리드 모달 */
+.set-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+.set-card-item {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  overflow: hidden;
+}
+.set-card-item:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.08); border-color: var(--line-strong); }
+.set-card-img {
+  aspect-ratio: 5/7;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.set-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.set-card-num {
+  text-align: center;
+  font-size: 10px;
+  color: var(--ink-sub);
+  font-family: monospace;
+  padding: 4px 0;
+  background: #fafbfc;
+  border-top: 1px solid var(--bg-soft);
+}
+
 /* ── 응모 ── */
 .apply-card {
   background: #fff; border: 1px solid var(--line); border-radius: 14px;
@@ -2901,7 +2935,7 @@ function renderCardInfo() {
         </div>`;
     }
     return `
-      <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="set-tile" style="display:block" title="${safeName} 상세 보기">
+      <div class="set-tile" style="cursor:pointer" data-set-code="${s.code}" data-set-name="${escapeHtml(s.name || '')}" data-external-url="${s.url || ''}" title="${safeName} 카드 보기">
         <div class="set-tile-img">
           <img src="images/sets/${s.code}.jpg" alt="${safeName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:48px\\'>🃏</span>'">
         </div>
@@ -2910,9 +2944,87 @@ function renderCardInfo() {
           <div class="set-tile-name">${s.name}</div>
           <div class="set-tile-meta">${s.release}</div>
         </div>
-      </a>`;
+      </div>`;
   }).join('');
 }
+
+/* ─────────── 세트 카드 그리드 모달 ─────────── */
+window.openSetGrid = async function(setCode, setName, externalUrl) {
+  openAnyModal(`
+    <div class="modal-head">
+      <h3>📦 ${escapeHtml(setName)} <span style="font-size:12px; color:var(--ink-sub); font-weight:500; margin-left:6px">${setCode}</span></h3>
+      <button class="modal-close" onclick="closeAnyModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px; max-height:75vh; overflow-y:auto">
+      <div id="setGridContent" style="font-size:13px; color:var(--ink-sub); text-align:center; padding:40px 0">⏳ 카드 불러오는 중...</div>
+    </div>`, 'wide');
+
+  try {
+    const r = await fetch(`/data/cards-by-set/${setCode}.json?t=${Math.floor(Date.now()/3600000)}`);
+    if (!r.ok) {
+      document.getElementById('setGridContent').innerHTML = `
+        <div style="padding:40px 20px; text-align:center">
+          <div style="font-size:48px; opacity:0.3; margin-bottom:12px">📭</div>
+          <div style="font-weight:700; color:#111; margin-bottom:8px">카드 데이터 준비 중</div>
+          <div style="font-size:12px; color:var(--ink-sub); margin-bottom:18px">이 세트의 카드 그리드는 아직 수집되지 않았습니다.</div>
+          ${externalUrl ? `<a href="${externalUrl}" target="_blank" rel="noopener" class="btn primary" style="cursor:pointer; padding:10px 20px; font-size:13px; text-decoration:none; display:inline-block">🔗 외부 사이트 보기</a>` : ''}
+        </div>`;
+      return;
+    }
+    const data = await r.json();
+    const cards = data.cards || [];
+    if (!cards.length) {
+      document.getElementById('setGridContent').innerHTML = '<div style="padding:40px; text-align:center; color:var(--ink-sub)">카드 없음</div>';
+      return;
+    }
+    document.getElementById('setGridContent').innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:0 4px">
+        <div style="font-size:12px; color:var(--ink-sub)">${cards.length} 카드 · 클릭하면 시세 페이지로</div>
+        ${externalUrl ? `<a href="${externalUrl}" target="_blank" rel="noopener" style="font-size:11px; color:var(--ink-sub); text-decoration:underline">외부 사이트 (${data.source || ''}) →</a>` : ''}
+      </div>
+      <div class="set-card-grid">
+        ${cards.map(c => `
+          <div class="set-card-item" data-card-name="${escapeHtml(c.name || '')}" data-card-image="${escapeHtml(c.image || '')}" data-card-number="${escapeHtml(c.number || '')}" data-snkrdunk-search="${encodeURIComponent((c.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim())}">
+            <div class="set-card-img">
+              ${c.image ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">🃏</span>`}
+            </div>
+            <div class="set-card-num">${escapeHtml(c.number || '')}</div>
+          </div>`).join('')}
+      </div>`;
+  } catch (e) {
+    document.getElementById('setGridContent').innerHTML = `<div style="padding:40px; text-align:center; color:#dc2626">로드 실패: ${e.message}</div>`;
+  }
+};
+
+// 박스 타일 클릭 → 모달 열기
+document.addEventListener('click', e => {
+  const tile = e.target.closest('.set-tile[data-set-code]');
+  if (!tile) return;
+  const code = tile.dataset.setCode;
+  const name = tile.dataset.setName;
+  const url = tile.dataset.externalUrl;
+  if (!code) return;
+  openSetGrid(code, name, url);
+});
+
+// 그리드 카드 클릭 → 카드 시세 페이지 검색으로 이동
+document.addEventListener('click', e => {
+  const item = e.target.closest('.set-card-item[data-card-name]');
+  if (!item) return;
+  closeAnyModal();
+  // 카드 이름에서 첫 영단어 추출 → 시세 검색
+  const name = item.dataset.cardName || '';
+  const cleanName = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  go('price');
+  setTimeout(() => {
+    const input = document.getElementById('cardSearchInput');
+    if (input) {
+      input.value = cleanName;
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+      input.focus();
+    }
+  }, 100);
+});
 document.addEventListener('click', e => {
   const tab = e.target.closest('#ciTabs .tab');
   if (!tab) return;

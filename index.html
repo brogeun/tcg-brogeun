@@ -2905,11 +2905,7 @@ function renderCardInfo() {
         (s.name || '').toLowerCase().includes(q) ||
         (s.release || '').toLowerCase().includes(q))
     : allList;
-  const src = CARDINFO_SOURCE[CI_TAB];
-  const srcEl = document.getElementById('cardInfoSrc');
-  if (srcEl && src) {
-    srcEl.innerHTML = `<a href="${src.url}" target="_blank" rel="noopener" style="color:var(--ink-sub); text-decoration:underline">${src.label}</a>`;
-  }
+  // 출처 표시 제거 — 자체 데이터로 호스팅
   const listEl = document.getElementById('cardInfoList');
   if (q && list.length === 0) {
     listEl.innerHTML = `<div class="card" style="padding:20px; text-align:center; color:var(--ink-sub); grid-column:1/-1">
@@ -3010,6 +3006,14 @@ document.addEventListener('click', e => {
   openSetGrid(code, name, url);
 });
 
+// 마지막 연 박스 정보 (뒤로가기 용)
+let _LAST_OPENED_SET = null;
+const _origOpenSetGrid = window.openSetGrid;
+window.openSetGrid = function(setCode, setName, externalUrl) {
+  _LAST_OPENED_SET = {setCode, setName, externalUrl};
+  return _origOpenSetGrid(setCode, setName, externalUrl);
+};
+
 // 그리드 카드 클릭 → SNKRDUNK 매칭 있으면 시세 페이지, 없으면 정보만 표시
 document.addEventListener('click', async e => {
   const item = e.target.closest('.set-card-item[data-card-search]');
@@ -3021,19 +3025,20 @@ document.addEventListener('click', async e => {
   // SNKRDUNK 매칭 시도 — productNumber 패턴 (예: pkmn-tcg-M4-001)
   await loadCardSearchData();
   const setCode = (searchKey.split(' ')[0] || '').toUpperCase();
-  const num = (searchKey.split(' ')[1] || '').replace(/^0+/, '');
+  const numRaw = (searchKey.split(' ')[1] || '').trim();
+  // 0 제거 버전 + 패딩 3자리 버전 둘 다 시도 (단 numRaw 자체가 비어있지 않을 때만)
   let snkrdunkId = null;
-  if (_ALL_CARDS_INDEX) {
+  if (_ALL_CARDS_INDEX && numRaw) {
+    const setLower = setCode.toLowerCase();
+    const numStripped = numRaw.replace(/^0+/, '') || numRaw;  // "001" → "1", "1" → "1"
+    const numPadded = numRaw.padStart(3, '0');                  // "1" → "001", "001" → "001"
+
+    // productNumber 정확 매칭 — 카드 끝부분 (-{set}-{num}$) 만 체크
     const match = _ALL_CARDS_INDEX.find(c => {
       const pn = (c.productNumber || '').toLowerCase();
-      // pkmn-tcg-M4-001 / pkmn-tcg-M4-1 패턴 시도
-      const setLower = setCode.toLowerCase();
-      const numNoZero = num;
-      const numWithZero = num.padStart(3, '0');
-      return pn.includes(`-${setLower}-${numWithZero}`) ||
-             pn.includes(`-${setLower}-${numNoZero}`) ||
-             pn === `pkmn-tcg-${setLower}-${numWithZero}` ||
-             pn === `pkmn-tcg-${setLower}-${numNoZero}`;
+      // 끝이 정확히 일치하는지: pkmn-tcg-m4-001 의 끝 "-m4-001"
+      return pn.endsWith(`-${setLower}-${numPadded}`) ||
+             pn.endsWith(`-${setLower}-${numStripped}`);
     });
     if (match) snkrdunkId = match.id;
   }
@@ -3046,12 +3051,15 @@ document.addEventListener('click', async e => {
     setTimeout(() => window.scrollTo({top: 0, behavior: 'smooth'}), 50);
   } else {
     // 매칭 실패 — 정보만 표시 모달
+    const lastSet = _LAST_OPENED_SET;
+    const backBtn = lastSet ? `<button class="btn" onclick="reopenLastSet()" style="cursor:pointer; padding:8px 14px; font-size:12px; margin-bottom:12px">← ${escapeHtml(lastSet.setName)} 박스로</button>` : '';
     openAnyModal(`
       <div class="modal-head">
         <h3>🃏 카드 정보</h3>
         <button class="modal-close" onclick="closeAnyModal()">✕</button>
       </div>
       <div class="modal-body" style="padding:24px; text-align:center">
+        ${backBtn}
         ${cardImage ? `<img src="${escapeHtml(cardImage)}" alt="${escapeHtml(cardName)}" style="max-width:280px; max-height:380px; width:auto; height:auto; border-radius:8px; margin:0 auto 18px; display:block" referrerpolicy="no-referrer">` : ''}
         <div style="font-size:15px; font-weight:700; color:#111; margin-bottom:8px; line-height:1.4">${escapeHtml(cardName)}</div>
         <div style="font-size:13px; color:var(--ink-sub); margin-bottom:16px">
@@ -3064,6 +3072,14 @@ document.addEventListener('click', async e => {
       </div>`);
   }
 });
+
+// 박스로 돌아가기
+window.reopenLastSet = function() {
+  if (!_LAST_OPENED_SET) { closeAnyModal(); return; }
+  const {setCode, setName, externalUrl} = _LAST_OPENED_SET;
+  closeAnyModal();
+  setTimeout(() => openSetGrid(setCode, setName, externalUrl), 100);
+};
 document.addEventListener('click', e => {
   const tab = e.target.closest('#ciTabs .tab');
   if (!tab) return;

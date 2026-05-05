@@ -3611,32 +3611,54 @@ async function loadCardMeta(cardId) {
   if (_PF_PRICE_CACHE[cardId]) return _PF_PRICE_CACHE[cardId];
   await loadCardSearchData();
   const meta = (_ALL_CARDS_INDEX || []).find(c => c.id === cardId);
+
+  // 1순위: cards-detail.json — TOP10 인기 카드의 lowest_ask (카드 시세 페이지와 동일 데이터)
+  let detailGrades = null;
+  try {
+    const detailData = await loadCardsDetail();
+    detailGrades = detailData?.cards?.[cardId]?.grades || null;
+  } catch {}
+
+  // 2순위: history 파일 — 백필된 6,600+ 카드 모두
   let history = null;
   try {
     const r = await fetch(`/data/history/${cardId}.json?t=${Math.floor(Date.now()/3600000)}`);
     if (r.ok) history = await r.json();
   } catch {}
-  // 각 등급별로 역순 스캔 — 가장 최근 non-null 가격 찾기
-  // (마지막 1일에 PSA10 거래 없을 수 있으니 그 이전 기록까지 거슬러 올라감)
+
   const points = history?.history || [];
-  const latest = { psa10: null, psa9: null, raw: null };
+  const histLatest = { psa10: null, psa9: null, raw: null };
   for (let i = points.length - 1; i >= 0; i--) {
     const p = points[i];
-    if (latest.psa10 == null && p.psa10_price) latest.psa10 = p.psa10_price;
-    if (latest.psa9 == null && p.psa9_price) latest.psa9 = p.psa9_price;
-    if (latest.raw == null && p.raw_price) latest.raw = p.raw_price;
-    if (latest.psa10 && latest.psa9 && latest.raw) break;
+    if (histLatest.psa10 == null && p.psa10_price) histLatest.psa10 = p.psa10_price;
+    if (histLatest.psa9 == null && p.psa9_price) histLatest.psa9 = p.psa9_price;
+    if (histLatest.raw == null && p.raw_price) histLatest.raw = p.raw_price;
+    if (histLatest.psa10 && histLatest.psa9 && histLatest.raw) break;
   }
+
+  // detailGrades 가 있으면 lowest_ask 우선, 없으면 history 사용
+  const pickPrice = (k) => {
+    if (detailGrades?.[k]?.lowest_ask) return detailGrades[k].lowest_ask;
+    if (detailGrades?.[k]?.recent_avg) return detailGrades[k].recent_avg;
+    return histLatest[k];
+  };
+  // detailGrades 의 currency 변환 (USD 면 JPY 로 환산해야 함 — JPY_KRW 와 USD_KRW 비율로)
+  const convertToJpy = (val, cur) => {
+    if (val == null) return null;
+    if (cur === 'USD') return Math.round((val * USD_KRW) / JPY_KRW);
+    return val; // JPY 그대로
+  };
+
   const result = {
     name: meta?.name || `Card #${cardId}`,
     image: meta?.thumbnailUrl || '',
     brand: meta?.brand || 'unknown',
     history: points,
     latestPrices: {
-      psa10: latest.psa10,
-      psa9: latest.psa9,
-      raw: latest.raw,
-      box: meta?.minPrice ? Math.round(meta.minPrice * 150) : null, // box: USD → JPY 추정
+      psa10: convertToJpy(pickPrice('psa10'), detailGrades?.psa10?.currency),
+      psa9: convertToJpy(pickPrice('psa9'), detailGrades?.psa9?.currency),
+      raw: convertToJpy(pickPrice('raw'), detailGrades?.raw?.currency),
+      box: meta?.minPrice ? Math.round((meta.minPrice * USD_KRW) / JPY_KRW) : null,
     },
   };
   _PF_PRICE_CACHE[cardId] = result;
@@ -3753,8 +3775,8 @@ function renderHoldings() {
   list.innerHTML = enriched.map(h => {
     const sign = h.itemPnl >= 0 ? '#10b981' : '#ef4444';
     return `
-    <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:60px 1fr auto; gap:12px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}')">
-      <div style="width:60px; height:78px; background:#f3f4f6; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center">
+    <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}')">
+      <div style="width:90px; height:126px; background:#f3f4f6; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center">
         ${h.meta.image ? `<img src="${escapeHtml(h.meta.image)}" alt="" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer">` : `<span style="font-size:24px; opacity:0.3">🃏</span>`}
       </div>
       <div style="min-width:0">

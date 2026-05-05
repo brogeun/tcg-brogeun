@@ -4220,9 +4220,27 @@ async function renderAggChart() {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      hover: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => '₩' + Math.floor(ctx.parsed.y).toLocaleString() } },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+          titleFont: { size: 12, weight: 700 },
+          bodyFont: { size: 13, weight: 800 },
+          padding: 10,
+          displayColors: false,
+          callbacks: {
+            title: ctx => {
+              const d = ctx[0]?.label || '';
+              // 2026-04-15 → 2026.04.15 (보기 좋게)
+              return d.replace(/-/g, '.');
+            },
+            label: ctx => '₩' + Math.floor(ctx.parsed.y).toLocaleString(),
+          },
+        },
       },
       scales: {
         x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkipPadding: 20 }, grid: { display: false } },

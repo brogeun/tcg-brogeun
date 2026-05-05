@@ -320,8 +320,22 @@ def main():
                     continue
                 out_path = OUT_DIR / f"{code}.json"
                 if out_path.exists() and not force:
-                    print(f"  {code:7s} skip (exists)")
-                    continue
+                    try:
+                        existing = json.loads(out_path.read_text("utf-8"))
+                        if existing.get("cardCount", 0) > 0:
+                            print(f"  {code:7s} skip (exists, {existing['cardCount']} 카드)")
+                            continue
+                        else:
+                            print(f"  {code:7s} 0 카드 → 재시도")
+                    except Exception:
+                        pass
+
+                # 매 세트마다 driver 재시작 (포켓몬과 동일)
+                if set_counter > 0:
+                    driver.quit()
+                    time.sleep(1)
+                    driver = make_driver(headless=not visible)
+
                 try:
                     data = scrape_onepiece_set(driver, code, name, url)
                     out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -330,7 +344,8 @@ def main():
                 except Exception as e:
                     print(f"  {code:7s} ✗ {e}")
                     failed += 1
-                time.sleep(1)
+                set_counter += 1
+                time.sleep(3)
     finally:
         driver.quit()
 

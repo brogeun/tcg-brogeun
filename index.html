@@ -3033,12 +3033,15 @@ document.addEventListener('click', async e => {
     const numStripped = numRaw.replace(/^0+/, '') || numRaw;  // "001" → "1", "1" → "1"
     const numPadded = numRaw.padStart(3, '0');                  // "1" → "001", "001" → "001"
 
-    // productNumber 정확 매칭 — 카드 끝부분 (-{set}-{num}$) 만 체크
+    // productNumber 정확 매칭 — 카드 끝부분 매치
+    // 포켓몬: "pkmn-tcg-m4-001" (prefix 있음) → endsWith("-m4-001")
+    // 원피스: "op15-001" (prefix 없음) → 정확히 같음 또는 endsWith
+    const padTail = `${setLower}-${numPadded}`;     // "op15-001" 또는 "m4-001"
+    const stripTail = `${setLower}-${numStripped}`; // "op15-1"  또는 "m4-1"
     const match = _ALL_CARDS_INDEX.find(c => {
       const pn = (c.productNumber || '').toLowerCase();
-      // 끝이 정확히 일치하는지: pkmn-tcg-m4-001 의 끝 "-m4-001"
-      return pn.endsWith(`-${setLower}-${numPadded}`) ||
-             pn.endsWith(`-${setLower}-${numStripped}`);
+      return pn === padTail || pn === stripTail ||
+             pn.endsWith(`-${padTail}`) || pn.endsWith(`-${stripTail}`);
     });
     if (match) snkrdunkId = match.id;
   }

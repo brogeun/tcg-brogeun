@@ -93,19 +93,19 @@ def parse_cards(html: str, code: str) -> list[dict]:
     )
 
     for block_id, block in blocks:
-        # block_id 예: "OP15-001" 또는 "OP15-001_p1" (parallel)
+        # block_id 예: "OP15-001" / "OP15-001_p1" (parallel)
         id_m = re.match(r'([A-Z]+\d+)[\-_](\d+)(?:_(\w+))?', block_id)
         if not id_m:
             continue
         set_part = id_m.group(1)
-        if set_part.upper() != code.upper():
-            continue
         number = id_m.group(2)
         variant = id_m.group(3) or ""  # p1, p2, sp 등
 
-        # variant 가 있으면 base 카드 우선 (p1 같은 패럴은 스킵)
-        if variant:
+        # 박스 봉입 카드는 그 박스 코드와 같은 카드만 (재록 X, 페이지 노출 noise X)
+        if set_part.upper() != code.upper():
             continue
+
+        full_id = block_id
 
         # 이름
         name = ""
@@ -118,18 +118,26 @@ def parse_cards(html: str, code: str) -> list[dict]:
         for m in re.finditer(r'data-src=["\']([^"\']+)["\']', block):
             url = m.group(1)
             if 'cardlist/card/' in url and 'attribute' not in url:
-                # ../images/... → 절대 URL
                 if url.startswith('../'):
                     url = BASE + '/' + url[3:]
                 elif url.startswith('/'):
                     url = BASE + url
                 elif url.startswith('//'):
                     url = 'https:' + url
-                # ?260428 같은 cache buster 유지 (변경 시 새 이미지)
                 img = url
                 break
 
-        cards[number] = {"number": number, "name": name, "image": img}
+        # number 표시: variant 있으면 "001_P1", 없으면 "001"
+        display_num = f"{number}_{variant.upper()}" if variant else number
+
+        cards[full_id] = {
+            "number": display_num,        # UI 표시 (예: "001", "001_P1")
+            "baseNumber": number,          # SNKRDUNK 매칭용 (예: "001")
+            "setCode": set_part,           # 카드의 진짜 set (예: "OP15", "OP14" 재록)
+            "fullId": full_id,             # 이미지 파일명 (예: "OP15-001_p1")
+            "name": name,
+            "image": img,
+        }
 
     return list(cards.values())
 

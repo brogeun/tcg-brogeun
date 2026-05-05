@@ -1703,12 +1703,12 @@ async function showPriceDetailPanel(productId) {
 
   // 박스/카드 분기 렌더 — product 자체를 넘김 (이름·통화·가격 활용)
   renderGradesPanel(productId, product);
-  // 가격 히스토리 차트 (카드만 — 박스는 단일가)
-  if (isCardProduct(product.name)) {
-    renderHistoryChart(productId, product);
-  } else {
-    const wrap = document.getElementById(`historyWrap-${productId}`);
-    if (wrap) wrap.style.display = 'none';
+  // 가격 히스토리 차트 (카드 = 등급별, 박스 = 단일가)
+  renderHistoryChart(productId, product);
+  // 박스는 등급 탭 숨김 (PSA10/9/raw 의미 없음)
+  if (!isCardProduct(product.name)) {
+    const tabs = document.getElementById(`histGradeTabs-${productId}`);
+    if (tabs) tabs.style.display = 'none';
   }
   // 봉입 박스 섹션 (카드만)
   if (isCardProduct(product.name)) {
@@ -2252,9 +2252,12 @@ async function renderHistoryChart(productId, product) {
 
 function drawHistoryChart(productId, history) {
   const state = _HIST_STATE[productId];
-  const grade = state.grade;
-  const priceKey = `${grade}_price`;
-  const volKey = `${grade}_vol`;
+  // 박스 history 는 box_price 만 있으니 자동 감지
+  const isBoxHistory = history.some(h => h && h.box_price != null) &&
+                       !history.some(h => h && (h.psa10_price != null || h.psa9_price != null));
+  const grade = isBoxHistory ? 'box' : state.grade;
+  const priceKey = isBoxHistory ? 'box_price' : `${grade}_price`;
+  const volKey = isBoxHistory ? 'box_vol' : `${grade}_vol`;
 
   // 기간 필터
   let rows = history.slice();

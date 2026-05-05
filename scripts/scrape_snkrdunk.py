@@ -734,11 +734,36 @@ def main():
         except Exception:
             return []
 
+    def fetch_chart_recent_box(cid):
+        """박스용 sales-chart — option_id 없이 default (단일 가격)"""
+        url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart/used"
+               f"?range=oneMonth")
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": UA,
+                "Accept": "application/json",
+                "Accept-Language": "ja-JP,ja;q=0.9",
+                "Referer": "https://snkrdunk.com/",
+            })
+            with urllib.request.urlopen(req, timeout=15) as r:
+                d = json.loads(r.read().decode("utf-8"))
+            out = []
+            for p in d.get("points", []) or []:
+                if isinstance(p, list) and len(p) >= 2:
+                    ts_ms, price = p[0], p[1]
+                    try:
+                        date = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+                        out.append((date, int(price)))
+                    except Exception:
+                        pass
+            return out
+        except Exception:
+            return []
+
     appended = 0
     for cid, det in cards_detail.items():
         grades = det.get("grades") or {}
-        if not grades:
-            continue
+        is_box = not grades  # grades 비면 박스
         hist_path = history_dir / f"{cid}.json"
         try:
             existing = json.loads(hist_path.read_text("utf-8")) if hist_path.exists() else {"id": cid, "history": []}
@@ -747,21 +772,33 @@ def main():
         # 일자별 dict 로 변환
         by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
 
-        # 등급별 sales-chart 최근 30일치 가져와서 merge
         any_new = False
-        for grade, opt_id in GRADE_OPTION_IDS_HIST.items():
-            points = fetch_chart_recent(cid, opt_id)
+        if is_box:
+            # 박스: 단일 가격 history (box_price)
+            points = fetch_chart_recent_box(cid)
             for date, price in points:
                 if date not in by_date:
                     by_date[date] = {"date": date}
-                key = f"{grade}_price"
-                # 같은 날 이미 값 있으면 평균 (거의 1점이라 사실상 덮어쓰기)
-                if key in by_date[date] and by_date[date][key] != price:
-                    by_date[date][key] = (by_date[date][key] + price) // 2
+                if "box_price" in by_date[date] and by_date[date]["box_price"] != price:
+                    by_date[date]["box_price"] = (by_date[date]["box_price"] + price) // 2
                 else:
-                    by_date[date][key] = price
+                    by_date[date]["box_price"] = price
                 any_new = True
-            time.sleep(0.3)  # 등급 간 sleep
+            time.sleep(0.3)
+        else:
+            # 카드: 등급별 sales-chart
+            for grade, opt_id in GRADE_OPTION_IDS_HIST.items():
+                points = fetch_chart_recent(cid, opt_id)
+                for date, price in points:
+                    if date not in by_date:
+                        by_date[date] = {"date": date}
+                    key = f"{grade}_price"
+                    if key in by_date[date] and by_date[date][key] != price:
+                        by_date[date][key] = (by_date[date][key] + price) // 2
+                    else:
+                        by_date[date][key] = price
+                    any_new = True
+                time.sleep(0.3)
 
         if not any_new and not by_date:
             continue

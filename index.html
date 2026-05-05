@@ -1440,6 +1440,23 @@ function initPrice(productId) {
   loadPriceGrid();
 }
 
+/* ─────────── 카드 상세 액션 버튼 (포트폴리오/관심) — data 속성 기반 ─────────── */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action="add-portfolio"], [data-action="add-watchlist"]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const cardId = btn.dataset.cardId;
+  const cardName = btn.dataset.cardName || '';
+  const grade = btn.dataset.grade || 'psa10';
+  if (action === 'add-portfolio') {
+    const cardImage = btn.dataset.cardImage || '';
+    const price = parseFloat(btn.dataset.price) || 0;
+    openAddToPortfolio(cardId, cardName, cardImage, price, grade);
+  } else if (action === 'add-watchlist') {
+    openAddToWatchlist(cardId, cardName, grade);
+  }
+});
+
 /* ─────────── 상세 패널 닫기 → 카드 리스트로 복귀 ─────────── */
 window.closePriceDetail = function() {
   const panel = document.getElementById('priceDetailPanel');
@@ -1572,11 +1589,14 @@ async function showPriceDetailPanel(productId) {
           </div>
           <div style="display:flex; gap:8px; margin-top:auto; flex-wrap:wrap; padding-top:10px; align-items:center">
             <button class="btn primary" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
-                    onclick="openAddToPortfolio('${productId}', ${JSON.stringify(product.name).replace(/"/g, '&quot;')}, '${product.image || ''}', ${price || 0}, 'psa10')">
+                    data-action="add-portfolio" data-card-id="${productId}"
+                    data-card-name="${escapeHtml(product.name || '')}" data-card-image="${escapeHtml(product.image || '')}"
+                    data-price="${price || 0}" data-grade="psa10">
               📋 포트폴리오 추가
             </button>
             <button class="btn" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
-                    onclick="openAddToWatchlist('${productId}', ${JSON.stringify(product.name).replace(/"/g, '&quot;')}, 'psa10')">
+                    data-action="add-watchlist" data-card-id="${productId}"
+                    data-card-name="${escapeHtml(product.name || '')}" data-grade="psa10">
               ⭐ 관심
             </button>
             <a href="${product.url}" target="_blank" rel="noopener noreferrer"

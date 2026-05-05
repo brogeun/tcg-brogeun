@@ -1017,19 +1017,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div id="centeringWorkspace" style="display:none; margin-top:18px">
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px">
             <!-- 앞면 측정 -->
-            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px">
-              <div style="font-size:12px; font-weight:800; color:#3b82f6; margin-bottom:8px">앞면</div>
-              <canvas data-centering-canvas="front" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px"></canvas>
-              <div style="margin-top:10px; font-size:12px; color:#374151">
+            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center">
+              <div style="font-size:12px; font-weight:800; color:#3b82f6; margin-bottom:8px; text-align:left">앞면</div>
+              <canvas data-centering-canvas="front" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas>
+              <div style="margin-top:10px; font-size:12px; color:#374151; text-align:left">
                 좌/우: <span data-centering-lr="front">-</span> · <b data-centering-lrpct="front">-/-</b><br>
                 상/하: <span data-centering-tb="front">-</span> · <b data-centering-tbpct="front">-/-</b>
               </div>
             </div>
             <!-- 뒷면 측정 -->
-            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px">
-              <div style="font-size:12px; font-weight:800; color:#10b981; margin-bottom:8px">뒷면</div>
-              <canvas data-centering-canvas="back" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px"></canvas>
-              <div style="margin-top:10px; font-size:12px; color:#374151">
+            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center">
+              <div style="font-size:12px; font-weight:800; color:#10b981; margin-bottom:8px; text-align:left">뒷면</div>
+              <canvas data-centering-canvas="back" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas>
+              <div style="margin-top:10px; font-size:12px; color:#374151; text-align:left">
                 좌/우: <span data-centering-lr="back">-</span> · <b data-centering-lrpct="back">-/-</b><br>
                 상/하: <span data-centering-tb="back">-</span> · <b data-centering-tbpct="back">-/-</b>
               </div>
@@ -1944,11 +1944,22 @@ function loadCenteringImage(side, file) {
       s.outer = { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
       s.inner = { x: margin, y: margin, w: img.naturalWidth - margin * 2, h: img.naturalHeight - margin * 2 };
 
-      // 썸네일 표시 (업로드 슬롯 안)
-      const thumb = document.querySelector(`[data-centering-thumb="${side}"]`);
-      if (thumb) {
-        thumb.style.display = '';
-        thumb.innerHTML = `<img src="${e.target.result}" style="max-width:80px; max-height:120px; border-radius:4px; box-shadow:0 2px 6px rgba(0,0,0,0.15)">`;
+      // 업로드 완료 표시 (슬롯 컨텐츠 간소화)
+      const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
+      if (slot) {
+        slot.style.borderColor = side === 'front' ? '#3b82f6' : '#10b981';
+        slot.style.background = side === 'front' ? '#eff6ff' : '#ecfdf5';
+        const sideLabel = side === 'front' ? '앞면 (FRONT)' : '뒷면 (BACK)';
+        slot.innerHTML = `
+          <div style="font-size:11px; font-weight:800; color:${side === 'front' ? '#3b82f6' : '#10b981'}; margin-bottom:6px">${sideLabel}</div>
+          <div style="font-size:24px; margin-bottom:6px">✅</div>
+          <div style="font-size:12px; color:#374151; font-weight:700">업로드 완료</div>
+          <button class="btn" type="button" data-centering-reupload="${side}" style="margin-top:8px; cursor:pointer; padding:4px 12px; font-size:11px">↻ 다시 선택</button>
+        `;
+        slot.querySelector(`[data-centering-reupload="${side}"]`).onclick = (e) => {
+          e.stopPropagation();
+          location.reload();  // 재선택 시 페이지 reload (간단)
+        };
       }
 
       // 둘 다 업로드 됐는지 체크

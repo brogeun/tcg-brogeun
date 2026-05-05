@@ -295,8 +295,8 @@ body.admin-active .admin-only { display: flex !important; }
 /* 세트 카드 그리드 모달 */
 .set-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
 }
 .set-card-item {
   background: #fff;
@@ -2978,18 +2978,21 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
       return;
     }
     document.getElementById('setGridContent').innerHTML = `
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:0 4px">
-        <div style="font-size:12px; color:var(--ink-sub)">${cards.length} 카드 · 클릭하면 시세 페이지로</div>
-        ${externalUrl ? `<a href="${externalUrl}" target="_blank" rel="noopener" style="font-size:11px; color:var(--ink-sub); text-decoration:underline">외부 사이트 (${data.source || ''}) →</a>` : ''}
-      </div>
+      <div style="font-size:12px; color:var(--ink-sub); margin-bottom:14px; padding:0 4px">${cards.length} 카드 · 클릭하면 시세 페이지로</div>
       <div class="set-card-grid">
-        ${cards.map(c => `
-          <div class="set-card-item" data-card-name="${escapeHtml(c.name || '')}" data-card-image="${escapeHtml(c.image || '')}" data-card-number="${escapeHtml(c.number || '')}" data-snkrdunk-search="${encodeURIComponent((c.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim())}">
+        ${cards.map(c => {
+          // 카드번호 첫 부분만 (001/193 → 001)
+          const num = (c.number || '').split('/')[0].trim();
+          // SNKRDUNK 검색용 — 세트코드 + 번호 (예: "M4 001") 가장 정확
+          const searchKey = num ? `${setCode} ${num}` : (c.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+          return `
+          <div class="set-card-item" data-card-name="${escapeHtml(c.name || '')}" data-card-search="${escapeHtml(searchKey)}">
             <div class="set-card-img">
               ${c.image ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">🃏</span>`}
             </div>
             <div class="set-card-num">${escapeHtml(c.number || '')}</div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>`;
   } catch (e) {
     document.getElementById('setGridContent').innerHTML = `<div style="padding:40px; text-align:center; color:#dc2626">로드 실패: ${e.message}</div>`;
@@ -3009,17 +3012,17 @@ document.addEventListener('click', e => {
 
 // 그리드 카드 클릭 → 카드 시세 페이지 검색으로 이동
 document.addEventListener('click', e => {
-  const item = e.target.closest('.set-card-item[data-card-name]');
+  const item = e.target.closest('.set-card-item[data-card-search]');
   if (!item) return;
   closeAnyModal();
-  // 카드 이름에서 첫 영단어 추출 → 시세 검색
-  const name = item.dataset.cardName || '';
-  const cleanName = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  // 우선순위 1: setCode + 번호 (예: "M4 001") — 가장 정확
+  // 우선순위 2: 카드 이름 fallback
+  const searchKey = item.dataset.cardSearch || item.dataset.cardName || '';
   go('price');
   setTimeout(() => {
     const input = document.getElementById('cardSearchInput');
     if (input) {
-      input.value = cleanName;
+      input.value = searchKey;
       input.dispatchEvent(new Event('input', {bubbles: true}));
       input.focus();
     }

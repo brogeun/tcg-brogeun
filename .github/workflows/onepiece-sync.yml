@@ -1,0 +1,58 @@
+name: OnePiece Card Sync
+
+# 매주 월요일 오전 9시 (KST 18:00 = UTC 09:00) 자동 실행
+# 또는 수동 트리거 (Actions 탭 → Run workflow)
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install imagehash pillow
+
+      - name: Detect & sync new OnePiece series
+        run: python scripts/sync_onepiece.py
+
+      - name: Check changes
+        id: changes
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            git status --short
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes — already up to date."
+          fi
+
+      - name: Commit & push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/cards-by-set/ data/card-to-box.json images/onepiece/ scripts/fetch_onepiece_http.py
+          git commit -m "🤖 OnePiece 신규 series 자동 동기화"
+          git push
+
+      - name: Deploy to Cloudflare Pages
+        if: steps.changes.outputs.has_changes == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler@latest pages deploy . --project-name=tcghubrogeun --commit-dirty=true --branch=main

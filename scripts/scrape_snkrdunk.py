@@ -734,10 +734,12 @@ def main():
         except Exception:
             return []
 
-    def fetch_chart_recent_box(cid):
-        """박스용 sales-chart — option_id 없이 default (단일 가격)"""
-        url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart/used"
-               f"?range=oneMonth")
+    def fetch_chart_recent_box(cid, range_arg="all"):
+        """박스용 sales-chart — /used /new 아닌 default endpoint
+        검증 결과: /sales-chart/used 는 pointsLen=0, /sales-chart/new 는 404,
+        /sales-chart (default) 가 정상 응답 (예: 116 points)"""
+        url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart"
+               f"?range={range_arg}")
         try:
             req = urllib.request.Request(url, headers={
                 "User-Agent": UA,

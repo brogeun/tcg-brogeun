@@ -1717,6 +1717,31 @@ async function showPriceDetailPanel(productId) {
     const bp = document.getElementById(`boxesPanel-${productId}`);
     if (bp) bp.style.display = 'none';
   }
+  // PSA10 Pop 뱃지 (카드만, 데이터 있으면)
+  if (isCardProduct(product.name)) {
+    renderPsaPopBadge(productId);
+  }
+}
+
+/* ─────────── PSA10 Pop 뱃지 ─────────── */
+async function renderPsaPopBadge(productId) {
+  if (!window._PSA_POP) {
+    try {
+      const r = await fetch('/data/psa-pop.json?t=' + Math.floor(Date.now()/3600000));
+      window._PSA_POP = r.ok ? ((await r.json()).pops || {}) : {};
+    } catch { window._PSA_POP = {}; }
+  }
+  const pop = window._PSA_POP[String(productId)];
+  if (!pop) return;
+  const header = document.getElementById(`gradesPanelHeader-${productId}`);
+  if (!header) return;
+  const psa10 = pop.psa10 ? pop.psa10.toLocaleString() : '-';
+  const psa9 = pop.psa9 ? pop.psa9.toLocaleString() : '-';
+  const total = pop.total ? pop.total.toLocaleString() : '-';
+  header.innerHTML += `
+    <span style="margin-left:12px; font-size:11px; padding:3px 9px; border-radius:6px; background:#fef3c7; color:#92400e; font-weight:700">
+      🏆 PSA10: ${psa10} · PSA9: ${psa9} · Total: ${total}
+    </span>`;
 }
 
 /* ─────────── 봉입 박스 섹션 (STEP E) ─────────── */
@@ -2199,7 +2224,12 @@ const _HIST_STATE = {};      // productId → {grade, range}
 async function renderHistoryChart(productId, product) {
   const wrap = document.getElementById(`historyWrap-${productId}`);
   if (!wrap) return;
-  const state = _HIST_STATE[productId] = _HIST_STATE[productId] || { grade: 'psa10', range: 180 };
+  // 박스는 발매부터 전체 (range 9999), 카드는 180일 default
+  const isBoxProduct = product && !isCardProduct(product.name);
+  const state = _HIST_STATE[productId] = _HIST_STATE[productId] || {
+    grade: 'psa10',
+    range: isBoxProduct ? 9999 : 180,
+  };
 
   // 히스토리 fetch
   let history = [];

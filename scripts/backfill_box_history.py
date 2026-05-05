@@ -68,17 +68,33 @@ def fetch_volume_box(cid, days_limit=None, max_pages=200):
             if d2 < cutoff:
                 stopped_early = True
                 continue
-            counts[d2] += 1
             # 가격 추출 — "30,499" / "¥30,499" / 정수 / 객체
             price_raw = it.get("price")
             if isinstance(price_raw, dict):
                 price_raw = price_raw.get("amount") or price_raw.get("price")
+            price = None
             if isinstance(price_raw, (int, float)):
-                prices[d2].append(int(price_raw))
+                price = int(price_raw)
             elif isinstance(price_raw, str):
                 pm = _re.search(r"([\d,]+)", price_raw.replace("¥", ""))
                 if pm:
-                    prices[d2].append(int(pm.group(1).replace(",", "")))
+                    price = int(pm.group(1).replace(",", ""))
+            if price is None:
+                continue
+            # 수량 추출 — quantity / count / qty / size / amount / num / 1個 같은 한자 표기
+            qty_raw = (it.get("quantity") or it.get("count") or it.get("qty") or
+                       it.get("size") or it.get("amount") or it.get("num") or
+                       it.get("size_text") or it.get("sizeText") or 1)
+            if isinstance(qty_raw, str):
+                qm = _re.search(r"(\d+)", qty_raw)
+                qty_val = int(qm.group(1)) if qm else 1
+            else:
+                qty_val = int(qty_raw) if qty_raw else 1
+            qty_val = max(1, qty_val)
+            # 1박스 단가 = 거래액 / 수량
+            unit_price = price // qty_val
+            counts[d2] += qty_val
+            prices[d2].append(unit_price)
         if stopped_early:
             break
         if len(items) < 20:

@@ -149,11 +149,13 @@ def scroll_to_bottom(driver, max_iter=20, sleep=1.0):
 
 def scrape_pokemon_set(driver, code: str, name: str, url: str) -> dict:
     """tcgcollector — .card-image-grid-item 직접 매칭"""
-    full_url = url + ("&" if "?" in url else "?") + "displayAs=images&setCardCountMode=anyCardVariant"
+    # anyCardVariant 제거 — reprint/variant 까지 다 끌고 와서 카운트 부풀려짐
+    # 기본 모드 = base + SR/HR/SAR (일판 박스 기준 정확)
+    full_url = url + ("&" if "?" in url else "?") + "displayAs=images"
     print(f"  fetching {full_url}")
     driver.get(full_url)
-    # 카드 그리드 로드 대기 — 최대 30초
-    for i in range(30):
+    # 카드 그리드 로드 대기 — 최대 60초 (대형 세트 SV4a, SV2a 등 lazy load 시간 더 필요)
+    for i in range(60):
         time.sleep(1)
         count = driver.execute_script("return document.querySelectorAll('.card-image-grid-item').length")
         if count > 0:
@@ -373,8 +375,8 @@ def main():
     finally:
         driver.quit()
 
-    print(f"\n완료: 성공 {success} / 실패 {failed}")
-    print(f"파일: {OUT_DIR.relative_to(ROOT)}/")
+    print(f"\nìë£: ì±ê³µ {success} / ì¤í¨ {failed}")
+    print(f"íì¼: {OUT_DIR.relative_to(ROOT)}/")
 
 
 if __name__ == "__main__":

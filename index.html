@@ -827,10 +827,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div id="shopList" class="grid auto-shop"></div>
       </div>
       <div data-hubpanel="events" style="display:none">
-        <div id="eventListHub" style="display:flex; flex-direction:column; gap:10px"></div>
+        <div id="eventListHub" class="grid auto-shop"></div>
       </div>
       <div data-hubpanel="cardshow" style="display:none">
-        <div id="cardshowListHub" style="display:flex; flex-direction:column; gap:12px"></div>
+        <div id="cardshowListHub" class="grid auto-shop"></div>
       </div>
       <div data-hubpanel="apply" style="display:none">
         <div class="grid cols-2" id="applyListHub"></div>
@@ -839,7 +839,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="grid cols-2" id="oripaListHub"></div>
       </div>
       <div data-hubpanel="etc" style="display:none">
-        <div id="etcListHub" style="display:flex; flex-direction:column; gap:12px"></div>
+        <div id="etcListHub" class="grid auto-shop"></div>
       </div>
     </section>
 
@@ -4320,32 +4320,33 @@ function renderRichContent(s) {
   return nl2br(s);
 }
 
-// 공통 — 카드형 UI (위 큰 사진 + 아래 정보) + 클릭 시 본문 펼침
+// 공통 — 카드형 UI (공식매장 카드 크기 = grid auto-shop, 16:10 이미지)
 function _hubCollapsibleCard(e, badge) {
   const id = 'hubcard-' + (e.id || Math.random().toString(36).slice(2));
   const dateBadge = e.date ? (badge
-    ? `<div style="display:inline-block; font-size:11px; padding:3px 9px; background:${badge.bg}; color:${badge.color}; border-radius:5px; font-weight:700; margin-bottom:8px">${badge.icon} ${escapeHtml(e.date)}</div>`
-    : `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:6px">${escapeHtml(e.date)}</div>`) : '';
-  // 위 큰 박스 사진 (16:9 비율)
+    ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:${badge.bg}; color:${badge.color}; border-radius:4px; font-weight:700; margin-bottom:5px">${badge.icon} ${escapeHtml(e.date)}</div>`
+    : `<div style="font-size:10px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>`) : '';
+  // 16:10 비율 (공식매장 카드와 동일)
   const heroImg = e.image
-    ? `<img src="${escapeHtml(e.image)}" alt="" loading="lazy"
-            style="width:100%; aspect-ratio:16/9; object-fit:cover; background:#f3f4f6; display:block"
-            onerror="this.style.background='linear-gradient(135deg,#fafafa,#f3f4f6)'; this.removeAttribute('src')">`
-    : `<div style="width:100%; aspect-ratio:16/9; background:linear-gradient(135deg,#fafafa,#f3f4f6); display:flex; align-items:center; justify-content:center; font-size:42px; opacity:0.3">📄</div>`;
-  const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:10px; display:inline-block">🔗 자세히 보기 →</a>` : '';
-  // 펼침 본문
+    ? `<div style="background:#fafafa; aspect-ratio:16/10; overflow:hidden; display:flex; align-items:center; justify-content:center">
+         <img src="${escapeHtml(e.image)}" alt="" loading="lazy"
+              style="width:100%; height:100%; object-fit:cover; display:block"
+              onerror="this.onerror=null;this.style.opacity='0'">
+       </div>`
+    : `<div style="background:#fafafa; aspect-ratio:16/10"></div>`;
+  const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:11px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">🔗 자세히 보기 →</a>` : '';
   const body = (e.content || e.link)
-    ? `<div id="${id}-body" class="hubcard-body" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed #e5e7eb">
-         ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.75">${renderRichContent(e.content)}</div>` : ''}
+    ? `<div id="${id}-body" class="hubcard-body" style="display:none; margin-top:9px; padding-top:9px; border-top:1px dashed #e5e7eb">
+         ${e.content ? `<div style="font-size:11px; color:#4b5563; line-height:1.6">${renderRichContent(e.content)}</div>` : ''}
          ${linkPart}
        </div>` : '';
   return `
-    <div class="card hubcard" style="padding:0; overflow:hidden; cursor:pointer; border-radius:12px" onclick="toggleHubCard('${id}')">
+    <div class="card hubcard" style="padding:0; display:block; overflow:hidden; cursor:pointer" onclick="toggleHubCard('${id}')">
       ${heroImg}
-      <div style="padding:14px 16px">
+      <div style="padding:11px 13px">
         ${dateBadge}
-        <div style="font-size:15px; font-weight:800; color:#111; line-height:1.4">${escapeHtml(e.title || '')}</div>
-        <div id="${id}-preview" style="font-size:11px; color:#9ca3af; margin-top:6px">탭해서 자세히 보기 ↓</div>
+        <div style="font-size:13px; font-weight:800; color:#111; line-height:1.3; margin-bottom:3px">${escapeHtml(e.title || '')}</div>
+        <div id="${id}-preview" style="font-size:10px; color:#9ca3af">탭해서 자세히 보기 ↓</div>
         ${body}
       </div>
     </div>`;

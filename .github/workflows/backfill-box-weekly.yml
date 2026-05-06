@@ -1,0 +1,44 @@
+name: Backfill Box History (Weekly)
+
+# 매주 일요일 03:00 KST = 토요일 18:00 UTC 에 박스 history 백필
+# 1個 거래만 수집해서 data/history/{box_id}.json 갱신
+# 일일 cron 이 못 잡은 누락 기간 + 새 박스 history 보완
+
+on:
+  schedule:
+    # 일요일 03:00 KST = 토요일 18:00 UTC
+    - cron: '0 18 * * 6'
+  workflow_dispatch:  # 수동 실행 (PR/디버깅용)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backfill-box
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 박스 수 × 페이지네이션 — 최대 3시간
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run backfill (1個 거래만 수집)
+        run: python scripts/backfill_box_history.py
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - name: Commit history updates
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 Weekly box history backfill — 1個 거래만 수집"
+          file_pattern: "data/history/*.json"
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com

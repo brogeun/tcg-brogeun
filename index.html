@@ -155,17 +155,24 @@ body.admin-active .admin-only { display: flex !important; }
 .mnav {
   display: none; position: fixed; left: 0; right: 0; bottom: 0;
   background: #fff; border-top: 1px solid var(--line);
-  padding: 8px 4px calc(10px + env(safe-area-inset-bottom));
+  padding: 4px 2px calc(6px + env(safe-area-inset-bottom));
   z-index: 50;
   grid-template-columns: repeat(5, 1fr);
 }
 .mnav-item {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  font-size: 10px; color: var(--ink-sub); padding: 6px 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; min-height: 56px; /* iOS HIG / Material 권장 터치 영역 ≥48dp */
+  font-size: 10px; color: var(--ink-sub);
+  padding: 8px 4px;
   cursor: pointer;
+  -webkit-tap-highlight-color: rgba(17, 17, 17, 0.08);
+  border-radius: 8px;
+  transition: background 0.15s;
+  user-select: none;
 }
+.mnav-item:active { background: rgba(17, 17, 17, 0.06); }
 .mnav-item.active { color: #111; font-weight: 800; }
-.mnav-item .ic { font-size: 18px; }
+.mnav-item .ic { font-size: 22px; line-height: 1; }
 
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; }
@@ -1085,7 +1092,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             </div>
             <!-- AI Note -->
             <div style="background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px">
-              <div style="font-size:12px; font-weight:800; color:#1e40af; margin-bottom:8px; letter-spacing:.3px">🤖 AI Note (Groq Llama Vision)</div>
+              <div style="font-size:12px; font-weight:800; color:#1e40af; margin-bottom:8px; letter-spacing:.3px">🤖 AI Note</div>
               <div id="centeringAIText" style="font-size:13px; color:#1f2937; line-height:1.75; white-space:pre-wrap"></div>
             </div>
           </div>

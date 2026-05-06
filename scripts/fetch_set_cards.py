@@ -67,6 +67,30 @@ POKEMON_SETS = [
     ("SV6", "변환의 가면", "https://www.tcgcollector.com/sets/11624/mask-of-change"),
     ("SV5a", "크림슨 헤이즈", "https://www.tcgcollector.com/sets/11622/crimson-haze"),
     ("SV5M", "사이버 저지", "https://www.tcgcollector.com/sets/11604/cyber-judge"),
+    ("SV5K", "와일드 포스", "https://www.tcgcollector.com/sets/11603/wild-force"),
+    ("SV4a", "샤이니 트레저 ex", "https://www.tcgcollector.com/sets/11602/shiny-treasure-ex"),
+    ("SV4M", "미래의 일섬", "https://www.tcgcollector.com/sets/11593/future-flash"),
+    ("SV4K", "고대의 포효", "https://www.tcgcollector.com/sets/11592/ancient-roar"),
+    ("SV3a", "레이징 서프", "https://www.tcgcollector.com/sets/11583/raging-surf"),
+    ("SV3", "흑염의 지배자", "https://www.tcgcollector.com/sets/11578/ruler-of-the-black-flame"),
+    ("SV2a", "포켓몬 카드 151", "https://www.tcgcollector.com/sets/11575/pokemon-card-151"),
+    ("SV2D", "클레이 버스트", "https://www.tcgcollector.com/sets/11570/clay-burst"),
+    ("SV2P", "스노우 해저드", "https://www.tcgcollector.com/sets/11569/snow-hazard"),
+    ("SV1a", "트리플렛 비트", "https://www.tcgcollector.com/sets/11566/triplet-beat"),
+    # ─── Sword & Shield Era ───
+    ("s12a", "VSTAR 유니버스", "https://www.tcgcollector.com/sets/11503/vstar-universe"),
+    ("s12", "패러다임 트리거", "https://www.tcgcollector.com/sets/11499/paradigm-trigger"),
+    ("s11a", "백휘의 아르카나", "https://www.tcgcollector.com/sets/11497/incandescent-arcana"),
+    ("s11", "로스트 어비스", "https://www.tcgcollector.com/sets/11484/lost-abyss"),
+    ("s10b", "포켓몬 GO", "https://www.tcgcollector.com/sets/11481/pokemon-go"),
+    ("s10a", "다크 판타즈마", "https://www.tcgcollector.com/sets/11469/dark-phantasma"),
+    ("s9a", "배틀 리전", "https://www.tcgcollector.com/sets/11456/battle-region"),
+    ("s9", "스타 버스", "https://www.tcgcollector.com/sets/11452/star-birth"),
+    ("s8b", "VMAX 클라이맥스", "https://www.tcgcollector.com/sets/11449/vmax-climax"),
+    ("s8", "퓨전 아츠", "https://www.tcgcollector.com/sets/11437/fusion-arts"),
+    ("s7R", "블루 스카이 스트림", "https://www.tcgcollector.com/sets/11430/blue-sky-stream"),
+    ("s7D", "마천의 퍼펙트", "https://www.tcgcollector.com/sets/11429/skyscraping-perfection"),
+    ("s6a", "이브이 히어로즈", "https://www.tcgcollector.com/sets/11424/eevee-heroes"),
 ]
 
 ONEPIECE_SETS = [
@@ -330,7 +354,7 @@ def main():
                     except Exception:
                         pass
 
-                # 매 세트마다 driver 재시작 (포켓몬과 동일)
+                # 매 세트마다 driver 재시작
                 if set_counter > 0:
                     driver.quit()
                     time.sleep(1)

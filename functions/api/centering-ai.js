@@ -120,13 +120,44 @@ export async function onRequestPost({ request, env }) {
         lastError = `${model}: ${e.message}`;
       }
     }
-    // Groq 실패 → 에러 그대로 반환 (Gemini fallback X, 디버깅 위해)
-    return new Response(JSON.stringify({ error: 'Groq all models failed', detail: lastError }), {
-      status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-    });
+    // Groq 실패 → Cloudflare Workers AI fallback 시도 (외부 라우팅 X, 한국에서 무조건 작동)
+    console.warn('[ai] Groq failed, trying Cloudflare Workers AI:', lastError);
   }
 
-  // 2순위: Gemini (일부 지역 차단)
+  // 2순위: Cloudflare Workers AI — env.AI binding 필요 (대시보드에서 추가)
+  //   외부 fetch 안 함 → region 라우팅 차단 발생 자체가 불가
+  //   무료 tier: 10,000 neurons/day (vision 1회 ~50 neurons → 약 200회/day 무료)
+  if (env.AI) {
+    const cfModels = [
+      '@cf/meta/llama-3.2-11b-vision-instruct',  // multilingual (한국어 가능)
+      '@cf/llava-hf/llava-1.5-7b-hf',            // 영어 위주, fallback
+    ];
+    const frontBytes = Array.from(Uint8Array.from(atob(frontImage), c => c.charCodeAt(0)));
+    let cfLastError = '';
+    for (const model of cfModels) {
+      try {
+        const result = await env.AI.run(model, {
+          prompt: `${SYSTEM_CONTEXT}\n\n${userPrompt}\n\n(이미지: 카드 앞면. 뒷면 측정값은 위에 명시)`,
+          image: frontBytes,
+          max_tokens: 1500,
+        });
+        const text = result?.description || result?.response || result?.text ||
+                     (typeof result === 'string' ? result : JSON.stringify(result));
+        if (text && text !== '{}' && text.length > 10) {
+          return new Response(JSON.stringify({ text, provider: `cloudflare-ai:${model.split('/').pop()}` }), {
+            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+          });
+        }
+        cfLastError = `${model}: empty response (${JSON.stringify(result).slice(0, 200)})`;
+      } catch (e) {
+        cfLastError = `${model}: ${e.message}`;
+        console.error(`[cf-ai] ${model} failed:`, e.message);
+      }
+    }
+    console.warn('[ai] Cloudflare AI all models failed, trying Gemini:', cfLastError);
+  }
+
+  // 3순위: Gemini (일부 지역 차단)
   if (env.GEMINI_API_KEY) {
     try {
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;

@@ -773,6 +773,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="tab" data-subtab="cardshow">🎪 카드쇼</div>
         <div class="tab" data-subtab="apply">🎟 응모</div>
         <div class="tab" data-subtab="oripa">🎁 오리파</div>
+        <div class="tab" data-subtab="grading">🏆 그레이딩</div>
         <div class="tab" data-subtab="etc">📦 기타</div>
       </div>
       <style>
@@ -838,6 +839,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div data-hubpanel="oripa" style="display:none">
         <div class="grid cols-2" id="oripaListHub"></div>
+      </div>
+      <div data-hubpanel="grading" style="display:none">
+        <div id="gradingListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
       <div data-hubpanel="etc" style="display:none">
         <div id="etcListHub" class="grid auto-shop"></div>
@@ -933,6 +937,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <option value="">📋 게시판을 선택해주세요</option>
             <option value="events">✨ 이벤트</option>
             <option value="cardshow">🎪 카드쇼</option>
+            <option value="grading">🏆 그레이딩</option>
             <option value="etc">📦 기타</option>
           </select>
           <input id="adminDate" placeholder="📅 날짜 (선택 — 예: 2026.05.22)" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
@@ -984,6 +989,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="tabs pill" id="adminTabs" style="margin-bottom:12px">
         <div class="tab active" data-admin-tab="events">✨ 이벤트</div>
         <div class="tab" data-admin-tab="cardshow">🎪 카드쇼</div>
+        <div class="tab" data-admin-tab="grading">🏆 그레이딩</div>
         <div class="tab" data-admin-tab="etc">📦 기타</div>
       </div>
       <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:8px" id="adminListLabel">📋 현재 등록된 이벤트</div>
@@ -3558,7 +3564,7 @@ document.addEventListener('click', e => {
 });
 
 // 허브 탭 — 상위 (news / shops / more) + 하위 (more 일 때 events / cardshow / apply / oripa / etc)
-const HUB_MORE_PANELS = ['events', 'cardshow', 'apply', 'oripa', 'etc'];
+const HUB_MORE_PANELS = ['events', 'cardshow', 'apply', 'oripa', 'grading', 'etc'];
 let HUB_SUB = 'events';
 
 function showHubPanel(which) {
@@ -4112,6 +4118,7 @@ const ORIPAS = [
 // 이벤트 + 카드쇼 + 기타 — Cloudflare KV 백엔드 (/api/admin), 모든 방문자에게 동일하게 보임
 let EVENTS = [];
 let CARDSHOWS = [];
+let GRADING_LIST = [];
 let ETC_LIST = [];
 // 관리자 비밀번호는 sessionStorage 에 임시 보관 (탭 닫으면 사라짐)
 function getAdminPwd() { return sessionStorage.getItem('admin_pwd') || ''; }
@@ -4140,7 +4147,11 @@ async function saveAdminData(type, items) {
   try {
     const r = await fetch('/api/admin', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-Admin-Password': getAdminPwd()},
+      headers: {
+        'Content-Type': 'application/json',
+        // base64 인코딩 — 한글/특수문자 비밀번호도 ISO-8859-1 헤더 통과
+        'X-Admin-Password': btoa(unescape(encodeURIComponent(getAdminPwd()))),
+      },
       body: JSON.stringify({type, items}),
     });
     const d = await r.json();
@@ -4161,14 +4172,16 @@ async function saveAdminData(type, items) {
 }
 
 async function loadAllAdminData() {
-  const [events, etc, cardshow] = await Promise.all([
+  const [events, etc, cardshow, grading] = await Promise.all([
     fetchAdminData('events'),
     fetchAdminData('etc'),
     fetchAdminData('cardshow'),
+    fetchAdminData('grading'),
   ]);
   EVENTS = events;
   ETC_LIST = etc;
   CARDSHOWS = cardshow;
+  GRADING_LIST = grading;
 }
 
 const _applyHtml = APPLIES.map((a, i) => {
@@ -4409,11 +4422,54 @@ function renderCardshows() {
   }
   target.innerHTML = CARDSHOWS.map(e => _hubCollapsibleCard(e, { bg:'#f3e8ff', color:'#7c3aed', icon:'🎪' })).join('');
 }
-// API 에서 데이터 로드 후 렌더 (이벤트/카드쇼/기타 페이지 진입 시 항상 최신)
+
+// 그레이딩 — 가로 긴 row 형식 (썸네일 좌측 + 정보 우측)
+function _gradingRow(e) {
+  const id = 'grading-' + (e.id || Math.random().toString(36).slice(2));
+  const dateBadge = e.date
+    ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:#dcfce7; color:#15803d; border-radius:4px; font-weight:700; margin-bottom:5px">🏆 ${escapeHtml(e.date)}</div>` : '';
+  const thumb = e.image
+    ? `<img src="${escapeHtml(e.image)}" alt="" loading="lazy"
+            style="width:100%; height:100%; object-fit:cover" onerror="this.onerror=null;this.style.opacity='0'">`
+    : '';
+  const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:11px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">🔗 자세히 보기 →</a>` : '';
+  const body = (e.content || e.link)
+    ? `<div id="${id}-body" class="hubcard-body" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #e5e7eb">
+         ${e.content ? `<div style="font-size:12px; color:#4b5563; line-height:1.65">${renderRichContent(e.content)}</div>` : ''}
+         ${linkPart}
+       </div>` : '';
+  return `
+    <div class="card hubcard" style="padding:0; overflow:hidden; cursor:pointer; display:block" onclick="toggleHubCard('${id}')">
+      <div style="display:grid; grid-template-columns:140px 1fr; gap:0; align-items:stretch">
+        <!-- 좌: 썸네일 (정사각형) -->
+        <div style="aspect-ratio:1/1; background:#f3f4f6; overflow:hidden">${thumb}</div>
+        <!-- 우: 정보 -->
+        <div style="padding:13px 16px; display:flex; flex-direction:column; justify-content:center">
+          ${dateBadge}
+          <div style="font-size:14px; font-weight:800; color:#111; line-height:1.35; margin-bottom:4px">${escapeHtml(e.title || '')}</div>
+          <div id="${id}-preview" style="font-size:11px; color:#9ca3af">탭해서 자세히 보기 ↓</div>
+          ${body}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderGrading() {
+  const target = document.getElementById('gradingListHub');
+  if (!target) return;
+  if (!GRADING_LIST.length) {
+    target.innerHTML = `<div class="empty"><div class="empty-icon">🏆</div><div class="empty-title">등록된 그레이딩 정보가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
+    return;
+  }
+  target.innerHTML = GRADING_LIST.map(e => _gradingRow(e)).join('');
+}
+
+// API 에서 데이터 로드 후 렌더
 loadAllAdminData().then(() => {
   renderEvents();
   renderEtc();
   renderCardshows();
+  renderGrading();
   renderAdminList();
 });
 
@@ -4435,7 +4491,7 @@ function renderAdminList() {
   const arr = adminCurrentArr();
   const list = document.getElementById('adminEntryList');
   const label = document.getElementById('adminListLabel');
-  const labelMap = { events: '📋 현재 등록된 이벤트', cardshow: '📋 현재 등록된 카드쇼', etc: '📋 현재 등록된 기타 항목' };
+  const labelMap = { events: '📋 현재 등록된 이벤트', cardshow: '📋 현재 등록된 카드쇼', grading: '📋 현재 등록된 그레이딩', etc: '📋 현재 등록된 기타 항목' };
   if (label) label.textContent = labelMap[ADMIN_TAB] || '📋 현재 등록된 항목';
   if (!list) return;
   if (!arr.length) {
@@ -4605,11 +4661,13 @@ async function adminSaveEntry() {
   const ARR_MAP = {
     events: () => EVENTS,
     cardshow: () => CARDSHOWS,
+    grading: () => GRADING_LIST,
     etc: () => ETC_LIST,
   };
   const SET_MAP = {
     events: (a) => { EVENTS = a; renderEvents(); },
     cardshow: (a) => { CARDSHOWS = a; renderCardshows(); },
+    grading: (a) => { GRADING_LIST = a; renderGrading(); },
     etc: (a) => { ETC_LIST = a; renderEtc(); },
   };
   const targetKey = board;
@@ -4627,7 +4685,7 @@ async function adminSaveEntry() {
         createdAt: new Date().toISOString(),
       });
       // 어느 다른 게시판에 있었는지 찾아서 제거
-      for (const otherKey of ['events', 'cardshow', 'etc']) {
+      for (const otherKey of ['events', 'cardshow', 'grading', 'etc']) {
         if (otherKey === targetKey) continue;
         const otherArr = ARR_MAP[otherKey]();
         if (otherArr.some(e => e.id === editId)) {
@@ -4699,6 +4757,7 @@ async function adminDeleteEntry(id) {
   if (!ok) return;
   if (key === 'events') { EVENTS = arr; renderEvents(); }
   else if (key === 'cardshow') { CARDSHOWS = arr; renderCardshows(); }
+  else if (key === 'grading') { GRADING_LIST = arr; renderGrading(); }
   else { ETC_LIST = arr; renderEtc(); }
   renderAdminList();
 }

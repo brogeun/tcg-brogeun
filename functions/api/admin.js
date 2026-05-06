@@ -48,7 +48,12 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPost({ request, env }) {
-  const auth = request.headers.get("X-Admin-Password");
+  let auth = request.headers.get("X-Admin-Password") || "";
+  // 클라이언트가 base64 인코딩 (한글/특수문자 헤더 통과용) — decode 시도, 실패 시 raw 사용
+  try {
+    const decoded = decodeURIComponent(escape(atob(auth)));
+    if (decoded) auth = decoded;
+  } catch {}
   if (!env.ADMIN_PASSWORD) {
     return json({ ok: false, error: "ADMIN_PASSWORD env not set" }, 500);
   }

@@ -1878,7 +1878,7 @@ async function showPriceDetailPanel(productId) {
             </div>
           </div>
           <div style="margin-top:8px; font-size:10px; color:var(--ink-mute); line-height:1.6">
-            🔵 가격(KRW) · ▮ 거래량 · SNKRDUNK 1個 거래만 집계
+            🔵 가격(KRW) · ▮ 거래량 · 1個 거래 median 일별 산출 + 인접일 spike 필터 (이웃 4일 최저가 ×2 초과 제거)
           </div>
         </div>
       </div>
@@ -2848,10 +2848,34 @@ function loadChartJs() {
   return _CHART_JS_LOADING;
 }
 
-// outlier 필터 제거 — raw 데이터 그대로 표시
-//   백필/cron 단계에서 1個 거래만 수집하므로 추정 필터 불필요 (정확한 단가 데이터)
+// 차트 측 보조 필터 — 일별 평균 시계열의 spike 만 제거
+//   A. 백필/cron 단계에서 median 사용 (같은 날 거래 outlier 제거)
+//   B. 그래도 잔존하는 spike (어떤 날 거래량이 1~2건뿐이라 median 도 outlier 자체일 때)
+//      이웃 ±2일 (4개) min 의 ×2 초과면 제거 — 자연 변동 (한 달 2~3배 자연 상승) 은 보존
 function applyRollingOutlierFilter(rows, priceKey) {
-  return rows;
+  if (rows.length < 5) return rows;
+  const result = [];
+  for (let i = 0; i < rows.length; i++) {
+    const start = Math.max(0, i - 2);
+    const end = Math.min(rows.length, i + 3);
+    const window = [];
+    for (let j = start; j < end; j++) {
+      if (j === i) continue;
+      const v = rows[j][priceKey];
+      if (v != null && v > 0) window.push(v);
+    }
+    if (window.length < 2) { result.push(rows[i]); continue; }
+    const minRef = Math.min(...window);
+    const v = rows[i][priceKey];
+    if (v == null || v <= 0) { result.push(rows[i]); continue; }
+    if (v > minRef * 2) {
+      // 이웃 4일 최소값의 2배 초과 → outlier (라인 끊지 않게 null)
+      result.push({ ...rows[i], [priceKey]: null, [`${priceKey.replace('_price','_outlier')}`]: v });
+    } else {
+      result.push(rows[i]);
+    }
+  }
+  return result;
 }
 
 const _CHART_INSTANCES = {}; // productId → Chart instance
@@ -3596,20 +3620,20 @@ const CARDINFO = {
     {code:"SV2D", name:"클레이 버스트 (Clay Burst)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11570/clay-burst?setCardCountMode=anyCardVariant"},
     {code:"SV2P", name:"스노우 해저드 (Snow Hazard)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11569/snow-hazard?setCardCountMode=anyCardVariant"},
     {code:"SV1a", name:"트리플렛 비트 (Triplet Beat)", release:"2023.03.10", url:"https://www.tcgcollector.com/sets/11566/triplet-beat?setCardCountMode=anyCardVariant"},
-    // ─── Sword & Shield Era ───
-    {code:"s12a", name:"VSTAR 유니버스 (VSTAR Universe)", release:"2022.12.02", url:"https://www.tcgcollector.com/sets/11503/vstar-universe?setCardCountMode=anyCardVariant"},
-    {code:"s12", name:"패러다임 트리거 (Paradigm Trigger)", release:"2022.10.21", url:"https://www.tcgcollector.com/sets/11499/paradigm-trigger?setCardCountMode=anyCardVariant"},
-    {code:"s11a", name:"백휘의 아르카나 (Incandescent Arcana)", release:"2022.09.02", url:"https://www.tcgcollector.com/sets/11497/incandescent-arcana?setCardCountMode=anyCardVariant"},
-    {code:"s11", name:"로스트 어비스 (Lost Abyss)", release:"2022.07.15", url:"https://www.tcgcollector.com/sets/11484/lost-abyss?setCardCountMode=anyCardVariant"},
-    {code:"s10b", name:"포켓몬 GO (Pokemon GO)", release:"2022.06.17", url:"https://www.tcgcollector.com/sets/11481/pokemon-go?setCardCountMode=anyCardVariant"},
-    {code:"s10a", name:"다크 판타즈마 (Dark Phantasma)", release:"2022.05.13", url:"https://www.tcgcollector.com/sets/11469/dark-phantasma?setCardCountMode=anyCardVariant"},
-    {code:"s9a", name:"배틀 리전 (Battle Region)", release:"2022.03.11", url:"https://www.tcgcollector.com/sets/11456/battle-region?setCardCountMode=anyCardVariant"},
-    {code:"s9", name:"스타 버스 (Star Birth)", release:"2022.01.14", url:"https://www.tcgcollector.com/sets/11452/star-birth?setCardCountMode=anyCardVariant"},
-    {code:"s8b", name:"VMAX 클라이맥스 (VMAX Climax)", release:"2021.12.03", url:"https://www.tcgcollector.com/sets/11449/vmax-climax?setCardCountMode=anyCardVariant"},
-    {code:"s8", name:"퓨전 아츠 (Fusion Arts)", release:"2021.09.24", url:"https://www.tcgcollector.com/sets/11437/fusion-arts?setCardCountMode=anyCardVariant"},
-    {code:"s7R", name:"블루 스카이 스트림 (Blue Sky Stream)", release:"2021.07.09", url:"https://www.tcgcollector.com/sets/11430/blue-sky-stream?setCardCountMode=anyCardVariant"},
-    {code:"s7D", name:"마천의 퍼펙트 (Skyscraping Perfection)", release:"2021.07.09", url:"https://www.tcgcollector.com/sets/11429/skyscraping-perfection?setCardCountMode=anyCardVariant"},
-    {code:"s6a", name:"이브이 히어로즈 (Eevee Heroes)", release:"2021.05.28", url:"https://www.tcgcollector.com/sets/11424/eevee-heroes?setCardCountMode=anyCardVariant"},
+    // ─── Sword & Shield Era (실제 파일명 케이스 일치 — 대문자 S) ───
+    {code:"S12a", name:"VSTAR 유니버스 (VSTAR Universe)", release:"2022.12.02", url:"https://www.tcgcollector.com/sets/11503/vstar-universe?setCardCountMode=anyCardVariant"},
+    {code:"S12", name:"패러다임 트리거 (Paradigm Trigger)", release:"2022.10.21", url:"https://www.tcgcollector.com/sets/11499/paradigm-trigger?setCardCountMode=anyCardVariant"},
+    {code:"S11a", name:"백휘의 아르카나 (Incandescent Arcana)", release:"2022.09.02", url:"https://www.tcgcollector.com/sets/11497/incandescent-arcana?setCardCountMode=anyCardVariant"},
+    {code:"S11", name:"로스트 어비스 (Lost Abyss)", release:"2022.07.15", url:"https://www.tcgcollector.com/sets/11484/lost-abyss?setCardCountMode=anyCardVariant"},
+    {code:"S10b", name:"포켓몬 GO (Pokemon GO)", release:"2022.06.17", url:"https://www.tcgcollector.com/sets/11481/pokemon-go?setCardCountMode=anyCardVariant"},
+    {code:"S10a", name:"다크 판타즈마 (Dark Phantasma)", release:"2022.05.13", url:"https://www.tcgcollector.com/sets/11469/dark-phantasma?setCardCountMode=anyCardVariant"},
+    {code:"S9a", name:"배틀 리전 (Battle Region)", release:"2022.03.11", url:"https://www.tcgcollector.com/sets/11456/battle-region?setCardCountMode=anyCardVariant"},
+    {code:"S9", name:"스타 버스 (Star Birth)", release:"2022.01.14", url:"https://www.tcgcollector.com/sets/11452/star-birth?setCardCountMode=anyCardVariant"},
+    {code:"S8b", name:"VMAX 클라이맥스 (VMAX Climax)", release:"2021.12.03", url:"https://www.tcgcollector.com/sets/11449/vmax-climax?setCardCountMode=anyCardVariant"},
+    {code:"S8", name:"퓨전 아츠 (Fusion Arts)", release:"2021.09.24", url:"https://www.tcgcollector.com/sets/11437/fusion-arts?setCardCountMode=anyCardVariant"},
+    {code:"S7R", name:"블루 스카이 스트림 (Blue Sky Stream)", release:"2021.07.09", url:"https://www.tcgcollector.com/sets/11430/blue-sky-stream?setCardCountMode=anyCardVariant"},
+    {code:"S7D", name:"마천의 퍼펙트 (Skyscraping Perfection)", release:"2021.07.09", url:"https://www.tcgcollector.com/sets/11429/skyscraping-perfection?setCardCountMode=anyCardVariant"},
+    {code:"S6a", name:"이브이 히어로즈 (Eevee Heroes)", release:"2021.05.28", url:"https://www.tcgcollector.com/sets/11424/eevee-heroes?setCardCountMode=anyCardVariant"},
   ],
   onepiece: [
     // ─── 발매일 내림차순 (최신 → 과거) ───
@@ -3697,8 +3721,32 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
     </div>`, 'wide');
 
   try {
-    const r = await fetch(`/data/cards-by-set/${setCode}.json?t=${Math.floor(Date.now()/3600000)}`);
-    if (!r.ok) {
+    // case-insensitive fetch — Linux 는 case-sensitive 라 mismatch 가능성. 실패 시 대소문자 변형 시도
+    async function fetchSet(code) {
+      const t = Math.floor(Date.now() / 3600000);
+      const tryFetch = async (c) => {
+        const r = await fetch(`/data/cards-by-set/${c}.json?t=${t}`);
+        if (!r.ok) return null;
+        const text = await r.text();
+        // SPA fallback HTML 응답 가드
+        if (text.trim().startsWith('<')) return null;
+        try { return JSON.parse(text); } catch { return null; }
+      };
+      // 1차: 원래 케이스 그대로
+      let d = await tryFetch(code);
+      if (d) return d;
+      // 2차: 첫 글자 toggle (s12a ↔ S12a 등)
+      const alt = code[0] === code[0].toLowerCase()
+        ? code[0].toUpperCase() + code.slice(1)
+        : code[0].toLowerCase() + code.slice(1);
+      d = await tryFetch(alt);
+      if (d) return d;
+      // 3차: 전체 대문자
+      d = await tryFetch(code.toUpperCase());
+      return d;
+    }
+    const data = await fetchSet(setCode);
+    if (!data) {
       document.getElementById('setGridContent').innerHTML = `
         <div style="padding:40px 20px; text-align:center">
           <div style="font-size:48px; opacity:0.3; margin-bottom:12px">📭</div>
@@ -3708,7 +3756,6 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
         </div>`;
       return;
     }
-    const data = await r.json();
     const cards = data.cards || [];
     if (!cards.length) {
       document.getElementById('setGridContent').innerHTML = '<div style="padding:40px; text-align:center; color:var(--ink-sub)">카드 없음</div>';

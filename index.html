@@ -2202,11 +2202,25 @@ async function aiAnalyzeCentering() {
   btn.disabled = true;
   btn.textContent = '⏳ AI 분석 중... (10~20초)';
 
-  // 두 캔버스 → base64
+  // 두 캔버스 → 작게 리사이즈 (max 768px) → base64
+  // 데스크톱에서 큰 캔버스 그대로 보내면 Groq payload 크기 초과/시간 초과 발생
+  const toResizedJpeg = (srcCanvas, maxDim = 768, quality = 0.82) => {
+    const sw = srcCanvas.width, sh = srcCanvas.height;
+    const scale = Math.min(1, maxDim / Math.max(sw, sh));
+    const dw = Math.round(sw * scale), dh = Math.round(sh * scale);
+    const tmp = document.createElement('canvas');
+    tmp.width = dw; tmp.height = dh;
+    const ctx = tmp.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(srcCanvas, 0, 0, dw, dh);
+    return tmp.toDataURL('image/jpeg', quality).split(',')[1];
+  };
   const frontCanvas = document.querySelector('canvas[data-centering-canvas="front"]');
   const backCanvas = document.querySelector('canvas[data-centering-canvas="back"]');
-  const frontB64 = frontCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-  const backB64 = backCanvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+  const frontB64 = toResizedJpeg(frontCanvas);
+  const backB64 = toResizedJpeg(backCanvas);
+  console.log(`[ai] front ${(frontB64.length / 1024).toFixed(0)}KB, back ${(backB64.length / 1024).toFixed(0)}KB`);
 
   const frontMetrics = _CENTERING.front.metrics || {};
   const backMetrics = _CENTERING.back.metrics || {};
@@ -2222,15 +2236,20 @@ async function aiAnalyzeCentering() {
         backMetrics,
       }),
     });
+    const fullErrText = !r.ok ? await r.text() : null;
     if (!r.ok) {
-      const err = await r.text();
-      throw new Error(`API ${r.status}: ${err.slice(0, 120)}`);
+      console.error('[ai] full error response:', fullErrText);
+      throw new Error(`API ${r.status}: ${fullErrText}`);
     }
     const d = await r.json();
     incAICenteringCount();
     renderAICenteringResult(d.text || '');
   } catch (e) {
-    alert('AI 분석 실패: ' + e.message);
+    console.error('[ai] failure:', e);
+    // 풀 에러 메시지 화면에 표시 (알럿 잘림 X)
+    const wrap = document.getElementById('centeringAIResult');
+    wrap.style.display = '';
+    wrap.querySelector('#centeringAIText').textContent = `❌ AI 분석 실패\n\n${e.message}\n\n(콘솔에서 전문 확인 가능)`;
   } finally {
     btn.disabled = false;
     btn.innerHTML = `✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8">(오늘 ${getAICenteringCount()}/4)</span>`;

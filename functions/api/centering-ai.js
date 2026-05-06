@@ -79,12 +79,10 @@ export async function onRequestPost({ request, env }) {
 
   // 1순위: Groq (무료, 한국 IP 지원)
   if (env.GROQ_API_KEY) {
-    // Groq 모델 — 여러 vision 모델 시도 (deprecated 대비)
+    // Groq 현재 vision 모델 (2025년 5월 기준 — llama-3.2 vision preview 는 deprecated)
     const groqModels = [
       'meta-llama/llama-4-scout-17b-16e-instruct',
       'meta-llama/llama-4-maverick-17b-128e-instruct',
-      'llama-3.2-90b-vision-preview',
-      'llama-3.2-11b-vision-preview',
     ];
     let lastError = '';
     for (const model of groqModels) {
@@ -113,9 +111,11 @@ export async function onRequestPost({ request, env }) {
           });
         }
         const txt = await r.text();
-        lastError = `${model}: ${r.status} ${txt.slice(0, 200)}`;
-        // 401/403 = key 문제 → 더 시도해도 의미없음
-        if (r.status === 401 || r.status === 403) break;
+        lastError = `${model}: ${r.status} ${txt.slice(0, 800)}`;
+        console.error(`[groq] ${model} failed:`, r.status, txt.slice(0, 800));
+        // 401 = key 문제 (다른 모델도 동일) → 즉시 중단
+        // 403 = 모델별 권한 다를 수 있으니 다음 모델 시도 (계속)
+        if (r.status === 401) break;
       } catch (e) {
         lastError = `${model}: ${e.message}`;
       }

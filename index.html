@@ -472,8 +472,29 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
       history.replaceState(null, '', clean);
     }
+    // 마스터 계정 (yhk3213@gmail.com) 만 admin 활성화
+    // CURRENT_USER 는 fetchAuthMe 후 set 되므로, 우선 localStorage 체크 후 사용자 확인
     if (localStorage.getItem('admin_enabled') === '1') {
       document.body.classList.add('admin-active');
+      // 로그인 후 마스터 아니면 admin 비활성화 (background 검증)
+      setTimeout(async () => {
+        try {
+          const r = await fetch('/api/auth/me', { credentials: 'include' });
+          if (r.ok) {
+            const d = await r.json();
+            const email = (d?.user?.email || '').toLowerCase();
+            if (email !== 'yhk3213@gmail.com') {
+              localStorage.removeItem('admin_enabled');
+              document.body.classList.remove('admin-active');
+              console.warn('[admin] master 계정 아님 — admin 비활성화');
+            }
+          } else {
+            // 비로그인 → admin 비활성화
+            localStorage.removeItem('admin_enabled');
+            document.body.classList.remove('admin-active');
+          }
+        } catch {}
+      }, 1500);
     }
   } catch (e) {}
 })();
@@ -742,7 +763,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="tab" data-subtab="apply">🎟 응모</div>
         <div class="tab" data-subtab="oripa">🎁 오리파</div>
         <div class="tab" data-subtab="grading">🏷 그레이딩</div>
-        <div class="tab" data-subtab="centeringtool">📏 센터링툴</div>
         <div class="tab" data-subtab="etc">📦 기타</div>
       </div>
       <style>
@@ -811,27 +831,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div data-hubpanel="grading" style="display:none">
         <div id="gradingListHub" style="display:flex; flex-direction:column; gap:12px"></div>
-      </div>
-      <div data-hubpanel="centeringtool" style="display:none">
-        <!-- 센터링 툴 진입 카드 -->
-        <div data-nav="centering" style="cursor:pointer; background:linear-gradient(135deg,#fef3c7,#fde68a); border:1px solid #fcd34d; border-radius:12px; padding:24px 22px; margin-bottom:14px; transition:transform 0.2s">
-          <div style="display:flex; align-items:center; gap:18px">
-            <div style="font-size:48px">📏</div>
-            <div style="flex:1; min-width:0">
-              <div style="font-size:18px; font-weight:800; color:#78350f; margin-bottom:6px">카드 센터링 측정 →</div>
-              <div style="font-size:13px; color:#92400e; line-height:1.6">PSA · BGS 그레이딩 보내기 전 자가진단<br>앞/뒷면 동시 측정 · AI 분석 (Gemini, 일 4회 무료)</div>
-            </div>
-            <div style="font-size:24px; color:#92400e">→</div>
-          </div>
-        </div>
-        <div style="background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px 20px; font-size:13px; color:#6b7280; line-height:1.7">
-          <div style="font-weight:800; color:#374151; margin-bottom:8px; font-size:14px">💡 사용법</div>
-          1. 슬리브 없는 카드 정면 사진 (단색 배경 권장)<br>
-          2. 앞면 + 뒷면 둘 다 업로드 (앨범 또는 카메라)<br>
-          3. 8개 핸들로 inner/outer 영역 미세 조정<br>
-          4. PSA · BGS 추정 등급 자동 계산<br>
-          5. AI 분석 (선택) — 모서리 · 엣지 · 표면 · PSA10 가능성
-        </div>
       </div>
       <div data-hubpanel="etc" style="display:none">
         <div id="etcListHub" style="display:flex; flex-direction:column; gap:12px"></div>
@@ -1344,7 +1343,7 @@ document.addEventListener('click', e => {
   // 외부링크(target=_blank, http://) 는 절대 가로채지 않음
   const externalA = e.target.closest('a[target="_blank"], a[href^="http"], a[href^="https"]');
   if (externalA) return;
-  const navEl = e.target.closest('.nav-item[data-nav], .mnav-item[data-nav], .brand[data-nav], .brand-tile[data-nav], button[data-nav], .home-menu-card[data-nav]');
+  const navEl = e.target.closest('.nav-item[data-nav], .mnav-item[data-nav], .brand[data-nav], .brand-tile[data-nav], button[data-nav], .home-menu-card[data-nav], .pf-stat[data-nav], [data-nav][data-nav-clickable]');
   if (!navEl) return;
   const page = navEl.dataset.nav;
   if (!page) return;
@@ -3338,7 +3337,7 @@ document.addEventListener('click', e => {
 });
 
 // 허브 탭 — 상위 (news / shops / more) + 하위 (more 일 때 events / cardshow / apply / oripa / etc)
-const HUB_MORE_PANELS = ['events', 'cardshow', 'apply', 'oripa', 'grading', 'centeringtool', 'etc'];
+const HUB_MORE_PANELS = ['events', 'cardshow', 'apply', 'oripa', 'grading', 'etc'];
 let HUB_SUB = 'events';
 
 function showHubPanel(which) {

@@ -62,37 +62,51 @@ export async function onRequestPost({ request, env }) {
 
   // 1순위: Groq (무료, 한국 IP 지원)
   if (env.GROQ_API_KEY) {
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llama-3.2-90b-vision-preview',
-          messages: [
-            { role: 'system', content: SYSTEM_CONTEXT },
-            { role: 'user', content: [
-              { type: 'text', text: userPrompt + '\n\n(아래 이미지 1=앞면, 2=뒷면)' },
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}` } },
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}` } },
-            ]},
-          ],
-          temperature: 0.3, max_tokens: 800,
-        }),
-      });
-      if (r.ok) {
-        const d = await r.json();
-        const text = d?.choices?.[0]?.message?.content || '(빈 응답)';
-        return new Response(JSON.stringify({ text, provider: 'groq' }), {
-          headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    // Groq 모델 — 여러 vision 모델 시도 (deprecated 대비)
+    const groqModels = [
+      'meta-llama/llama-4-scout-17b-16e-instruct',
+      'meta-llama/llama-4-maverick-17b-128e-instruct',
+      'llama-3.2-90b-vision-preview',
+      'llama-3.2-11b-vision-preview',
+    ];
+    let lastError = '';
+    for (const model of groqModels) {
+      try {
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: SYSTEM_CONTEXT },
+              { role: 'user', content: [
+                { type: 'text', text: userPrompt + '\n\n(이미지 1=앞면, 2=뒷면)' },
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}` } },
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}` } },
+              ]},
+            ],
+            temperature: 0.3, max_tokens: 800,
+          }),
         });
-      } else {
+        if (r.ok) {
+          const d = await r.json();
+          const text = d?.choices?.[0]?.message?.content || '(빈 응답)';
+          return new Response(JSON.stringify({ text, provider: `groq:${model}` }), {
+            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+          });
+        }
         const txt = await r.text();
-        // Groq 실패 → Gemini fallback
-        console.log(`Groq ${r.status}: ${txt.slice(0, 200)}`);
+        lastError = `${model}: ${r.status} ${txt.slice(0, 200)}`;
+        // 401/403 = key 문제 → 더 시도해도 의미없음
+        if (r.status === 401 || r.status === 403) break;
+      } catch (e) {
+        lastError = `${model}: ${e.message}`;
       }
-    } catch (e) {
-      console.log(`Groq error: ${e.message}`);
     }
+    // Groq 실패 → 에러 그대로 반환 (Gemini fallback X, 디버깅 위해)
+    return new Response(JSON.stringify({ error: 'Groq all models failed', detail: lastError }), {
+      status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    });
   }
 
   // 2순위: Gemini (일부 지역 차단)

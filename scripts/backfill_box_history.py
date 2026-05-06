@@ -115,7 +115,10 @@ def fetch_volume_box(cid, days_limit=None, max_pages=200):
         if len(items) < 20:
             break
         time.sleep(0.3)
-    avg_prices = {d: sum(p) // len(p) for d, p in prices.items() if p}
+    # median — 같은 날 거래 list 중 중앙값. 비정상 고가 단일건 영향 0
+    def _median(arr):
+        s = sorted(arr); return s[len(s) // 2]
+    avg_prices = {d: _median(p) for d, p in prices.items() if p}
     return dict(counts), avg_prices
 
 
@@ -251,9 +254,10 @@ def main():
         print(f"      ✓ {len(points)} 차트 / {len(vols)} 거래일 (전체 거래량 {total_vol}건) / 누적 {len(new_hist)} dates")
         if new_hist:
             print(f"        {new_hist[0]['date']} ~ {new_hist[-1]['date']}")
+            print(f"        valid {sum(1 for h in new_hist if h.get('box_vol', 0) > 0)} days")
         time.sleep(0.5)
 
-    print(f"\n━━━ 완료: {success}/{len(box_ids)} 박스 ━━━")
+    print(f"\nBox backfill complete — {len(targets)} processed")
 
 
 if __name__ == "__main__":

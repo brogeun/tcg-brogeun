@@ -158,10 +158,12 @@ def main():
                 continue
             for date, prs in prices_by_date.items():
                 if not prs: continue
-                avg = sum(prs) // len(prs)
+                # median — outlier 영향 0 (비정상 고가 단일건은 평균에 안 끌림)
+                sorted_prs = sorted(prs)
+                med = sorted_prs[len(sorted_prs) // 2]
                 if date not in by_date:
                     by_date[date] = {"date": date}
-                by_date[date][f"{grade}_price"] = avg
+                by_date[date][f"{grade}_price"] = med
                 by_date[date][f"{grade}_vol"] = len(prs)
                 any_new = True
         if not any_new:

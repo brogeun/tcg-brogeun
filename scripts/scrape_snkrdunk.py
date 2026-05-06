@@ -845,11 +845,13 @@ def main():
                     box_vols[dt_str] += 1
                 if len(items) < 20: break
                 time.sleep(0.2)
+            # median — 같은 날 거래 list 중앙값. outlier 영향 0
             for date, prs in box_prices.items():
-                avg = sum(prs) // len(prs)
+                sorted_prs = sorted(prs)
+                med = sorted_prs[len(sorted_prs) // 2]
                 if date not in by_date:
                     by_date[date] = {"date": date}
-                by_date[date]["box_price"] = avg
+                by_date[date]["box_price"] = med
                 by_date[date]["box_vol"] = box_vols[date]
                 any_new = True
 
@@ -859,10 +861,11 @@ def main():
                 prices_by_date = fetch_card_history_1ea(cid, opt_id, max_pages=5)
                 for date, prs in prices_by_date.items():
                     if not prs: continue
-                    avg = sum(prs) // len(prs)
+                    sorted_prs = sorted(prs)
+                    med = sorted_prs[len(sorted_prs) // 2]
                     if date not in by_date:
                         by_date[date] = {"date": date}
-                    by_date[date][f"{grade}_price"] = avg
+                    by_date[date][f"{grade}_price"] = med
                     by_date[date][f"{grade}_vol"] = len(prs)
                     any_new = True
                 time.sleep(0.3)

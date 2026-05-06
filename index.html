@@ -940,6 +940,23 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <input id="adminTitle" placeholder="제목을 입력해주세요." style="width:100%; padding:14px 0; border:none; outline:none; font-size:18px; font-weight:600; color:#111; background:transparent">
         </div>
 
+        <!-- 메인 이미지 (Row 2.5) — 카드 상단에 크게 표시될 사진 -->
+        <div style="padding:14px 20px; border-bottom:1px solid var(--line); background:#fafafa">
+          <div style="font-size:11px; font-weight:700; color:#6b7280; margin-bottom:8px">🖼 메인 이미지 (카드 상단 16:9 비율로 표시)</div>
+          <div style="display:flex; gap:10px; align-items:flex-start">
+            <div id="adminMainImagePreview" style="width:160px; aspect-ratio:16/9; background:#f3f4f6; border:1px dashed #d1d5db; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af; flex-shrink:0; overflow:hidden">없음</div>
+            <div style="flex:1">
+              <input type="file" id="adminMainImageFile" accept="image/*" style="display:none">
+              <input id="adminMainImageUrl" placeholder="이미지 URL (또는 아래 파일 선택)" style="width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:12px; background:#fff; margin-bottom:6px">
+              <div style="display:flex; gap:6px">
+                <button class="btn" type="button" onclick="document.getElementById('adminMainImageFile').click()" style="font-size:11px; padding:6px 12px; cursor:pointer">📁 파일 선택</button>
+                <button class="btn" type="button" onclick="adminClearMainImage()" style="font-size:11px; padding:6px 12px; cursor:pointer">✕ 제거</button>
+              </div>
+              <input type="hidden" id="adminMainImage">
+            </div>
+          </div>
+        </div>
+
         <!-- Quill 에디터 (Row 3) -->
         <div style="padding:0 20px">
           <div id="adminEditor" style="height:340px; border:none"></div>
@@ -4291,35 +4308,34 @@ function renderRichContent(s) {
   return nl2br(s);
 }
 
-// 공통 — 펼침/접힘 카드 (제목 + 우측 썸네일 → 클릭하면 본문/이미지/링크 펼침)
+// 공통 — 카드형 UI (위 큰 사진 + 아래 정보) + 클릭 시 본문 펼침
 function _hubCollapsibleCard(e, badge) {
   const id = 'hubcard-' + (e.id || Math.random().toString(36).slice(2));
   const dateBadge = e.date ? (badge
-    ? `<div style="display:inline-block; font-size:11px; padding:2px 8px; background:${badge.bg}; color:${badge.color}; border-radius:4px; font-weight:700; margin-bottom:6px">${badge.icon} ${escapeHtml(e.date)}</div>`
-    : `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>`) : '';
-  const thumb = e.image
+    ? `<div style="display:inline-block; font-size:11px; padding:3px 9px; background:${badge.bg}; color:${badge.color}; border-radius:5px; font-weight:700; margin-bottom:8px">${badge.icon} ${escapeHtml(e.date)}</div>`
+    : `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:6px">${escapeHtml(e.date)}</div>`) : '';
+  // 위 큰 박스 사진 (16:9 비율)
+  const heroImg = e.image
     ? `<img src="${escapeHtml(e.image)}" alt="" loading="lazy"
-            style="width:64px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb; flex-shrink:0; cursor:pointer"
-            onerror="this.style.display='none'">`
-    : `<div style="width:64px; height:64px; background:#f3f4f6; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:24px; opacity:0.4">📄</div>`;
-  const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기 →</a>` : '';
-  // 펼침 영역: 본문 + 링크만 (썸네일은 우측에 이미 있어서 중복 제거)
+            style="width:100%; aspect-ratio:16/9; object-fit:cover; background:#f3f4f6; display:block"
+            onerror="this.style.background='linear-gradient(135deg,#fafafa,#f3f4f6)'; this.removeAttribute('src')">`
+    : `<div style="width:100%; aspect-ratio:16/9; background:linear-gradient(135deg,#fafafa,#f3f4f6); display:flex; align-items:center; justify-content:center; font-size:42px; opacity:0.3">📄</div>`;
+  const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:10px; display:inline-block">🔗 자세히 보기 →</a>` : '';
+  // 펼침 본문
   const body = (e.content || e.link)
-    ? `<div id="${id}-body" class="hubcard-body" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #e5e7eb">
-         ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.7">${renderRichContent(e.content)}</div>` : ''}
+    ? `<div id="${id}-body" class="hubcard-body" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed #e5e7eb">
+         ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.75">${renderRichContent(e.content)}</div>` : ''}
          ${linkPart}
        </div>` : '';
   return `
-    <div class="card hubcard" style="padding:12px 14px; cursor:pointer" onclick="toggleHubCard('${id}')">
-      <div style="display:flex; gap:12px; align-items:flex-start">
-        <div style="flex:1; min-width:0">
-          ${dateBadge}
-          <div style="font-size:14px; font-weight:700; color:#111; line-height:1.4">${escapeHtml(e.title || '')}</div>
-          <div id="${id}-preview" style="font-size:12px; color:#9ca3af; margin-top:4px">탭해서 자세히 보기</div>
-        </div>
-        ${thumb}
+    <div class="card hubcard" style="padding:0; overflow:hidden; cursor:pointer; border-radius:12px" onclick="toggleHubCard('${id}')">
+      ${heroImg}
+      <div style="padding:14px 16px">
+        ${dateBadge}
+        <div style="font-size:15px; font-weight:800; color:#111; line-height:1.4">${escapeHtml(e.title || '')}</div>
+        <div id="${id}-preview" style="font-size:11px; color:#9ca3af; margin-top:6px">탭해서 자세히 보기 ↓</div>
+        ${body}
       </div>
-      ${body}
     </div>`;
 }
 function toggleHubCard(id) {
@@ -4328,7 +4344,7 @@ function toggleHubCard(id) {
   if (!body) return;
   const isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
-  if (preview) preview.textContent = isOpen ? '탭해서 자세히 보기' : '탭해서 접기';
+  if (preview) preview.textContent = isOpen ? '탭해서 자세히 보기 ↓' : '탭해서 접기 ↑';
 }
 
 function renderEvents() {
@@ -4462,6 +4478,7 @@ function adminClearForm() {
   document.getElementById('adminTitle').value = '';
   document.getElementById('adminDate').value = '';
   document.getElementById('adminLink').value = '';
+  adminClearMainImage();
   // 게시판 선택 — 현재 탭 따라 기본 선택
   const board = document.getElementById('adminBoard');
   if (board) board.value = ADMIN_TAB || 'events';
@@ -4469,6 +4486,53 @@ function adminClearForm() {
   if (_QUILL) _QUILL.setContents([]);
   document.getElementById('adminFormTitle').textContent = '📝 새 글 작성';
 }
+
+// 메인 이미지 — file → base64 또는 URL 입력
+function adminSetMainImage(url) {
+  document.getElementById('adminMainImage').value = url || '';
+  document.getElementById('adminMainImageUrl').value = (url && url.startsWith('data:')) ? '' : (url || '');
+  const prev = document.getElementById('adminMainImagePreview');
+  if (url) {
+    prev.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:cover">`;
+  } else {
+    prev.innerHTML = '없음';
+  }
+}
+function adminClearMainImage() {
+  document.getElementById('adminMainImageFile').value = '';
+  adminSetMainImage('');
+}
+// admin 페이지 진입 시 핸들러 바인딩
+(function bindAdminMainImage() {
+  const setup = () => {
+    const fileInput = document.getElementById('adminMainImageFile');
+    const urlInput = document.getElementById('adminMainImageUrl');
+    if (fileInput && !fileInput._bound) {
+      fileInput._bound = true;
+      fileInput.onchange = e => {
+        const f = e.target.files[0];
+        if (!f) return;
+        // 1MB 초과면 경고만 (JPEG quality 0.8 로 압축 권장)
+        if (f.size > 2 * 1024 * 1024) {
+          if (!confirm('파일 크기가 ' + (f.size / 1024 / 1024).toFixed(1) + 'MB 입니다. 크면 저장 시 용량 제한 걸릴 수 있어요. 계속할까요?')) return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => adminSetMainImage(reader.result);
+        reader.readAsDataURL(f);
+      };
+    }
+    if (urlInput && !urlInput._bound) {
+      urlInput._bound = true;
+      urlInput.onchange = e => {
+        const v = e.target.value.trim();
+        if (v) adminSetMainImage(v);
+      };
+    }
+  };
+  document.addEventListener('DOMContentLoaded', setup);
+  // hashchange 도 감지 (admin 페이지로 SPA 진입 시)
+  window.addEventListener('hashchange', () => { if (location.hash === '#admin') setup(); });
+})();
 
 // 관리자 모드 종료 — 마스터 계정만 활성화 가능 (?admin=enable 로 재진입)
 function adminExitMode() {
@@ -4498,9 +4562,13 @@ async function adminSaveEntry() {
   if (!title) { alert('제목을 입력해주세요'); return; }
   if (isEmpty) { alert('내용을 입력해주세요'); return; }
 
-  // 본문 일부에서 첫 이미지 URL 자동 추출 (썸네일 용)
-  const imgMatch = content.match(/<img[^>]+src="([^"]+)"/i);
-  const image = imgMatch ? imgMatch[1] : '';
+  // 메인 이미지 — 직접 업로드/입력한 게 우선, 없으면 본문 안 첫 이미지 자동 추출 (fallback)
+  const mainImage = document.getElementById('adminMainImage').value.trim();
+  let image = mainImage;
+  if (!image) {
+    const imgMatch = content.match(/<img[^>]+src="([^"]+)"/i);
+    image = imgMatch ? imgMatch[1] : '';
+  }
 
   // 게시판 → 데이터 배열 매핑
   const ARR_MAP = {
@@ -4573,6 +4641,7 @@ async function adminEditEntry(id) {
   document.getElementById('adminTitle').value = e.title || '';
   document.getElementById('adminDate').value = e.date || '';
   document.getElementById('adminLink').value = e.link || '';
+  adminSetMainImage(e.image || '');
   document.getElementById('adminBoard').value = ADMIN_TAB; // 현재 탭 = 이 글의 게시판
   // Quill 에 컨텐츠 주입 (HTML 또는 plain text)
   if (_QUILL) {

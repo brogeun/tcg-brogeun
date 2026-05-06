@@ -1830,7 +1830,7 @@ async function showPriceDetailPanel(productId) {
             </div>
           </div>
           <div style="margin-top:8px; font-size:10px; color:var(--ink-mute); line-height:1.6">
-            🔵 가격(KRW) · ▮ 거래량 · 당일 튀는 가격만 제거 (이웃 14일 하위 25% 기준 [0.5, 1.8] 벗어난 거래)
+            🔵 가격(KRW) · ▮ 거래량 · 당일 튀는 가격만 제거 (이웃 4일 최저가의 2배 초과 거래)
           </div>
         </div>
       </div>
@@ -2708,32 +2708,28 @@ function loadChartJs() {
   return _CHART_JS_LOADING;
 }
 
-// 당일 outlier 필터 — 자기 제외 ±7일 (총 14일) lower quartile (25th percentile) 기준
-//   [0.5, 1.8] 벗어나면 outlier. lower quartile 은 spike 들이 50% 차지해도 정상값 baseline 으로 잡아줌.
-//   장기 트렌드 (한 달 2~3배 = 7일 ~28%) 보존, 당일 튀는 거래만 제거.
+// 당일 outlier 필터 — 자기 제외 ±2일 (총 4일) min 기준 ×2 초과면 outlier
+//   min 은 spike 들이 아무리 많아도 영향 안 받음 (가장 낮은 정상값) → 가장 robust
+//   장기 트렌드 (한 달 2~3배 = 5일 안에서는 ~17% 변동) 은 그대로 통과
 function applyRollingOutlierFilter(rows, priceKey) {
   if (rows.length < 5) return rows;
-  const lowerQuartile = arr => {
-    const s = [...arr].sort((a,b) => a-b);
-    return s[Math.floor(s.length * 0.25)];
-  };
   const result = [];
   for (let i = 0; i < rows.length; i++) {
-    const start = Math.max(0, i - 7);
-    const end = Math.min(rows.length, i + 8);
-    // 자기 제외 — i 빼고 이웃 ±7일 (최대 14개) 만으로 lower quartile
+    const start = Math.max(0, i - 2);
+    const end = Math.min(rows.length, i + 3);
+    // 자기 제외 — i 빼고 이웃 ±2일 (최대 4개) 만으로 min
     const window = [];
     for (let j = start; j < end; j++) {
       if (j === i) continue;
       const v = rows[j][priceKey];
       if (v != null && v > 0) window.push(v);
     }
-    if (window.length < 4) { result.push(rows[i]); continue; }
-    const ref = lowerQuartile(window);
+    if (window.length < 2) { result.push(rows[i]); continue; }
+    const minRef = Math.min(...window);
     const v = rows[i][priceKey];
     if (v == null || v <= 0) { result.push(rows[i]); continue; }
-    if (v < ref * 0.5 || v > ref * 1.8) {
-      // 당일 가격이 이웃 ±7일 lower quartile 의 [0.5, 1.8] 벗어남 → outlier (라인은 끊지 않게 null)
+    if (v > minRef * 2) {
+      // 당일 가격이 이웃 4일 중 최소값의 2배 초과 → outlier (라인은 끊지 않게 null)
       result.push({ ...rows[i], [priceKey]: null, [`${priceKey.replace('_price','_outlier')}`]: v });
     } else {
       result.push(rows[i]);

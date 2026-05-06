@@ -3699,11 +3699,20 @@ function renderCardInfo() {
   listEl.innerHTML = list.map(s => {
     const isNolink = !!s.nolink;
     const safeName = (s.name || '').replace(/"/g, '&quot;');
+    // 박스 이미지 — webp 우선, jpg fallback. 둘 다 실패 시 회색 placeholder (이모지 X)
+    //   webp: images/box/{code}.webp (사용자 받은 23개 + 기존 박스들)
+    //   S* 시리즈 webp 는 소문자 (s12a.webp) — case 변환
+    const isSwordShield = /^S[0-9]/.test(s.code) && !s.code.startsWith('SV');
+    const webpName = isSwordShield ? s.code[0].toLowerCase() + s.code.slice(1) : s.code;
+    const webpSrc = `images/box/${webpName}.webp`;
+    const jpgSrc = `images/sets/${s.code}.jpg`;
+    // onerror chain: webp → jpg → 회색 background (조용히 hide)
+    const onerrorChain = `this.onerror=function(){this.onerror=null;this.style.opacity='0';};this.src='${jpgSrc}'`;
     if (isNolink) {
       return `
         <div class="set-tile" style="opacity:0.7; cursor:default" title="${safeName} (연동 준비 중)">
-          <div class="set-tile-img">
-            <img src="images/sets/${s.code}.jpg" alt="${safeName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:48px;opacity:0.4\\'>🔜</span>'">
+          <div class="set-tile-img" style="background:#f3f4f6">
+            <img src="${webpSrc}" alt="${safeName}" loading="lazy" onerror="${onerrorChain}">
           </div>
           <div class="set-tile-body">
             <div class="set-tile-code">${s.code}</div>
@@ -3714,8 +3723,8 @@ function renderCardInfo() {
     }
     return `
       <div class="set-tile" style="cursor:pointer" data-set-code="${s.code}" data-set-name="${escapeHtml(s.name || '')}" data-external-url="${s.url || ''}" title="${safeName} 카드 보기">
-        <div class="set-tile-img">
-          <img src="images/sets/${s.code}.jpg" alt="${safeName}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:48px\\'>🃏</span>'">
+        <div class="set-tile-img" style="background:#f3f4f6">
+          <img src="${webpSrc}" alt="${safeName}" loading="lazy" onerror="${onerrorChain}">
         </div>
         <div class="set-tile-body">
           <div class="set-tile-code">${s.code}</div>
@@ -3797,13 +3806,14 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
           const variantSuffix = (c.fullId || c.number || '').includes('_')
             ? (c.fullId || c.number).split('_').pop().toLowerCase()
             : '';
+          // 카드 이미지 — 외부 URL 그대로 사용 (어제까지 정상 작동). onerror 시 hide
           return `
           <div class="set-card-item"
                data-card-name="${escapeHtml(c.name || '')}"
                data-card-search="${escapeHtml(searchKey)}"
                data-card-variant="${escapeHtml(variantSuffix)}">
-            <div class="set-card-img">
-              ${c.image ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">🃏</span>`}
+            <div class="set-card-img" style="background:#f3f4f6">
+              ${c.image ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.opacity='0'">` : ''}
             </div>
             <div class="set-card-num">${escapeHtml(displayNum)}</div>
           </div>`;

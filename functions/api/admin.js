@@ -71,13 +71,13 @@ export async function onRequestPost({ request, env }) {
   if (!Array.isArray(items)) {
     return json({ ok: false, error: "items must be an array" }, 400);
   }
-  // 안전 — 항목 100개, 1개당 10KB 제한
-  if (items.length > 100) {
-    return json({ ok: false, error: "Max 100 items" }, 413);
+  // 안전 — 항목 500개, 게시판 전체 24MB (KV value 한계 25MiB)
+  if (items.length > 500) {
+    return json({ ok: false, error: "Max 500 items" }, 413);
   }
   const serialized = JSON.stringify(items);
-  if (serialized.length > 1024 * 1024) {
-    return json({ ok: false, error: "Total payload over 1MB" }, 413);
+  if (serialized.length > 24 * 1024 * 1024) {
+    return json({ ok: false, error: "Total payload over 24MB" }, 413);
   }
   try {
     await env.ADMIN_KV.put(KEY_PREFIX + type, serialized);

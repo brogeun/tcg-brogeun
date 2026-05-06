@@ -25,18 +25,12 @@
 <meta property="og:image" content="https://tcghub.kr/images/brand-logo.png">
 <meta name="twitter:card" content="summary">
 
-<!-- 다크모드 — body 렌더 전에 class 미리 적용 (FOUC 방지) -->
-<script>(function(){try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('preload-dark');}catch(e){}})();</script>
-<style>html.preload-dark { background: #0a0a0b; color: #f4f4f5; }</style>
-
 <!-- Quill rich text editor (관리자 글쓰기) -->
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
 <style>
 :root {
   --bg: #fafafa;
   --bg-soft: #f3f4f6;
-  --surface: #ffffff;
-  --surface-elevated: #ffffff;
   --line: #e5e7eb;
   --line-strong: #d1d5db;
   --ink: #111;
@@ -45,73 +39,7 @@
   --accent: #06b6d4;
   --pos: #10b981;
   --neg: #ef4444;
-  --shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
-/* 다크모드 — body.dark 일 때 */
-body.dark {
-  --bg: #0a0a0b;
-  --bg-soft: #18181b;
-  --surface: #18181b;
-  --surface-elevated: #27272a;
-  --line: #27272a;
-  --line-strong: #3f3f46;
-  --ink: #f4f4f5;
-  --ink-sub: #a1a1aa;
-  --ink-mute: #71717a;
-  --shadow: 0 1px 2px rgba(0,0,0,0.3);
-}
-body.dark .sidebar,
-body.dark .topbar,
-body.dark .mnav,
-body.dark .card,
-body.dark #priceDetailPanel .card,
-body.dark .empty,
-body.dark .pf-stat,
-body.dark input,
-body.dark select,
-body.dark textarea {
-  background: var(--surface) !important;
-  color: var(--ink);
-  border-color: var(--line);
-}
-body.dark .topbar { background: rgba(24,24,27,0.9) !important; }
-body.dark .icon-btn { background: var(--bg-soft); border-color: var(--line); color: var(--ink); }
-body.dark .search { background: var(--bg-soft); border-color: var(--line); }
-body.dark .search input { color: var(--ink); }
-body.dark .search input::placeholder { color: var(--ink-mute); }
-body.dark .nav-item { color: var(--ink-sub); }
-body.dark .nav-item:hover { background: var(--bg-soft); color: var(--ink); }
-body.dark .nav-item.active { background: var(--ink); color: var(--bg); }
-body.dark .mnav-item { color: var(--ink-sub); }
-body.dark .mnav-item.active { color: var(--ink); }
-body.dark .btn { background: var(--surface); color: var(--ink); border-color: var(--line); }
-body.dark .btn:hover { background: var(--bg-soft); }
-body.dark .btn.primary { background: #fff; color: #000; border-color: #fff; }
-body.dark .tab { color: var(--ink-sub); }
-body.dark .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
-body.dark .tabs.pill .tab { background: var(--surface); border-color: var(--line); color: var(--ink-sub); }
-body.dark .tabs.pill .tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-body.dark .hub-tabs .tab { background: var(--surface); border-color: var(--line); color: var(--ink-sub); }
-body.dark .hub-tabs .tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-body.dark .news-grid .card { background: var(--surface); }
-body.dark .news-grid .card div { background: var(--surface) !important; }
-body.dark .hubcard { background: var(--surface); }
-body.dark .hubcard:active { background: var(--bg-soft); }
-body.dark .ai-score { border-color: var(--line-strong) !important; }
-body.dark .event-item { background: var(--surface); border-color: var(--line); }
-body.dark .apply-card { background: var(--surface); border-color: var(--line); color: var(--ink); }
-body.dark .apply-card-thumb { background: var(--bg-soft); }
-body.dark a { color: inherit; }
-body.dark a:hover { color: var(--accent); }
-/* Quill 에디터 다크 */
-body.dark .ql-toolbar.ql-snow { background: var(--bg-soft); border-color: var(--line); }
-body.dark .ql-container.ql-snow { background: var(--surface); border-color: var(--line); color: var(--ink); }
-body.dark .ql-editor { color: var(--ink); }
-body.dark .ql-editor.ql-blank::before { color: var(--ink-mute); }
-body.dark .ql-snow .ql-stroke { stroke: var(--ink); }
-body.dark .ql-snow .ql-fill { fill: var(--ink); }
-body.dark .ql-snow .ql-picker { color: var(--ink); }
-body.dark .ql-snow .ql-picker-options { background: var(--surface); border-color: var(--line); }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -620,7 +548,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div class="top-actions">
         <div class="icon-btn mobile-search-toggle" id="mobileSearchToggle" title="검색" aria-label="검색">🔍</div>
-        <div class="icon-btn" id="darkModeToggle" title="다크모드 전환" aria-label="다크모드 전환" style="font-size:16px">🌙</div>
         <div class="avatar" id="topAvatar" title="마이페이지" data-nav="portfolio" style="display:none; cursor:pointer">?</div>
       </div>
     </header>
@@ -645,26 +572,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         });
       })();
 
-      // 다크모드 토글 — localStorage 저장 + body class 토글
-      (function bindDarkModeToggle(){
-        const btn = document.getElementById('darkModeToggle');
-        if (!btn) return;
-        const setIcon = isDark => { btn.textContent = isDark ? '☀️' : '🌙'; btn.title = isDark ? '라이트모드 전환' : '다크모드 전환'; };
-        // 초기 적용 — localStorage 우선 (사용자 선택 기억)
-        const saved = localStorage.getItem('theme');
-        const isDark = saved === 'dark';
-        if (isDark) document.body.classList.add('dark');
-        setIcon(isDark);
-        // 토글
-        btn.addEventListener('click', () => {
-          const nowDark = document.body.classList.toggle('dark');
-          localStorage.setItem('theme', nowDark ? 'dark' : 'light');
-          setIcon(nowDark);
-          // theme-color meta 도 갱신 (브라우저 상단바 색)
-          const meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute('content', nowDark ? '#0a0a0b' : '#14b8a6');
-        });
-      })();
     </script>
 
     <!-- 홈 -->
@@ -1079,7 +986,16 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <h1 class="page-title">📏 카드 센터링 측정</h1>
         <p class="page-sub">PSA · BGS 그레이딩 전 자가진단 · 앞/뒷면 동시 · AI 분석 (일 4회 무료)</p>
       </div>
-      <div style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px">
+      <!-- 비로그인 안내 — 로그인해야 센터링 사용 가능 -->
+      <div id="centeringLoginGate" style="display:none">
+        <div style="background:linear-gradient(135deg, #fafbff 0%, #eef0ff 100%); border:1px solid var(--line); border-radius:16px; padding:36px 24px 32px; text-align:center; margin-bottom:18px">
+          <div style="font-size:54px; margin-bottom:10px; line-height:1">🔐</div>
+          <div style="font-size:20px; font-weight:800; color:#111; margin-bottom:8px">센터링 측정은 로그인 후 이용 가능합니다</div>
+          <div style="font-size:13px; color:var(--ink-sub); margin-bottom:22px; line-height:1.7">이메일만 입력하면 비밀번호 없이 로그인됩니다.<br>AI 분석 일 4회 무료 사용량은 계정 단위로 관리됩니다.</div>
+          <button class="btn primary" onclick="openLoginModal('센터링 측정을 사용하려면 로그인이 필요합니다')" style="cursor:pointer; padding:12px 36px; font-size:14px; font-weight:700">📧 이메일로 로그인 →</button>
+        </div>
+      </div>
+      <div id="centeringMain" style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px">
         <div style="font-size:13px; color:#6b7280; margin-bottom:14px; line-height:1.7">
           💡 <b>사용법</b>: 슬리브 없는 카드 정면 사진 (단색 배경 권장) — 앞면 + 뒷면 둘 다 업로드 → 자동 감지 후 핸들 조정 → 등급 측정
         </div>
@@ -2048,7 +1964,17 @@ function updateAICenteringCountUI() {
   if (el) el.textContent = `(오늘 ${getAICenteringCount()}/4)`;
 }
 
+// 센터링 페이지 — 로그인 게이트 토글
+function applyCenteringLoginGate() {
+  const gate = document.getElementById('centeringLoginGate');
+  const main = document.getElementById('centeringMain');
+  if (!gate || !main) return;
+  const loggedIn = !!(typeof CURRENT_USER !== 'undefined' && CURRENT_USER);
+  gate.style.display = loggedIn ? 'none' : '';
+  main.style.display = loggedIn ? '' : 'none';
+}
 function setupCentering() {
+  applyCenteringLoginGate();
   ['front', 'back'].forEach(side => {
     const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
     if (!slot) return;
@@ -2290,6 +2216,10 @@ function moveHandle(side, handle, x, y) {
 }
 
 async function aiAnalyzeCentering() {
+  if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
+    if (typeof openLoginModal === 'function') openLoginModal('AI 분석은 로그인 후 이용 가능합니다');
+    return;
+  }
   if (!_CENTERING.front.img || !_CENTERING.back.img) {
     alert('앞면 + 뒷면 이미지 둘 다 업로드해야 AI 분석 가능합니다.');
     return;
@@ -4326,11 +4256,10 @@ function _hubCollapsibleCard(e, badge) {
             onerror="this.style.display='none'">`
     : `<div style="width:64px; height:64px; background:#f3f4f6; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:24px; opacity:0.4">📄</div>`;
   const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" style="font-size:12px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기 →</a>` : '';
-  const fullImg = e.image ? `<div style="margin-top:10px"><img src="${escapeHtml(e.image)}" alt="" style="max-width:100%; max-height:380px; border-radius:8px; border:1px solid #e5e7eb; display:block" onerror="this.style.display='none'"></div>` : '';
-  const body = (e.content || e.image || e.link)
+  // 펼침 영역: 본문 + 링크만 (썸네일은 우측에 이미 있어서 중복 제거)
+  const body = (e.content || e.link)
     ? `<div id="${id}-body" class="hubcard-body" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #e5e7eb">
          ${e.content ? `<div style="font-size:13px; color:#4b5563; line-height:1.7">${renderRichContent(e.content)}</div>` : ''}
-         ${fullImg}
          ${linkPart}
        </div>` : '';
   return `
@@ -5334,6 +5263,7 @@ function showToast(message, type = 'success') {
 fetchAuthMe().then(user => {
   CURRENT_USER = user;
   renderAuthStatus();
+  if (typeof applyCenteringLoginGate === 'function') applyCenteringLoginGate();
 });
 
 /* ─── 포트폴리오 / 관심 추가 모달 ─── */

@@ -3811,14 +3811,29 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
           const variantSuffix = (c.fullId || c.number || '').includes('_')
             ? (c.fullId || c.number).split('_').pop().toLowerCase()
             : '';
-          // 카드 이미지 — 외부 URL 그대로 사용 (어제까지 정상 작동). onerror 시 hide
+          // 카드 이미지 — 외부 URL 우선 (어제까지 정상), 실패 시 로컬 PNG (images/onepiece/) fallback
+          //   OnePiece 카드는 2,673장 전부 로컬에 받아둠 → 외부 사이트 referer 정책 바뀌어도 안전
+          const externalUrl = c.image || '';
+          const fullId = c.fullId || c.number || '';
+          const isOnePiece = externalUrl.includes('onepiece-cardgame.com') || fullId.match(/^(OP|EB|ST|PRB)\d+/i);
+          const localPath = (isOnePiece && fullId) ? `images/onepiece/${fullId}.png` : '';
+          // 우선순위: 외부 URL → 로컬 → hide
+          let primarySrc = externalUrl;
+          let fallbackSrc = localPath;
+          // 외부 URL 없으면 로컬 만 사용
+          if (!primarySrc && localPath) primarySrc = localPath;
+          // 외부 URL 과 로컬 둘 다 동일이면 fallback 의미 없음
+          if (primarySrc === fallbackSrc) fallbackSrc = '';
+          const onerrorAttr = fallbackSrc
+            ? `onerror="this.onerror=function(){this.onerror=null;this.style.opacity='0';};this.src='${escapeHtml(fallbackSrc)}'"`
+            : `onerror="this.onerror=null;this.style.opacity='0'"`;
           return `
           <div class="set-card-item"
                data-card-name="${escapeHtml(c.name || '')}"
                data-card-search="${escapeHtml(searchKey)}"
                data-card-variant="${escapeHtml(variantSuffix)}">
             <div class="set-card-img" style="background:#f3f4f6">
-              ${c.image ? `<img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.opacity='0'">` : ''}
+              ${primarySrc ? `<img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer" ${onerrorAttr}>` : ''}
             </div>
             <div class="set-card-num">${escapeHtml(displayNum)}</div>
           </div>`;

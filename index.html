@@ -25,12 +25,18 @@
 <meta property="og:image" content="https://tcghub.kr/images/brand-logo.png">
 <meta name="twitter:card" content="summary">
 
+<!-- 다크모드 — body 렌더 전에 class 미리 적용 (FOUC 방지) -->
+<script>(function(){try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('preload-dark');}catch(e){}})();</script>
+<style>html.preload-dark { background: #0a0a0b; color: #f4f4f5; }</style>
+
 <!-- Quill rich text editor (관리자 글쓰기) -->
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
 <style>
 :root {
   --bg: #fafafa;
   --bg-soft: #f3f4f6;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
   --line: #e5e7eb;
   --line-strong: #d1d5db;
   --ink: #111;
@@ -39,7 +45,73 @@
   --accent: #06b6d4;
   --pos: #10b981;
   --neg: #ef4444;
+  --shadow: 0 1px 2px rgba(0,0,0,0.04);
 }
+/* 다크모드 — body.dark 일 때 */
+body.dark {
+  --bg: #0a0a0b;
+  --bg-soft: #18181b;
+  --surface: #18181b;
+  --surface-elevated: #27272a;
+  --line: #27272a;
+  --line-strong: #3f3f46;
+  --ink: #f4f4f5;
+  --ink-sub: #a1a1aa;
+  --ink-mute: #71717a;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+body.dark .sidebar,
+body.dark .topbar,
+body.dark .mnav,
+body.dark .card,
+body.dark #priceDetailPanel .card,
+body.dark .empty,
+body.dark .pf-stat,
+body.dark input,
+body.dark select,
+body.dark textarea {
+  background: var(--surface) !important;
+  color: var(--ink);
+  border-color: var(--line);
+}
+body.dark .topbar { background: rgba(24,24,27,0.9) !important; }
+body.dark .icon-btn { background: var(--bg-soft); border-color: var(--line); color: var(--ink); }
+body.dark .search { background: var(--bg-soft); border-color: var(--line); }
+body.dark .search input { color: var(--ink); }
+body.dark .search input::placeholder { color: var(--ink-mute); }
+body.dark .nav-item { color: var(--ink-sub); }
+body.dark .nav-item:hover { background: var(--bg-soft); color: var(--ink); }
+body.dark .nav-item.active { background: var(--ink); color: var(--bg); }
+body.dark .mnav-item { color: var(--ink-sub); }
+body.dark .mnav-item.active { color: var(--ink); }
+body.dark .btn { background: var(--surface); color: var(--ink); border-color: var(--line); }
+body.dark .btn:hover { background: var(--bg-soft); }
+body.dark .btn.primary { background: #fff; color: #000; border-color: #fff; }
+body.dark .tab { color: var(--ink-sub); }
+body.dark .tab.active { color: var(--ink); border-bottom-color: var(--ink); }
+body.dark .tabs.pill .tab { background: var(--surface); border-color: var(--line); color: var(--ink-sub); }
+body.dark .tabs.pill .tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+body.dark .hub-tabs .tab { background: var(--surface); border-color: var(--line); color: var(--ink-sub); }
+body.dark .hub-tabs .tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+body.dark .news-grid .card { background: var(--surface); }
+body.dark .news-grid .card div { background: var(--surface) !important; }
+body.dark .hubcard { background: var(--surface); }
+body.dark .hubcard:active { background: var(--bg-soft); }
+body.dark .ai-score { border-color: var(--line-strong) !important; }
+body.dark .event-item { background: var(--surface); border-color: var(--line); }
+body.dark .apply-card { background: var(--surface); border-color: var(--line); color: var(--ink); }
+body.dark .apply-card-thumb { background: var(--bg-soft); }
+body.dark a { color: inherit; }
+body.dark a:hover { color: var(--accent); }
+/* Quill 에디터 다크 */
+body.dark .ql-toolbar.ql-snow { background: var(--bg-soft); border-color: var(--line); }
+body.dark .ql-container.ql-snow { background: var(--surface); border-color: var(--line); color: var(--ink); }
+body.dark .ql-editor { color: var(--ink); }
+body.dark .ql-editor.ql-blank::before { color: var(--ink-mute); }
+body.dark .ql-snow .ql-stroke { stroke: var(--ink); }
+body.dark .ql-snow .ql-fill { fill: var(--ink); }
+body.dark .ql-snow .ql-picker { color: var(--ink); }
+body.dark .ql-snow .ql-picker-options { background: var(--surface); border-color: var(--line); }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
@@ -548,6 +620,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div class="top-actions">
         <div class="icon-btn mobile-search-toggle" id="mobileSearchToggle" title="검색" aria-label="검색">🔍</div>
+        <div class="icon-btn" id="darkModeToggle" title="다크모드 전환" aria-label="다크모드 전환" style="font-size:16px">🌙</div>
         <div class="avatar" id="topAvatar" title="마이페이지" data-nav="portfolio" style="display:none; cursor:pointer">?</div>
       </div>
     </header>
@@ -569,6 +642,27 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           if (!bar.classList.contains('mobile-open')) return;
           if (bar.contains(e.target) || btn.contains(e.target)) return;
           bar.classList.remove('mobile-open');
+        });
+      })();
+
+      // 다크모드 토글 — localStorage 저장 + body class 토글
+      (function bindDarkModeToggle(){
+        const btn = document.getElementById('darkModeToggle');
+        if (!btn) return;
+        const setIcon = isDark => { btn.textContent = isDark ? '☀️' : '🌙'; btn.title = isDark ? '라이트모드 전환' : '다크모드 전환'; };
+        // 초기 적용 — localStorage 우선 (사용자 선택 기억)
+        const saved = localStorage.getItem('theme');
+        const isDark = saved === 'dark';
+        if (isDark) document.body.classList.add('dark');
+        setIcon(isDark);
+        // 토글
+        btn.addEventListener('click', () => {
+          const nowDark = document.body.classList.toggle('dark');
+          localStorage.setItem('theme', nowDark ? 'dark' : 'light');
+          setIcon(nowDark);
+          // theme-color meta 도 갱신 (브라우저 상단바 색)
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', nowDark ? '#0a0a0b' : '#14b8a6');
         });
       })();
     </script>

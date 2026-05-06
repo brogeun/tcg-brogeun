@@ -1053,10 +1053,41 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             </button>
             <button class="btn" type="button" onclick="resetCentering()" style="cursor:pointer; padding:10px 16px; font-size:12px">↻ 다른 카드</button>
           </div>
-          <!-- AI 분석 결과 -->
-          <div id="centeringAIResult" style="display:none; margin-top:14px; background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px">
-            <div style="font-size:13px; font-weight:800; color:#1e40af; margin-bottom:8px">🤖 AI 종합 분석 (Groq Llama Vision)</div>
-            <div id="centeringAIText" style="font-size:13px; color:#1f2937; line-height:1.7; white-space:pre-wrap"></div>
+          <!-- AI 분석 결과 — CGA 스타일 (4개 sub-score + Final + AI Note) -->
+          <div id="centeringAIResult" style="display:none; margin-top:14px">
+            <!-- 4개 sub-score 그리드 -->
+            <div id="aiScoreGrid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-bottom:12px">
+              <div class="ai-score" data-score-key="centering" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+                <div style="font-size:18px; margin-bottom:4px">🎯</div>
+                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Centering · 센터링</div>
+                <div data-score="centering" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+              </div>
+              <div class="ai-score" data-score-key="corners" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+                <div style="font-size:18px; margin-bottom:4px">⊞</div>
+                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Corners · 모서리</div>
+                <div data-score="corners" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+              </div>
+              <div class="ai-score" data-score-key="edges" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+                <div style="font-size:18px; margin-bottom:4px">▢</div>
+                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Edges · 엣지</div>
+                <div data-score="edges" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+              </div>
+              <div class="ai-score" data-score-key="surface" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+                <div style="font-size:18px; margin-bottom:4px">✦</div>
+                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Surface · 표면</div>
+                <div data-score="surface" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+              </div>
+            </div>
+            <!-- Final score -->
+            <div style="background:linear-gradient(135deg,#1e1b4b,#312e81); color:#fff; border-radius:12px; padding:18px; text-align:center; border:1px solid #4338ca; margin-bottom:12px">
+              <div style="font-size:11px; font-weight:800; color:#a5b4fc; letter-spacing:1px; margin-bottom:6px">AI FINAL SCORE</div>
+              <div data-score="final" style="font-size:42px; font-weight:900; color:#fff; line-height:1">-</div>
+            </div>
+            <!-- AI Note -->
+            <div style="background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px">
+              <div style="font-size:12px; font-weight:800; color:#1e40af; margin-bottom:8px; letter-spacing:.3px">🤖 AI Note (Groq Llama Vision)</div>
+              <div id="centeringAIText" style="font-size:13px; color:#1f2937; line-height:1.75; white-space:pre-wrap"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -2169,7 +2200,7 @@ async function aiAnalyzeCentering() {
   }
   const btn = document.getElementById('centeringAIBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ Gemini AI 분석 중... (15~30초)';
+  btn.textContent = '⏳ AI 분석 중... (10~20초)';
 
   // 두 캔버스 → base64
   const frontCanvas = document.querySelector('canvas[data-centering-canvas="front"]');
@@ -2197,14 +2228,73 @@ async function aiAnalyzeCentering() {
     }
     const d = await r.json();
     incAICenteringCount();
-    document.getElementById('centeringAIResult').style.display = '';
-    document.getElementById('centeringAIText').textContent = d.text || '(응답 없음)';
+    renderAICenteringResult(d.text || '');
   } catch (e) {
     alert('AI 분석 실패: ' + e.message);
   } finally {
     btn.disabled = false;
     btn.innerHTML = `✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8">(오늘 ${getAICenteringCount()}/4)</span>`;
   }
+}
+
+// AI 응답 파싱 — [점수] / [분석] 섹션을 추출해서 4개 sub-score + final + analysis 로 렌더
+function renderAICenteringResult(text) {
+  const wrap = document.getElementById('centeringAIResult');
+  if (!wrap) return;
+  wrap.style.display = '';
+
+  // 점수 추출
+  const scoreMatch = (label) => {
+    const re = new RegExp(label + '\\s*[:\\s]\\s*(\\d{1,2}(?:\\.\\d)?)');
+    const m = text.match(re);
+    return m ? parseFloat(m[1]) : null;
+  };
+  const scores = {
+    centering: scoreMatch('센터링') ?? scoreMatch('Centering'),
+    corners:   scoreMatch('모서리') ?? scoreMatch('Corners'),
+    edges:     scoreMatch('엣지')   ?? scoreMatch('Edges'),
+    surface:   scoreMatch('표면')   ?? scoreMatch('Surface'),
+    final:     scoreMatch('종합')   ?? scoreMatch('Final')   ?? scoreMatch('최종'),
+  };
+
+  // 분석 본문 추출 — [분석] 이후, [참고] 이전
+  let analysis = '';
+  const analysisMatch = text.match(/\[\s*분석\s*\]([\s\S]+?)(?:\[\s*참고\s*\]|$)/);
+  if (analysisMatch) analysis = analysisMatch[1].trim();
+  // [분석] 마커 없으면 [점수] 블록 이후 모든 텍스트
+  if (!analysis) {
+    const afterScores = text.replace(/\[\s*점수\s*\][\s\S]*?(?=\n\n|\n\[)/, '').trim();
+    analysis = afterScores;
+  }
+  // 마크다운 굵게 ** 제거 (LLM 이 가끔 무시함)
+  analysis = analysis.replace(/\*\*/g, '').replace(/\[\s*분석\s*\]/g, '').trim();
+
+  // 점수 표시 — 색상 코딩 (10=green, 9~9.5=light green, 8~8.5=yellow, <8=red)
+  const colorFor = v => {
+    if (v == null) return '#6b7280';
+    if (v >= 9.5) return '#10b981';
+    if (v >= 8.5) return '#84cc16';
+    if (v >= 7.5) return '#eab308';
+    if (v >= 6.5) return '#f97316';
+    return '#ef4444';
+  };
+  for (const [k, v] of Object.entries(scores)) {
+    const el = wrap.querySelector(`[data-score="${k}"]`);
+    if (!el) continue;
+    el.textContent = (v != null) ? v.toFixed(1) : '-';
+    el.style.color = k === 'final' ? '#fff' : colorFor(v);
+  }
+  // final 박스 색상도 점수에 맞게
+  const finalEl = wrap.querySelector('[data-score="final"]');
+  if (finalEl && scores.final != null) {
+    const finalBox = finalEl.parentElement;
+    const c = colorFor(scores.final);
+    finalEl.style.color = c;
+    finalBox.style.background = `linear-gradient(135deg, ${c}22, ${c}55)`;
+    finalBox.style.borderColor = c;
+  }
+  // 분석
+  document.getElementById('centeringAIText').textContent = analysis || text;
 }
 
 // 페이지 진입 시 셋업

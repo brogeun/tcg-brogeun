@@ -804,13 +804,28 @@ def main():
                         pm = re.search(r"([\d,]+)", pr.replace("¥", ""))
                         pr = int(pm.group(1).replace(",", "")) if pm else None
                     if pr is None: continue
-                    sz = it.get("size") or it.get("quantity") or 1
-                    if isinstance(sz, str):
-                        sm = re.search(r"(\d+)", sz)
-                        sz = int(sm.group(1)) if sm else 1
-                    sz = max(1, int(sz))
-                    box_prices[dt_str].append(pr // sz)
-                    box_vols[dt_str] += sz
+                    # 1個 거래만 수집 — 묶음/모호한 size 는 skip (추정 X)
+                    sz_val = None
+                    for sk in ("quantity", "count", "qty", "size", "amount", "num",
+                               "size_text", "sizeText", "lot_size", "set_size", "boxes",
+                               "set", "lot", "pieces", "個数"):
+                        sv = it.get(sk)
+                        if sv is None: continue
+                        if isinstance(sv, dict):
+                            sv = sv.get("count") or sv.get("size") or sv.get("amount") or sv.get("text") or sv.get("name")
+                        if isinstance(sv, (int, float)):
+                            sz_val = int(sv); break
+                        if isinstance(sv, str):
+                            sm = re.search(r"(\d+)", sv)
+                            if sm: sz_val = int(sm.group(1)); break
+                    if sz_val is None:
+                        nm = re.search(r"(\d+)\s*(個|箱|本|点|セット|set|×|x)",
+                                       (it.get("name") or it.get("title") or ""), re.I)
+                        if nm: sz_val = int(nm.group(1))
+                    if sz_val != 1:
+                        continue
+                    box_prices[dt_str].append(pr)
+                    box_vols[dt_str] += 1
                 if len(items) < 20: break
                 time.sleep(0.2)
             for date, prs in box_prices.items():

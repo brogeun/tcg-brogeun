@@ -81,20 +81,35 @@ def fetch_volume_box(cid, days_limit=None, max_pages=200):
                     price = int(pm.group(1).replace(",", ""))
             if price is None:
                 continue
-            # 수량 추출 — quantity / count / qty / size / amount / num / 1個 같은 한자 표기
-            qty_raw = (it.get("quantity") or it.get("count") or it.get("qty") or
-                       it.get("size") or it.get("amount") or it.get("num") or
-                       it.get("size_text") or it.get("sizeText") or 1)
-            if isinstance(qty_raw, str):
-                qm = _re.search(r"(\d+)", qty_raw)
-                qty_val = int(qm.group(1)) if qm else 1
-            else:
-                qty_val = int(qty_raw) if qty_raw else 1
-            qty_val = max(1, qty_val)
-            # 1박스 단가 = 거래액 / 수량
-            unit_price = price // qty_val
-            counts[d2] += qty_val
-            prices[d2].append(unit_price)
+            # 1個 거래만 받는다 — 모든 가능한 size 키를 검사해서
+            # 명시적으로 "1" 또는 "1個" 인 경우만 수집, 묶음 (2~5個) 또는 size 모호하면 skip
+            size_keys = ("quantity", "count", "qty", "size", "amount", "num",
+                         "size_text", "sizeText", "lot_size", "set_size", "boxes",
+                         "set", "lot", "pieces", "個数")
+            qty_val = None
+            for key in size_keys:
+                val = it.get(key)
+                if val is None:
+                    continue
+                if isinstance(val, dict):
+                    val = (val.get("count") or val.get("size") or val.get("amount") or
+                           val.get("text") or val.get("name"))
+                if isinstance(val, (int, float)):
+                    qty_val = int(val); break
+                if isinstance(val, str):
+                    qm = _re.search(r"(\d+)", val)
+                    if qm:
+                        qty_val = int(qm.group(1)); break
+            # name 안의 묶음 패턴도 검사 ("3個セット" "ボックス×3" "5箱" 같은 표기)
+            if qty_val is None:
+                name = it.get("name") or it.get("title") or it.get("label") or ""
+                nm = _re.search(r"(\d+)\s*(個|箱|本|点|セット|set|×|x)", name, _re.I)
+                if nm: qty_val = int(nm.group(1))
+            # 1個 만 수집 — 그 외는 모두 skip (묶음/모호한 size)
+            if qty_val != 1:
+                continue
+            counts[d2] += 1
+            prices[d2].append(price)
         if stopped_early:
             break
         if len(items) < 20:

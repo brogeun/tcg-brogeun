@@ -1830,7 +1830,7 @@ async function showPriceDetailPanel(productId) {
             </div>
           </div>
           <div style="margin-top:8px; font-size:10px; color:var(--ink-mute); line-height:1.6">
-            🔵 가격(KRW) · ▮ 거래량 · 당일 튀는 가격만 제거 (이웃 4일 최저가의 2배 초과 거래)
+            🔵 가격(KRW) · ▮ 거래량 · SNKRDUNK 1個 거래만 집계
           </div>
         </div>
       </div>
@@ -2708,34 +2708,10 @@ function loadChartJs() {
   return _CHART_JS_LOADING;
 }
 
-// 당일 outlier 필터 — 자기 제외 ±2일 (총 4일) min 기준 ×2 초과면 outlier
-//   min 은 spike 들이 아무리 많아도 영향 안 받음 (가장 낮은 정상값) → 가장 robust
-//   장기 트렌드 (한 달 2~3배 = 5일 안에서는 ~17% 변동) 은 그대로 통과
+// outlier 필터 제거 — raw 데이터 그대로 표시
+//   백필/cron 단계에서 1個 거래만 수집하므로 추정 필터 불필요 (정확한 단가 데이터)
 function applyRollingOutlierFilter(rows, priceKey) {
-  if (rows.length < 5) return rows;
-  const result = [];
-  for (let i = 0; i < rows.length; i++) {
-    const start = Math.max(0, i - 2);
-    const end = Math.min(rows.length, i + 3);
-    // 자기 제외 — i 빼고 이웃 ±2일 (최대 4개) 만으로 min
-    const window = [];
-    for (let j = start; j < end; j++) {
-      if (j === i) continue;
-      const v = rows[j][priceKey];
-      if (v != null && v > 0) window.push(v);
-    }
-    if (window.length < 2) { result.push(rows[i]); continue; }
-    const minRef = Math.min(...window);
-    const v = rows[i][priceKey];
-    if (v == null || v <= 0) { result.push(rows[i]); continue; }
-    if (v > minRef * 2) {
-      // 당일 가격이 이웃 4일 중 최소값의 2배 초과 → outlier (라인은 끊지 않게 null)
-      result.push({ ...rows[i], [priceKey]: null, [`${priceKey.replace('_price','_outlier')}`]: v });
-    } else {
-      result.push(rows[i]);
-    }
-  }
-  return result;
+  return rows;
 }
 
 const _CHART_INSTANCES = {}; // productId → Chart instance

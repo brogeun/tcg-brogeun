@@ -291,9 +291,11 @@ body.admin-active .admin-only { display: flex !important; }
 .set-tile:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
 .set-tile-img {
   aspect-ratio: 1/1; background: #fafafa;
-  display: flex; align-items: center; justify-content: center; padding: 16px;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+  overflow: hidden;
 }
-.set-tile-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* 모든 박스 사진 동일 크기 — 컨테이너 가득 채움 (jpg/webp 비율 차이 흡수) */
+.set-tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .set-tile-body { padding: 12px 14px; border-top: 1px solid var(--bg-soft); }
 .set-tile-code { font-size: 11px; color: var(--ink-sub); font-family: monospace; }
 .set-tile-name { font-size: 14px; font-weight: 700; margin: 4px 0; line-height: 1.3; }

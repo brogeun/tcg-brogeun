@@ -1055,7 +1055,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           </div>
           <!-- AI 분석 결과 -->
           <div id="centeringAIResult" style="display:none; margin-top:14px; background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px">
-            <div style="font-size:13px; font-weight:800; color:#1e40af; margin-bottom:8px">🤖 Gemini AI 종합 분석</div>
+            <div style="font-size:13px; font-weight:800; color:#1e40af; margin-bottom:8px">🤖 AI 종합 분석 (Groq Llama Vision)</div>
             <div id="centeringAIText" style="font-size:13px; color:#1f2937; line-height:1.7; white-space:pre-wrap"></div>
           </div>
         </div>
@@ -1813,8 +1813,8 @@ async function showPriceDetailPanel(productId) {
             <div style="display:flex; gap:4px" id="histRangeTabs-${productId}">
               <button class="btn" type="button" data-r="30" style="font-size:11px; padding:4px 10px; cursor:pointer">30일</button>
               <button class="btn" type="button" data-r="90" style="font-size:11px; padding:4px 10px; cursor:pointer">90일</button>
-              <button class="btn" type="button" data-r="180" style="font-size:11px; padding:4px 10px; cursor:pointer; background:#111; color:#fff; border-color:#111">180일</button>
-              <button class="btn" type="button" data-r="all" style="font-size:11px; padding:4px 10px; cursor:pointer">전체</button>
+              <button class="btn" type="button" data-r="180" style="font-size:11px; padding:4px 10px; cursor:pointer">180일</button>
+              <button class="btn" type="button" data-r="all" style="font-size:11px; padding:4px 10px; cursor:pointer; background:#111; color:#fff; border-color:#111">전체</button>
             </div>
           </div>
           <div id="histHeader-${productId}" style="display:flex; align-items:baseline; gap:10px; margin-bottom:6px; min-height:22px">
@@ -1830,7 +1830,7 @@ async function showPriceDetailPanel(productId) {
             </div>
           </div>
           <div style="margin-top:8px; font-size:10px; color:var(--ink-mute); line-height:1.6">
-            🔵 가격(KRW) · ▮ 거래량 · 7일 rolling outlier 필터 적용 (median × [0.4, 2.5] 범위 외 제외)
+            🔵 가격(KRW) · ▮ 거래량 · 당일 튀는 가격만 제거 (이웃 6일 median ±100% 벗어난 거래)
           </div>
         </div>
       </div>
@@ -2708,8 +2708,8 @@ function loadChartJs() {
   return _CHART_JS_LOADING;
 }
 
-// 7일 rolling median outlier 필터
-// 각 점이 그 점 기준 ±3일(총 7일) 윈도우의 median × [0.4, 2.5] 범위를 벗어나면 제외
+// 당일 outlier 필터 — 자기 제외 ±3일 (총 6일) median 기준 [0.5, 2.0] 벗어나면 outlier
+//   장기 트렌드 (한 달 만에 2~3배) 는 보존, 당일 튀는 거래만 제거
 function applyRollingOutlierFilter(rows, priceKey) {
   if (rows.length < 5) return rows;
   const median = arr => {
@@ -2721,13 +2721,19 @@ function applyRollingOutlierFilter(rows, priceKey) {
   for (let i = 0; i < rows.length; i++) {
     const start = Math.max(0, i - 3);
     const end = Math.min(rows.length, i + 4);
-    const window = rows.slice(start, end).map(r => r[priceKey]).filter(v => v != null && v > 0);
+    // 자기 제외 — i 빼고 이웃 6일 만으로 median
+    const window = [];
+    for (let j = start; j < end; j++) {
+      if (j === i) continue;
+      const v = rows[j][priceKey];
+      if (v != null && v > 0) window.push(v);
+    }
     if (window.length < 3) { result.push(rows[i]); continue; }
     const med = median(window);
     const v = rows[i][priceKey];
     if (v == null || v <= 0) { result.push(rows[i]); continue; }
-    if (v < med * 0.4 || v > med * 2.5) {
-      // outlier — 가격은 null 처리 (라인 끊지 않고 점 제외)
+    if (v < med * 0.5 || v > med * 2.0) {
+      // 당일 가격이 주변 6일 median 의 ±100% 벗어남 → outlier (라인 끊지 않게 null)
       result.push({ ...rows[i], [priceKey]: null, [`${priceKey.replace('_price','_outlier')}`]: v });
     } else {
       result.push(rows[i]);
@@ -2742,11 +2748,10 @@ const _HIST_STATE = {};      // productId → {grade, range}
 async function renderHistoryChart(productId, product) {
   const wrap = document.getElementById(`historyWrap-${productId}`);
   if (!wrap) return;
-  // 박스는 발매부터 전체 (range 9999), 카드는 180일 default
-  const isBoxProduct = product && !isCardProduct(product.name);
+  // 박스/카드 모두 default = 전체 기간 (사용자가 30/90/180 선택 가능)
   const state = _HIST_STATE[productId] = _HIST_STATE[productId] || {
     grade: 'psa10',
-    range: isBoxProduct ? 9999 : 180,
+    range: 9999,
   };
 
   // 히스토리 fetch
@@ -2781,7 +2786,7 @@ async function renderHistoryChart(productId, product) {
       wrap.querySelectorAll(`#histGradeTabs-${productId} .tab`).forEach(x => x.classList.remove('active'));
       t.classList.add('active');
       state.grade = t.dataset.g;
-      drawHistoryChart(productId, history);
+      drawHistoryChart(productId, history, product);
     };
   });
   wrap.querySelectorAll(`#histRangeTabs-${productId} button`).forEach(b => {
@@ -2791,14 +2796,14 @@ async function renderHistoryChart(productId, product) {
       });
       b.style.background = '#111'; b.style.color = '#fff'; b.style.borderColor = '#111';
       state.range = b.dataset.r === 'all' ? 9999 : parseInt(b.dataset.r);
-      drawHistoryChart(productId, history);
+      drawHistoryChart(productId, history, product);
     };
   });
 
-  drawHistoryChart(productId, history);
+  drawHistoryChart(productId, history, product);
 }
 
-function drawHistoryChart(productId, history) {
+function drawHistoryChart(productId, history, product) {
   const state = _HIST_STATE[productId];
   // 박스 history 는 box_price 만 있으니 자동 감지
   const isBoxHistory = history.some(h => h && h.box_price != null) &&
@@ -2812,7 +2817,7 @@ function drawHistoryChart(productId, history) {
   if (state.range !== 9999 && rows.length > state.range) {
     rows = rows.slice(-state.range);
   }
-  // outlier 필터
+  // outlier 필터 — 박스/카드 동일: 자기 제외 6일 median 기준 [0.5, 2.0] 벗어나면 제거
   rows = applyRollingOutlierFilter(rows, priceKey);
 
   const labels = rows.map(r => r.date);

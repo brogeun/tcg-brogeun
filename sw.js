@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-v1';
+const CACHE_VERSION = 'tcghub-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -68,9 +68,16 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // HTML / JS / CSS / 폰트 — stale-while-revalidate
+  // HTML (라우팅 path) — network-first (항상 최신 받기)
+  // 정적 자산 (.js, .css, 폰트) — stale-while-revalidate (빠른 로드)
   if (url.origin === location.origin) {
-    event.respondWith(staleWhileRevalidate(req, STATIC_CACHE));
+    const isHtml = url.pathname === '/' || url.pathname.endsWith('.html') ||
+                   (!url.pathname.includes('.') && !url.pathname.startsWith('/data/') && !url.pathname.startsWith('/api/'));
+    if (isHtml) {
+      event.respondWith(networkFirst(req, STATIC_CACHE));
+    } else {
+      event.respondWith(staleWhileRevalidate(req, STATIC_CACHE));
+    }
     return;
   }
 
@@ -92,6 +99,18 @@ async function staleWhileRevalidate(req, cacheName) {
     return res;
   }).catch(() => null);
   return cached || (await networkPromise) || new Response('Offline', { status: 503 });
+}
+
+async function networkFirst(req, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const res = await fetch(req);
+    if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+    return res;
+  } catch {
+    const cached = await cache.match(req);
+    return cached || new Response('Offline', { status: 503 });
+  }
 }
 
 async function cacheFirst(req, cacheName) {

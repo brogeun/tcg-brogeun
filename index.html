@@ -291,11 +291,12 @@ body.admin-active .admin-only { display: flex !important; }
 .set-tile:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
 .set-tile-img {
   aspect-ratio: 1/1; background: #fafafa;
-  display: flex; align-items: center; justify-content: center; padding: 0;
-  overflow: hidden;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
 }
-/* 모든 박스 사진 동일 크기 — 컨테이너 가득 채움 (jpg/webp 비율 차이 흡수) */
-.set-tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.set-tile-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* 새로 받은 webp 박스만 — 기존 jpg 와 시각적 크기 맞춤 (cover + padding 0) */
+.set-tile-img.is-webp { padding: 0; overflow: hidden; }
+.set-tile-img.is-webp img { width: 100%; height: 100%; object-fit: cover; }
 .set-tile-body { padding: 12px 14px; border-top: 1px solid var(--bg-soft); }
 .set-tile-code { font-size: 11px; color: var(--ink-sub); font-family: monospace; }
 .set-tile-name { font-size: 14px; font-weight: 700; margin: 4px 0; line-height: 1.3; }
@@ -3701,20 +3702,22 @@ function renderCardInfo() {
   listEl.innerHTML = list.map(s => {
     const isNolink = !!s.nolink;
     const safeName = (s.name || '').replace(/"/g, '&quot;');
-    // 박스 이미지 — webp 우선, jpg fallback. 둘 다 실패 시 회색 placeholder (이모지 X)
-    //   webp: images/box/{code}.webp (사용자 받은 23개 + 기존 박스들)
-    //   S* 시리즈 webp 는 소문자 (s12a.webp) — case 변환
+    // 박스 이미지 — 새로 받은 webp 23개는 webp 우선 + is-webp 클래스 (cover/padding 0)
+    //   기존 박스 (M*, SV5M~SV11W, OP*, EB*) 는 jpg + contain (그대로)
+    const NEW_WEBP_CODES = new Set(['S6a','S7D','S7R','S8','S8b','S9','S9a','S10a','S10b','S11','S11a','S12','S12a','SV1a','SV2D','SV2P','SV2a','SV3','SV3a','SV4K','SV4M','SV4a','SV5K']);
+    const isNewWebp = NEW_WEBP_CODES.has(s.code);
+    // S 시리즈 webp 는 소문자 파일명 (s12a.webp), SV 시리즈는 대문자 그대로
     const isSwordShield = /^S[0-9]/.test(s.code) && !s.code.startsWith('SV');
     const webpName = isSwordShield ? s.code[0].toLowerCase() + s.code.slice(1) : s.code;
-    const webpSrc = `images/box/${webpName}.webp`;
-    const jpgSrc = `images/sets/${s.code}.jpg`;
-    // onerror chain: webp → jpg → 회색 background (조용히 hide)
-    const onerrorChain = `this.onerror=function(){this.onerror=null;this.style.opacity='0';};this.src='${jpgSrc}'`;
+    const imgSrc = isNewWebp ? `images/box/${webpName}.webp` : `images/sets/${s.code}.jpg`;
+    const imgClass = isNewWebp ? 'set-tile-img is-webp' : 'set-tile-img';
+    // onerror: 회색 background + 조용히 hide
+    const onerrorAttr = `onerror="this.onerror=null;this.style.opacity='0'"`;
     if (isNolink) {
       return `
         <div class="set-tile" style="opacity:0.7; cursor:default" title="${safeName} (연동 준비 중)">
-          <div class="set-tile-img" style="background:#f3f4f6">
-            <img src="${webpSrc}" alt="${safeName}" loading="lazy" onerror="${onerrorChain}">
+          <div class="${imgClass}">
+            <img src="${imgSrc}" alt="${safeName}" loading="lazy" ${onerrorAttr}>
           </div>
           <div class="set-tile-body">
             <div class="set-tile-code">${s.code}</div>
@@ -3725,8 +3728,8 @@ function renderCardInfo() {
     }
     return `
       <div class="set-tile" style="cursor:pointer" data-set-code="${s.code}" data-set-name="${escapeHtml(s.name || '')}" data-external-url="${s.url || ''}" title="${safeName} 카드 보기">
-        <div class="set-tile-img" style="background:#f3f4f6">
-          <img src="${webpSrc}" alt="${safeName}" loading="lazy" onerror="${onerrorChain}">
+        <div class="${imgClass}">
+          <img src="${imgSrc}" alt="${safeName}" loading="lazy" ${onerrorAttr}>
         </div>
         <div class="set-tile-body">
           <div class="set-tile-code">${s.code}</div>

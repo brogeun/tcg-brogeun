@@ -3922,12 +3922,22 @@ document.addEventListener('click', async e => {
     const padTail = `${setLower}-${numPadded}`;
     const stripTail = `${setLower}-${numStripped}`;
 
-    // 1차: productNumber 매칭
-    const candidates = _ALL_CARDS_INDEX.filter(c => {
+    // 1차-A: productNumber 매칭 (SNKRDUNK 가 카드번호를 productNumber 에 넣은 경우)
+    const candByPn = _ALL_CARDS_INDEX.filter(c => {
       const pn = (c.productNumber || '').toLowerCase();
       return pn === padTail || pn === stripTail ||
              pn.endsWith(`-${padTail}`) || pn.endsWith(`-${stripTail}`);
     });
+    // 1차-B: name 안 [SetCode Num/Total] 패턴 매칭
+    //   많은 카드 (특히 포켓몬) 가 productNumber 는 SKU (pkmn-tcg-1483) 이고
+    //   카드번호는 name 의 "[S11 111/100]" 부분에만 있음 — 이거도 매칭해야 함
+    const namePat = new RegExp(`\\[${setLower}\\s+0*${numStripped}[/\\]\\s]`, 'i');
+    const candByName = _ALL_CARDS_INDEX.filter(c => namePat.test(c.name || ''));
+    // 두 candidates 합치고 중복 제거 (id 기준)
+    const candMap = new Map();
+    for (const c of candByPn) candMap.set(c.id, c);
+    for (const c of candByName) if (!candMap.has(c.id)) candMap.set(c.id, c);
+    const candidates = [...candMap.values()];
 
     // 2차: 일본판 (영문판 [EN] / [CHN] 제외)
     const jpOnly = candidates.filter(c => !/\[(EN|CHN)\]/i.test(c.name || ''));

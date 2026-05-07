@@ -1750,7 +1750,7 @@ async function showPriceDetailPanel(productId) {
     const list = HOME_TOP_CACHE[brand];
     if (list) {
       const found = list.find(p => String(p.id) === String(productId));
-      if (found) { product = found; product._brand = brand; break; }
+      if (found) { product = found; product._brand = brand; product._isTop10 = true; break; }
     }
   }
   // 캐시에 없으면 top10-*.json + price-*-*.json 모두 시도
@@ -1771,6 +1771,7 @@ async function showPriceDetailPanel(productId) {
         if (found) {
           product = found;
           product._brand = brand;
+          product._isTop10 = file.startsWith('top10-');
           if (file.startsWith('top10-') && !HOME_TOP_CACHE[brand]) HOME_TOP_CACHE[brand] = d.products;
           break;
         }
@@ -1836,7 +1837,7 @@ async function showPriceDetailPanel(productId) {
         <div style="padding:20px; display:flex; flex-direction:column; gap:10px">
           <div style="display:flex; gap:8px; flex-wrap:wrap">
             <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#f3f4f6; color:#374151; font-weight:600">${brandLbl}</span>
-            <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#fef3c7; color:#92400e; font-weight:600">SNKRDUNK 인기 TOP 10</span>
+            ${product._isTop10 ? `<span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#fef3c7; color:#92400e; font-weight:600">SNKRDUNK 인기 TOP 10</span>` : ''}
           </div>
           <div style="font-size:16px; font-weight:800; color:#111; line-height:1.4">${product.name}</div>
           <div style="margin-top:6px">
@@ -1868,6 +1869,12 @@ async function showPriceDetailPanel(productId) {
         </div>
       </div>
       <!-- 등급별 / 단일 시세 패널 (카드 = 3등급, 박스 = 단일가) -->
+      ${(() => {
+        // 박스 카탈로그의 낱팩 (name 끝에 "Pack") 은 차트/거래량 영역 X — 의미있는 거래량 X
+        const nm = (product.name || '').replace(/&quot;/g, '"').trim();
+        const isLoosePack = /\bPack\s*$/i.test(nm) && !/\bBox\s*$/i.test(nm);
+        if (isLoosePack) return '';
+        return `
       <div id="gradesPanel-${productId}" style="border-top:1px solid var(--line); padding:18px 20px; background:#fafafa">
         <div id="gradesPanelHeader-${productId}" style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px">📊 거래 시세</div>
         <div id="gradesGrid-${productId}" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px">
@@ -1904,10 +1911,11 @@ async function showPriceDetailPanel(productId) {
             </div>
           </div>
           <div style="margin-top:8px; font-size:10px; color:var(--ink-mute); line-height:1.6">
-            🔵 가격(KRW) · ▮ 거래량 · 1個 거래 median 일별 산출 + 인접일 spike 필터 (이웃 4일 최저가 ×2 초과 제거)
+            🔵 가격(KRW) · ▮ 거래량 · 일별 거래 median 산출 + 인접 ±5일 median ×1.6 초과 spike 자동 제거
           </div>
         </div>
-      </div>
+      </div>`;
+      })()}
       <!-- 봉입 박스 섹션 (STEP E) -->
       <div id="boxesPanel-${productId}" style="border-top:1px solid var(--line); padding:18px 20px; background:#fff">
         <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:12px">📦 이 카드가 들어있는 박스</div>
@@ -2874,28 +2882,30 @@ function loadChartJs() {
   return _CHART_JS_LOADING;
 }
 
-// 차트 측 보조 필터 — 일별 평균 시계열의 spike 만 제거
+// 차트 측 보조 필터 — 일별 평균 시계열의 spike 만 제거 (강화 버전)
 //   A. 백필/cron 단계에서 median 사용 (같은 날 거래 outlier 제거)
 //   B. 그래도 잔존하는 spike (어떤 날 거래량이 1~2건뿐이라 median 도 outlier 자체일 때)
-//      이웃 ±2일 (4개) min 의 ×2 초과면 제거 — 자연 변동 (한 달 2~3배 자연 상승) 은 보존
+//      이웃 ±5일 (10개) median 의 ×1.6 초과면 제거 — 자연 변동 (한 달 2~3배 자연 상승) 은 보존
 function applyRollingOutlierFilter(rows, priceKey) {
   if (rows.length < 5) return rows;
   const result = [];
   for (let i = 0; i < rows.length; i++) {
-    const start = Math.max(0, i - 2);
-    const end = Math.min(rows.length, i + 3);
+    const start = Math.max(0, i - 5);
+    const end = Math.min(rows.length, i + 6);
     const window = [];
     for (let j = start; j < end; j++) {
       if (j === i) continue;
       const v = rows[j][priceKey];
       if (v != null && v > 0) window.push(v);
     }
-    if (window.length < 2) { result.push(rows[i]); continue; }
-    const minRef = Math.min(...window);
+    if (window.length < 3) { result.push(rows[i]); continue; }
+    // median 으로 비교 (min 보다 robust)
+    const sortedW = [...window].sort((a, b) => a - b);
+    const medRef = sortedW[Math.floor(sortedW.length / 2)];
     const v = rows[i][priceKey];
     if (v == null || v <= 0) { result.push(rows[i]); continue; }
-    if (v > minRef * 2) {
-      // 이웃 4일 최소값의 2배 초과 → outlier (라인 끊지 않게 null)
+    if (v > medRef * 1.6) {
+      // 이웃 10일 median 의 1.6배 초과 → outlier (라인 끊지 않게 null)
       result.push({ ...rows[i], [priceKey]: null, [`${priceKey.replace('_price','_outlier')}`]: v });
     } else {
       result.push(rows[i]);
@@ -2986,7 +2996,12 @@ function drawHistoryChart(productId, history, product) {
   // 원본 JPY 가격 → KRW 환산 (소수점 절사)
   const pricesJpy = rows.map(r => r[priceKey]);
   const prices = pricesJpy.map(p => p != null ? Math.floor(p * JPY_KRW) : null);
-  const vols = rows.map(r => r[volKey] || 0);
+  // 거래량 — 카드는 등급 통합 거래량 (total_vol) 우선, 옛 데이터는 등급별 (psa10_vol 등) fallback
+  // 박스는 box_vol 그대로
+  const vols = rows.map(r => {
+    if (isBoxHistory) return r.box_vol || 0;
+    return r.total_vol ?? r[volKey] ?? 0;
+  });
 
   // 헤더 — 현재가 + 변동률 (KRW 표시)
   const validPrices = prices.filter(v => v != null && v > 0);

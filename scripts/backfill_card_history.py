@@ -1,12 +1,22 @@
 """
-backfill_card_history.py — 카드 sales-history 풀 백필 (1個 거래만, 등급별)
+backfill_card_history.py — 카드 등급별 가격 + 통합 거래량 풀백필 (v2)
 
-박스 백필과 동일한 정책 — sales-chart 는 묶음 거래 영향 받아서 SNKRDUNK 사이트 차트와
-다를 수 있음. sales-history 페이지네이션해서 size==1 거래만 수집해서 등급별 일평균 단가 산출.
+SNKRDUNK API 분석 (검증 완료):
+- /v1/apparels/{cid}/sales-chart/used?range=all&salesChartOptionId={ID}
+  → 등급별 일별 단가 점들. PSA10=22, PSA9=23, raw(D, 미개봉)=18
+- /v1/apparels/{cid}/sales-history?page=N&per_page=100
+  → 모든 거래. salesChartOptionId 무시함 → 등급 통합. 일별 거래량 + outlier-median 단가.
+
+저장 형식 (entries):
+  {date, psa10_price, psa9_price, raw_price, total_vol, total_price}
+  - psa10/psa9/raw_price = SNKRDUNK 차트 점 (등급별)
+  - total_vol = 등급 통합 일별 거래 건수
+  - total_price = 등급 통합 일별 단가 (outlier 제거 + median)
 
 사용:
-  python scripts/backfill_card_history.py            # 모든 카드 (data/history/*.json 중 카드만)
-  python scripts/backfill_card_history.py 289056     # 특정 ID 만
+  python scripts/backfill_card_history.py            # 모든 카드 풀백필
+  python scripts/backfill_card_history.py 289056     # 특정 ID
+  python scripts/backfill_card_history.py --fresh    # 처음부터 재작성
   python scripts/backfill_card_history.py --days 90  # 최근 90일치만
 """
 import json
@@ -26,23 +36,54 @@ UA = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
+# SNKRDUNK 의 sales-chart/used?salesChartOptionId={ID} 등급 매핑
+# 옛 코드 기준: 18=raw(D, 미개봉), 22=PSA10, 23=PSA9
+# 검증: 풀백필 후 PSA10 > PSA9 > raw 순서 자연스러운지 가격 갭 보면 됨
 GRADE_OPTION_IDS = {"psa10": 22, "psa9": 23, "raw": 18}
 
 
-def fetch_card_history_1ea(cid, opt_id, days_limit=None, max_pages=200):
-    """카드 sales-history — size==1 거래만 → date별 단가 list"""
+def fetch_chart_grade(cid, opt_id):
+    """sales-chart/used + 옵션 ID → {date: price} (일별 단가, SNKRDUNK 자체 산출)"""
+    url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart/used"
+           f"?range=all&salesChartOptionId={opt_id}")
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA, "Accept": "application/json",
+        "Referer": "https://snkrdunk.com/",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            d = json.loads(r.read().decode("utf-8"))
+    except Exception:
+        return {}
+    points = d.get("points") or []
+    by_date = {}
+    for p in points:
+        if isinstance(p, list) and len(p) >= 2:
+            ts_ms, price = p[0], p[1]
+            try:
+                date = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+                # 같은 날에 여러 점 → 마지막으로 덮음 (또는 median 가능, 일단 마지막)
+                by_date[date] = int(price)
+            except Exception:
+                pass
+    return by_date
+
+
+def fetch_volume(cid, days_limit=None, max_pages=9999):
+    """sales-history 페이지네이션 (등급 통합) → 일별 거래량 + outlier 제거된 일별 median 단가
+    return: (counts dict, prices dict)"""
+    counts = defaultdict(int)
+    prices = defaultdict(list)
     today = datetime.now()
     cutoff = (today - timedelta(days=days_limit)).strftime("%Y-%m-%d") if days_limit else "0000-00-00"
-    prices_by_date = defaultdict(list)
     stopped_early = False
     for page in range(1, max_pages + 1):
-        url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-history"
-               f"?page={page}&per_page=20&salesChartOptionId={opt_id}")
+        url = f"https://snkrdunk.com/v1/apparels/{cid}/sales-history?page={page}&per_page=100"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": UA, "Accept": "application/json",
+            "Referer": "https://snkrdunk.com/",
+        })
         try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": UA, "Accept": "application/json",
-                "Referer": "https://snkrdunk.com/",
-            })
             with urllib.request.urlopen(req, timeout=15) as r:
                 d = json.loads(r.read().decode("utf-8"))
         except Exception:
@@ -56,48 +97,47 @@ def fetch_card_history_1ea(cid, opt_id, days_limit=None, max_pages=200):
             if m:
                 d2 = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
             else:
-                m2 = re.match(r"(\d+)\s*(日|day)", date_str)
-                d2 = (today - timedelta(days=int(m2.group(1)))).strftime("%Y-%m-%d") if m2 else today.strftime("%Y-%m-%d")
+                m2 = re.match(r"(\d+)\s*(日|day|時間|分|秒|hour|min)", date_str)
+                if m2 and m2.group(2) in ("日", "day"):
+                    d2 = (today - timedelta(days=int(m2.group(1)))).strftime("%Y-%m-%d")
+                else:
+                    d2 = today.strftime("%Y-%m-%d")
             if d2 < cutoff:
                 stopped_early = True
                 continue
-            pr = it.get("price")
-            if isinstance(pr, str):
-                pm = re.search(r"([\d,]+)", pr.replace("¥", ""))
+            pr_raw = it.get("price")
+            if isinstance(pr_raw, str):
+                pm = re.search(r"([\d,]+)", pr_raw.replace("¥", ""))
                 pr = int(pm.group(1).replace(",", "")) if pm else None
+            elif isinstance(pr_raw, (int, float)):
+                pr = int(pr_raw)
+            else:
+                pr = None
             if pr is None:
                 continue
-            # 1個 만 — size 키 모두 검사
-            sz_val = None
-            for sk in ("quantity", "count", "qty", "size", "amount", "num",
-                       "size_text", "sizeText", "lot_size", "set_size",
-                       "boxes", "set", "lot", "pieces", "個数"):
-                sv = it.get(sk)
-                if sv is None: continue
-                if isinstance(sv, dict):
-                    sv = sv.get("count") or sv.get("size") or sv.get("amount") or sv.get("text")
-                if isinstance(sv, (int, float)):
-                    sz_val = int(sv); break
-                if isinstance(sv, str):
-                    sm = re.search(r"(\d+)", sv)
-                    if sm: sz_val = int(sm.group(1)); break
-            if sz_val is None:
-                nm = re.search(r"(\d+)\s*(個|箱|本|点|セット|set|×|x)",
-                               (it.get("name") or it.get("title") or ""), re.I)
-                if nm: sz_val = int(nm.group(1))
-            if sz_val != 1:
-                continue
-            prices_by_date[d2].append(pr)
+            counts[d2] += 1
+            prices[d2].append(pr)
         if stopped_early:
             break
-        if len(items) < 20:
-            break
+        # SNKRDUNK 가 per_page 무시하고 ~20건씩 줘 — items 비어야 진짜 끝
         time.sleep(0.25)
-    return dict(prices_by_date)
+    # 일별 outlier 제거 + median (다수 매수로 인한 가격 spike 제거)
+    avg_prices = {}
+    for dt, p in prices.items():
+        if not p:
+            continue
+        s = sorted(p)
+        init = s[len(s) // 2]
+        clean = [pp for pp in p if 0.5 * init <= pp <= 2.0 * init]
+        if not clean:
+            clean = p
+        sc = sorted(clean)
+        avg_prices[dt] = sc[len(sc) // 2]
+    return dict(counts), avg_prices
 
 
 def is_card_history(history):
-    """history 가 카드인지 (psa10/psa9/raw 키 있음) 박스인지 판별"""
+    """카드인지 (psa10/psa9/raw 키 있음) 판별"""
     for r in history:
         if any(k in r for k in ("psa10_price", "psa9_price", "raw_price")):
             return True
@@ -108,6 +148,7 @@ def main():
     args = sys.argv[1:]
     days_limit = None
     only_ids = []
+    fresh = "--fresh" in args
     for i, a in enumerate(args):
         if a == "--days" and i + 1 < len(args):
             days_limit = int(args[i + 1])
@@ -115,11 +156,11 @@ def main():
             only_ids.append(a)
 
     print("=" * 60)
-    print("카드 sales-history 백필 — 1個 거래만 수집 (등급별)")
-    print(f"days_limit: {days_limit or 'ALL'}, target: {only_ids or 'ALL CARDS'}")
+    print("카드 백필 v2 — sales-chart/used (등급별) + sales-history (통합 거래량)")
+    print(f"days_limit: {days_limit or 'ALL'}, target: {only_ids or 'ALL CARDS'}, fresh: {fresh}")
     print("=" * 60)
 
-    # 카드 ID 만 추출
+    # 카드 ID 추출 — history 폴더에서 카드 history 만
     targets = []
     for f in sorted(HISTORY_DIR.glob("*.json")):
         cid = f.stem
@@ -127,7 +168,6 @@ def main():
             continue
         try:
             raw = f.read_bytes().replace(b"\x00", b"").rstrip()
-            # 깨진 JSON 복구 (마지막 } 까지만)
             try:
                 d = json.loads(raw)
             except json.JSONDecodeError:
@@ -137,7 +177,8 @@ def main():
                 else:
                     continue
             history = d.get("history", [])
-            if is_card_history(history):
+            # only_ids 명시 시 카드/박스 가리지 않고 처리 (강제 카드로 재백필)
+            if only_ids or is_card_history(history):
                 targets.append((cid, f, d))
         except Exception as e:
             print(f"  [{cid}] read fail: {e}")
@@ -146,48 +187,57 @@ def main():
     print(f"카드 history 파일: {len(targets)} 개\n")
     success = 0
     fail = 0
-    for cid, path, existing in targets:
-        print(f"[{cid}] fetching 3 grades...", end=" ", flush=True)
-        by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
+    for i_t, (cid, path, existing) in enumerate(targets, 1):
+        print(f"[{i_t}/{len(targets)}] {cid}", end=" ", flush=True)
+        existing_by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
+        by_date = {} if fresh else dict(existing_by_date)
         any_new = False
+        # 1. 등급별 가격 (sales-chart/used + 옵션 ID 별 호출)
+        grade_counts = {}
         for grade, opt_id in GRADE_OPTION_IDS.items():
-            try:
-                prices_by_date = fetch_card_history_1ea(cid, opt_id, days_limit=days_limit)
-            except Exception as e:
-                print(f"\n  {grade} fail: {e}")
-                continue
-            for date, prs in prices_by_date.items():
-                if not prs: continue
-                # median — outlier 영향 0 (비정상 고가 단일건은 평균에 안 끌림)
-                sorted_prs = sorted(prs)
-                med = sorted_prs[len(sorted_prs) // 2]
+            chart = fetch_chart_grade(cid, opt_id)
+            grade_counts[grade] = len(chart)
+            for date, price in chart.items():
                 if date not in by_date:
                     by_date[date] = {"date": date}
-                by_date[date][f"{grade}_price"] = med
-                by_date[date][f"{grade}_vol"] = len(prs)
+                by_date[date][f"{grade}_price"] = price
                 any_new = True
+            time.sleep(0.2)
+        # 2. 통합 거래량 + 통합 단가 (sales-history 페이지네이션)
+        vols, sh_prices = fetch_volume(cid, days_limit=days_limit)
+        for date, count in vols.items():
+            if date not in by_date:
+                by_date[date] = {"date": date}
+            by_date[date]["total_vol"] = count
+            any_new = True
+        for date, price in sh_prices.items():
+            if date not in by_date:
+                by_date[date] = {"date": date}
+            by_date[date]["total_price"] = price
         if not any_new:
-            print("(no data)")
+            print("(no data — keep existing)")
             fail += 1
             continue
         new_history = sorted(by_date.values(), key=lambda h: h.get("date", ""))
         out = {
             "id": str(cid),
             "updatedAt": datetime.now(timezone.utc).isoformat(),
-            "source": "backfill (sales-history 1ea per grade)",
+            "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
             "history": new_history,
         }
-        # truncate 보장 — unlink 후 재작성
         try:
             path.unlink()
         except Exception:
             pass
-        path.write_bytes(json.dumps(out, ensure_ascii=False, indent=2).encode("utf-8"))
-        print(f"✓ {len(new_history)} entries")
+        path.write_bytes(json.dumps(out, ensure_ascii=False, indent=2).encode('utf-8'))
+        # 통계 — 등급별 days + 통합 거래량
+        vol_total = sum(h.get("total_vol", 0) for h in new_history)
+        print(f"OK psa10={grade_counts['psa10']}d psa9={grade_counts['psa9']}d "
+              f"raw={grade_counts['raw']}d vol={vol_total}")
         success += 1
         time.sleep(0.3)
 
-    print(f"\n완료: ✓ {success} / ❌ {fail}")
+    print(f"\nDone: OK {success} / Fail {fail}")
 
 
 if __name__ == "__main__":

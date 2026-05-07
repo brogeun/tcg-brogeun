@@ -1,7 +1,7 @@
 {
   "id": "141891",
-  "updatedAt": "2026-05-04T12:14:07.742400+00:00",
-  "source": "backfill (sales-chart + sales-history)",
+  "updatedAt": "2026-05-07T04:58:31.425199+00:00",
+  "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
   "history": [
     {
       "date": "2025-07-25",
@@ -9,7 +9,8 @@
     },
     {
       "date": "2025-07-26",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 50000
     },
     {
       "date": "2025-08-19",
@@ -17,17 +18,20 @@
     },
     {
       "date": "2025-08-20",
-      "psa9_vol": 1,
-      "raw_price": 3980
+      "raw_price": 3980,
+      "total_vol": 1,
+      "total_price": 4000
     },
     {
       "date": "2025-08-21",
       "raw_price": 3980,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 3980
     },
     {
       "date": "2025-08-22",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 3980
     },
     {
       "date": "2025-08-24",
@@ -35,7 +39,8 @@
     },
     {
       "date": "2025-08-25",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 3499
     },
     {
       "date": "2025-09-03",
@@ -43,7 +48,8 @@
     },
     {
       "date": "2025-09-04",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 30000
     },
     {
       "date": "2025-09-05",
@@ -51,7 +57,8 @@
     },
     {
       "date": "2025-09-06",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 3000
     },
     {
       "date": "2025-09-13",
@@ -59,7 +66,8 @@
     },
     {
       "date": "2025-09-14",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 2380
     },
     {
       "date": "2025-09-15",
@@ -68,11 +76,13 @@
     {
       "date": "2025-09-16",
       "raw_price": 4500,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 2299
     },
     {
       "date": "2025-09-17",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 4500
     },
     {
       "date": "2025-09-19",
@@ -80,7 +90,8 @@
     },
     {
       "date": "2025-09-20",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 3980
     },
     {
       "date": "2025-09-22",
@@ -89,16 +100,19 @@
     {
       "date": "2025-09-23",
       "psa10_price": 20000,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1800
     },
     {
       "date": "2025-09-24",
-      "psa10_vol": 1,
-      "raw_price": 4078
+      "raw_price": 4078,
+      "total_vol": 1,
+      "total_price": 20000
     },
     {
       "date": "2025-09-25",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 5777
     },
     {
       "date": "2025-09-26",
@@ -107,11 +121,13 @@
     {
       "date": "2025-09-27",
       "raw_price": 2040,
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 5790
     },
     {
       "date": "2025-09-28",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 2200
     },
     {
       "date": "2025-09-29",
@@ -119,7 +135,8 @@
     },
     {
       "date": "2025-09-30",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 20000
     },
     {
       "date": "2025-10-01",
@@ -127,7 +144,8 @@
     },
     {
       "date": "2025-10-02",
-      "raw_vol": 1
+      "total_vol": 2,
+      "total_price": 3500
     },
     {
       "date": "2025-10-06",
@@ -135,7 +153,8 @@
     },
     {
       "date": "2025-10-07",
-      "raw_vol": 3
+      "total_vol": 3,
+      "total_price": 3000
     },
     {
       "date": "2025-10-11",
@@ -144,11 +163,13 @@
     {
       "date": "2025-10-12",
       "raw_price": 2100,
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 4659
     },
     {
       "date": "2025-10-13",
-      "raw_vol": 3
+      "total_vol": 3,
+      "total_price": 2100
     },
     {
       "date": "2025-10-14",
@@ -157,11 +178,13 @@
     {
       "date": "2025-10-15",
       "raw_price": 2300,
-      "raw_vol": 4
+      "total_vol": 4,
+      "total_price": 3000
     },
     {
       "date": "2025-10-16",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 3000
     },
     {
       "date": "2025-10-17",
@@ -169,7 +192,13 @@
     },
     {
       "date": "2025-10-18",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 2500
+    },
+    {
+      "date": "2025-11-25",
+      "total_vol": 1,
+      "total_price": 1000
     },
     {
       "date": "2025-12-03",
@@ -177,7 +206,8 @@
     },
     {
       "date": "2025-12-04",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 16000
     },
     {
       "date": "2025-12-12",
@@ -186,11 +216,13 @@
     {
       "date": "2025-12-13",
       "psa10_price": 7400,
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 15000
     },
     {
       "date": "2025-12-14",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 7400
     },
     {
       "date": "2025-12-15",
@@ -198,12 +230,14 @@
     },
     {
       "date": "2025-12-16",
-      "psa10_vol": 2,
-      "psa9_price": 2399
+      "psa9_price": 2399,
+      "total_vol": 2,
+      "total_price": 7777
     },
     {
       "date": "2025-12-17",
-      "psa9_vol": 1
+      "total_vol": 1,
+      "total_price": 2399
     },
     {
       "date": "2025-12-20",
@@ -211,7 +245,8 @@
     },
     {
       "date": "2025-12-21",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 7700
     },
     {
       "date": "2026-01-01",
@@ -219,7 +254,8 @@
     },
     {
       "date": "2026-01-02",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 7700
     },
     {
       "date": "2026-01-14",
@@ -227,7 +263,8 @@
     },
     {
       "date": "2026-01-15",
-      "psa10_vol": 3
+      "total_vol": 3,
+      "total_price": 7500
     },
     {
       "date": "2026-01-18",
@@ -235,7 +272,8 @@
     },
     {
       "date": "2026-01-19",
-      "psa10_vol": 4
+      "total_vol": 4,
+      "total_price": 8500
     },
     {
       "date": "2026-01-31",
@@ -243,7 +281,8 @@
     },
     {
       "date": "2026-02-01",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8800
     },
     {
       "date": "2026-02-04",
@@ -252,11 +291,13 @@
     {
       "date": "2026-02-05",
       "psa10_price": 23700,
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8000
     },
     {
       "date": "2026-02-06",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 23700
     },
     {
       "date": "2026-02-08",
@@ -264,7 +305,8 @@
     },
     {
       "date": "2026-02-09",
-      "psa10_vol": 2
+      "total_vol": 2,
+      "total_price": 8000
     },
     {
       "date": "2026-02-12",
@@ -273,8 +315,8 @@
     },
     {
       "date": "2026-02-13",
-      "psa10_vol": 1,
-      "psa9_vol": 1
+      "total_vol": 2,
+      "total_price": 8000
     },
     {
       "date": "2026-02-14",
@@ -283,25 +325,27 @@
     {
       "date": "2026-02-15",
       "psa10_price": 7900,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1800
     },
     {
       "date": "2026-02-16",
       "psa10_price": 7900,
-      "psa10_vol": 1,
-      "psa9_price": 2299
+      "psa9_price": 2299,
+      "total_vol": 1,
+      "total_price": 7900
     },
     {
       "date": "2026-02-17",
       "psa10_price": 7924,
-      "psa10_vol": 1,
       "psa9_price": 2390,
-      "psa9_vol": 2
+      "total_vol": 3,
+      "total_price": 2299
     },
     {
       "date": "2026-02-18",
-      "psa10_vol": 4,
-      "psa9_vol": 1
+      "total_vol": 5,
+      "total_price": 7999
     },
     {
       "date": "2026-02-21",
@@ -309,17 +353,20 @@
     },
     {
       "date": "2026-02-22",
-      "psa10_vol": 4,
-      "psa9_price": 2399
+      "psa9_price": 2399,
+      "total_vol": 4,
+      "total_price": 8000
     },
     {
       "date": "2026-02-23",
       "psa10_price": 8000,
-      "psa9_vol": 2
+      "total_vol": 2,
+      "total_price": 2399
     },
     {
       "date": "2026-02-24",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8000
     },
     {
       "date": "2026-02-25",
@@ -327,7 +374,8 @@
     },
     {
       "date": "2026-02-26",
-      "psa9_vol": 1
+      "total_vol": 1,
+      "total_price": 2390
     },
     {
       "date": "2026-02-27",
@@ -335,7 +383,8 @@
     },
     {
       "date": "2026-02-28",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 9000
     },
     {
       "date": "2026-03-04",
@@ -344,13 +393,14 @@
     {
       "date": "2026-03-05",
       "psa10_price": 7700,
-      "psa10_vol": 1,
-      "psa9_price": 2300
+      "psa9_price": 2300,
+      "total_vol": 1,
+      "total_price": 7700
     },
     {
       "date": "2026-03-06",
-      "psa10_vol": 1,
-      "psa9_vol": 1
+      "total_vol": 2,
+      "total_price": 7700
     },
     {
       "date": "2026-03-07",
@@ -358,7 +408,8 @@
     },
     {
       "date": "2026-03-08",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8700
     },
     {
       "date": "2026-03-09",
@@ -366,7 +417,8 @@
     },
     {
       "date": "2026-03-10",
-      "psa10_vol": 4
+      "total_vol": 4,
+      "total_price": 8700
     },
     {
       "date": "2026-03-11",
@@ -374,7 +426,8 @@
     },
     {
       "date": "2026-03-12",
-      "psa10_vol": 2
+      "total_vol": 2,
+      "total_price": 8700
     },
     {
       "date": "2026-03-14",
@@ -384,12 +437,13 @@
     {
       "date": "2026-03-15",
       "psa10_price": 8794,
-      "psa10_vol": 3,
-      "raw_vol": 1
+      "total_vol": 4,
+      "total_price": 8800
     },
     {
       "date": "2026-03-16",
-      "psa10_vol": 2
+      "total_vol": 2,
+      "total_price": 8888
     },
     {
       "date": "2026-03-17",
@@ -397,7 +451,8 @@
     },
     {
       "date": "2026-03-18",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8600
     },
     {
       "date": "2026-03-19",
@@ -405,7 +460,8 @@
     },
     {
       "date": "2026-03-20",
-      "psa10_vol": 3
+      "total_vol": 3,
+      "total_price": 8700
     },
     {
       "date": "2026-03-21",
@@ -413,7 +469,8 @@
     },
     {
       "date": "2026-03-22",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 9990
     },
     {
       "date": "2026-03-24",
@@ -422,8 +479,8 @@
     },
     {
       "date": "2026-03-25",
-      "psa10_vol": 1,
-      "psa9_vol": 1
+      "total_vol": 2,
+      "total_price": 9190
     },
     {
       "date": "2026-03-29",
@@ -431,7 +488,8 @@
     },
     {
       "date": "2026-03-30",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 10000
     },
     {
       "date": "2026-03-31",
@@ -440,11 +498,13 @@
     {
       "date": "2026-04-01",
       "psa10_price": 9050,
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 9100
     },
     {
       "date": "2026-04-02",
-      "psa10_vol": 2
+      "total_vol": 2,
+      "total_price": 9100
     },
     {
       "date": "2026-04-06",
@@ -453,23 +513,26 @@
     {
       "date": "2026-04-07",
       "psa10_price": 9200,
-      "psa10_vol": 3
+      "total_vol": 3,
+      "total_price": 9070
     },
     {
       "date": "2026-04-08",
       "psa10_price": 9125,
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 9200
     },
     {
       "date": "2026-04-09",
       "psa10_price": 9150,
-      "psa10_vol": 4,
-      "raw_price": 1950
+      "raw_price": 1950,
+      "total_vol": 4,
+      "total_price": 9100
     },
     {
       "date": "2026-04-10",
-      "psa10_vol": 3,
-      "raw_vol": 1
+      "total_vol": 4,
+      "total_price": 9150
     },
     {
       "date": "2026-04-12",
@@ -478,28 +541,32 @@
     {
       "date": "2026-04-13",
       "psa10_price": 10365,
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8899
     },
     {
       "date": "2026-04-14",
-      "psa10_vol": 9,
-      "raw_price": 3075
+      "raw_price": 3075,
+      "total_vol": 9,
+      "total_price": 9500
     },
     {
       "date": "2026-04-15",
       "psa10_price": 12990,
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 4150
     },
     {
       "date": "2026-04-16",
       "psa10_price": 13900,
-      "psa10_vol": 2,
-      "psa9_price": 3499
+      "psa9_price": 3499,
+      "total_vol": 2,
+      "total_price": 13000
     },
     {
       "date": "2026-04-17",
-      "psa10_vol": 2,
-      "psa9_vol": 1
+      "total_vol": 3,
+      "total_price": 14000
     },
     {
       "date": "2026-04-21",
@@ -509,12 +576,13 @@
     {
       "date": "2026-04-22",
       "psa10_price": 14150,
-      "psa10_vol": 2,
-      "raw_vol": 2
+      "total_vol": 4,
+      "total_price": 14000
     },
     {
       "date": "2026-04-23",
-      "psa10_vol": 2
+      "total_vol": 2,
+      "total_price": 14300
     },
     {
       "date": "2026-04-27",
@@ -523,11 +591,13 @@
     {
       "date": "2026-04-28",
       "psa10_price": 12300,
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 12500
     },
     {
       "date": "2026-04-29",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 12300
     },
     {
       "date": "2026-04-30",
@@ -535,7 +605,8 @@
     },
     {
       "date": "2026-05-01",
-      "psa10_vol": 2
+      "total_vol": 2,
+      "total_price": 12900
     },
     {
       "date": "2026-05-02",
@@ -543,11 +614,31 @@
     },
     {
       "date": "2026-05-03",
-      "psa10_price": 10800
+      "psa10_price": 10866
     },
     {
       "date": "2026-05-04",
-      "psa10_vol": 2
+      "psa10_price": 11343,
+      "raw_price": 4000,
+      "total_vol": 2,
+      "total_price": 11500
+    },
+    {
+      "date": "2026-05-05",
+      "psa10_price": 11750,
+      "total_vol": 3,
+      "total_price": 10800
+    },
+    {
+      "date": "2026-05-06",
+      "raw_price": 2826,
+      "total_vol": 9,
+      "total_price": 11500
+    },
+    {
+      "date": "2026-05-07",
+      "total_vol": 3,
+      "total_price": 1800
     }
   ]
 }

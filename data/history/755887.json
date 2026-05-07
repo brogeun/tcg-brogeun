@@ -1,7 +1,7 @@
 {
   "id": "755887",
-  "updatedAt": "2026-05-04T17:12:25.486008+00:00",
-  "source": "backfill (sales-chart + sales-history)",
+  "updatedAt": "2026-05-07T07:12:35.210952+00:00",
+  "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
   "history": [
     {
       "date": "2026-04-01",
@@ -10,11 +10,13 @@
     {
       "date": "2026-04-02",
       "psa10_price": 8000,
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8000
     },
     {
       "date": "2026-04-03",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8000
     },
     {
       "date": "2026-04-16",
@@ -22,7 +24,13 @@
     },
     {
       "date": "2026-04-17",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 11000
+    },
+    {
+      "date": "2026-04-21",
+      "total_vol": 1,
+      "total_price": 2999
     },
     {
       "date": "2026-04-24",
@@ -30,7 +38,8 @@
     },
     {
       "date": "2026-04-25",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1500
     },
     {
       "date": "2026-04-26",
@@ -38,7 +47,17 @@
     },
     {
       "date": "2026-04-27",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1900
+    },
+    {
+      "date": "2026-05-06",
+      "psa10_price": 9800
+    },
+    {
+      "date": "2026-05-07",
+      "total_vol": 1,
+      "total_price": 9800
     }
   ]
 }

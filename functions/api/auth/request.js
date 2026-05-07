@@ -25,10 +25,11 @@ export async function onRequestPost({ request, env }) {
   }
 
   // 너무 잦은 요청 방지 — 같은 이메일로 1분 내 5회 초과 시 차단
-  const oneMinAgo = Math.floor(Date.now() / 1000) - 60;
+  // expires_at = 생성시각 + 15분. 1분 내 생성된 토큰의 expires_at 는 14분 후보다 미래.
+  const cutoff = Math.floor(Date.now() / 1000) + 14 * 60;
   const recent = await env.DB.prepare(
     'SELECT COUNT(*) AS n FROM magic_tokens WHERE email = ? AND expires_at > ?'
-  ).bind(email, oneMinAgo).first();
+  ).bind(email, cutoff).first();
   if (recent && recent.n >= 5) {
     return jsonResponse({
       ok: false,

@@ -28,7 +28,7 @@ def load_json(p):
     return json.loads(Path(p).read_bytes().rstrip(b'\x00').rstrip().decode('utf-8'))
 
 
-def fetch_volume_box(cid, days_limit=None, max_pages=200):
+def fetch_volume_box(cid, days_limit=None, max_pages=9999):
     """박스 sales-history 페이지네이션 (1박스 단가 + 일 거래수)
     return: (counts dict, prices dict — date → 평균 단가)"""
     from collections import defaultdict
@@ -40,7 +40,8 @@ def fetch_volume_box(cid, days_limit=None, max_pages=200):
     cutoff = (today - timedelta(days=days_limit)).strftime("%Y-%m-%d") if days_limit else "0000-00-00"
     stopped_early = False
     for page in range(1, max_pages + 1):
-        url = f"https://snkrdunk.com/v1/apparels/{cid}/sales-history?page={page}&per_page=20"
+        # per_page=100 으로 한 번에 더 많이 (4000건 cap 풀기 시도)
+        url = f"https://snkrdunk.com/v1/apparels/{cid}/sales-history?page={page}&per_page=100"
         req = urllib.request.Request(url, headers={
             "User-Agent": UA,
             "Accept": "application/json",
@@ -81,44 +82,26 @@ def fetch_volume_box(cid, days_limit=None, max_pages=200):
                     price = int(pm.group(1).replace(",", ""))
             if price is None:
                 continue
-            # 1個 거래만 받는다 — 모든 가능한 size 키를 검사해서
-            # 명시적으로 "1" 또는 "1個" 인 경우만 수집, 묶음 (2~5個) 또는 size 모호하면 skip
-            size_keys = ("quantity", "count", "qty", "size", "amount", "num",
-                         "size_text", "sizeText", "lot_size", "set_size", "boxes",
-                         "set", "lot", "pieces", "個数")
-            qty_val = None
-            for key in size_keys:
-                val = it.get(key)
-                if val is None:
-                    continue
-                if isinstance(val, dict):
-                    val = (val.get("count") or val.get("size") or val.get("amount") or
-                           val.get("text") or val.get("name"))
-                if isinstance(val, (int, float)):
-                    qty_val = int(val); break
-                if isinstance(val, str):
-                    qm = _re.search(r"(\d+)", val)
-                    if qm:
-                        qty_val = int(qm.group(1)); break
-            # name 안의 묶음 패턴도 검사 ("3個セット" "ボックス×3" "5箱" 같은 표기)
-            if qty_val is None:
-                name = it.get("name") or it.get("title") or it.get("label") or ""
-                nm = _re.search(r"(\d+)\s*(個|箱|本|点|セット|set|×|x)", name, _re.I)
-                if nm: qty_val = int(nm.group(1))
-            # 1個 만 수집 — 그 외는 모두 skip (묶음/모호한 size)
-            if qty_val != 1:
-                continue
+            # 모든 거래 수집 (size 검사 X) — 일별 outlier 처리는 산출 단계에서
             counts[d2] += 1
             prices[d2].append(price)
         if stopped_early:
             break
-        if len(items) < 20:
-            break
+        # SNKRDUNK API 가 per_page 무시하고 ~20건씩 줘 — items 가 비어야 진짜 끝
+        # (옛날 if len(items) < 100: break 로직 = 1페이지 끊김 = 20건 cap 버그)
         time.sleep(0.3)
-    # median — 같은 날 거래 list 중 중앙값. 비정상 고가 단일건 영향 0
-    def _median(arr):
-        s = sorted(arr); return s[len(s) // 2]
-    avg_prices = {d: _median(p) for d, p in prices.items() if p}
+    # 일별 outlier 제거 후 median
+    #   1) 초기 median
+    #   2) median × [0.5, 2.0] 범위 외 제거 (튀는 가격 cut)
+    #   3) 남은 거래로 다시 median = 일별 단가
+    def _clean_median(arr):
+        s = sorted(arr)
+        init = s[len(s) // 2]
+        clean = [p for p in arr if 0.5 * init <= p <= 2.0 * init]
+        if not clean: clean = arr
+        sc = sorted(clean)
+        return sc[len(sc) // 2]
+    avg_prices = {d: _clean_median(p) for d, p in prices.items() if p}
     return dict(counts), avg_prices
 
 
@@ -169,10 +152,14 @@ def fetch_chart(cid, range_arg="all", debug=False):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", type=str, help="박스 ID 1개만 (테스트)")
+    parser.add_argument("--only", type=str, nargs='+', help="특정 박스 ID 들만 (공백 구분, 여러 개)")
+    parser.add_argument("--new-only", action="store_true",
+                        help="price-pokemon-box.json 의 'code' 필드 있는 신규 박스만 (find_new_box_ids.py 추가분)")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--range", default="all", help="oneMonth / threeMonths / sixMonths / oneYear / all")
     parser.add_argument("--debug", action="store_true", help="다양한 URL 시도 로그")
+    parser.add_argument("--fresh", action="store_true",
+                        help="기존 history 무시하고 처음부터 (지금 기준으로 풀 백필)")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -192,7 +179,20 @@ def main():
     print(f"  총 박스: {len(box_ids)}")
 
     if args.only:
-        box_ids = [b for b in box_ids if b['id'] == args.only]
+        only_set = set(args.only)
+        box_ids = [b for b in box_ids if b['id'] in only_set]
+    elif args.new_only:
+        # find_new_box_ids.py 가 추가한 박스 (code 필드 있음) 만
+        new_box_codes = set()
+        for brand in ['pokemon', 'onepiece']:
+            try:
+                d = load_json(DATA / f"price-{brand}-box.json")
+                for p in d.get('products', []):
+                    if p.get('code'):  # find_new_box_ids 가 추가한 항목
+                        new_box_codes.add(str(p['id']))
+            except Exception: pass
+        box_ids = [b for b in box_ids if b['id'] in new_box_codes]
+        print(f"  --new-only: 신규 박스 {len(box_ids)} 개")
     elif args.limit > 0:
         box_ids = box_ids[:args.limit]
 
@@ -207,16 +207,21 @@ def main():
         if not points:
             print(f"      ⊘ 0 points")
             continue
-        # 기존 history 와 merge
+        # 기존 history 와 merge (--fresh 면 무시. 단 fetch 0건이면 기존 keep 안전장치)
         hp = HIST / f"{cid}.json"
         try:
             existing = load_json(hp) if hp.exists() else {"id": cid, "history": []}
         except Exception:
             existing = {"id": cid, "history": []}
-        by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
+        existing_by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
+        by_date = {} if args.fresh else dict(existing_by_date)
 
-        # sales-history → 1박스 단가 + 거래량 (전체 발매부터)
-        vols, sh_prices = fetch_volume_box(cid, days_limit=None, max_pages=200)
+        # sales-history → 1박스 단가 + 거래량 (전체 발매부터, 끝까지)
+        vols, sh_prices = fetch_volume_box(cid, days_limit=None, max_pages=9999)
+        # 안전장치 — fetch 실패 시 기존 history 유지
+        if not vols and not sh_prices and not points:
+            print(f"      ⊘ all fetch failed — keep existing")
+            continue
         for date, count in vols.items():
             if date not in by_date:
                 by_date[date] = {"date": date}
@@ -257,7 +262,7 @@ def main():
             print(f"        valid {sum(1 for h in new_hist if h.get('box_vol', 0) > 0)} days")
         time.sleep(0.5)
 
-    print(f"\nBox backfill complete — {len(targets)} processed")
+    print(f"\nBox backfill complete - {len(box_ids)} processed")
 
 
 if __name__ == "__main__":

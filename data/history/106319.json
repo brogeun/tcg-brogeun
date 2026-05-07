@@ -1,15 +1,21 @@
 {
   "id": "106319",
-  "updatedAt": "2026-05-04T09:58:01.349810+00:00",
-  "source": "backfill (sales-chart + sales-history)",
+  "updatedAt": "2026-05-07T04:06:42.784481+00:00",
+  "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
   "history": [
+    {
+      "date": "2025-01-02",
+      "total_vol": 1,
+      "total_price": 2500
+    },
     {
       "date": "2025-12-14",
       "psa10_price": 25000
     },
     {
       "date": "2025-12-15",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 25000
     },
     {
       "date": "2026-03-10",
@@ -17,7 +23,8 @@
     },
     {
       "date": "2026-03-11",
-      "psa10_vol": 2
+      "total_vol": 2,
+      "total_price": 19000
     }
   ]
 }

@@ -740,24 +740,7 @@ def main():
                     pm = re.search(r"([\d,]+)", pr.replace("¥", ""))
                     pr = int(pm.group(1).replace(",", "")) if pm else None
                 if pr is None: continue
-                sz_val = None
-                for sk in ("quantity", "count", "qty", "size", "amount", "num",
-                           "size_text", "sizeText", "lot_size", "set_size",
-                           "boxes", "set", "lot", "pieces", "個数"):
-                    sv = it.get(sk)
-                    if sv is None: continue
-                    if isinstance(sv, dict):
-                        sv = sv.get("count") or sv.get("size") or sv.get("amount") or sv.get("text")
-                    if isinstance(sv, (int, float)):
-                        sz_val = int(sv); break
-                    if isinstance(sv, str):
-                        sm = re.search(r"(\d+)", sv)
-                        if sm: sz_val = int(sm.group(1)); break
-                if sz_val is None:
-                    nm = re.search(r"(\d+)\s*(個|箱|本|点|セット|set|×|x)",
-                                   (it.get("name") or it.get("title") or ""), re.I)
-                    if nm: sz_val = int(nm.group(1))
-                if sz_val != 1: continue
+                # 모든 거래 수집 (size 검사 X) — 일별 outlier 는 산출 단계에서 cut
                 prices_by_date[dt_str].append(pr)
             if len(items) < 20: break
             time.sleep(0.2)
@@ -892,7 +875,7 @@ def main():
     print(f"  → history 갱신: {appended} 카드/박스")
     print(f"\n완료. 실패 {fail_count}/{total}")
     if fail_count == total:
-        print("전체 실패 → exit 1")
+        print("All failed -> exit 1")
         sys.exit(1)
 
 

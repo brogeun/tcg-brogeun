@@ -1,7 +1,7 @@
 {
   "id": "583602",
-  "updatedAt": "2026-05-04T15:37:17.003783+00:00",
-  "source": "backfill (sales-chart + sales-history)",
+  "updatedAt": "2026-05-07T06:34:46.221688+00:00",
+  "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
   "history": [
     {
       "date": "2025-12-10",
@@ -10,11 +10,13 @@
     {
       "date": "2025-12-11",
       "psa10_price": 6799,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1000
     },
     {
       "date": "2025-12-12",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 6799
     },
     {
       "date": "2026-01-20",
@@ -22,7 +24,13 @@
     },
     {
       "date": "2026-01-21",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 2600
+    },
+    {
+      "date": "2026-02-14",
+      "total_vol": 1,
+      "total_price": 1000
     },
     {
       "date": "2026-03-29",
@@ -30,7 +38,8 @@
     },
     {
       "date": "2026-03-30",
-      "psa10_vol": 1
+      "total_vol": 1,
+      "total_price": 8000
     },
     {
       "date": "2026-04-03",
@@ -38,7 +47,8 @@
     },
     {
       "date": "2026-04-04",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1200
     },
     {
       "date": "2026-04-20",
@@ -46,7 +56,8 @@
     },
     {
       "date": "2026-04-21",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1000
     },
     {
       "date": "2026-04-23",
@@ -54,7 +65,8 @@
     },
     {
       "date": "2026-04-24",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 2500
     },
     {
       "date": "2026-04-25",
@@ -62,15 +74,17 @@
     },
     {
       "date": "2026-04-26",
-      "raw_vol": 1
+      "total_vol": 2,
+      "total_price": 1999
     },
     {
       "date": "2026-04-30",
       "psa10_price": 11999
     },
     {
-      "date": "2026-05-02",
-      "psa10_vol": 1
+      "date": "2026-05-01",
+      "total_vol": 1,
+      "total_price": 11999
     }
   ]
 }

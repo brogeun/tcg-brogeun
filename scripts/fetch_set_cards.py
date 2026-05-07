@@ -148,29 +148,78 @@ def scroll_to_bottom(driver, max_iter=20, sleep=1.0):
 
 
 def scrape_pokemon_set(driver, code: str, name: str, url: str) -> dict:
-    """tcgcollector — .card-image-grid-item 직접 매칭"""
-    # anyCardVariant 제거 — reprint/variant 까지 다 끌고 와서 카운트 부풀려짐
-    # 기본 모드 = base + SR/HR/SAR (일판 박스 기준 정확)
-    full_url = url + ("&" if "?" in url else "?") + "displayAs=images"
+    """tcgcollector — .card-image-grid-item 직접 매칭 (SR/HR/SAR 까지 전부)"""
+    # 옵션:
+    #   displayAs=images — 카드 이미지 그리드
+    #   pageSize=300 — 한 페이지에 300개까지 (default 30 → SR/HR 잘림)
+    #   cardCardCountModeForCardSet 제거 (anyCardVariant 빼면서 부작용)
+    sep = "&" if "?" in url else "?"
+    full_url = f"{url}{sep}displayAs=images&pageSize=300"
     print(f"  fetching {full_url}")
     driver.get(full_url)
-    # 카드 그리드 로드 대기 — 최대 60초 (대형 세트 SV4a, SV2a 등 lazy load 시간 더 필요)
-    for i in range(60):
+
+    # 첫 grid item 등장 대기 — 최대 30초
+    for i in range(30):
         time.sleep(1)
         count = driver.execute_script("return document.querySelectorAll('.card-image-grid-item').length")
         if count > 0:
-            print(f"    {count}개 그리드 아이템 감지 ({i+1}초)")
+            print(f"    첫 그리드 {count}개 감지 ({i+1}초)")
             break
     else:
-        # 디버깅 — 0 카드일 때 페이지 상태 출력
         title = driver.execute_script("return document.title")
-        body_text = driver.execute_script("return (document.body.innerText || '').slice(0, 300)")
-        current_url = driver.current_url
-        print(f"    ⚠ 그리드 못 찾음 (30초)")
-        print(f"      title: {title}")
-        print(f"      url: {current_url}")
-        print(f"      body: {body_text[:200]}")
-    scroll_to_bottom(driver, max_iter=30, sleep=1.5)
+        print(f"    ⚠ 그리드 못 찾음. title: {title}")
+        return {"code": code, "name": name, "brand": "pokemon",
+                "source": "tcgcollector.com", "fetchedAt": datetime.now(timezone.utc).isoformat(),
+                "cardCount": 0, "cards": []}
+
+    # 핵심 — grid count 안정화 감지 (scroll + lazy load 다 끝날 때까지)
+    last_count = 0
+    stable = 0
+    max_loops = 180  # 최대 3분
+    for i in range(max_loops):
+        # 다양한 scroll 패턴
+        driver.execute_script("window.scrollBy(0, 800);")
+        time.sleep(0.6)
+        # 끝까지 가면 다시 위→아래 반복 (lazy load 재트리거)
+        if i % 20 == 19:
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(1.2)
+            driver.execute_script("window.scrollTo(0, 0);")
+            time.sleep(0.8)
+        count = driver.execute_script("return document.querySelectorAll('.card-image-grid-item').length")
+        if count == last_count:
+            stable += 1
+            if stable >= 8:  # 8회 연속 변화 없으면 안정
+                print(f"    → 안정 {count}장 (loop {i+1})")
+                break
+        else:
+            stable = 0
+            if count != last_count and i % 5 == 0:
+                print(f"    loop {i+1}: {count}장 (변화 +{count - last_count})")
+        last_count = count
+
+    # "Load more" / "Show all" 버튼 있으면 클릭 (tcgcollector pagination)
+    for btn_sel in ['button.load-more', 'button.show-all', '.pagination-next:not(.disabled) a',
+                    'a[rel="next"]', 'button[class*="LoadMore"]']:
+        try:
+            btns = driver.execute_script(f"return document.querySelectorAll('{btn_sel}').length")
+            if btns:
+                for _ in range(20):  # 최대 20번 click
+                    clicked = driver.execute_script(
+                        f"const b=document.querySelector('{btn_sel}');"
+                        f"if(b&&b.offsetParent!==null){{b.click();return true}}return false;")
+                    if not clicked: break
+                    time.sleep(1.5)
+                print(f"    {btn_sel} 클릭 시도 완료")
+        except Exception:
+            pass
+
+    # 마지막 한 번 더 끝까지 scroll
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(2)
+    final_count = driver.execute_script("return document.querySelectorAll('.card-image-grid-item').length")
+    if final_count > last_count:
+        print(f"    최종 안정화 후 {last_count} → {final_count}장")
 
     js = r"""
         const out = [];
@@ -293,6 +342,7 @@ def main():
     only_pokemon = "--pokemon" in sys.argv
     only_onepiece = "--onepiece" in sys.argv
     visible = "--visible" in sys.argv  # 브라우저 보이게 (디버깅)
+    # case-insensitive 매칭 — POKEMON_SETS 의 코드 (SV3a, S8b 같은 mixed case) 와 비교 위해
     only_codes = set(a.upper() for a in args_no_flag) if args_no_flag else None
 
     print("=" * 60)
@@ -308,7 +358,7 @@ def main():
         if not only_onepiece:
             print("\n━━━ 포켓몬 (tcgcollector.com) ━━━")
             for code, name, url in POKEMON_SETS:
-                if only_codes and code not in only_codes:
+                if only_codes and code.upper() not in only_codes:
                     continue
                 out_path = OUT_DIR / f"{code}.json"
                 if out_path.exists() and not force:
@@ -331,44 +381,39 @@ def main():
                 try:
                     data = scrape_pokemon_set(driver, code, name, url)
                     out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-                    print(f"  {code:7s} ✓ {data['cardCount']} 카드")
+                    print(f"  {code:7s} â {data['cardCount']} ì¹´ë")
                     success += 1
                 except Exception as e:
-                    print(f"  {code:7s} ✗ {e}")
+                    print(f"  {code:7s} â {e}")
                     failed += 1
                 set_counter += 1
                 time.sleep(3)
 
         if not only_pokemon:
-            print("\n━━━ 원피스 (tcgrepublic.com) ━━━")
+            print("\nâââ ìí¼ì¤ (tcgrepublic.com) âââ")
             for code, name, url in ONEPIECE_SETS:
-                if only_codes and code not in only_codes:
+                if only_codes and code.upper() not in only_codes:
                     continue
                 out_path = OUT_DIR / f"{code}.json"
                 if out_path.exists() and not force:
                     try:
                         existing = json.loads(out_path.read_text("utf-8"))
                         if existing.get("cardCount", 0) > 0:
-                            print(f"  {code:7s} skip (exists, {existing['cardCount']} 카드)")
+                            print(f"  {code:7s} skip (exists, {existing['cardCount']} ì¹´ë)")
                             continue
-                        else:
-                            print(f"  {code:7s} 0 카드 → 재시도")
                     except Exception:
                         pass
-
-                # 매 세트마다 driver 재시작
                 if set_counter > 0:
                     driver.quit()
                     time.sleep(1)
                     driver = make_driver(headless=not visible)
-
                 try:
                     data = scrape_onepiece_set(driver, code, name, url)
                     out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-                    print(f"  {code:7s} ✓ {data['cardCount']} 카드")
+                    print(f"  {code:7s} â {data['cardCount']} ì¹´ë")
                     success += 1
                 except Exception as e:
-                    print(f"  {code:7s} ✗ {e}")
+                    print(f"  {code:7s} â {e}")
                     failed += 1
                 set_counter += 1
                 time.sleep(3)

@@ -1,7 +1,7 @@
 {
   "id": "753314",
-  "updatedAt": "2026-05-04T17:11:30.119635+00:00",
-  "source": "backfill (sales-chart + sales-history)",
+  "updatedAt": "2026-05-07T07:12:02.317778+00:00",
+  "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
   "history": [
     {
       "date": "2026-01-21",
@@ -10,31 +10,37 @@
     {
       "date": "2026-01-22",
       "raw_price": 2333,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1300
     },
     {
       "date": "2026-01-23",
       "raw_price": 1000,
-      "raw_vol": 3
+      "total_vol": 3,
+      "total_price": 2000
     },
     {
       "date": "2026-01-24",
       "raw_price": 1449,
-      "raw_vol": 4
+      "total_vol": 6,
+      "total_price": 1000
     },
     {
       "date": "2026-01-25",
       "raw_price": 1948,
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 1499
     },
     {
       "date": "2026-01-26",
       "raw_price": 1000,
-      "raw_vol": 4
+      "total_vol": 5,
+      "total_price": 1900
     },
     {
       "date": "2026-01-27",
-      "raw_vol": 7
+      "total_vol": 7,
+      "total_price": 1000
     },
     {
       "date": "2026-01-28",
@@ -43,57 +49,76 @@
     {
       "date": "2026-01-29",
       "raw_price": 1050,
-      "raw_vol": 11
+      "total_vol": 12,
+      "total_price": 1000
     },
     {
       "date": "2026-01-30",
       "raw_price": 1325,
-      "raw_vol": 4
+      "total_vol": 4,
+      "total_price": 1100
     },
     {
       "date": "2026-01-31",
       "raw_price": 1333,
-      "raw_vol": 7
+      "total_vol": 10,
+      "total_price": 1000
     },
     {
       "date": "2026-02-01",
       "raw_price": 1550,
-      "raw_vol": 6
+      "total_vol": 6,
+      "total_price": 1000
     },
     {
       "date": "2026-02-02",
       "raw_price": 1950,
-      "raw_vol": 5
+      "total_vol": 5,
+      "total_price": 1150
     },
     {
       "date": "2026-02-03",
       "raw_price": 1100,
-      "raw_vol": 4
+      "total_vol": 7,
+      "total_price": 1300
     },
     {
       "date": "2026-02-04",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 1150
     },
     {
       "date": "2026-02-05",
-      "raw_price": 1100
+      "raw_price": 1100,
+      "total_vol": 4,
+      "total_price": 1000
     },
     {
       "date": "2026-02-06",
-      "raw_vol": 3
+      "total_vol": 3,
+      "total_price": 1100
     },
     {
       "date": "2026-02-07",
-      "raw_price": 1150
+      "raw_price": 1150,
+      "total_vol": 1,
+      "total_price": 1000
     },
     {
       "date": "2026-02-08",
       "raw_price": 1000,
-      "raw_vol": 4
+      "total_vol": 5,
+      "total_price": 1200
     },
     {
       "date": "2026-02-09",
-      "raw_vol": 1
+      "total_vol": 4,
+      "total_price": 1000
+    },
+    {
+      "date": "2026-02-11",
+      "total_vol": 3,
+      "total_price": 1000
     },
     {
       "date": "2026-02-13",
@@ -101,15 +126,19 @@
     },
     {
       "date": "2026-02-14",
-      "raw_vol": 3
+      "total_vol": 3,
+      "total_price": 1000
     },
     {
       "date": "2026-02-17",
-      "raw_price": 1000
+      "raw_price": 1000,
+      "total_vol": 1,
+      "total_price": 1800
     },
     {
       "date": "2026-02-18",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 1000
     },
     {
       "date": "2026-02-21",
@@ -118,19 +147,24 @@
     {
       "date": "2026-02-22",
       "raw_price": 1000,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1000
     },
     {
       "date": "2026-02-23",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1000
     },
     {
       "date": "2026-02-24",
-      "raw_price": 1000
+      "raw_price": 1000,
+      "total_vol": 1,
+      "total_price": 6000
     },
     {
       "date": "2026-02-25",
-      "raw_vol": 4
+      "total_vol": 4,
+      "total_price": 1000
     },
     {
       "date": "2026-02-26",
@@ -138,7 +172,8 @@
     },
     {
       "date": "2026-02-27",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 1999
     },
     {
       "date": "2026-03-02",
@@ -147,16 +182,19 @@
     {
       "date": "2026-03-03",
       "raw_price": 1180,
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 1000
     },
     {
       "date": "2026-03-04",
       "raw_price": 1247,
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1180
     },
     {
       "date": "2026-03-05",
-      "raw_vol": 4
+      "total_vol": 5,
+      "total_price": 1000
     },
     {
       "date": "2026-03-07",
@@ -164,7 +202,8 @@
     },
     {
       "date": "2026-03-08",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1900
     },
     {
       "date": "2026-03-15",
@@ -172,7 +211,8 @@
     },
     {
       "date": "2026-03-16",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 1500
     },
     {
       "date": "2026-03-30",
@@ -180,7 +220,8 @@
     },
     {
       "date": "2026-03-31",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 2750
     },
     {
       "date": "2026-04-03",
@@ -188,15 +229,24 @@
     },
     {
       "date": "2026-04-04",
-      "raw_vol": 1
+      "total_vol": 1,
+      "total_price": 1750
+    },
+    {
+      "date": "2026-04-16",
+      "total_vol": 1,
+      "total_price": 1100
     },
     {
       "date": "2026-04-21",
-      "raw_price": 1952
+      "raw_price": 1952,
+      "total_vol": 1,
+      "total_price": 1200
     },
     {
       "date": "2026-04-22",
-      "raw_vol": 2
+      "total_vol": 2,
+      "total_price": 2155
     }
   ]
 }

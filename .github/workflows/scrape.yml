@@ -6,10 +6,8 @@ on:
   workflow_dispatch:  # 수동 실행 가능
   push:
     branches: [main]
-    paths-ignore:
-      - 'data/**'         # data 자동 커밋이 무한 루프 트리거 방지
-      - 'scripts/**'      # 스크립트 변경은 다음 cron 까지 대기
-      - '**/*.md'         # README 등 문서 변경은 배포 불필요
+    # paths-ignore 제거 — 사용자 push 는 항상 trigger.
+    # bot 자동 commit 은 아래 jobs 의 if 조건으로 막아 무한루프 방지.
 
 permissions:
   contents: write  # data/*.json 커밋 권한
@@ -20,6 +18,8 @@ concurrency:
 
 jobs:
   scrape:
+    # bot 의 자동 commit (data 자동 갱신) 으로 인한 무한 trigger 방지
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

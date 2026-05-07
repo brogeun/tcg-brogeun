@@ -1515,34 +1515,15 @@ let HOME_TOP_BRAND = null;
 
 async function loadHomeTop(brand) {
   if (HOME_TOP_CACHE[brand]) return HOME_TOP_CACHE[brand];
-  // top10 (브랜드 인기 — 주로 박스) + cards (인기 카드) + boxes (인기 박스) 합쳐서 sold_count 기준 정렬
+  // SNKRDUNK 카테고리 6 (https://snkrdunk.com/brands/{brand}/categories/6) 그대로
+  // → data/top10-{brand}.json 에 데일리 cron 으로 저장됨. 다른 source 합치지 않음 (사용자 명시)
   const t = Math.floor(Date.now() / 3600000);
-  const sources = [
-    `/data/top10-${brand}.json?t=${t}`,
-    `/data/price-${brand}-card.json?t=${t}`,
-    `/data/price-${brand}-box.json?t=${t}`,
-  ];
-  console.log('[home-top10] fetching merged sources for', brand);
-  const results = await Promise.all(sources.map(u =>
-    fetch(u).then(r => r.ok ? r.json() : null).catch(() => null)
-  ));
-  const merged = new Map();
-  for (const d of results) {
-    if (!d?.ok) continue;
-    for (const p of (d.products || [])) {
-      if (!p?.id) continue;
-      // 중복 — sold_count 더 높은 쪽으로 (또는 첫 등장)
-      const prev = merged.get(p.id);
-      if (!prev || (p.sold_count || 0) > (prev.sold_count || 0)) {
-        merged.set(p.id, p);
-      }
-    }
-  }
-  if (!merged.size) throw new Error('아직 데이터 수집 전 — GitHub Actions 첫 실행 대기 중');
-  // sold_count → recent_sold_avg → lastPrice 순으로 정렬 (인기도 추정)
-  const products = [...merged.values()]
-    .sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0))
-    .slice(0, 10);
+  console.log('[home-top10] loading top10-' + brand);
+  const r = await fetch(`/data/top10-${brand}.json?t=${t}`);
+  if (!r.ok) throw new Error('top10 데이터 fetch 실패');
+  const d = await r.json();
+  if (!d?.ok || !Array.isArray(d.products)) throw new Error('아직 데이터 수집 전 — GitHub Actions 첫 실행 대기 중');
+  const products = d.products.slice(0, 10);
   HOME_TOP_CACHE[brand] = products;
   return products;
 }

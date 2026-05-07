@@ -1513,20 +1513,39 @@ const toKrw = (n, cur) => {
 const HOME_TOP_CACHE = {};
 let HOME_TOP_BRAND = null;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * 🔒 LOCKED — 홈 TOP 10 로드 (사용자 명시, 절대 수정 금지)
+ *
+ * SOURCE (단일):
+ *   data/top10-{brand}.json
+ *   ← scripts/scrape_snkrdunk.py 가 데일리 cron 으로
+ *     https://snkrdunk.com/brands/{brand}/categories/6 페이지를 스크래핑해서 저장
+ *
+ * RULES:
+ *   1. top10-{brand}.json 만 사용. 원본 그대로.
+ *   2. price-{brand}-card.json / price-{brand}-box.json 과 합치지 말 것.
+ *   3. 정렬 / 필터 / 변형 금지. JSON 의 products 배열 그대로 표시.
+ *   4. 카드 + 박스 섞여 있는 게 정상 (SNKRDUNK 카테고리 페이지 그대로).
+ *
+ * BACKGROUND:
+ *   이전에 "박스가 더 많이 잡힌다" 등의 이유로 price-card/price-box 합쳐서
+ *   sold_count 정렬하는 로직이 추가됐었음. 박스 list 가 카드보다 훨씬 많아서
+ *   상위 10개가 박스만 차지하는 버그 발생. 사용자 수십 차례 지적 후 단순화 결정.
+ *   다시 합치지 말 것. 다른 작업 시에도 이 함수 건드리지 말 것.
+ * ═══════════════════════════════════════════════════════════════════════════ */
 async function loadHomeTop(brand) {
   if (HOME_TOP_CACHE[brand]) return HOME_TOP_CACHE[brand];
-  // SNKRDUNK 카테고리 6 (https://snkrdunk.com/brands/{brand}/categories/6) 그대로
-  // → data/top10-{brand}.json 에 데일리 cron 으로 저장됨. 다른 source 합치지 않음 (사용자 명시)
   const t = Math.floor(Date.now() / 3600000);
-  console.log('[home-top10] loading top10-' + brand);
   const r = await fetch(`/data/top10-${brand}.json?t=${t}`);
   if (!r.ok) throw new Error('top10 데이터 fetch 실패');
   const d = await r.json();
-  if (!d?.ok || !Array.isArray(d.products)) throw new Error('아직 데이터 수집 전 — GitHub Actions 첫 실행 대기 중');
-  const products = d.products.slice(0, 10);
-  HOME_TOP_CACHE[brand] = products;
-  return products;
+  if (!d?.ok || !Array.isArray(d.products)) {
+    throw new Error('아직 데이터 수집 전 — GitHub Actions 첫 실행 대기 중');
+  }
+  HOME_TOP_CACHE[brand] = d.products.slice(0, 10);
+  return HOME_TOP_CACHE[brand];
 }
+/* 🔒 위 함수 끝 — 합치는 로직 / 정렬 / 필터 추가 절대 금지 */
 
 function renderHomeTop(brand, products) {
   const list = document.querySelector(`[data-home-top-list="${brand}"]`);

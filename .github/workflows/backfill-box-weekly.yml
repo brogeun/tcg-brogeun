@@ -5,10 +5,9 @@ name: Backfill Box History (Weekly)
 # 일일 cron 이 못 잡은 누락 기간 + 새 박스 history 보완
 
 on:
-  # 풀 백필 진행 중 — cron 임시 비활성화 (백필 끝나고 다시 켜기)
-  # schedule:
-  #   - cron: '0 18 * * 6'  # 일요일 03:00 KST
-  workflow_dispatch:  # 수동 실행만
+  schedule:
+    - cron: '0 18 * * 6'  # 일요일 03:00 KST 매주
+  workflow_dispatch:  # 수동 실행 가능
 
 permissions:
   contents: write

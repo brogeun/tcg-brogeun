@@ -1,10 +1,9 @@
 name: Scrape SNKRDUNK Daily
 
 on:
-  # 풀 백필 진행 중 — cron 임시 비활성화 (백필 끝나고 다시 켜기)
-  # schedule:
-  #   - cron: '0 19 * * *'  # 04:00 KST
-  workflow_dispatch:  # 수동 실행만
+  schedule:
+    - cron: '0 19 * * *'  # 04:00 KST 매일
+  workflow_dispatch:  # 수동 실행 가능
   push:
     branches: [main]
     paths-ignore:

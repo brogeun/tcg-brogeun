@@ -1,10 +1,11 @@
 name: PSA Pop Daily Gamble
 
 # 매일 KST 05:00 (UTC 20:00) — Cloudflare 도박. 통과하는 카드만 누적.
+# PSA Pop 기능 사용자 결정으로 보류 — 추후 유저 데이터 누적 방식으로 재설계 예정
 on:
-  schedule:
-    - cron: '0 20 * * *'
-  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 20 * * *'
+  workflow_dispatch:  # 수동 실행만 (cron 비활성화)
 
 permissions:
   contents: write

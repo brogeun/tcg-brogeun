@@ -168,31 +168,41 @@ def main():
 
     # 박스 ID 모음 — price-{brand}-box.json 에서
     box_ids = []
+    seen_ids = set()  # 중복 방지 (price-*-box + manual-boxes 합치므로)
+    # 1) cron 갱신되는 카탈로그 (인기 30개)
     for brand in ['pokemon', 'onepiece']:
         f = DATA / f"price-{brand}-box.json"
         if not f.exists():
             continue
         d = load_json(f)
         for p in d.get('products', []):
-            box_ids.append({'id': str(p['id']), 'name': p.get('name', '')})
+            pid = str(p['id'])
+            if pid in seen_ids:
+                continue
+            seen_ids.add(pid)
+            box_ids.append({'id': pid, 'name': p.get('name', ''), 'code': p.get('code')})
+    # 2) 사용자 수동 추가 박스 (manual-boxes-{brand}.json)
+    for brand in ['pokemon', 'onepiece']:
+        f = DATA / f"manual-boxes-{brand}.json"
+        if not f.exists():
+            continue
+        d = load_json(f)
+        for p in d.get('products', []):
+            pid = str(p['id'])
+            if pid in seen_ids:
+                continue
+            seen_ids.add(pid)
+            box_ids.append({'id': pid, 'name': p.get('name', ''), 'code': p.get('code')})
 
-    print(f"  총 박스: {len(box_ids)}")
+    print(f"  총 박스: {len(box_ids)} (price-*-box + manual-boxes 합산, 중복 제거)")
 
     if args.only:
         only_set = set(args.only)
         box_ids = [b for b in box_ids if b['id'] in only_set]
     elif args.new_only:
-        # find_new_box_ids.py 가 추가한 박스 (code 필드 있음) 만
-        new_box_codes = set()
-        for brand in ['pokemon', 'onepiece']:
-            try:
-                d = load_json(DATA / f"price-{brand}-box.json")
-                for p in d.get('products', []):
-                    if p.get('code'):  # find_new_box_ids 가 추가한 항목
-                        new_box_codes.add(str(p['id']))
-            except Exception: pass
-        box_ids = [b for b in box_ids if b['id'] in new_box_codes]
-        print(f"  --new-only: 신규 박스 {len(box_ids)} 개")
+        # code 필드 있는 박스 = manual 추가분
+        box_ids = [b for b in box_ids if b.get('code')]
+        print(f"  --new-only: code 있는 박스 {len(box_ids)} 개")
     elif args.limit > 0:
         box_ids = box_ids[:args.limit]
 

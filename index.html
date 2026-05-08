@@ -308,6 +308,19 @@ body.admin-active .admin-only { display: flex !important; }
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 14px;
 }
+/* 모바일 — minmax 자동 fill 대신 3 columns 강제 (화면 좁아도 1줄 3개) */
+@media (max-width: 640px) {
+  .set-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+@media (max-width: 380px) {
+  .set-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
 .set-card-item {
   background: #fff;
   border: 1px solid var(--line);
@@ -752,7 +765,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       .price-grid { display:grid; gap:16px; grid-template-columns:repeat(5, minmax(0,1fr)); }
       @media (max-width: 1200px) { .price-grid { grid-template-columns:repeat(4, minmax(0,1fr)); } }
       @media (max-width: 900px)  { .price-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
-      @media (max-width: 640px)  { .price-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+      @media (max-width: 640px)  { .price-grid { grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; } }
+      @media (max-width: 380px)  { .price-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; } }
     </style>
 
     <!-- 정보 허브 -->
@@ -870,9 +884,35 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <div class="tab active" data-ci="pokemon">⚡ 포켓몬</div>
           <div class="tab" data-ci="onepiece">🏴‍☠️ 원피스</div>
         </div>
-        <div id="cardInfoSrc" style="font-size:11px; color:var(--ink-sub)"></div>
+        <div style="display:flex; align-items:center; gap:10px; margin-left:auto">
+          <button type="button" onclick="go('price')"
+                  style="background:#0d9488; color:#fff; border:none; padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:4px">
+            📊 박스 시세 →
+          </button>
+          <div id="cardInfoSrc" style="font-size:11px; color:var(--ink-sub)"></div>
+        </div>
       </div>
       <div class="price-grid" id="cardInfoList"></div>
+
+      <!-- 우측 하단 빠른 이동 휠 (카드정보 페이지 한정 — section display:none 이면 자동으로 숨김) -->
+      <button id="cardInfoScrollTop" type="button" aria-label="맨 위로"
+              onclick="window.scrollTo({top:0, behavior:'smooth'})"
+              style="position:fixed; bottom:90px; right:18px; width:46px; height:46px; border-radius:50%;
+                     background:#0d9488; color:#fff; border:none; box-shadow:0 6px 16px rgba(0,0,0,0.18);
+                     cursor:pointer; font-size:22px; font-weight:700; display:none; z-index:90;
+                     align-items:center; justify-content:center; line-height:1">
+        ↑
+      </button>
+      <script>
+        // 스크롤 300px 이상 내려가면 휠 버튼 표시 (section 자체 display:none 시 자동으로 안 보임)
+        (function(){
+          const btn = document.getElementById('cardInfoScrollTop');
+          if (!btn) return;
+          window.addEventListener('scroll', () => {
+            btn.style.display = window.scrollY > 300 ? 'flex' : 'none';
+          }, { passive: true });
+        })();
+      </script>
     </section>
 
     <!-- 응모 -->

@@ -2652,12 +2652,14 @@ let _SEARCH_ALIASES = null;
 
 async function loadCardSearchData() {
   if (_ALL_CARDS_INDEX) return;
-  // all-cards.json 으로딩 (discover 결과)
+  const t = Math.floor(Date.now() / 3600000);
+  // 1. all-cards.json — 카드 풀
+  let cardItems = [];
   try {
-    const r = await fetch('/data/all-cards.json?t=' + Math.floor(Date.now() / 3600000));
+    const r = await fetch('/data/all-cards.json?t=' + t);
     if (r.ok) {
       const d = await r.json();
-      _ALL_CARDS_INDEX = (d.details || []).map(c => ({
+      cardItems = (d.details || []).map(c => ({
         id: String(c.id),
         name: c.name || '',
         nameLower: (c.name || '').toLowerCase(),
@@ -2671,7 +2673,37 @@ async function loadCardSearchData() {
       }));
     }
   } catch (e) { console.warn('all-cards load fail:', e); }
-  if (!_ALL_CARDS_INDEX) _ALL_CARDS_INDEX = [];
+  // 2. price-*-box + manual-boxes — 박스 풀 (검색 인덱스에 포함)
+  let boxItems = [];
+  for (const brand of ['pokemon', 'onepiece']) {
+    for (const file of [`price-${brand}-box`, `manual-boxes-${brand}`]) {
+      try {
+        const r = await fetch(`/data/${file}.json?t=${t}`);
+        if (!r.ok) continue;
+        const d = await r.json();
+        (d.products || []).forEach(p => {
+          // 검색 인덱스 — 영문 name + 일본명 + code 다 합쳐서 nameLower 에 (한글/일본/영문/코드 모두 매칭)
+          const indexText = [p.name, p.jp_name, p.code].filter(Boolean).join(' ').toLowerCase();
+          boxItems.push({
+            id: String(p.id),
+            name: p.name || '',
+            nameLower: indexText,
+            productNumber: (p.code || '').toLowerCase(),
+            thumbnailUrl: p.image || '',
+            minPrice: p.lastPrice,
+            currency: p.currency || 'USD',
+            listingCount: 999,  // 박스 = 검색 결과 위쪽으로
+            brand: brand,
+            kind: 'box',
+            jp_name: p.jp_name || '',
+            code: p.code || '',
+          });
+        });
+      } catch {}
+    }
+  }
+  _ALL_CARDS_INDEX = [...cardItems, ...boxItems];
+  console.log(`[search] 카드 ${cardItems.length} + 박스 ${boxItems.length} 인덱싱`);
   // search-aliases.json 로딩
   try {
     const r = await fetch('/data/search-aliases.json?t=' + Math.floor(Date.now() / 3600000));
@@ -3208,6 +3240,24 @@ async function loadPriceGrid() {
   }
 }
 
+// 박스 영문 이름 → CARDINFO 매칭으로 한글 추출
+// CARDINFO name 형식: "메가 심포니아 (Mega Symphonia)"
+function getBoxKoreanName(productName, brand) {
+  if (!productName || typeof CARDINFO === 'undefined') return null;
+  const text = productName.toLowerCase().replace(/&quot;/g, '"');
+  const sets = [...(CARDINFO[brand] || []), ...(CARDINFO[brand === 'pokemon' ? 'onepiece' : 'pokemon'] || [])];
+  for (const s of sets) {
+    const m = (s.name || '').match(/^(.+?)\s*\((.+?)\)\s*$/);
+    if (!m) continue;
+    const ko = m[1].trim();
+    const en = m[2].trim().toLowerCase();
+    if (en.length >= 4 && text.includes(en)) {
+      return ko;
+    }
+  }
+  return null;
+}
+
 function renderPriceGrid(products) {
   const grid = document.getElementById('priceGrid');
   if (!products.length) {
@@ -3221,13 +3271,19 @@ function renderPriceGrid(products) {
   }
   grid.innerHTML = products.map(p => {
     const price = p.lastPrice ?? p.lowestAsk;
+    const safeName = (p.name || '—').replace(/&quot;/g, '"');
+    // 박스 카테고리만 한글 (원문) 형식
+    const ko = (PRICE_CAT === 'box') ? getBoxKoreanName(p.name, PRICE_BRAND) : null;
+    const nameHtml = ko
+      ? `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}"><strong>${ko}</strong><div style="font-size:11px; color:var(--ink-sub); font-weight:400; line-height:1.3; margin-top:3px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${safeName}</div></div>`
+      : `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}">${safeName}</div>`;
     return `
       <a href="#price/${p.id}" data-price-id="${p.id}" class="price-card" style="text-decoration:none; color:inherit; cursor:pointer">
         <div class="price-card-img">
           ${p.image ? `<img src="${p.image}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="ph">🃏</div>'}
         </div>
         <div class="price-card-body">
-          <div class="price-card-name" title="${(p.name || '').replace(/"/g, '&quot;')}">${p.name || '—'}</div>
+          ${nameHtml}
           <div class="price-card-price">${fmtKrw(price, p.currency)}</div>
           <div class="price-card-krw">${fmtOrig(price, p.currency)}</div>
           <div class="price-card-tag">SNKRDUNK 최저가</div>

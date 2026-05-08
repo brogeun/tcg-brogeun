@@ -1043,6 +1043,22 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .ql-editor.ql-blank::before { color:#9ca3af; font-style:normal; }
         .ql-editor img { max-width:100%; height:auto; border-radius:6px; margin:6px 0; }
         .ql-editor a { color:#1d4ed8; text-decoration:underline; }
+        /* 글 표시 시 (hubcard-body) 안 이미지 — 자동 크기 조절 */
+        .hubcard-body img,
+        .hub-rich img,
+        [class*="hubcard"] img:not([class*="set-tile"]) {
+          max-width: 100%;
+          height: auto;
+          border-radius: 6px;
+          margin: 8px 0;
+          display: block;
+        }
+        /* video / iframe 도 자동 너비 */
+        .hubcard-body iframe,
+        .hubcard-body video {
+          max-width: 100%;
+          border-radius: 6px;
+        }
       </style>
     </section>
 
@@ -1877,7 +1893,7 @@ async function showPriceDetailPanel(productId) {
         <div style="padding:20px; display:flex; flex-direction:column; gap:10px">
           <div style="display:flex; gap:8px; flex-wrap:wrap">
             <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#f3f4f6; color:#374151; font-weight:600">${brandLbl}</span>
-            ${product._isTop10 ? `<span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#fef3c7; color:#92400e; font-weight:600">SNKRDUNK 인기 TOP 10</span>` : ''}
+            <!-- SNKRDUNK 인기 TOP 10 라벨 — 사용자 명시로 제거 (홈 헤더에 이미 "인기 TOP 10" 표기) -->
           </div>
           <div style="font-size:16px; font-weight:800; color:#111; line-height:1.4">${product.name}</div>
           <div style="margin-top:6px">

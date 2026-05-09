@@ -212,34 +212,61 @@ export async function onRequestPost({ request, env }) {
     }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 
-  // 25초 timeout — Cloudflare Worker 30초 한도 안에서 안전 마진
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  // OpenAI API 호출 함수 (재사용용)
+  const callOpenAI = async (timeoutMs = 22000) => {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: SYSTEM_CONTEXT },
+            { role: 'user', content: [
+              { type: 'text', text: userPrompt + '\n\n(이미지 1=앞면, 2=뒷면)' },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}`, detail: 'low' } },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}`, detail: 'low' } },
+            ]},
+          ],
+          temperature: 0.2,
+          max_tokens: 1500,
+        }),
+      });
+      clearTimeout(tid);
+      return resp;
+    } catch (err) {
+      clearTimeout(tid);
+      throw err;
+    }
+  };
 
   try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-      body: JSON.stringify({
-        model: 'gpt-4o', // full version — 정확도 최우선
-        messages: [
-          { role: 'system', content: SYSTEM_CONTEXT },
-          { role: 'user', content: [
-            { type: 'text', text: userPrompt + '\n\n(이미지 1=앞면, 2=뒷면)' },
-            // detail: 'low' — 응답 속도 우선 (high 는 30초 timeout 위험), 정확도는 sub-score 평가에 충분
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}`, detail: 'low' } },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}`, detail: 'low' } },
-          ]},
-        ],
-        temperature: 0.2, // 낮은 temperature — 일관된 평가
-        max_tokens: 1500,
-      }),
-    });
-    clearTimeout(timeoutId);
+    // 1차 시도
+    let r;
+    try {
+      r = await callOpenAI(15000);
+    } catch (e) {
+      // 1차 실패 (timeout 또는 network) → 잠시 대기 후 재시도
+      if (e.name === 'AbortError') {
+        await new Promise(res => setTimeout(res, 500));
+        r = await callOpenAI(20000);
+      } else {
+        throw e;
+      }
+    }
+
+    // 2차 retry — 5xx 응답 시 (OpenAI 서버 측 일시 오류)
+    if (r.status >= 500 && r.status < 600) {
+      console.warn(`[openai] 1차 ${r.status} → 1초 후 재시도`);
+      await new Promise(res => setTimeout(res, 1000));
+      r = await callOpenAI(20000);
+    }
 
     if (!r.ok) {
       const txt = await r.text();
@@ -275,12 +302,11 @@ export async function onRequestPost({ request, env }) {
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
     });
   } catch (e) {
-    clearTimeout(timeoutId);
-    // AbortError = timeout
+    // AbortError = timeout (1차 + 2차 둘 다 실패)
     if (e.name === 'AbortError') {
       return new Response(JSON.stringify({
         error: 'timeout',
-        message: '⏰ AI 응답 시간 초과 (25초). 이미지가 크거나 OpenAI 일시 지연 가능. 잠시 후 다시 시도해주세요.',
+        message: '⏰ AI 응답 시간 초과 (재시도 포함). OpenAI 일시 지연 가능. 잠시 후 다시 시도해주세요.',
       }), { status: 504, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
     return new Response(JSON.stringify({

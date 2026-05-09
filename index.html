@@ -1154,33 +1154,34 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           </div>
           <!-- AI 분석 결과 — CGA 스타일 (4개 sub-score + Final + AI Note) -->
           <div id="centeringAIResult" style="display:none; margin-top:14px">
-            <!-- 4개 sub-score 그리드 -->
+            <!-- 4개 sub-score 그리드 (밝은 테마) -->
             <div id="aiScoreGrid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-bottom:12px">
-              <div class="ai-score" data-score-key="centering" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+              <div class="ai-score" data-score-key="centering" style="background:#fffbeb; border-radius:12px; padding:16px; text-align:center; border:1px solid #fcd34d">
                 <div style="font-size:18px; margin-bottom:4px">🎯</div>
-                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Centering · 센터링</div>
-                <div data-score="centering" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+                <div style="font-size:11px; font-weight:700; color:#92400e; letter-spacing:.5px; margin-bottom:8px">Centering · 센터링</div>
+                <div data-score="centering" style="font-size:24px; font-weight:900; color:#b45309">-</div>
               </div>
-              <div class="ai-score" data-score-key="corners" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+              <div class="ai-score" data-score-key="corners" style="background:#eff6ff; border-radius:12px; padding:16px; text-align:center; border:1px solid #93c5fd">
                 <div style="font-size:18px; margin-bottom:4px">⊞</div>
-                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Corners · 모서리</div>
-                <div data-score="corners" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+                <div style="font-size:11px; font-weight:700; color:#1e40af; letter-spacing:.5px; margin-bottom:8px">Corners · 모서리</div>
+                <div data-score="corners" style="font-size:24px; font-weight:900; color:#1d4ed8">-</div>
               </div>
-              <div class="ai-score" data-score-key="edges" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+              <div class="ai-score" data-score-key="edges" style="background:#ecfdf5; border-radius:12px; padding:16px; text-align:center; border:1px solid #6ee7b7">
                 <div style="font-size:18px; margin-bottom:4px">▢</div>
-                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Edges · 엣지</div>
-                <div data-score="edges" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+                <div style="font-size:11px; font-weight:700; color:#065f46; letter-spacing:.5px; margin-bottom:8px">Edges · 엣지</div>
+                <div data-score="edges" style="font-size:24px; font-weight:900; color:#047857">-</div>
               </div>
-              <div class="ai-score" data-score-key="surface" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:#fff; border-radius:12px; padding:16px; text-align:center; border:1px solid #334155">
+              <div class="ai-score" data-score-key="surface" style="background:#fdf2f8; border-radius:12px; padding:16px; text-align:center; border:1px solid #f9a8d4">
                 <div style="font-size:18px; margin-bottom:4px">✦</div>
-                <div style="font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:.5px; margin-bottom:8px">Surface · 표면</div>
-                <div data-score="surface" style="font-size:24px; font-weight:900; color:#10b981">-</div>
+                <div style="font-size:11px; font-weight:700; color:#9d174d; letter-spacing:.5px; margin-bottom:8px">Surface · 표면</div>
+                <div data-score="surface" style="font-size:24px; font-weight:900; color:#be185d">-</div>
               </div>
             </div>
-            <!-- Final score -->
-            <div style="background:linear-gradient(135deg,#1e1b4b,#312e81); color:#fff; border-radius:12px; padding:18px; text-align:center; border:1px solid #4338ca; margin-bottom:12px">
-              <div style="font-size:11px; font-weight:800; color:#a5b4fc; letter-spacing:1px; margin-bottom:6px">AI FINAL SCORE</div>
-              <div data-score="final" style="font-size:42px; font-weight:900; color:#fff; line-height:1">-</div>
+            <!-- Final score (밝은 테마) -->
+            <div style="background:linear-gradient(135deg,#fef3c7,#fde68a); border-radius:12px; padding:18px; text-align:center; border:2px solid #f59e0b; margin-bottom:12px; box-shadow:0 2px 8px rgba(245,158,11,0.15)">
+              <div style="font-size:11px; font-weight:800; color:#92400e; letter-spacing:1px; margin-bottom:6px">🏆 AI FINAL SCORE</div>
+              <div data-score="final" style="font-size:42px; font-weight:900; color:#78350f; line-height:1">-</div>
+              <div data-score-grade="final" style="font-size:13px; font-weight:700; color:#92400e; margin-top:4px"></div>
             </div>
             <!-- AI Note -->
             <div style="background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px">
@@ -2414,6 +2415,16 @@ async function aiAnalyzeCentering() {
     });
     const fullErrText = !r.ok ? await r.text() : null;
     if (!r.ok) {
+      // 422 = 비카드 이미지 (정상 흐름의 거부) — 횟수 차감 X, 안내만
+      if (r.status === 422) {
+        let errData = {};
+        try { errData = JSON.parse(fullErrText); } catch {}
+        const wrap = document.getElementById('centeringAIResult');
+        wrap.style.display = '';
+        wrap.querySelector('#centeringAIText').textContent =
+          errData.message || '⚠️ 카드가 아닌 이미지로 인식되었습니다. 카드 사진을 다시 업로드해주세요.';
+        return;
+      }
       console.error('[ai] full error response:', fullErrText);
       throw new Error(`API ${r.status}: ${fullErrText}`);
     }
@@ -2438,9 +2449,9 @@ function renderAICenteringResult(text) {
   if (!wrap) return;
   wrap.style.display = '';
 
-  // 점수 추출
+  // 점수 추출 — 다양한 라벨 시도
   const scoreMatch = (label) => {
-    const re = new RegExp(label + '\\s*[:\\s]\\s*(\\d{1,2}(?:\\.\\d)?)');
+    const re = new RegExp(label + '\\s*[:：\\s]\\s*(\\d{1,2}(?:\\.\\d)?)');
     const m = text.match(re);
     return m ? parseFloat(m[1]) : null;
   };
@@ -2451,6 +2462,19 @@ function renderAICenteringResult(text) {
     surface:   scoreMatch('표면')   ?? scoreMatch('Surface'),
     final:     scoreMatch('종합')   ?? scoreMatch('Final')   ?? scoreMatch('최종'),
   };
+  // 종합 점수 누락 시 4 sub-score 의 가중 평균으로 자동 계산 (센터링 30 + 모서리 30 + 엣지 20 + 표면 20)
+  if (scores.final == null && scores.centering != null && scores.corners != null && scores.edges != null && scores.surface != null) {
+    const w = scores.centering * 0.3 + scores.corners * 0.3 + scores.edges * 0.2 + scores.surface * 0.2;
+    scores.final = Math.round(w * 2) / 2; // 0.5 단위 반올림
+  }
+  // 모든 점수가 null 이면 → 응답이 형식 어긋남 (echo / 빈 응답 등)
+  const allNull = !scores.centering && !scores.corners && !scores.edges && !scores.surface && !scores.final;
+  if (allNull) {
+    document.getElementById('centeringAIText').textContent =
+      `⚠️ AI 응답이 형식에 맞지 않아 점수를 추출할 수 없습니다.\n\n다시 시도하거나, 카드 사진이 선명한지 확인해주세요.\n\n--- AI 원본 응답 ---\n${text || '(빈 응답)'}`;
+    // 점수 박스는 - 로 유지
+    return;
+  }
 
   // 분석 본문 추출 — [분석] 이후, [참고] 이전
   let analysis = '';
@@ -2479,14 +2503,26 @@ function renderAICenteringResult(text) {
     el.textContent = (v != null) ? v.toFixed(1) : '-';
     el.style.color = k === 'final' ? '#fff' : colorFor(v);
   }
-  // final 박스 색상도 점수에 맞게
+  // final 박스 색상 + 등급 라벨
   const finalEl = wrap.querySelector('[data-score="final"]');
   if (finalEl && scores.final != null) {
     const finalBox = finalEl.parentElement;
     const c = colorFor(scores.final);
     finalEl.style.color = c;
-    finalBox.style.background = `linear-gradient(135deg, ${c}22, ${c}55)`;
+    finalBox.style.background = `linear-gradient(135deg, ${c}15, ${c}35)`;
     finalBox.style.borderColor = c;
+    // PSA 등급 라벨 매핑
+    const gradeEl = wrap.querySelector('[data-score-grade="final"]');
+    if (gradeEl) {
+      let grade = '';
+      if (scores.final >= 9.75) grade = '🏆 PSA 10 GEM MINT 가능';
+      else if (scores.final >= 9.0) grade = '✅ PSA 9 MINT 권장';
+      else if (scores.final >= 8.0) grade = '⚪ PSA 8 NM-MT';
+      else if (scores.final >= 7.0) grade = '⚠️ PSA 7 NM';
+      else grade = '❌ 그레이딩 비추천';
+      gradeEl.textContent = grade;
+      gradeEl.style.color = c;
+    }
   }
   // 분석
   document.getElementById('centeringAIText').textContent = analysis || text;

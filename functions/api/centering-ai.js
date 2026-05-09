@@ -175,7 +175,58 @@ export async function onRequestPost({ request, env }) {
   // 디버그 trail — 어느 단계에서 실패했는지 응답에 포함
   const trail = [];
 
-  // ★ 1순위: Cloudflare Workers AI (한국에서 무조건 작동 — region 차단 없음)
+  // ★ 1순위: Gemini 2.5 Flash via Cloudflare AI Gateway
+  //   - CF Gateway 가 중계해서 Google 에는 CF IP 만 보임 → 한국 IP 차단 우회
+  //   - 환경변수: CF_AI_GATEWAY_URL (예: https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY_NAME})
+  //   - 정확도 최상 + 한국어 능숙 + 무료 (월 1500회 generous)
+  if (env.GEMINI_API_KEY && env.CF_AI_GATEWAY_URL) {
+    try {
+      const geminiUrl = `${env.CF_AI_GATEWAY_URL.replace(/\/$/, '')}/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
+      const r = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_CONTEXT }] },
+          contents: [{ parts: [
+            { text: userPrompt },
+            { inline_data: { mime_type: 'image/jpeg', data: frontImage } },
+            { inline_data: { mime_type: 'image/jpeg', data: backImage } },
+          ]}],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
+        }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        const text = d?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (text && text.length > 30) {
+          if (isNonCardResponse(text)) {
+            return new Response(JSON.stringify({
+              error: 'not_a_card',
+              message: '⚠️ 업로드한 이미지가 포켓몬/원피스 TCG 카드로 인식되지 않습니다.\n선명한 카드 앞면+뒷면 사진을 다시 업로드해주세요.',
+              detail: text,
+              provider: 'gemini-via-cf-gateway',
+            }), {
+              status: 422,
+              headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+            });
+          }
+          return new Response(JSON.stringify({ text, provider: 'gemini-2.5-flash via cf-gateway' }), {
+            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+          });
+        }
+        trail.push(`[gemini-gw] empty/short (${text.length}자)`);
+      } else {
+        const txt = await r.text();
+        trail.push(`[gemini-gw] ${r.status} ${txt.slice(0, 200)}`);
+      }
+    } catch (e) {
+      trail.push(`[gemini-gw] err: ${(e.message || '').slice(0, 100)}`);
+    }
+  } else if (env.GEMINI_API_KEY && !env.CF_AI_GATEWAY_URL) {
+    trail.push('[gemini-gw] CF_AI_GATEWAY_URL 환경변수 없음 (대시보드에서 추가 필요)');
+  }
+
+  // ★ 2순위: Cloudflare Workers AI (한국에서 무조건 작동 — region 차단 없음)
   if (env.AI) {
     let frontBytes;
     try {

@@ -2436,6 +2436,16 @@ async function aiAnalyzeCentering() {
           `⏳ ${errData.message || 'AI 분석 일시 중단'}\n\n잠시 후 다시 시도해주세요.\n\n--- 진단 정보 ---\n  · ${trail || '없음'}`;
         return;
       }
+      // 504 = timeout, 502 = bad gateway, 502 = OpenAI 측 오류
+      if (r.status === 504 || r.status === 502) {
+        const wrap = document.getElementById('centeringAIResult');
+        wrap.style.display = '';
+        let msg = '';
+        try { msg = JSON.parse(fullErrText).message || ''; } catch {}
+        wrap.querySelector('#centeringAIText').textContent =
+          msg || '⏰ AI 응답 지연. 잠시 후 다시 시도해주세요.';
+        return;
+      }
       console.error('[ai] full error response:', fullErrText);
       throw new Error(`API ${r.status}: ${fullErrText}`);
     }

@@ -212,6 +212,10 @@ export async function onRequestPost({ request, env }) {
     }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 
+  // 25초 timeout — Cloudflare Worker 30초 한도 안에서 안전 마진
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
+
   try {
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -219,20 +223,23 @@ export async function onRequestPost({ request, env }) {
         'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: 'gpt-4o', // full version — 정확도 최우선
         messages: [
           { role: 'system', content: SYSTEM_CONTEXT },
           { role: 'user', content: [
             { type: 'text', text: userPrompt + '\n\n(이미지 1=앞면, 2=뒷면)' },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}`, detail: 'high' } },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}`, detail: 'high' } },
+            // detail: 'low' — 응답 속도 우선 (high 는 30초 timeout 위험), 정확도는 sub-score 평가에 충분
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}`, detail: 'low' } },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}`, detail: 'low' } },
           ]},
         ],
         temperature: 0.2, // 낮은 temperature — 일관된 평가
         max_tokens: 1500,
       }),
     });
+    clearTimeout(timeoutId);
 
     if (!r.ok) {
       const txt = await r.text();
@@ -268,6 +275,14 @@ export async function onRequestPost({ request, env }) {
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
     });
   } catch (e) {
+    clearTimeout(timeoutId);
+    // AbortError = timeout
+    if (e.name === 'AbortError') {
+      return new Response(JSON.stringify({
+        error: 'timeout',
+        message: '⏰ AI 응답 시간 초과 (25초). 이미지가 크거나 OpenAI 일시 지연 가능. 잠시 후 다시 시도해주세요.',
+      }), { status: 504, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+    }
     return new Response(JSON.stringify({
       error: 'fetch_error',
       message: `AI 호출 실패: ${e.message}`,

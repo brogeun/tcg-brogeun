@@ -2654,26 +2654,28 @@ async function renderGradesPanel(productId, product) {
       }
     }
 
-    grid.innerHTML = ORDER.map(k => renderBlock(k, grades[k])).join('');
-
-    // PSA10 POP 카운트 — 우리 D1 누적 (보유 사용자가 cert# 등록 시 +1)
-    // 카드 상세 페이지만 (박스는 PSA POP 없음)
+    // PSA10 POP 카운트 미리 가져오기 (카드만)
+    let popCount = 0;
     if (PRICE_CAT === 'card') {
       try {
         const popR = await fetch(`/api/psa/pop?card_id=${productId}&grade=10`);
         if (popR.ok) {
           const popData = await popR.json();
-          if (popData.ok && typeof popData.pop === 'number') {
-            // PSA10 박스 안에 POP 인라인 추가
-            const psa10Block = grid.firstElementChild; // ORDER[0] = psa10
-            if (psa10Block && popData.pop > 0) {
-              const popHtml = `<div style="display:inline-block; margin-top:6px; padding:2px 8px; background:#fef3c7; color:#92400e; border-radius:10px; font-size:10px; font-weight:800">🏆 POP ${popData.pop.toLocaleString()}</div>`;
-              psa10Block.insertAdjacentHTML('beforeend', popHtml);
-            }
-          }
+          if (popData.ok && typeof popData.pop === 'number') popCount = popData.pop;
         }
       } catch (e) { console.warn('PSA POP fetch fail:', e); }
     }
+
+    // grid 메인 렌더 — PSA10 블록에 POP 인라인 통합 (별도 insertAdjacentHTML 안 함)
+    grid.innerHTML = ORDER.map(k => {
+      let block = renderBlock(k, grades[k]);
+      // PSA10 + POP > 0 일 때, 닫는 div 직전에 POP 뱃지 삽입
+      if (k === 'psa10' && popCount > 0) {
+        const popHtml = `<div style="display:inline-block; margin-top:6px; padding:2px 8px; background:#fef3c7; color:#92400e; border-radius:10px; font-size:10px; font-weight:800">🏆 POP ${popCount.toLocaleString()}</div>`;
+        block = block.replace(/<\/div>\s*$/, popHtml + '</div>');
+      }
+      return block;
+    }).join('');
   } catch (e) {
     console.warn('grades load fail:', e);
   }

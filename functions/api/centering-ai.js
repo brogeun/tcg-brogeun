@@ -165,16 +165,29 @@ export async function onRequestPost({ request, env }) {
 
   // ★ 1순위: Cloudflare Workers AI (한국에서 무조건 작동 — region 차단 없음)
   if (env.AI) {
-    const cfModels = [
-      '@cf/meta/llama-3.2-11b-vision-instruct',  // multilingual (한국어 가능)
-      '@cf/llava-hf/llava-1.5-7b-hf',            // 영어 위주, fallback
-    ];
     let frontBytes;
     try {
       frontBytes = Array.from(Uint8Array.from(atob(frontImage), c => c.charCodeAt(0)));
     } catch (e) {
       trail.push(`[cf] image decode err: ${e.message}`);
     }
+
+    // Llama 3.2 vision 라이센스 사전 동의 (첫 호출 시 필요 — 5016 에러 회피)
+    if (frontBytes) {
+      try {
+        await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
+      } catch (e) {
+        // 동의 실패해도 계속 시도 (이미 동의됐을 수도)
+      }
+    }
+
+    // Workers AI vision 모델 — 우선순위: 라이센스 free → llama → llava
+    const cfModels = [
+      '@cf/unum/uform-gen2-qwen-500m',           // 라이센스 free, 작은 모델
+      '@cf/meta/llama-3.2-11b-vision-instruct',  // 라이센스 동의 후 사용 가능
+      '@cf/llava-hf/llava-1.5-7b-hf',            // fallback (불안정)
+    ];
+
     for (const model of (frontBytes ? cfModels : [])) {
       try {
         const result = await env.AI.run(model, {
@@ -202,7 +215,7 @@ export async function onRequestPost({ request, env }) {
         }
         trail.push(`[cf:${model.split('/').pop()}] empty/short response (${(text || '').length}자)`);
       } catch (e) {
-        trail.push(`[cf:${model.split('/').pop()}] err: ${e.message}`);
+        trail.push(`[cf:${model.split('/').pop()}] err: ${(e.message || '').slice(0, 100)}`);
         console.error(`[cf-ai] ${model} failed:`, e.message);
       }
     }
@@ -210,11 +223,12 @@ export async function onRequestPost({ request, env }) {
     trail.push('[cf] env.AI binding 없음 (대시보드에서 Workers AI binding 추가 필요)');
   }
 
-  // 2순위: Groq (한국 IP 지원)
+  // 2순위: Groq (한국 IP 지원) — 검증된 vision 모델만
   if (env.GROQ_API_KEY) {
     const groqModels = [
+      'llama-3.2-90b-vision-preview',
+      'llama-3.2-11b-vision-preview',
       'meta-llama/llama-4-scout-17b-16e-instruct',
-      'meta-llama/llama-4-maverick-17b-128e-instruct',
     ];
     for (const model of groqModels) {
       try {

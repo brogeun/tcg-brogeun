@@ -1516,6 +1516,61 @@ window.addEventListener('popstate', e => {
 });
 
 /* ────────────────────────────────────
+   Capacitor (안드로이드 앱) — 하드웨어 뒤로가기 버튼
+   - WebView 의 canGoBack 은 SPA hash 변경을 인식 못 함
+   - → JS 에서 직접 가로채서 SPA 라우터와 연결
+   - 홈에서 한 번 더 누르면 앱 종료 (2초 내 더블탭)
+   ──────────────────────────────────── */
+(function setupCapacitorBack() {
+  const tryBind = () => {
+    if (!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App)) return false;
+    const App = window.Capacitor.Plugins.App;
+    let lastBackTime = 0;
+    App.addListener('backButton', ({ canGoBack }) => {
+      const hash = (location.hash || '').replace(/^#/, '');
+      const isHome = !hash || hash === 'home';
+      // 1) 모달/오버레이 열려있으면 닫기 우선
+      const openModal = document.querySelector('.modal[style*="display: flex"], .modal.open, [data-modal-open="1"]');
+      if (openModal) {
+        openModal.style.display = 'none';
+        openModal.classList.remove('open');
+        openModal.removeAttribute('data-modal-open');
+        return;
+      }
+      // 2) 홈이 아닌 페이지 → SPA 뒤로가기 (popstate 트리거)
+      if (!isHome) {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          location.hash = '#home';
+        }
+        return;
+      }
+      // 3) 홈 — 더블탭 종료 (2초 내 두 번 누르면 종료)
+      const now = Date.now();
+      if (now - lastBackTime < 2000) {
+        App.exitApp();
+        return;
+      }
+      lastBackTime = now;
+      // 토스트 (있으면) 또는 console
+      if (typeof showToast === 'function') {
+        showToast('한 번 더 누르면 종료됩니다', 'info');
+      }
+    });
+    return true;
+  };
+  // Capacitor 코어 주입 시점이 늦을 수 있어 재시도
+  if (!tryBind()) {
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      if (tryBind() || tries > 20) clearInterval(t);
+    }, 250);
+  }
+})();
+
+/* ────────────────────────────────────
    2. 환율 — Naver 금융 (USD/KRW, JPY/KRW)
        data/fx-rates.json 으로부터 로드 (매일 04:00 KST GitHub Actions 갱신)
    ──────────────────────────────────── */

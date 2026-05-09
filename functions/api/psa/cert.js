@@ -277,11 +277,23 @@ export const onRequestPost = withAuth(async ({ request, env, user }) => {
   }
 
   // 저장
+  // PSA 진짜 POP 추출 — cert API 응답에 포함된 필드들
+  // 응답 형식 추정: TotalPopulation, PopulationHigher (필드명 다양 가능)
+  const psaTotalPop = parseInt(
+    cert.TotalPopulation ?? cert.totalPopulation ??
+    cert.Population ?? cert.population ?? cert.TotalPop ?? 0
+  ) || null;
+  const psaPopHigher = parseInt(
+    cert.PopulationHigher ?? cert.populationHigher ??
+    cert.PopHigher ?? cert.popHigher ?? 0
+  );
+
   try {
     const result = await env.DB.prepare(
       `INSERT INTO psa_certs (cert_number, card_id, grade, user_id, holding_id,
-                              spec_id, brand, year, subject, card_number, variety, category, raw_payload)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                              spec_id, brand, year, subject, card_number, variety, category,
+                              psa_total_pop, psa_pop_higher, raw_payload)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       cert_number,
       card_id,
@@ -295,18 +307,24 @@ export const onRequestPost = withAuth(async ({ request, env, user }) => {
       cert.CardNumber || null,
       cert.VarietyPedigree || cert.Variety || null,
       cert.Category || null,
+      psaTotalPop,
+      psaPopHigher,
       JSON.stringify(cert),
     ).run();
 
     return jsonResponse({
       ok: true,
       id: result.meta?.last_row_id,
-      message: '✅ 인증 완료 — POP 카운트에 반영되었습니다',
+      message: psaTotalPop
+        ? `✅ 인증 완료 — PSA POP ${psaTotalPop.toLocaleString()} 반영`
+        : '✅ 인증 완료 — POP 정보는 PSA 응답에서 받지 못함',
       cert: {
         cert_number,
         grade: psaGradeNum,
         subject: cert.Subject,
         card_number: cert.CardNumber,
+        psa_total_pop: psaTotalPop,
+        psa_pop_higher: psaPopHigher,
       },
     });
   } catch (e) {

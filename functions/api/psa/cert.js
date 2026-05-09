@@ -78,6 +78,19 @@ function verifyCardMatch(psaCert, ourCard) {
  */
 async function lookupOurCard(env, cardId, origin, debugTrail) {
   const baseURL = origin || 'https://tcghub.kr';
+  // 0) cards-meta-index.json — 사전 생성된 전체 카드 메타 인덱스 (가장 정확/빠름)
+  try {
+    const r0 = await fetch(`${baseURL}/data/cards-meta-index.json`, { cf: { cacheTtl: 3600 } });
+    if (r0.ok) {
+      const data = await r0.json();
+      const c = data?.[cardId] || data?.[String(cardId)];
+      if (c && c.name) return { name: c.name, code: c.code, brand: c.brand, source: 'meta-index' };
+      debugTrail?.push(`[0]meta-index: 200 OK, ${cardId} not in index`);
+    } else {
+      debugTrail?.push(`[0]meta-index: status ${r0.status}`);
+    }
+  } catch (e) { debugTrail?.push(`[0]meta-index: err ${e.message}`); }
+
   // 1) cards-detail (TOP10 위주, 풍부한 메타)
   try {
     const r1 = await fetch(`${baseURL}/data/cards-detail.json`, { cf: { cacheTtl: 3600 } });

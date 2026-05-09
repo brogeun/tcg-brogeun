@@ -128,16 +128,16 @@ const SYSTEM_CONTEXT = `당신은 PSA · BGS · CGC 그레이딩 회사에서 10
 - 카드 종류 식별 가능하면 분석에 명시 (예: "피카츄 V SAR")`;
 
 /**
- * AI 응답이 비카드 응답인지 감지
- * — [비카드] 키워드 또는 [점수] 섹션 없으면 비카드로 판정
+ * AI 응답이 명시적 비카드 응답인지 감지
+ * — [비카드] / NOT_A_CARD / "포켓몬 카드가 아님" 같은 명시적 키워드만 체크
+ * — [점수] 누락은 작은 모델이 형식 못 따라간 거지 비카드는 아님 → 통과
  */
 function isNonCardResponse(text) {
-  if (!text) return true;
+  if (!text) return false; // 빈 응답은 비카드 판정 X (다른 fallback)
   const t = text.toLowerCase();
-  // 명시적 비카드 응답
-  if (text.includes('[비카드]') || t.includes('not_a_card')) return true;
-  // [점수] 섹션 자체가 없으면 카드 평가 못한 것
-  if (!text.includes('[점수]') && !text.match(/센터링\s*[:：]/)) return true;
+  if (text.includes('[비카드]')) return true;
+  if (t.includes('not_a_card') || t.includes('not a card')) return true;
+  if (t.includes('카드가 아닌') || t.includes('카드로 인식되지 않')) return true;
   return false;
 }
 
@@ -181,11 +181,11 @@ export async function onRequestPost({ request, env }) {
       }
     }
 
-    // Workers AI vision 모델 — 우선순위: 라이센스 free → llama → llava
+    // Workers AI vision 모델 — 우선순위: 큰 모델 (정확도 높음) → 작은 모델 fallback
     const cfModels = [
-      '@cf/unum/uform-gen2-qwen-500m',           // 라이센스 free, 작은 모델
-      '@cf/meta/llama-3.2-11b-vision-instruct',  // 라이센스 동의 후 사용 가능
-      '@cf/llava-hf/llava-1.5-7b-hf',            // fallback (불안정)
+      '@cf/meta/llama-3.2-11b-vision-instruct',  // 1순위: 큰 모델, 한국어 OK, 라이센스 동의 후
+      '@cf/llava-hf/llava-1.5-7b-hf',            // 2순위: 영어 위주
+      '@cf/unum/uform-gen2-qwen-500m',           // 3순위: 작은 모델, 형식 따라가기 어려움
     ];
 
     for (const model of (frontBytes ? cfModels : [])) {

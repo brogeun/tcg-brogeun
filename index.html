@@ -2421,8 +2421,11 @@ async function aiAnalyzeCentering() {
         try { errData = JSON.parse(fullErrText); } catch {}
         const wrap = document.getElementById('centeringAIResult');
         wrap.style.display = '';
+        const detailHint = errData.detail
+          ? `\n\n--- AI 원본 응답 ---\n${String(errData.detail).slice(0, 500)}`
+          : '';
         wrap.querySelector('#centeringAIText').textContent =
-          errData.message || '⚠️ 카드가 아닌 이미지로 인식되었습니다. 카드 사진을 다시 업로드해주세요.';
+          (errData.message || '⚠️ 카드가 아닌 이미지로 인식되었습니다. 카드 사진을 다시 업로드해주세요.') + detailHint;
         return;
       }
       // 503 = 모든 AI 공급자 실패 (일시적 오류) — 차감 X

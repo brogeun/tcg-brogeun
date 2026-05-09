@@ -1861,12 +1861,13 @@ async function showPriceDetailPanel(productId) {
       if (found) { product = found; product._brand = brand; product._isTop10 = true; break; }
     }
   }
-  // 캐시에 없으면 top10-*.json + price-*-*.json 모두 시도
+  // 캐시에 없으면 top10-*.json + price-*-*.json + manual-boxes 모두 시도
   if (!product) {
     const sources = [];
     for (const brand of ['pokemon', 'onepiece']) {
       sources.push({brand, file: `top10-${brand}`});
       sources.push({brand, file: `price-${brand}-box`});
+      sources.push({brand, file: `manual-boxes-${brand}`});  // ← 사용자가 추가한 박스 (SV11B 등)
       sources.push({brand, file: `price-${brand}-card`});
     }
     for (const {brand, file} of sources) {

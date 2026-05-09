@@ -46,15 +46,17 @@ function verifyCardMatch(psaCert, ourCard) {
   const psaSubject = norm(psaCert.Subject || psaCert.subject);
   const ourName = norm(ourCard.name);
   if (psaSubject && ourName) {
-    // 핵심 단어 1개라도 매칭되면 OK (Pikachu, Charizard 등)
-    const subjectTokens = psaSubject.split(/(?<=[a-z])(?=[A-Z])/).filter(t => t.length >= 4);
-    const hasToken = subjectTokens.some(t => ourName.includes(t.toLowerCase()));
-    const fullMatch = ourName.includes(psaSubject) || psaSubject.includes(ourName.slice(0, 8));
-    if (!hasToken && !fullMatch) {
+    // 1) 전체 포함 매칭 (정규화 후)
+    const fullMatch = ourName.includes(psaSubject) || psaSubject.includes(ourName);
+    // 2) 토큰 매칭 — 원본에서 단어 단위로 쪼개서 4글자 이상 1개라도 매칭
+    const psaWords = String(psaCert.Subject || '').split(/[\s.,/\\\-_()]+/)
+      .filter(w => w.length >= 4).map(w => w.toLowerCase());
+    const tokenMatch = psaWords.some(w => ourName.includes(w));
+    if (!fullMatch && !tokenMatch) {
       return {
         ok: false,
         reason: `카드 이름 불일치 (PSA: ${psaCert.Subject} vs 보유: ${ourCard.name})`,
-        debug: { psaSubject, ourName },
+        debug: { psaSubject, ourName, psaWords },
       };
     }
   }
@@ -62,7 +64,7 @@ function verifyCardMatch(psaCert, ourCard) {
   return { ok: true };
 }
 
-/** 우리 DB 카드 메타 조회 — cards-detail.json + all-cards.json fallback */
+/** 우리 DB 카드 메타 조회 — cards-detail.json → all-cards.json → SNKRDUNK API 폴백 */
 async function lookupOurCard(env, cardId, origin) {
   const baseURL = origin || 'https://tcghub.kr';
   // 1) cards-detail (TOP10 위주, 풍부한 메타)
@@ -88,6 +90,23 @@ async function lookupOurCard(env, cardId, origin) {
       };
     }
   } catch (e) { console.error('all-cards fetch fail', e); }
+  // 3) SNKRDUNK API 직접 폴백 — 백필된 카드(6,600+) 메타 보충
+  try {
+    const r3 = await fetch(`https://snkrdunk.com/v1/apparels/${cardId}`, {
+      headers: { 'accept': 'application/json', 'user-agent': 'tcghub.kr' },
+      cf: { cacheTtl: 3600 },
+    });
+    if (r3.ok) {
+      const data = await r3.json();
+      // SNKRDUNK 응답 형식: { apparel: { name, productNumber, ... } } 또는 평탄
+      const a = data.apparel || data.product || data;
+      if (a && a.name) return {
+        name: a.name,
+        code: a.productNumber || a.product_number || a.code,
+        brand: a.brand || (String(a.name).includes('ONE PIECE') ? 'onepiece' : 'pokemon'),
+      };
+    }
+  } catch (e) { console.error('SNKRDUNK API fetch fail', e); }
   return null;
 }
 

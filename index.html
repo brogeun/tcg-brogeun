@@ -2851,8 +2851,9 @@ async function loadCardSearchData() {
         if (!r.ok) continue;
         const d = await r.json();
         (d.products || []).forEach(p => {
-          // 검색 인덱스 — 영문 name + 일본명 + code 다 합쳐서 nameLower 에 (한글/일본/영문/코드 모두 매칭)
-          const indexText = [p.name, p.jp_name, p.code].filter(Boolean).join(' ').toLowerCase();
+          // 검색 인덱스 — 영문 name + 일본명 + code + 한글 (CARDINFO 매칭 + 일본 지명 자동 한글)
+          const koName = (typeof getBoxKoreanName === 'function') ? getBoxKoreanName(p.name, brand) : null;
+          const indexText = [p.name, p.jp_name, p.code, koName].filter(Boolean).join(' ').toLowerCase();
           boxItems.push({
             id: String(p.id),
             name: p.name || '',
@@ -2885,10 +2886,12 @@ function searchCards(query, limit = 30) {
   if (!_ALL_CARDS_INDEX) return [];
   const q = (query || '').trim().toLowerCase();
   if (!q) return [];
-  // 숫자만 입력 → 직접 ID 매치
+  // 숫자만 입력 → 직접 ID 매치 우선, 없으면 nameLower 검색으로 fallback
+  // (예: "151" → ID 매치 X → "포켓몬 카드 151" 박스 name 안에 "151" 포함된 거 매칭)
   if (/^\d+$/.test(q)) {
     const direct = _ALL_CARDS_INDEX.find(c => c.id === q);
-    return direct ? [direct] : [];
+    if (direct) return [direct];
+    // ID 매치 실패 → 아래 일반 nameLower 검색으로 자연스럽게 진입
   }
   // 단어 분리 (공백 기준)
   const words = q.split(/\s+/).filter(Boolean);
@@ -3409,11 +3412,44 @@ async function loadPriceGrid() {
   }
 }
 
-// 박스 영문 이름 → CARDINFO 매칭으로 한글 추출
-// CARDINFO name 형식: "메가 심포니아 (Mega Symphonia)"
+// 일본 지명 영문 → 한글 매핑 (Pokemon Center Hiroshima 같은 박스용)
+const JP_PLACE_KR = {
+  hiroshima: '히로시마',
+  fukuoka:   '후쿠오카',
+  tohoku:    '도호쿠',
+  tokyo:     '도쿄',
+  osaka:     '오사카',
+  kyoto:     '교토',
+  sapporo:   '삿포로',
+  nagoya:    '나고야',
+  yokohama:  '요코하마',
+  sendai:    '센다이',
+  kobe:      '고베',
+  okinawa:   '오키나와',
+  kanazawa:  '가나자와',
+  shibuya:   '시부야',
+  ikebukuro: '이케부쿠로',
+  shinjuku:  '신주쿠',
+  akihabara: '아키하바라',
+  shibaura:  '시바우라',
+  mega tokyo: '메가 도쿄',
+  oita:      '오이타',
+  kanazawa:  '가나자와',
+  kagoshima: '가고시마',
+  kumamoto:  '구마모토',
+  nara:      '나라',
+  niigata:   '니가타',
+  hakata:    '하카타',
+};
+
+// 박스 영문 이름 → 한글 추출 (3단계 fallback)
+//   1) CARDINFO 매칭 (예: "메가 심포니아 (Mega Symphonia)")
+//   2) 일본 지명 매칭 (Pokemon Center Hiroshima → 히로시마)
+//   3) null
 function getBoxKoreanName(productName, brand) {
   if (!productName || typeof CARDINFO === 'undefined') return null;
   const text = productName.toLowerCase().replace(/&quot;/g, '"');
+  // 1) CARDINFO 매칭
   const sets = [...(CARDINFO[brand] || []), ...(CARDINFO[brand === 'pokemon' ? 'onepiece' : 'pokemon'] || [])];
   for (const s of sets) {
     const m = (s.name || '').match(/^(.+?)\s*\((.+?)\)\s*$/);
@@ -3421,6 +3457,14 @@ function getBoxKoreanName(productName, brand) {
     const ko = m[1].trim();
     const en = m[2].trim().toLowerCase();
     if (en.length >= 4 && text.includes(en)) {
+      return ko;
+    }
+  }
+  // 2) 일본 지명 매칭 — "Pokemon Center {City}" 같은 패턴
+  for (const [en, ko] of Object.entries(JP_PLACE_KR)) {
+    if (text.includes(en)) {
+      // "포켓몬 센터" 표기가 영문에 있으면 한글로 prefix
+      if (/pokemon\s*center/i.test(productName)) return `포켓몬 센터 ${ko}`;
       return ko;
     }
   }

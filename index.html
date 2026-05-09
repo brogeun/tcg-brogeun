@@ -4133,15 +4133,72 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
   }
 };
 
-// 박스 타일 클릭 → 모달 열기
-document.addEventListener('click', e => {
+/* ─────────── 카드정보 set-code → SNKRDUNK 박스 id 매핑 ─────────── */
+let _BOX_ID_BY_CODE_CACHE = null;
+async function getBoxIdBySetCode(code, brand) {
+  if (!code || !brand) return null;
+  const t = Math.floor(Date.now() / 3600000);
+  // CARDINFO 에서 영문 이름 추출 — "메가 드림 ex (MEGA Dream ex)" → "MEGA Dream ex"
+  const set = (CARDINFO[brand] || []).find(s => s.code === code);
+  const enName = set ? ((set.name.match(/\(([^)]+)\)/) || [])[1] || '').toLowerCase() : '';
+  // 박스 데이터 fetch (캐시)
+  if (!_BOX_ID_BY_CODE_CACHE) {
+    _BOX_ID_BY_CODE_CACHE = {};
+    for (const b of ['pokemon', 'onepiece']) {
+      _BOX_ID_BY_CODE_CACHE[b] = [];
+      for (const file of [`manual-boxes-${b}`, `price-${b}-box`]) {
+        try {
+          const r = await fetch(`/data/${file}.json?t=${t}`);
+          if (!r.ok) continue;
+          const d = await r.json();
+          (d.products || []).forEach(p => _BOX_ID_BY_CODE_CACHE[b].push(p));
+        } catch {}
+      }
+    }
+  }
+  const products = _BOX_ID_BY_CODE_CACHE[brand] || [];
+  // 1차: code 직접 매칭 (manual-boxes 에 code 있는 박스)
+  let found = products.find(p => p.code === code);
+  if (found) return found.id;
+  // 2차: 영문 이름 매칭 — Box 들어간 것 우선
+  if (enName) {
+    found = products.find(p => {
+      const n = (p.name || '').toLowerCase();
+      return n.includes(enName) && /box/.test(n);
+    });
+    if (found) return found.id;
+    // 3차: 영문 이름만 (Box 키워드 없어도)
+    found = products.find(p => (p.name || '').toLowerCase().includes(enName));
+    if (found) return found.id;
+  }
+  return null;
+}
+
+// 박스 타일 클릭 → 매핑된 박스 시세 페이지로 직행 (매핑 안 되면 봉입 카드 모달 fallback)
+document.addEventListener('click', async e => {
   const tile = e.target.closest('.set-tile[data-set-code]');
   if (!tile) return;
   const code = tile.dataset.setCode;
   const name = tile.dataset.setName;
   const url = tile.dataset.externalUrl;
   if (!code) return;
-  openSetGrid(code, name, url);
+  // CI_TAB = 현재 카드정보 탭 ('pokemon' or 'onepiece')
+  const brand = (typeof CI_TAB === 'string') ? CI_TAB : 'pokemon';
+  // 즉각 시각적 피드백
+  tile.style.opacity = '0.6';
+  try {
+    const boxId = await getBoxIdBySetCode(code, brand);
+    if (boxId) {
+      // 시세 페이지의 박스 상세로 이동
+      location.hash = `#price/${boxId}`;
+      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+    } else {
+      // 매핑 안 되는 박스 (미발매 등) → 기존 봉입 카드 모달
+      openSetGrid(code, name, url);
+    }
+  } finally {
+    tile.style.opacity = '';
+  }
 });
 
 // 마지막 연 박스 정보 (뒤로가기 용)

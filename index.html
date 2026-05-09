@@ -2425,6 +2425,17 @@ async function aiAnalyzeCentering() {
           errData.message || '⚠️ 카드가 아닌 이미지로 인식되었습니다. 카드 사진을 다시 업로드해주세요.';
         return;
       }
+      // 503 = 모든 AI 공급자 실패 (일시적 오류) — 차감 X
+      if (r.status === 503) {
+        let errData = {};
+        try { errData = JSON.parse(fullErrText); } catch {}
+        const wrap = document.getElementById('centeringAIResult');
+        wrap.style.display = '';
+        const trail = (errData.debug_trail || []).join('\n  · ');
+        wrap.querySelector('#centeringAIText').textContent =
+          `⏳ ${errData.message || 'AI 분석 일시 중단'}\n\n잠시 후 다시 시도해주세요.\n\n--- 진단 정보 ---\n  · ${trail || '없음'}`;
+        return;
+      }
       console.error('[ai] full error response:', fullErrText);
       throw new Error(`API ${r.status}: ${fullErrText}`);
     }

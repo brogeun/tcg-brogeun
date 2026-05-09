@@ -172,185 +172,73 @@ export async function onRequestPost({ request, env }) {
 
   const userPrompt = `[앞면 측정값]\n${fmtMetrics(frontMetrics)}\n\n[뒷면 측정값]\n${fmtMetrics(backMetrics)}\n\n위 두 이미지 (앞/뒤) 를 분석해주세요.`;
 
-  // 디버그 trail — 어느 단계에서 실패했는지 응답에 포함
-  const trail = [];
-
-  // ★ 1순위: Gemini 2.5 Flash via Cloudflare AI Gateway
-  //   - CF Gateway 가 중계해서 Google 에는 CF IP 만 보임 → 한국 IP 차단 우회
-  //   - 환경변수: CF_AI_GATEWAY_URL (예: https://gateway.ai.cloudflare.com/v1/{ACCOUNT_ID}/{GATEWAY_NAME})
-  //   - 정확도 최상 + 한국어 능숙 + 무료 (월 1500회 generous)
-  if (env.GEMINI_API_KEY && env.CF_AI_GATEWAY_URL) {
-    try {
-      const geminiUrl = `${env.CF_AI_GATEWAY_URL.replace(/\/$/, '')}/google-ai-studio/v1beta/models/gemini-2.5-flash:generateContent?key=${env.GEMINI_API_KEY}`;
-      const r = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_CONTEXT }] },
-          contents: [{ parts: [
-            { text: userPrompt },
-            { inline_data: { mime_type: 'image/jpeg', data: frontImage } },
-            { inline_data: { mime_type: 'image/jpeg', data: backImage } },
-          ]}],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
-        }),
-      });
-      if (r.ok) {
-        const d = await r.json();
-        const text = d?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (text && text.length > 30) {
-          if (isNonCardResponse(text)) {
-            return new Response(JSON.stringify({
-              error: 'not_a_card',
-              message: '⚠️ 업로드한 이미지가 포켓몬/원피스 TCG 카드로 인식되지 않습니다.\n선명한 카드 앞면+뒷면 사진을 다시 업로드해주세요.',
-              detail: text,
-              provider: 'gemini-via-cf-gateway',
-            }), {
-              status: 422,
-              headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-            });
-          }
-          return new Response(JSON.stringify({ text, provider: 'gemini-2.5-flash via cf-gateway' }), {
-            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-          });
-        }
-        trail.push(`[gemini-gw] empty/short (${text.length}자)`);
-      } else {
-        const txt = await r.text();
-        trail.push(`[gemini-gw] ${r.status} ${txt.slice(0, 200)}`);
-      }
-    } catch (e) {
-      trail.push(`[gemini-gw] err: ${(e.message || '').slice(0, 100)}`);
-    }
-  } else if (env.GEMINI_API_KEY && !env.CF_AI_GATEWAY_URL) {
-    trail.push('[gemini-gw] CF_AI_GATEWAY_URL 환경변수 없음 (대시보드에서 추가 필요)');
+  // OpenAI GPT-4o 단일 — 정확도 우선
+  if (!env.OPENAI_API_KEY) {
+    return new Response(JSON.stringify({
+      error: 'no_api_key',
+      message: 'OPENAI_API_KEY 환경변수가 설정되지 않았습니다',
+    }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 
-  // ★ 2순위: Cloudflare Workers AI (한국에서 무조건 작동 — region 차단 없음)
-  if (env.AI) {
-    let frontBytes;
-    try {
-      frontBytes = Array.from(Uint8Array.from(atob(frontImage), c => c.charCodeAt(0)));
-    } catch (e) {
-      trail.push(`[cf] image decode err: ${e.message}`);
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o', // full version — 정확도 최우선
+        messages: [
+          { role: 'system', content: SYSTEM_CONTEXT },
+          { role: 'user', content: [
+            { type: 'text', text: userPrompt + '\n\n(이미지 1=앞면, 2=뒷면)' },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}`, detail: 'high' } },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}`, detail: 'high' } },
+          ]},
+        ],
+        temperature: 0.2, // 낮은 temperature — 일관된 평가
+        max_tokens: 1500,
+      }),
+    });
+
+    if (!r.ok) {
+      const txt = await r.text();
+      return new Response(JSON.stringify({
+        error: 'openai_error',
+        status: r.status,
+        message: `OpenAI API 오류: ${r.status}`,
+        detail: txt.slice(0, 500),
+      }), { status: 502, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
-    // Llama 3.2 vision 라이센스 사전 동의 (첫 호출 시 필요 — 5016 에러 회피)
-    if (frontBytes) {
-      try {
-        await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', { prompt: 'agree' });
-      } catch (e) {
-        // 동의 실패해도 계속 시도 (이미 동의됐을 수도)
-      }
+    const d = await r.json();
+    const text = d?.choices?.[0]?.message?.content || '';
+
+    if (!text || text.length < 30) {
+      return new Response(JSON.stringify({
+        error: 'empty_response',
+        message: 'AI 응답이 비어있습니다 — 잠시 후 다시 시도해주세요',
+        detail: text,
+      }), { status: 502, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
-    // Workers AI vision 모델 — 우선순위: 큰 모델 (정확도 높음) → 작은 모델 fallback
-    const cfModels = [
-      '@cf/meta/llama-3.2-11b-vision-instruct',  // 1순위: 큰 모델, 한국어 OK, 라이센스 동의 후
-      '@cf/llava-hf/llava-1.5-7b-hf',            // 2순위: 영어 위주
-      '@cf/unum/uform-gen2-qwen-500m',           // 3순위: 작은 모델, 형식 따라가기 어려움
-    ];
-
-    for (const model of (frontBytes ? cfModels : [])) {
-      try {
-        const result = await env.AI.run(model, {
-          prompt: `${SYSTEM_CONTEXT}\n\n${userPrompt}\n\n(이미지: 카드 앞면. 뒷면 측정값은 위에 명시)`,
-          image: frontBytes,
-          max_tokens: 1500,
-        });
-        const text = result?.description || result?.response || result?.text ||
-                     (typeof result === 'string' ? result : '');
-        if (text && text.length > 30) {
-          if (isNonCardResponse(text)) {
-            return new Response(JSON.stringify({
-              error: 'not_a_card',
-              message: '⚠️ 업로드한 이미지가 포켓몬/원피스 TCG 카드로 인식되지 않습니다.\n선명한 카드 앞면+뒷면 사진을 다시 업로드해주세요.',
-              detail: text,
-              provider: `cloudflare-ai:${model.split('/').pop()}`,
-            }), {
-              status: 422,
-              headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-            });
-          }
-          return new Response(JSON.stringify({ text, provider: `cloudflare-ai:${model.split('/').pop()}` }), {
-            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-          });
-        }
-        trail.push(`[cf:${model.split('/').pop()}] empty/short response (${(text || '').length}자)`);
-      } catch (e) {
-        trail.push(`[cf:${model.split('/').pop()}] err: ${(e.message || '').slice(0, 100)}`);
-        console.error(`[cf-ai] ${model} failed:`, e.message);
-      }
+    if (isNonCardResponse(text)) {
+      return new Response(JSON.stringify({
+        error: 'not_a_card',
+        message: '⚠️ 업로드한 이미지가 포켓몬/원피스 TCG 카드로 인식되지 않습니다.\n선명한 카드 앞면+뒷면 사진을 다시 업로드해주세요.',
+        detail: text,
+        provider: 'openai-gpt-4o',
+      }), { status: 422, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
-  } else {
-    trail.push('[cf] env.AI binding 없음 (대시보드에서 Workers AI binding 추가 필요)');
+
+    return new Response(JSON.stringify({ text, provider: 'openai-gpt-4o' }), {
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({
+      error: 'fetch_error',
+      message: `AI 호출 실패: ${e.message}`,
+    }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
-
-  // 2순위: Groq (한국 IP 지원) — 검증된 vision 모델만
-  if (env.GROQ_API_KEY) {
-    const groqModels = [
-      'llama-3.2-90b-vision-preview',
-      'llama-3.2-11b-vision-preview',
-      'meta-llama/llama-4-scout-17b-16e-instruct',
-    ];
-    for (const model of groqModels) {
-      try {
-        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: SYSTEM_CONTEXT },
-              { role: 'user', content: [
-                { type: 'text', text: userPrompt + '\n\n(이미지 1=앞면, 2=뒷면)' },
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${frontImage}` } },
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${backImage}` } },
-              ]},
-            ],
-            temperature: 0.3, max_tokens: 1500,
-          }),
-        });
-        if (r.ok) {
-          const d = await r.json();
-          const text = d?.choices?.[0]?.message?.content || '';
-          if (text && text.length > 30) {
-            if (isNonCardResponse(text)) {
-              return new Response(JSON.stringify({
-                error: 'not_a_card',
-                message: '⚠️ 업로드한 이미지가 포켓몬/원피스 TCG 카드로 인식되지 않습니다.\n선명한 카드 앞면+뒷면 사진을 다시 업로드해주세요.',
-                detail: text,
-                provider: `groq:${model}`,
-              }), {
-                status: 422,
-                headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-              });
-            }
-            return new Response(JSON.stringify({ text, provider: `groq:${model}` }), {
-              headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-            });
-          }
-          trail.push(`[groq:${model}] empty/short`);
-        } else {
-          const txt = await r.text();
-          trail.push(`[groq:${model}] ${r.status} ${txt.slice(0, 200)}`);
-          if (r.status === 401) break; // key 문제 → 다음 모델도 동일
-        }
-      } catch (e) {
-        trail.push(`[groq:${model}] err: ${e.message}`);
-      }
-    }
-  } else {
-    trail.push('[groq] GROQ_API_KEY 없음');
-  }
-
-  // 모든 시도 실패 — Gemini 는 한국 IP 차단되어 폴백 안 함
-  return new Response(JSON.stringify({
-    error: 'all_providers_failed',
-    message: 'AI 분석 일시 중단 — 잠시 후 다시 시도해주세요',
-    debug_trail: trail,
-  }), {
-    status: 503,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
 }

@@ -2654,21 +2654,19 @@ async function renderGradesPanel(productId, product) {
       }
     }
 
-    // PSA10 POP 카운트 미리 가져오기 (카드만)
+    // PSA10 POP 카운트 — 위에서 박스는 이미 return 됐으니 여기는 카드 확정
     let popCount = 0;
-    if (PRICE_CAT === 'card') {
-      try {
-        const popR = await fetch(`/api/psa/pop?card_id=${productId}&grade=10`);
-        if (popR.ok) {
-          const popData = await popR.json();
-          if (popData.ok && typeof popData.pop === 'number') popCount = popData.pop;
-        }
-      } catch (e) { console.warn('PSA POP fetch fail:', e); }
-    }
+    try {
+      const popR = await fetch(`/api/psa/pop?card_id=${productId}&grade=10`);
+      if (popR.ok) {
+        const popData = await popR.json();
+        if (popData.ok && typeof popData.pop === 'number') popCount = popData.pop;
+      }
+    } catch (e) { console.warn('PSA POP fetch fail:', e); }
 
-    // grid 메인 렌더 + A급 옆 4번째 박스로 POP 표시
+    // grid 메인 렌더 + A급 옆 4번째 박스로 POP 표시 (popCount > 0 일 때만)
     let html = ORDER.map(k => renderBlock(k, grades[k])).join('');
-    if (PRICE_CAT === 'card' && popCount > 0) {
+    if (popCount > 0) {
       html += `
         <div style="background:#fef3c7; border:1px solid #fbbf2455; border-radius:8px; padding:12px 14px">
           <div style="font-size:11px; font-weight:800; color:#92400e; margin-bottom:6px">🏆 PSA10 POP</div>

@@ -5218,12 +5218,12 @@ function renderHoldings() {
     let certBlock = '';
     if (isGradedCard) {
       if (linkedCert) {
+        // 등록 후 영구 — POP 데이터 무결성 보호 (사용자 임의 삭제 불가)
         certBlock = `
         <div onclick="event.stopPropagation()" style="grid-column:1/-1; margin-top:10px; padding:8px 10px; background:#ecfdf5; border:1px solid #10b98155; border-radius:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap">
           <span style="font-size:11px; font-weight:700; color:#047857">🏷️ Cert# ${escapeHtml(String(linkedCert.cert_number))}</span>
           <span style="font-size:10px; color:#059669">✓ PSA 인증완료</span>
           <span style="font-size:10px; color:var(--ink-mute); margin-left:auto">${escapeHtml(linkedCert.subject || '')} #${escapeHtml(linkedCert.card_number || '')}</span>
-          <button class="btn" style="padding:2px 6px; font-size:10px; cursor:pointer" onclick="removePsaCert(${linkedCert.id})">제거</button>
         </div>`;
       } else {
         certBlock = `

@@ -1148,7 +1148,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
           <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap">
             <button class="btn primary" type="button" id="centeringAIBtn" style="cursor:pointer; padding:10px 18px; font-size:13px; font-weight:700; flex:1">
-              ✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8">(오늘 0/4)</span>
+              ✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8"></span>
             </button>
             <button class="btn" type="button" onclick="resetCentering()" style="cursor:pointer; padding:10px 16px; font-size:12px">↻ 다른 카드</button>
           </div>
@@ -2106,8 +2106,9 @@ function incAICenteringCount() {
   updateAICenteringCountUI();
 }
 function updateAICenteringCountUI() {
+  // 테스트 기간 — 카운트 표시 안 함
   const el = document.getElementById('centeringAICount');
-  if (el) el.textContent = `(오늘 ${getAICenteringCount()}/4)`;
+  if (el) el.textContent = '';
 }
 
 // 센터링 페이지 — 로그인 게이트 토글
@@ -2370,11 +2371,7 @@ async function aiAnalyzeCentering() {
     alert('앞면 + 뒷면 이미지 둘 다 업로드해야 AI 분석 가능합니다.');
     return;
   }
-  const cur = getAICenteringCount();
-  if (cur >= 4) {
-    alert('오늘의 AI 분석 무료 한도 (4회) 도달. 내일 다시 시도하거나 광고 시청 후 추가 사용 (개발 중).');
-    return;
-  }
+  // 테스트 기간 — 한도 제한 없음
   const btn = document.getElementById('centeringAIBtn');
   btn.disabled = true;
   btn.textContent = '⏳ AI 분석 중... (10~20초)';
@@ -2451,10 +2448,14 @@ async function aiAnalyzeCentering() {
     if (!providerEl) {
       providerEl = document.createElement('div');
       providerEl.id = 'aiProviderTag';
-      providerEl.style.cssText = 'font-size:10px; color:#9ca3af; text-align:right; margin-top:8px';
+      providerEl.style.cssText = 'font-size:10px; color:#9ca3af; text-align:right; margin-top:8px; white-space:pre-wrap';
       wrap.appendChild(providerEl);
     }
-    providerEl.textContent = `⚙️ AI: ${d.provider || 'unknown'}`;
+    let providerText = `⚙️ AI: ${d.provider || 'unknown'}`;
+    if (d.debug_trail && d.debug_trail.length) {
+      providerText += `\n진단: ${d.debug_trail.join(' | ')}`;
+    }
+    providerEl.textContent = providerText;
     renderAICenteringResult(d.text || '');
   } catch (e) {
     console.error('[ai] failure:', e);
@@ -2464,7 +2465,7 @@ async function aiAnalyzeCentering() {
     wrap.querySelector('#centeringAIText').textContent = `❌ AI 분석 실패\n\n${e.message}\n\n(콘솔에서 전문 확인 가능)`;
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8">(오늘 ${getAICenteringCount()}/4)</span>`;
+    btn.innerHTML = `✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8"></span>`;
   }
 }
 

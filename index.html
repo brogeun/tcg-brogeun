@@ -2444,6 +2444,17 @@ async function aiAnalyzeCentering() {
     }
     const d = await r.json();
     incAICenteringCount();
+    // provider 정보를 화면에 작게 표시 (디버깅 + 사용자 확인용)
+    const wrap = document.getElementById('centeringAIResult');
+    wrap.style.display = '';
+    let providerEl = wrap.querySelector('#aiProviderTag');
+    if (!providerEl) {
+      providerEl = document.createElement('div');
+      providerEl.id = 'aiProviderTag';
+      providerEl.style.cssText = 'font-size:10px; color:#9ca3af; text-align:right; margin-top:8px';
+      wrap.appendChild(providerEl);
+    }
+    providerEl.textContent = `⚙️ AI: ${d.provider || 'unknown'}`;
     renderAICenteringResult(d.text || '');
   } catch (e) {
     console.error('[ai] failure:', e);
@@ -2463,9 +2474,10 @@ function renderAICenteringResult(text) {
   if (!wrap) return;
   wrap.style.display = '';
 
-  // 점수 추출 — 다양한 라벨 시도
+  // 점수 추출 — 다양한 라벨 시도 (한/영, **bold**, 콜론 변형 모두 지원)
   const scoreMatch = (label) => {
-    const re = new RegExp(label + '\\s*[:：\\s]\\s*(\\d{1,2}(?:\\.\\d)?)');
+    // **Label:** 9.5, Label: 9.5, Label : 9.5, Label：9.5 등 모두 지원
+    const re = new RegExp(`\\*{0,2}\\s*${label}\\s*\\*{0,2}\\s*[:：]\\s*(\\d{1,2}(?:\\.\\d)?)`, 'i');
     const m = text.match(re);
     return m ? parseFloat(m[1]) : null;
   };
@@ -2474,8 +2486,16 @@ function renderAICenteringResult(text) {
     corners:   scoreMatch('모서리') ?? scoreMatch('Corners'),
     edges:     scoreMatch('엣지')   ?? scoreMatch('Edges'),
     surface:   scoreMatch('표면')   ?? scoreMatch('Surface'),
-    final:     scoreMatch('종합')   ?? scoreMatch('Final')   ?? scoreMatch('최종'),
+    final:     scoreMatch('종합')   ?? scoreMatch('Final')   ?? scoreMatch('최종') ?? scoreMatch('Overall'),
   };
+  // 영어 응답 fallback — "PSA grade of 10", "PSA 10", "PSA10 (or higher)" 같은 패턴에서 final 추정
+  if (scores.final == null) {
+    const psaMatch = text.match(/PSA[\s_-]*(?:grade[\s_]*of[\s_]*)?(\d{1,2}(?:\.\d)?)/i);
+    if (psaMatch) {
+      const psa = parseFloat(psaMatch[1]);
+      if (psa >= 1 && psa <= 10) scores.final = psa;
+    }
+  }
   // 종합 점수 누락 시 4 sub-score 의 가중 평균으로 자동 계산 (센터링 30 + 모서리 30 + 엣지 20 + 표면 20)
   if (scores.final == null && scores.centering != null && scores.corners != null && scores.edges != null && scores.surface != null) {
     const w = scores.centering * 0.3 + scores.corners * 0.3 + scores.edges * 0.2 + scores.surface * 0.2;

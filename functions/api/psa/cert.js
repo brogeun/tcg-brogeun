@@ -22,7 +22,15 @@ function norm(s) {
 
 /** PSA 응답 카드 vs 우리 카드 메타 매칭 */
 function verifyCardMatch(psaCert, ourCard) {
-  if (!ourCard || !ourCard.name) return { ok: false, reason: '우리 DB 에 카드 정보가 없습니다' };
+  // 우리 DB 에 카드 정보가 없으면 → 거부 (카드 매칭 불가능)
+  // POP 데이터 무결성 보호 — 다른 카드 cert# 를 임의로 연결하는 악용 차단
+  if (!ourCard || !ourCard.name) {
+    return {
+      ok: false,
+      reason: 'DB 카드 정보 lookup 실패',
+      hard: true, // 호출자가 별도 메시지 처리 (사용자한테 다시 시도 유도)
+    };
+  }
 
   // 1) Card number 매칭 — PSA 의 CardNumber 가 우리 code 안에 포함되는지
   const psaNum = String(psaCert.CardNumber || psaCert.cardNumber || '').trim();
@@ -64,8 +72,11 @@ function verifyCardMatch(psaCert, ourCard) {
   return { ok: true };
 }
 
-/** 우리 DB 카드 메타 조회 — cards-detail.json → all-cards.json → SNKRDUNK API 폴백 */
-async function lookupOurCard(env, cardId, origin) {
+/** 우리 DB 카드 메타 조회 — cards-detail.json → all-cards.json → SNKRDUNK API 폴백
+ *  반환: { name, code, brand, source } | null
+ *  실패 시 debugTrail 에 각 단계 결과 누적 (디버깅용)
+ */
+async function lookupOurCard(env, cardId, origin, debugTrail) {
   const baseURL = origin || 'https://tcghub.kr';
   // 1) cards-detail (TOP10 위주, 풍부한 메타)
   try {
@@ -73,9 +84,13 @@ async function lookupOurCard(env, cardId, origin) {
     if (r1.ok) {
       const data = await r1.json();
       const c = data?.cards?.[cardId];
-      if (c) return { name: c.name, code: c.product_number || c.code, brand: c.brand };
+      if (c) return { name: c.name, code: c.product_number || c.code, brand: c.brand, source: 'cards-detail' };
+      debugTrail?.push(`[1]cards-detail: 200 OK, card_id ${cardId} not in detail.cards`);
+    } else {
+      debugTrail?.push(`[1]cards-detail: status ${r1.status}`);
     }
-  } catch (e) { console.error('cards-detail fetch fail', e); }
+  } catch (e) { debugTrail?.push(`[1]cards-detail: err ${e.message}`); }
+
   // 2) all-cards 폴백
   try {
     const r2 = await fetch(`${baseURL}/data/all-cards.json`, { cf: { cacheTtl: 3600 } });
@@ -84,29 +99,64 @@ async function lookupOurCard(env, cardId, origin) {
       const items = data.details || data.cards || data.items || [];
       const found = items.find(c => String(c.id || c.product_id) === String(cardId));
       if (found) return {
-        name: found.name,
-        code: found.productNumber || found.product_number || found.code,
-        brand: found.brand,
+        name: found.name, code: found.productNumber || found.product_number || found.code,
+        brand: found.brand, source: 'all-cards',
       };
+      debugTrail?.push(`[2]all-cards: 200 OK (${items.length} items), id ${cardId} not found`);
+    } else {
+      debugTrail?.push(`[2]all-cards: status ${r2.status}`);
     }
-  } catch (e) { console.error('all-cards fetch fail', e); }
-  // 3) SNKRDUNK API 직접 폴백 — 백필된 카드(6,600+) 메타 보충
+  } catch (e) { debugTrail?.push(`[2]all-cards: err ${e.message}`); }
+
+  // 3) SNKRDUNK API 직접 폴백 — 다양한 엔드포인트/UA 시도
+  const snkrUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
+  for (const ep of [
+    `https://snkrdunk.com/v1/apparels/${cardId}`,
+    `https://snkrdunk.com/api/v1/apparels/${cardId}`,
+    `https://snkrdunk.com/v2/apparels/${cardId}`,
+  ]) {
+    try {
+      const r = await fetch(ep, {
+        headers: { 'accept': 'application/json', 'user-agent': snkrUA, 'accept-language': 'ja,en;q=0.9' },
+        cf: { cacheTtl: 3600 },
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const a = data?.apparel || data?.data?.apparel || data?.product || data;
+        if (a && (a.name || a.title)) {
+          debugTrail?.push(`[3]SNKRDUNK ${ep} OK`);
+          return {
+            name: a.name || a.title,
+            code: a.productNumber || a.product_number || a.code || a.modelNumber,
+            brand: a.brand || (String(a.name || a.title).toUpperCase().includes('ONE PIECE') ? 'onepiece' : 'pokemon'),
+            source: 'snkrdunk-api',
+          };
+        }
+        debugTrail?.push(`[3]SNKRDUNK ${ep} 200 but no name field, keys: ${Object.keys(data || {}).slice(0, 5).join(',')}`);
+      } else {
+        debugTrail?.push(`[3]SNKRDUNK ${ep} status ${r.status}`);
+      }
+    } catch (e) { debugTrail?.push(`[3]SNKRDUNK ${ep} err ${e.message}`); }
+  }
+
+  // 4) data/history/{id}.json 폴백
   try {
-    const r3 = await fetch(`https://snkrdunk.com/v1/apparels/${cardId}`, {
-      headers: { 'accept': 'application/json', 'user-agent': 'tcghub.kr' },
-      cf: { cacheTtl: 3600 },
-    });
-    if (r3.ok) {
-      const data = await r3.json();
-      // SNKRDUNK 응답 형식: { apparel: { name, productNumber, ... } } 또는 평탄
-      const a = data.apparel || data.product || data;
-      if (a && a.name) return {
-        name: a.name,
-        code: a.productNumber || a.product_number || a.code,
-        brand: a.brand || (String(a.name).includes('ONE PIECE') ? 'onepiece' : 'pokemon'),
-      };
+    const r4 = await fetch(`${baseURL}/data/history/${cardId}.json`, { cf: { cacheTtl: 3600 } });
+    if (r4.ok) {
+      const data = await r4.json();
+      if (data && (data.name || data.product_name)) {
+        return {
+          name: data.name || data.product_name,
+          code: data.product_number || data.code,
+          brand: data.brand, source: 'history',
+        };
+      }
+      debugTrail?.push(`[4]history: 200 OK, no name field, keys: ${Object.keys(data || {}).slice(0, 5).join(',')}`);
+    } else {
+      debugTrail?.push(`[4]history: status ${r4.status}`);
     }
-  } catch (e) { console.error('SNKRDUNK API fetch fail', e); }
+  } catch (e) { debugTrail?.push(`[4]history: err ${e.message}`); }
+
   return null;
 }
 
@@ -179,9 +229,26 @@ export const onRequestPost = withAuth(async ({ request, env, user }) => {
 
   // 카드 매칭 검증
   const reqUrl = new URL(request.url);
-  const ourCard = await lookupOurCard(env, card_id, `${reqUrl.protocol}//${reqUrl.host}`);
+  const debugTrail = [];
+  const ourCard = await lookupOurCard(env, card_id, `${reqUrl.protocol}//${reqUrl.host}`, debugTrail);
   const match = verifyCardMatch(cert, ourCard);
   if (!match.ok) {
+    // hard fail (DB lookup 실패) — 카드 메타 못 찾으면 매칭 불가능
+    if (match.hard) {
+      return jsonResponse({
+        ok: false,
+        error: 'lookup_failed',
+        message: `⚠️ 카드 메타 정보를 확인할 수 없습니다 (card_id=${card_id}).\nPSA 정보: ${cert.Subject || '?'} (#${cert.CardNumber || ''}) Grade ${cert.CardGrade || ''}\n잠시 후 다시 시도하거나 관리자에게 문의해주세요.`,
+        psa_card: {
+          subject: cert.Subject,
+          card_number: cert.CardNumber,
+          brand: cert.Brand,
+          year: cert.Year,
+        },
+        debug_trail: debugTrail, // 어디서 실패했는지 — 콘솔/네트워크 탭에서 확인 가능
+      }, 503);
+    }
+    // 카드 불일치
     return jsonResponse({
       ok: false,
       error: 'card_mismatch',

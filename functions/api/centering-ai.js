@@ -29,12 +29,25 @@ const SYSTEM_CONTEXT = `당신은 PSA · BGS · CGC 그레이딩 회사에서 10
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【❗ 1단계 — 카드 검증 (점수 매기기 전 필수)】
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-다음에 해당하면 절대 점수를 매기지 말고 [비카드] 응답으로 종료:
-- 트레이딩 카드가 아닌 사물 (사람, 동물, 풍경, 음식, 가구, 일반 종이 등)
-- 포켓몬/원피스가 아닌 다른 TCG (유희왕, MTG, 디지몬, 위익스 등)
-- 너무 흐리거나 어두워서 식별 불가
-- 카드의 일부만 보여 평가 불가
-- 손상이 너무 심해 등급 측정이 무의미한 경우 (찢어짐, 절반 손실 등)
+★ 다음은 모두 정상 카드로 처리하고 [비카드] 응답을 절대 하지 말 것:
+  - 포켓몬 (Pokemon TCG) — 일본판 / 영문판 (Pokemon TCG) / 한국판 / 중국판 모두 OK
+    예: Pikachu, Charizard, ピカチュウ, リザードン, V, VMAX, VSTAR, ex, GX, EX,
+        SR, SAR, UR, AR, CHR, BASIC 등 어떤 레어도/시리즈도 다 OK
+  - 원피스 (One Piece Card Game) — 일본판 / 영문판 / 한국판
+    예: Luffy, Zoro, ルフィ, ゾロ, ST 시리즈, OP 시리즈 등
+  - 카드 슬리브/탑로더/PSA슬랩/BGS슬랩 안에 있어도 OK
+  - 전면 일러스트 (full art / SAR / SR / UR) 도 OK — 일러스트가 캐릭터 화풍이어도 OK
+    (예: 빈센트 반 고흐 화풍 Pikachu, 일러스트레이터 콜라보, 풀아트 V/VMAX 등)
+
+★ 다음 경우만 [비카드] 응답으로 종료:
+- 트레이딩 카드가 명백히 아닌 사물 (사람 셀카, 음식 사진, 풍경, 가구, 영수증, 빈 종이 등)
+- 포켓몬/원피스가 아닌 다른 TCG (유희왕 Yu-Gi-Oh, MTG Magic, 디지몬, 위익스, 빌딩 카드)
+- 이미지가 진짜로 너무 흐려서 어떤 카드인지 전혀 식별 불가
+- 카드의 1/4 미만만 보여 전체 평가 자체가 불가
+- 카드가 찢어지거나 절반 손실 등 등급 측정이 무의미
+
+⚠️ 의심스럽지만 카드처럼 보이면 [비카드] 응답하지 말고 점수를 매기세요.
+   영문판 / 일본판 / 풀아트 / 일러스트 콜라보 카드는 전부 정상 카드입니다.
 
 ★ 비카드 출력 (이 경우 [점수]/[분석] 절대 작성하지 말 것):
 
@@ -129,15 +142,14 @@ const SYSTEM_CONTEXT = `당신은 PSA · BGS · CGC 그레이딩 회사에서 10
 
 /**
  * AI 응답이 명시적 비카드 응답인지 감지
- * — [비카드] / NOT_A_CARD / "포켓몬 카드가 아님" 같은 명시적 키워드만 체크
- * — [점수] 누락은 작은 모델이 형식 못 따라간 거지 비카드는 아님 → 통과
+ * — 시스템 프롬프트가 지정한 정확한 마커만 인정 (false positive 차단)
+ *   [비카드] 마커 또는 NOT_A_CARD 만 비카드로 판정
+ *   AI 가 자연어로 "포켓몬 카드가 아닌 것 같다" 같이 표현한 경우는 통과시킴 (점수도 같이 매겼을 수 있음)
  */
 function isNonCardResponse(text) {
-  if (!text) return false; // 빈 응답은 비카드 판정 X (다른 fallback)
-  const t = text.toLowerCase();
+  if (!text) return false; // 빈 응답은 비카드 판정 X
   if (text.includes('[비카드]')) return true;
-  if (t.includes('not_a_card') || t.includes('not a card')) return true;
-  if (t.includes('카드가 아닌') || t.includes('카드로 인식되지 않')) return true;
+  if (text.toLowerCase().includes('not_a_card')) return true;
   return false;
 }
 

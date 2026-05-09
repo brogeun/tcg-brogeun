@@ -885,10 +885,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <div class="tab" data-ci="onepiece">🏴‍☠️ 원피스</div>
         </div>
         <div style="display:flex; align-items:center; gap:10px; margin-left:auto">
-          <button type="button" onclick="go('price')"
-                  style="background:#0d9488; color:#fff; border:none; padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:4px">
-            📊 박스 시세 →
-          </button>
           <div id="cardInfoSrc" style="font-size:11px; color:var(--ink-sub)"></div>
         </div>
       </div>
@@ -4032,8 +4028,11 @@ function renderCardInfo() {
 /* ─────────── 세트 카드 그리드 모달 ─────────── */
 window.openSetGrid = async function(setCode, setName, externalUrl) {
   openAnyModal(`
-    <div class="modal-head">
-      <h3>📦 ${escapeHtml(setName)} <span style="font-size:12px; color:var(--ink-sub); font-weight:500; margin-left:6px">${setCode}</span></h3>
+    <div class="modal-head" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+      <h3 style="margin:0; flex:1; min-width:0">📦 ${escapeHtml(setName)} <span style="font-size:12px; color:var(--ink-sub); font-weight:500; margin-left:6px">${setCode}</span></h3>
+      <button id="setGridBoxPriceBtn" class="btn primary"
+              style="padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap"
+              onclick="gotoBoxPriceFromSet('${setCode}')">📊 박스 시세 보기 →</button>
       <button class="modal-close" onclick="closeAnyModal()">✕</button>
     </div>
     <div class="modal-body" style="padding:20px 24px; max-height:75vh; overflow-y:auto">
@@ -4174,32 +4173,36 @@ async function getBoxIdBySetCode(code, brand) {
   return null;
 }
 
-// 박스 타일 클릭 → 매핑된 박스 시세 페이지로 직행 (매핑 안 되면 봉입 카드 모달 fallback)
-document.addEventListener('click', async e => {
+// 박스 타일 클릭 → 봉입 카드 모달 (원래 동작 복원)
+document.addEventListener('click', e => {
   const tile = e.target.closest('.set-tile[data-set-code]');
   if (!tile) return;
   const code = tile.dataset.setCode;
   const name = tile.dataset.setName;
   const url = tile.dataset.externalUrl;
   if (!code) return;
-  // CI_TAB = 현재 카드정보 탭 ('pokemon' or 'onepiece')
-  const brand = (typeof CI_TAB === 'string') ? CI_TAB : 'pokemon';
-  // 즉각 시각적 피드백
-  tile.style.opacity = '0.6';
-  try {
-    const boxId = await getBoxIdBySetCode(code, brand);
-    if (boxId) {
-      // 시세 페이지의 박스 상세로 이동
-      location.hash = `#price/${boxId}`;
-      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
-    } else {
-      // 매핑 안 되는 박스 (미발매 등) → 기존 봉입 카드 모달
-      openSetGrid(code, name, url);
-    }
-  } finally {
-    tile.style.opacity = '';
-  }
+  openSetGrid(code, name, url);
 });
+
+// 모달 안 "박스 시세 보기" 버튼 핸들러 — 매핑된 박스의 시세 페이지로 이동
+window.gotoBoxPriceFromSet = async function(code) {
+  const brand = (typeof CI_TAB === 'string') ? CI_TAB : 'pokemon';
+  const btn = document.getElementById('setGridBoxPriceBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 매핑 확인 중...'; }
+  const boxId = await getBoxIdBySetCode(code, brand);
+  if (boxId) {
+    closeAnyModal();
+    location.hash = `#price/${boxId}`;
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+  } else {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '⚠️ 매핑된 박스 없음';
+      setTimeout(() => { btn.textContent = '📊 박스 시세 보기 →'; }, 2000);
+    }
+    showToast('이 박스는 SNKRDUNK 시세 데이터에 매핑된 항목이 없습니다 (미발매 등)', 'info');
+  }
+};
 
 // 마지막 연 박스 정보 (뒤로가기 용)
 let _LAST_OPENED_SET = null;

@@ -2655,6 +2655,25 @@ async function renderGradesPanel(productId, product) {
     }
 
     grid.innerHTML = ORDER.map(k => renderBlock(k, grades[k])).join('');
+
+    // PSA10 POP 카운트 — 우리 D1 누적 (보유 사용자가 cert# 등록 시 +1)
+    // 카드 상세 페이지만 (박스는 PSA POP 없음)
+    if (PRICE_CAT === 'card') {
+      try {
+        const popR = await fetch(`/api/psa/pop?card_id=${productId}&grade=10`);
+        if (popR.ok) {
+          const popData = await popR.json();
+          if (popData.ok && typeof popData.pop === 'number') {
+            // PSA10 박스 안에 POP 인라인 추가
+            const psa10Block = grid.firstElementChild; // ORDER[0] = psa10
+            if (psa10Block && popData.pop > 0) {
+              const popHtml = `<div style="display:inline-block; margin-top:6px; padding:2px 8px; background:#fef3c7; color:#92400e; border-radius:10px; font-size:10px; font-weight:800">🏆 POP ${popData.pop.toLocaleString()}</div>`;
+              psa10Block.insertAdjacentHTML('beforeend', popHtml);
+            }
+          }
+        }
+      } catch (e) { console.warn('PSA POP fetch fail:', e); }
+    }
   } catch (e) {
     console.warn('grades load fail:', e);
   }
@@ -4927,6 +4946,7 @@ document.addEventListener('click', e => {
    ──────────────────────────────────── */
 let HOLDINGS = [];
 let WATCHLIST = [];
+let PSA_CERTS = []; // 본인이 등록한 PSA cert 목록
 let _PF_RANGE = 180;
 let _PF_AGG_CHART = null;
 let _PF_BRAND_CHART = null;
@@ -5064,6 +5084,7 @@ async function refreshPortfolio() {
   if (!data) return;
   HOLDINGS = data.holdings || [];
   WATCHLIST = data.watchlists || [];
+  PSA_CERTS = data.psa_certs || [];
 
   document.getElementById('pfHoldCount').textContent = HOLDINGS.length;
   document.getElementById('pfWatchCount').textContent = WATCHLIST.length;
@@ -5162,6 +5183,33 @@ function renderHoldings() {
 
   list.innerHTML = enriched.map(h => {
     const sign = h.itemPnl >= 0 ? '#10b981' : '#ef4444';
+    // PSA cert 인라인 영역 — PSA10/PSA9 카드만 표시 (raw, box 는 숨김)
+    const isGradedCard = h.grade === 'psa10' || h.grade === 'psa9';
+    const linkedCert = isGradedCard
+      ? PSA_CERTS.find(c => String(c.holding_id) === String(h.id) || (String(c.card_id) === String(h.card_id) && c.grade === (h.grade === 'psa10' ? 10 : 9)))
+      : null;
+    let certBlock = '';
+    if (isGradedCard) {
+      if (linkedCert) {
+        certBlock = `
+        <div onclick="event.stopPropagation()" style="grid-column:1/-1; margin-top:10px; padding:8px 10px; background:#ecfdf5; border:1px solid #10b98155; border-radius:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+          <span style="font-size:11px; font-weight:700; color:#047857">🏷️ Cert# ${escapeHtml(String(linkedCert.cert_number))}</span>
+          <span style="font-size:10px; color:#059669">✓ PSA 인증완료</span>
+          <span style="font-size:10px; color:var(--ink-mute); margin-left:auto">${escapeHtml(linkedCert.subject || '')} #${escapeHtml(linkedCert.card_number || '')}</span>
+          <button class="btn" style="padding:2px 6px; font-size:10px; cursor:pointer" onclick="removePsaCert(${linkedCert.id})">제거</button>
+        </div>`;
+      } else {
+        certBlock = `
+        <div onclick="event.stopPropagation()" style="grid-column:1/-1; margin-top:10px; padding:8px 10px; background:#f9fafb; border:1px dashed #d1d5db; border-radius:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
+          <span style="font-size:11px; font-weight:700; color:var(--ink-sub)">🏷️ PSA Cert#</span>
+          <input id="certInp_${h.id}" type="text" inputmode="numeric" placeholder="예: 12345678"
+                 style="flex:1; min-width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:12px"
+                 onkeydown="if(event.key==='Enter'){registerPsaCert(${h.id},'${h.card_id}','${h.grade}')}" />
+          <button class="btn" style="padding:4px 10px; font-size:11px; cursor:pointer; background:#111; color:#fff"
+                  onclick="registerPsaCert(${h.id},'${h.card_id}','${h.grade}')">등록</button>
+        </div>`;
+      }
+    }
     return `
     <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}')">
       <div style="width:90px; height:126px; background:#f3f4f6; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center">
@@ -5180,6 +5228,7 @@ function renderHoldings() {
         <div style="font-size:11px; color:${sign}">${h.itemPnl >= 0 ? '▲' : '▼'} ${Math.abs(h.itemPct).toFixed(1)}%</div>
         <button class="btn" style="margin-top:6px; padding:3px 8px; font-size:11px; cursor:pointer" onclick="event.stopPropagation(); removeHoldingApi(${h.id})">🗑</button>
       </div>
+      ${certBlock}
     </div>`;
   }).join('');
 }
@@ -5220,6 +5269,58 @@ async function removeHoldingApi(id) {
   if (r.ok) { showToast('삭제되었습니다', 'info'); refreshPortfolio(); }
   else showToast('삭제 실패', 'error');
 }
+
+/**
+ * PSA Cert# 등록 — 보유카드 인라인
+ * 1) 입력란에서 cert# 가져옴
+ * 2) /api/psa/cert POST → 서버에서 PSA API 호출 + 카드 매칭 검증
+ * 3) 성공 → 새로고침
+ * 4) 검증 실패 → 사유 토스트 (카드 불일치, 등급 불일치 등)
+ */
+window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
+  const inp = document.getElementById(`certInp_${holdingId}`);
+  if (!inp) return;
+  const cert_number = (inp.value || '').replace(/\D/g, '');
+  if (!cert_number || cert_number.length < 6) {
+    showToast('Cert# 를 6자리 이상 입력해주세요', 'error'); return;
+  }
+  inp.disabled = true;
+  showToast('PSA 인증 확인 중…', 'info');
+  try {
+    const r = await fetch('/api/psa/cert', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cert_number, card_id: cardId, holding_id: holdingId, expected_grade: expectedGrade,
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.ok) {
+      showToast(data.message || '✅ 인증 완료', 'success');
+      refreshPortfolio();
+    } else {
+      const msg = data.message || `등록 실패 (${r.status})`;
+      // 카드 불일치 / 등급 불일치는 길게 alert 으로 분명히 안내
+      if (data.error === 'card_mismatch' || data.error === 'grade_mismatch') {
+        alert(msg);
+      } else {
+        showToast(msg, 'error');
+      }
+      inp.disabled = false;
+    }
+  } catch (e) {
+    showToast('등록 실패 — 네트워크 오류', 'error');
+    inp.disabled = false;
+  }
+};
+
+window.removePsaCert = async function(certId) {
+  if (!confirm('이 Cert 등록을 제거할까요? (POP 카운트도 차감됨)')) return;
+  const r = await fetch(`/api/psa/cert/${certId}`, { method: 'DELETE', credentials: 'include' });
+  if (r.ok) { showToast('제거되었습니다', 'info'); refreshPortfolio(); }
+  else showToast('제거 실패', 'error');
+};
 
 async function removeWatchlistApi(id) {
   const r = await fetch(`/api/portfolio/watchlist/${id}`, { method: 'DELETE', credentials: 'include' });

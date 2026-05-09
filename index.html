@@ -2666,16 +2666,17 @@ async function renderGradesPanel(productId, product) {
       } catch (e) { console.warn('PSA POP fetch fail:', e); }
     }
 
-    // grid 메인 렌더 — PSA10 블록에 POP 인라인 통합 (별도 insertAdjacentHTML 안 함)
-    grid.innerHTML = ORDER.map(k => {
-      let block = renderBlock(k, grades[k]);
-      // PSA10 + POP > 0 일 때, 닫는 div 직전에 POP 뱃지 삽입
-      if (k === 'psa10' && popCount > 0) {
-        const popHtml = `<div style="display:inline-block; margin-top:6px; padding:2px 8px; background:#fef3c7; color:#92400e; border-radius:10px; font-size:10px; font-weight:800">🏆 POP ${popCount.toLocaleString()}</div>`;
-        block = block.replace(/<\/div>\s*$/, popHtml + '</div>');
-      }
-      return block;
-    }).join('');
+    // grid 메인 렌더 + A급 옆 4번째 박스로 POP 표시
+    let html = ORDER.map(k => renderBlock(k, grades[k])).join('');
+    if (PRICE_CAT === 'card' && popCount > 0) {
+      html += `
+        <div style="background:#fef3c7; border:1px solid #fbbf2455; border-radius:8px; padding:12px 14px">
+          <div style="font-size:11px; font-weight:800; color:#92400e; margin-bottom:6px">🏆 PSA10 POP</div>
+          <div style="font-size:18px; font-weight:900; color:#111">${popCount.toLocaleString()}</div>
+          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">사용자 등록 누적</div>
+        </div>`;
+    }
+    grid.innerHTML = html;
   } catch (e) {
     console.warn('grades load fail:', e);
   }

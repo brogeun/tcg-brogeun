@@ -4908,11 +4908,11 @@ function _gradingRow(e) {
        </div>` : '';
   return `
     <div class="card hubcard" style="padding:0; overflow:hidden; cursor:pointer; display:block" onclick="toggleHubCard('${id}')">
-      <div style="display:grid; grid-template-columns:140px 1fr; gap:0; align-items:stretch">
-        <!-- 좌: 썸네일 (정사각형) -->
-        <div style="aspect-ratio:1/1; background:#f3f4f6; overflow:hidden">${thumb}</div>
+      <div style="display:grid; grid-template-columns:140px 1fr; gap:0; align-items:start">
+        <!-- 좌: 썸네일 (정사각형 고정 — 본문 펼쳐져도 안 늘어남) -->
+        <div style="width:140px; height:140px; background:#f3f4f6; overflow:hidden; flex-shrink:0">${thumb}</div>
         <!-- 우: 정보 -->
-        <div style="padding:13px 16px; display:flex; flex-direction:column; justify-content:center">
+        <div style="padding:13px 16px; display:flex; flex-direction:column; justify-content:center; min-width:0">
           ${dateBadge}
           <div style="font-size:14px; font-weight:800; color:#111; line-height:1.35; margin-bottom:4px">${escapeHtml(e.title || '')}</div>
           <div id="${id}-preview" style="font-size:11px; color:#9ca3af">탭해서 자세히 보기 ↓</div>

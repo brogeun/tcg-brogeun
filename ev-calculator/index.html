@@ -450,9 +450,17 @@ async function tryAuto(){
   btn.textContent = "가져오는 중…";
 
   try {
-    // Cloudflare Pages Function 우선, fallback 으로 Netlify (호스팅 환경 따라)
+    // 우선순위:
+    //   1. GitHub Actions cron 결과 (data-beezie 브랜치, 30분 간격) — 실시간 + 무료
+    //   2. Cloudflare Pages Function + ScrapingBee — 즉시 fetch (월 50회)
+    //   3. Netlify Function (구 호스팅 호환)
     let data = null;
-    for(const endpoint of ["/api/beezie-prices", "/api/prices", "/.netlify/functions/beezie-prices"]){
+    for(const endpoint of [
+      "https://raw.githubusercontent.com/brogeun/tcg-brogeun/data-beezie/data/beezie-prices.json",
+      "/api/beezie-prices",
+      "/api/prices",
+      "/.netlify/functions/beezie-prices",
+    ]){
       try{
         const res = await fetch(endpoint, {cache:"no-store"});
         if(res.ok){ data = await res.json(); break; }

@@ -1,0 +1,66 @@
+name: Beezie EV prices
+
+# 30분 간격 cron — Beezie 4머신 가격 자동 fetch + data-beezie 브랜치에 commit
+# (메인 브랜치 안 건드림 → Cloudflare Pages 빌드 트리거 X)
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 매 30분
+  workflow_dispatch:        # 수동 실행 가능
+
+permissions:
+  contents: write
+
+concurrency:
+  group: beezie-prices
+  cancel-in-progress: false
+
+jobs:
+  fetch-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout (main 만, scripts 가져오려고)
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Playwright + chromium
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Fetch Beezie prices
+        run: python scripts/fetch_beezie.py
+        continue-on-error: true
+
+      - name: Verify output
+        run: |
+          if [ ! -f data/beezie-prices.json ]; then
+            echo "❌ data/beezie-prices.json not generated"
+            exit 1
+          fi
+          cat data/beezie-prices.json | head -c 500
+          echo ""
+
+      - name: Commit to data-beezie branch (orphan)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # 임시 디렉토리에 결과 파일만 백업
+          mkdir -p /tmp/beezie-out
+          cp data/beezie-prices.json /tmp/beezie-out/beezie-prices.json
+
+          # data-beezie 브랜치 새로 만들고 (또는 reset) 결과 파일만 push
+          git checkout --orphan data-beezie
+          git rm -rf . --quiet 2>/dev/null || true
+          mkdir -p data
+          cp /tmp/beezie-out/beezie-prices.json data/beezie-prices.json
+          git add data/beezie-prices.json
+          git commit -m "data: beezie prices ${{ github.run_number }} ($(date -u +'%Y-%m-%dT%H:%M:%SZ'))" --allow-empty
+          git push origin data-beezie --force

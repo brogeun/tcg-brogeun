@@ -72,16 +72,43 @@ def parse_html(html):
 
 
 def fetch_one(context, machine):
-    """단일 머신 페이지 fetch + 가격 추출"""
+    """단일 머신 페이지 fetch + 가격 추출 (page.evaluate 로 JS 환경에서 직접 추출)"""
     t0 = time.time()
     page = context.new_page()
     try:
-        # networkidle 은 Beezie background polling 때문에 30초 초과 → domcontentloaded 로 변경
         page.goto(machine["url"], wait_until="domcontentloaded", timeout=20000)
-        # JS 렌더링 + lazy 컴포넌트 로드 대기 (5초면 충분)
-        page.wait_for_timeout(5000)
-        html = page.content()
-        price, avg = parse_html(html)
+        # 가격 텍스트 ("$") 가 화면에 나타날 때까지 최대 15초 대기
+        try:
+            page.wait_for_function(
+                "() => document.body && document.body.innerText.includes('Claw Price') "
+                "&& /\\$\\s*\\d/.test(document.body.innerText)",
+                timeout=15000,
+            )
+        except Exception:
+            pass  # timeout 나도 일단 진행
+        page.wait_for_timeout(2000)  # 추가 안정화 대기
+
+        # JS 환경에서 직접 추출 (정확도 ↑)
+        data = page.evaluate("""
+() => {
+  const text = document.body ? document.body.innerText : '';
+  const num = (s) => {
+    if (!s) return null;
+    const n = parseFloat(String(s).replace(/[$,\\s]/g, ''));
+    return isFinite(n) && n > 0.01 && n < 100000 ? n : null;
+  };
+  // "Claw Price" 라벨 뒤 가장 가까운 $숫자
+  const priceMatch = text.match(/Claw\\s*Price[^$\\d]{0,80}\\$?\\s*([\\d,]+(?:\\.\\d+)?)/i);
+  const avgMatch = text.match(/Average\\s*Value[^$\\d]{0,80}\\$?\\s*([\\d,]+(?:\\.\\d+)?)/i);
+  return {
+    price: priceMatch ? num(priceMatch[1]) : null,
+    avg: avgMatch ? num(avgMatch[1]) : null,
+    sample: text.slice(0, 200),  // 디버그용
+  };
+}
+        """)
+        price = data.get("price")
+        avg = data.get("avg")
         ev = (avg / price - 1) * 100 if (price and avg) else None
         return {
             "tier": machine["tier"],
@@ -91,6 +118,7 @@ def fetch_one(context, machine):
             "ev": round(ev, 2) if ev is not None else None,
             "ok": price is not None and avg is not None,
             "ms": int((time.time() - t0) * 1000),
+            "sample": (data.get("sample") or "")[:120],  # 디버그
         }
     except Exception as e:
         return {

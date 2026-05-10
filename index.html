@@ -4209,21 +4209,38 @@ async function getBoxIdBySetCode(code, brand) {
     .replace(/\s+/g, ' ').trim();
   const enNorm = normalize(enName);
 
+  // 디버그 로그 — F12 콘솔에서 매칭 흐름 확인
+  console.log(`[boxMap] code=${code} brand=${brand} products=${products.length} enName="${enName}" enNorm="${enNorm}"`);
+
   // 1차: code 직접 매칭 (manual-boxes 에 code 있는 박스)
   let found = products.find(p => p.code === code);
-  if (found) return found.id;
+  if (found) {
+    console.log(`[boxMap] ✓ 1차 code 매칭 → ${found.id}`);
+    return found.id;
+  }
 
   // 2차: 영문 이름 매칭 — Box 들어간 것 우선 (HTML 엔티티 제거 후 비교)
   if (enNorm) {
+    // 후보 출력 (matching enNorm 일부 포함된 것)
+    const candidates = products.filter(p => normalize(p.name).includes(enNorm));
+    console.log(`[boxMap] 2차 후보 ${candidates.length}개:`, candidates.map(p => `${p.id}: ${p.name?.slice(0,80)}`));
+
     found = products.find(p => {
       const n = normalize(p.name);
       return n.includes(enNorm) && /\bbox\b/.test(n);
     });
-    if (found) return found.id;
+    if (found) {
+      console.log(`[boxMap] ✓ 2차 매칭 (Box 키워드) → ${found.id}`);
+      return found.id;
+    }
     // 3차: 영문 이름만 (Box 키워드 없어도)
     found = products.find(p => normalize(p.name).includes(enNorm));
-    if (found) return found.id;
+    if (found) {
+      console.log(`[boxMap] ✓ 3차 매칭 (Box 없이) → ${found.id}`);
+      return found.id;
+    }
   }
+  console.log(`[boxMap] ✗ 매칭 실패`);
   return null;
 }
 

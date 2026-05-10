@@ -4201,18 +4201,27 @@ async function getBoxIdBySetCode(code, brand) {
     }
   }
   const products = _BOX_ID_BY_CODE_CACHE[brand] || [];
+  // HTML 엔티티 디코딩 + 정규화 (lowercase + 인용부호/특수문자 제거)
+  const normalize = (s) => (s || '')
+    .replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&apos;/g, "'")
+    .toLowerCase()
+    .replace(/[“”"'']/g, ' ')  // 따옴표 → 공백
+    .replace(/\s+/g, ' ').trim();
+  const enNorm = normalize(enName);
+
   // 1차: code 직접 매칭 (manual-boxes 에 code 있는 박스)
   let found = products.find(p => p.code === code);
   if (found) return found.id;
-  // 2차: 영문 이름 매칭 — Box 들어간 것 우선
-  if (enName) {
+
+  // 2차: 영문 이름 매칭 — Box 들어간 것 우선 (HTML 엔티티 제거 후 비교)
+  if (enNorm) {
     found = products.find(p => {
-      const n = (p.name || '').toLowerCase();
-      return n.includes(enName) && /box/.test(n);
+      const n = normalize(p.name);
+      return n.includes(enNorm) && /\bbox\b/.test(n);
     });
     if (found) return found.id;
     // 3차: 영문 이름만 (Box 키워드 없어도)
-    found = products.find(p => (p.name || '').toLowerCase().includes(enName));
+    found = products.find(p => normalize(p.name).includes(enNorm));
     if (found) return found.id;
   }
   return null;

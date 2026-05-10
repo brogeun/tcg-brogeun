@@ -3568,10 +3568,12 @@ async function loadNews() {
     }
     list.innerHTML = items.map(n => {
       const imgHtml = n.image
-        ? `<img src="${escapeHtml(n.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"
-                style="width:100%; aspect-ratio:16/9; object-fit:cover; background:#f3f4f6"
-                onerror="this.style.display='none'">`
-        : `<div style="width:100%; aspect-ratio:16/9; background:linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%); display:flex; align-items:center; justify-content:center; font-size:42px; opacity:0.3">📰</div>`;
+        ? `<div style="width:100%; aspect-ratio:16/10; background:#fafafa; display:flex; align-items:center; justify-content:center; overflow:hidden">
+             <img src="${escapeHtml(n.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"
+                  style="width:100%; height:100%; object-fit:contain; display:block"
+                  onerror="this.parentElement.style.display='none'">
+           </div>`
+        : `<div style="width:100%; aspect-ratio:16/10; background:linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%); display:flex; align-items:center; justify-content:center; font-size:42px; opacity:0.3">📰</div>`;
       // 외부 링크 있으면 새 탭 이동, 없으면 본문 펼치기
       const hasLink = !!n.link;
       const tag = hasLink ? 'a' : 'div';
@@ -4816,11 +4818,12 @@ function _hubCollapsibleCard(e, badge) {
   const dateBadge = e.date ? (badge
     ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:${badge.bg}; color:${badge.color}; border-radius:4px; font-weight:700; margin-bottom:5px">${badge.icon} ${escapeHtml(e.date)}</div>`
     : `<div style="font-size:10px; color:var(--ink-sub); margin-bottom:4px">${escapeHtml(e.date)}</div>`) : '';
-  // 16:10 비율 (공식매장 카드와 동일)
+  // 16:10 비율 (공식매장 카드와 동일). opts.contain=true 면 잘림 없이 전체 보임 (정보허브 뉴스/카드쇼/그레이딩/기타용)
+  const fit = (typeof _HUBCARD_OPTS !== 'undefined' && _HUBCARD_OPTS.contain) ? 'contain' : 'cover';
   const heroImg = e.image
     ? `<div style="background:#fafafa; aspect-ratio:16/10; overflow:hidden; display:flex; align-items:center; justify-content:center">
          <img src="${escapeHtml(e.image)}" alt="" loading="lazy"
-              style="width:100%; height:100%; object-fit:cover; display:block"
+              style="width:100%; height:100%; object-fit:${fit}; display:block"
               onerror="this.onerror=null;this.style.opacity='0'">
        </div>`
     : `<div style="background:#fafafa; aspect-ratio:16/10"></div>`;
@@ -4861,6 +4864,8 @@ function renderEvents() {
   }
   targets.forEach(el => el.innerHTML = html);
 }
+// 사용자 요청 (B 방식) — 정보허브 뉴스/카드쇼/그레이딩/기타 카드 이미지는 잘림 없이 전체 보이게 (contain)
+let _HUBCARD_OPTS = {};
 function renderEtc() {
   const targets = [document.getElementById('etcList'), document.getElementById('etcListHub')].filter(Boolean);
   if (!targets.length) return;
@@ -4868,7 +4873,9 @@ function renderEtc() {
   if (!ETC_LIST.length) {
     html = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">등록된 항목이 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
   } else {
+    _HUBCARD_OPTS = { contain: true };
     html = ETC_LIST.map(e => _hubCollapsibleCard(e, null)).join('');
+    _HUBCARD_OPTS = {};
   }
   targets.forEach(el => el.innerHTML = html);
 }
@@ -4879,7 +4886,9 @@ function renderCardshows() {
     target.innerHTML = `<div class="empty"><div class="empty-icon">🎪</div><div class="empty-title">등록된 카드쇼가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
     return;
   }
+  _HUBCARD_OPTS = { contain: true };
   target.innerHTML = CARDSHOWS.map(e => _hubCollapsibleCard(e, { bg:'#f3e8ff', color:'#7c3aed', icon:'🎪' })).join('');
+  _HUBCARD_OPTS = {};
 }
 
 // 그레이딩 — 가로 긴 row 형식 (썸네일 좌측 + 정보 우측)
@@ -4889,7 +4898,7 @@ function _gradingRow(e) {
     ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:#dcfce7; color:#15803d; border-radius:4px; font-weight:700; margin-bottom:5px">🏆 ${escapeHtml(e.date)}</div>` : '';
   const thumb = e.image
     ? `<img src="${escapeHtml(e.image)}" alt="" loading="lazy"
-            style="width:100%; height:100%; object-fit:cover" onerror="this.onerror=null;this.style.opacity='0'">`
+            style="width:100%; height:100%; object-fit:contain; background:#fafafa" onerror="this.onerror=null;this.style.opacity='0'">`
     : '';
   const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:11px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">🔗 자세히 보기 →</a>` : '';
   const body = (e.content || e.link)

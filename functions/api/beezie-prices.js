@@ -162,19 +162,24 @@ function parseHtml(html) {
   return { price, avg, method: methods.join("|") || "none" };
 }
 
-async function fetchOne(m) {
+async function fetchOne(m, scrapingbeeKey) {
   const t0 = Date.now();
   try {
-    const res = await fetch(m.url, {
-      headers: {
+    // ScrapingBee 통해 JavaScript 렌더링 후 HTML 받기 (Beezie 는 Next.js 라 JS 필수)
+    const targetUrl = scrapingbeeKey
+      ? `https://app.scrapingbee.com/api/v1/?api_key=${scrapingbeeKey}` +
+        `&url=${encodeURIComponent(m.url)}&render_js=true&wait=2000&country_code=us`
+      : m.url; // fallback (작동 안 함)
+
+    const res = await fetch(targetUrl, {
+      headers: scrapingbeeKey ? {} : {
         "User-Agent": UA,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Referer": "https://beezie.com/",
-        "Cache-Control": "no-cache",
       },
       redirect: "follow",
-      cf: { cacheTtl: 60 }, // Cloudflare CDN 캐시 60초
+      cf: { cacheTtl: 60 },
     });
     const html = await res.text();
     const { price, avg, method } = parseHtml(html);
@@ -182,7 +187,8 @@ async function fetchOne(m) {
     return {
       tier: m.tier, url: m.url, price, avg, ev,
       httpStatus: res.status, ms: Date.now() - t0,
-      ok: price != null && avg != null, method,
+      ok: price != null && avg != null,
+      method, via: scrapingbeeKey ? "scrapingbee" : "direct",
     };
   } catch (e) {
     return {
@@ -192,11 +198,18 @@ async function fetchOne(m) {
   }
 }
 
-export async function onRequestGet({ request }) {
+export async function onRequestGet({ request, env }) {
   try {
     const url = new URL(request.url);
     const debug = url.searchParams.get("debug") === "1";
-    const results = await Promise.all(MACHINES.map(m => fetchOne(m)));
+    const sbKey = env.SCRAPINGBEE_KEY;
+    if (!sbKey) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "SCRAPINGBEE_KEY 환경변수 없음 (Cloudflare 대시보드에서 설정)",
+      }), { status: 500, headers: { "content-type": "application/json; charset=utf-8" } });
+    }
+    const results = await Promise.all(MACHINES.map(m => fetchOne(m, sbKey)));
     return new Response(JSON.stringify({
       ok: true,
       fetchedAt: Date.now(),

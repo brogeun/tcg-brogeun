@@ -1023,13 +1023,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         </div>
       </div>
 
-      <!-- 게시판 리스트 (탭 + 글 목록) -->
-      <div class="tabs pill" id="adminTabs" style="margin-bottom:12px">
-        <div class="tab active" data-admin-tab="news">📰 뉴스</div>
-        <div class="tab" data-admin-tab="events">✨ 이벤트</div>
-        <div class="tab" data-admin-tab="cardshow">🎪 카드쇼</div>
-        <div class="tab" data-admin-tab="grading">🏆 그레이딩</div>
-        <div class="tab" data-admin-tab="etc">📦 기타</div>
+      <!-- 게시판 리스트 (탭 + 글 목록) — 가로 한 줄, 좌측 정렬 -->
+      <div class="tabs pill" id="adminTabs"
+           style="margin-bottom:12px; display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:flex-start; justify-content:flex-start; width:100%; clear:both">
+        <div class="tab active" data-admin-tab="news"
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">📰 뉴스</div>
+        <div class="tab" data-admin-tab="events"
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">✨ 이벤트</div>
+        <div class="tab" data-admin-tab="cardshow"
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">🎪 카드쇼</div>
+        <div class="tab" data-admin-tab="grading"
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">🏆 그레이딩</div>
+        <div class="tab" data-admin-tab="etc"
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">📦 기타</div>
       </div>
       <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:8px" id="adminListLabel">📋 현재 등록된 이벤트</div>
       <div id="adminEntryList" style="display:flex; flex-direction:column; gap:8px"></div>

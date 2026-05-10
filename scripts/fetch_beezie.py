@@ -77,6 +77,29 @@ def find_deep(obj, keys, depth=0):
     return None
 
 
+def collect_all_keys(obj, prefix="", out=None, depth=0):
+    """JSON 트리의 모든 키:값 수집 (요약) — 디버그 전용"""
+    if out is None:
+        out = {}
+    if depth > 6:
+        return out
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            full = f"{prefix}.{k}" if prefix else k
+            if isinstance(v, (int, float)):
+                out[full] = v
+            elif isinstance(v, str) and len(v) < 60:
+                out[full] = v
+            elif isinstance(v, (dict, list)):
+                collect_all_keys(v, full, out, depth + 1)
+            else:
+                out[full] = f"<{type(v).__name__}>"
+    elif isinstance(obj, list) and obj:
+        # 리스트는 첫 원소만 (구조만 보기)
+        collect_all_keys(obj[0], f"{prefix}[0]", out, depth + 1)
+    return out
+
+
 def fetch_one(machine):
     url = f"https://api.beezie.com/claw/by-id/{machine['id']}"
     t0 = time.time()
@@ -92,17 +115,22 @@ def fetch_one(machine):
         price = find_deep(data, PRICE_KEYS)
         avg = find_deep(data, AVG_KEYS)
         ev = (avg / price - 1) * 100 if (price and avg) else None
-        return {
+        ok = price is not None and avg is not None
+        result = {
             "tier": machine["tier"],
             "url": url,
             "price": price,
             "avg": avg,
             "ev": round(ev, 2) if ev is not None else None,
-            "ok": price is not None and avg is not None,
-            # 디버그 — 응답 최상위 키 (price/avg 못 찾았을 때 fix용)
-            "raw_keys": list(data.keys()) if isinstance(data, dict) else None,
+            "ok": ok,
             "ms": int((time.time() - t0) * 1000),
         }
+        # 디버그 — price/avg 못 찾았을 때 전체 키 구조 + raw 첨부
+        if not ok:
+            result["all_keys"] = collect_all_keys(data)
+            raw_str = json.dumps(data, ensure_ascii=False)
+            result["raw"] = raw_str[:8000] if len(raw_str) > 8000 else raw_str
+        return result
     except Exception as e:
         return {
             "tier": machine["tier"],
@@ -120,7 +148,11 @@ def main():
     print(f"[beezie API] {ok}/{len(results)} OK")
     for r in results:
         flag = "✓" if r["ok"] else "✗"
-        kdesc = f"keys={r.get('raw_keys')}" if not r["ok"] else ""
+        kdesc = ""
+        if not r["ok"] and r.get("all_keys"):
+            # 숫자 값만 추려 출력 (price/avg 후보 찾기 쉽게)
+            nums = {k: v for k, v in r["all_keys"].items() if isinstance(v, (int, float))}
+            kdesc = f"nums={nums}"
         print(f"  {flag} {r['tier']:14s} price=${r.get('price')} avg=${r.get('avg')} ev={r.get('ev')}% ({r.get('ms')}ms) {kdesc}")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

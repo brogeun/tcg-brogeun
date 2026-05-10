@@ -29,7 +29,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Playwright 불필요 — Beezie 비공개 API 직접 호출 (urllib stdlib만 사용)
+      # 하이브리드: API(price) + Playwright(avg) — Beezie 표시값과 100% 일치
+      - name: Install Playwright + chromium
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+
       - name: Fetch Beezie prices
         run: python scripts/fetch_beezie.py
         continue-on-error: true

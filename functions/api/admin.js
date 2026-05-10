@@ -11,7 +11,7 @@
  *      Header: X-Admin-Password: <password>
  */
 
-const ALLOWED_TYPES = new Set(["events", "etc", "cardshow"]);
+const ALLOWED_TYPES = new Set(["events", "etc", "cardshow", "grading", "news"]);
 const KEY_PREFIX = "admin_";
 
 const json = (obj, status = 200) =>
@@ -34,7 +34,7 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const type = url.searchParams.get("type");
   if (!ALLOWED_TYPES.has(type)) {
-    return json({ ok: false, error: "type must be 'events' or 'etc'" }, 400);
+    return json({ ok: false, error: "type must be one of: events, etc, cardshow, grading, news" }, 400);
   }
   if (!env.ADMIN_KV) {
     return json({ ok: false, error: "KV namespace not bound (ADMIN_KV)" }, 500);
@@ -71,7 +71,7 @@ export async function onRequestPost({ request, env }) {
   }
   const { type, items } = body || {};
   if (!ALLOWED_TYPES.has(type)) {
-    return json({ ok: false, error: "type must be 'events' or 'etc'" }, 400);
+    return json({ ok: false, error: "type must be one of: events, etc, cardshow, grading, news" }, 400);
   }
   if (!Array.isArray(items)) {
     return json({ ok: false, error: "items must be an array" }, 400);

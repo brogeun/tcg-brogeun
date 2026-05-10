@@ -17,10 +17,10 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "beezie-prices.json"
 
 MACHINES = [
-    {"tier": "Platinum TCG", "url": "https://beezie.com/claw/Platinum-TCG-87"},
-    {"tier": "Gold TCG",     "url": "https://beezie.com/claw/Gold-TCG-86"},
-    {"tier": "Silver TCG",   "url": "https://beezie.com/claw/Silver-TCG-85"},
-    {"tier": "Wildcard",     "url": "https://beezie.com/claw/Wildcard-84"},
+    {"tier": "Platinum TCG", "url": "https://beezie.com/claw/Platinum-TCG-92"},
+    {"tier": "Gold TCG",     "url": "https://beezie.com/claw/Gold-TCG-91"},
+    {"tier": "Silver TCG",   "url": "https://beezie.com/claw/Silver-TCG-90"},
+    {"tier": "Wildcard",     "url": "https://beezie.com/claw/Wildcard-89"},
 ]
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

@@ -4874,7 +4874,8 @@ function renderEvents() {
   if (!EVENTS.length) {
     html = `<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">등록된 이벤트가 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
   } else {
-    html = EVENTS.map(e => _hubCollapsibleCard(e, { bg:'#fef3c7', color:'#92400e', icon:'✨' })).join('');
+    // 그레이딩과 동일한 가로 row 형식 (썸네일 좌측 + 정보 우측)
+    html = EVENTS.map(e => _hubRowCard(e, { bg:'#fef3c7', color:'#92400e', icon:'✨' }, 'event')).join('');
   }
   targets.forEach(el => el.innerHTML = html);
 }
@@ -4900,16 +4901,17 @@ function renderCardshows() {
     target.innerHTML = `<div class="empty"><div class="empty-icon">🎪</div><div class="empty-title">등록된 카드쇼가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
     return;
   }
-  _HUBCARD_OPTS = { contain: true };
-  target.innerHTML = CARDSHOWS.map(e => _hubCollapsibleCard(e, { bg:'#f3e8ff', color:'#7c3aed', icon:'🎪' })).join('');
-  _HUBCARD_OPTS = {};
+  // 그레이딩과 동일한 가로 row 형식 (썸네일 좌측 + 정보 우측)
+  target.innerHTML = CARDSHOWS.map(e => _hubRowCard(e, { bg:'#f3e8ff', color:'#7c3aed', icon:'🎪' }, 'cardshow')).join('');
 }
 
-// 그레이딩 — 가로 긴 row 형식 (썸네일 좌측 + 정보 우측)
-function _gradingRow(e) {
-  const id = 'grading-' + (e.id || Math.random().toString(36).slice(2));
-  const dateBadge = e.date
-    ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:#dcfce7; color:#15803d; border-radius:4px; font-weight:700; margin-bottom:5px">🏆 ${escapeHtml(e.date)}</div>` : '';
+// 가로 긴 row 형식 (썸네일 좌측 + 정보 우측) — 그레이딩/이벤트/카드쇼 공통
+// badge: { bg, color, icon }  prefix(id 충돌 방지): 'grading'/'event'/'cardshow'
+function _hubRowCard(e, badge, prefix) {
+  const id = (prefix || 'row') + '-' + (e.id || Math.random().toString(36).slice(2));
+  const dateBadge = e.date && badge
+    ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:${badge.bg}; color:${badge.color}; border-radius:4px; font-weight:700; margin-bottom:5px">${badge.icon} ${escapeHtml(e.date)}</div>`
+    : (e.date ? `<div style="font-size:10px; color:var(--ink-sub); margin-bottom:5px">${escapeHtml(e.date)}</div>` : '');
   const thumb = e.image
     ? `<img src="${escapeHtml(e.image)}" alt="" loading="lazy"
             style="width:100%; height:100%; object-fit:contain; background:#fafafa" onerror="this.onerror=null;this.style.opacity='0'">`
@@ -4935,6 +4937,10 @@ function _gradingRow(e) {
       </div>
     </div>`;
 }
+// 하위호환 — 기존 코드에서 _gradingRow 호출하는 곳이 있을 수 있음
+function _gradingRow(e) {
+  return _hubRowCard(e, { bg:'#dcfce7', color:'#15803d', icon:'🏆' }, 'grading');
+}
 
 function renderGrading() {
   const target = document.getElementById('gradingListHub');
@@ -4943,7 +4949,7 @@ function renderGrading() {
     target.innerHTML = `<div class="empty"><div class="empty-icon">🏆</div><div class="empty-title">등록된 그레이딩 정보가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
     return;
   }
-  target.innerHTML = GRADING_LIST.map(e => _gradingRow(e)).join('');
+  target.innerHTML = GRADING_LIST.map(e => _hubRowCard(e, { bg:'#dcfce7', color:'#15803d', icon:'🏆' }, 'grading')).join('');
 }
 
 // API 에서 데이터 로드 후 렌더

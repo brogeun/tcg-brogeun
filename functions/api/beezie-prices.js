@@ -138,6 +138,7 @@ function parseHtml(html) {
   }
   if (price == null) {
     const pricePatterns = [
+      /\$\s*([\d,]+(?:\.\d+)?)\s*\+\s*\d+\s*points/i,  // 새 Beezie 페이지: "$NNN +NNN points"
       /"claw[_ ]*price"\s*:\s*"?\$?\s*([\d.,]+)/i,
       /"pull[_ ]*price"\s*:\s*"?\$?\s*([\d.,]+)/i,
       /"unit[_ ]*price"\s*:\s*"?\$?\s*([\d.,]+)/i,

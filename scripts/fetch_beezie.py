@@ -97,13 +97,16 @@ def fetch_one(context, machine):
     const n = parseFloat(String(s).replace(/[$,\\s]/g, ''));
     return isFinite(n) && n > 0.01 && n < 100000 ? n : null;
   };
-  // "Claw Price" 라벨 뒤 가장 가까운 $숫자
-  const priceMatch = text.match(/Claw\\s*Price[^$\\d]{0,80}\\$?\\s*([\\d,]+(?:\\.\\d+)?)/i);
+  // Price — Beezie 새 페이지는 "$NNN +NNN points" 형태 (Claw Price 라벨 없음)
+  // 1차: "+NNN points" 패턴 (entry price), 2차: "Claw Price" 라벨 fallback
+  let priceMatch = text.match(/\\$\\s*([\\d,]+(?:\\.\\d+)?)\\s*\\+\\s*\\d+\\s*points/i)
+                || text.match(/Claw\\s*Price[^$\\d]{0,80}\\$?\\s*([\\d,]+(?:\\.\\d+)?)/i);
+  // Avg — "Average Value" 라벨 뒤
   const avgMatch = text.match(/Average\\s*Value[^$\\d]{0,80}\\$?\\s*([\\d,]+(?:\\.\\d+)?)/i);
   return {
     price: priceMatch ? num(priceMatch[1]) : null,
     avg: avgMatch ? num(avgMatch[1]) : null,
-    sample: text.slice(0, 200),  // 디버그용
+    sample: text.slice(0, 200),
   };
 }
         """)

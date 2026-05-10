@@ -1023,19 +1023,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         </div>
       </div>
 
-      <!-- 게시판 리스트 (탭 + 글 목록) — 가로 한 줄, 좌측 정렬 -->
+      <!-- 게시판 리스트 (탭 + 글 목록) — 가로 한 줄, 색상 dot 으로 카테고리 시각 구분 -->
       <div class="tabs pill" id="adminTabs"
            style="margin-bottom:12px; display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:flex-start; justify-content:flex-start; width:100%; clear:both">
         <div class="tab active" data-admin-tab="news"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">📰 뉴스</div>
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#3b82f6; display:inline-block"></span>📰 뉴스</div>
         <div class="tab" data-admin-tab="events"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">✨ 이벤트</div>
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#f59e0b; display:inline-block"></span>✨ 이벤트</div>
         <div class="tab" data-admin-tab="cardshow"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">🎪 카드쇼</div>
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#8b5cf6; display:inline-block"></span>🎪 카드쇼</div>
         <div class="tab" data-admin-tab="grading"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">🏆 그레이딩</div>
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block"></span>🏆 그레이딩</div>
         <div class="tab" data-admin-tab="etc"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap">📦 기타</div>
+             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#6b7280; display:inline-block"></span>📦 기타</div>
       </div>
       <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:8px" id="adminListLabel">📋 현재 등록된 이벤트</div>
       <div id="adminEntryList" style="display:flex; flex-direction:column; gap:8px"></div>
@@ -4979,6 +4979,25 @@ function adminCurrentKey() {
   return 'etc';
 }
 
+// 시안 C — 타임라인 스타일 리스트 (날짜 내림차순, 카테고리별 색상 dot)
+const ADMIN_TAB_COLORS = {
+  news:     { dot: '#3b82f6', icon: '📰', label: '뉴스' },
+  events:   { dot: '#f59e0b', icon: '✨', label: '이벤트' },
+  cardshow: { dot: '#8b5cf6', icon: '🎪', label: '카드쇼' },
+  grading:  { dot: '#10b981', icon: '🏆', label: '그레이딩' },
+  etc:      { dot: '#6b7280', icon: '📦', label: '기타' },
+};
+
+// 날짜 문자열 → 정렬용 epoch (역순, 날짜 없으면 0)
+function _adminDateKey(s) {
+  if (!s) return 0;
+  // "2026.05.22", "2026-05-22", "2026/5/22" 등 다 받아서 파싱
+  const m = String(s).match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+  if (!m) return 0;
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  return isNaN(t) ? 0 : t;
+}
+
 function renderAdminList() {
   const arr = adminCurrentArr();
   const list = document.getElementById('adminEntryList');
@@ -4990,20 +5009,47 @@ function renderAdminList() {
     list.innerHTML = `<div class="empty" style="padding:24px"><div class="empty-icon">📭</div><div class="empty-sub">등록된 항목이 없습니다</div></div>`;
     return;
   }
-  list.innerHTML = arr.map(e => `
-    <div class="card" style="padding:12px 14px; display:flex; gap:10px; align-items:flex-start">
-      ${e.image ? `<img src="${escapeHtml(e.image)}" alt="" style="width:56px; height:56px; object-fit:cover; border-radius:6px; border:1px solid #e5e7eb; flex-shrink:0" onerror="this.style.display='none'">` : ''}
-      <div style="flex:1; min-width:0">
-        ${e.date ? `<div style="font-size:11px; color:var(--ink-sub); margin-bottom:2px">${escapeHtml(e.date)}</div>` : ''}
-        <div style="font-size:13px; font-weight:700; color:#111; margin-bottom:2px">${escapeHtml(e.title || '')}</div>
-        ${e.content ? `<div style="font-size:12px; color:#6b7280; line-height:1.5; max-height:60px; overflow:hidden">${renderRichContent(e.content)}</div>` : ''}
-        ${e.link ? `<div style="font-size:11px; color:#1d4ed8; margin-top:4px; word-break:break-all">${escapeHtml(e.link)}</div>` : ''}
-      </div>
-      <div style="display:flex; flex-direction:column; gap:4px">
-        <button class="btn" style="font-size:11px; padding:5px 9px; cursor:pointer" onclick="adminEditEntry('${e.id}')">✏ 편집</button>
-        <button class="btn" style="font-size:11px; padding:5px 9px; cursor:pointer; color:#991b1b; border-color:#fecaca" onclick="adminDeleteEntry('${e.id}')">🗑 삭제</button>
-      </div>
-    </div>`).join('');
+
+  const tabConf = ADMIN_TAB_COLORS[ADMIN_TAB] || ADMIN_TAB_COLORS.etc;
+
+  // 정렬 — 날짜 내림차순 (최신 위), 날짜 없는 항목은 맨 아래
+  const sorted = [...arr].sort((a, b) => _adminDateKey(b.date) - _adminDateKey(a.date));
+
+  // 타임라인 컨테이너 — 좌측 vertical line + dot + 우측 카드
+  list.innerHTML = `
+    <div style="position:relative; padding-left:0">
+      <!-- vertical line — 92px 부터 (날짜 컬럼 뒤) -->
+      <div style="position:absolute; left:88px; top:8px; bottom:8px; width:2px; background:linear-gradient(to bottom, ${tabConf.dot}33 0%, ${tabConf.dot}33 90%, transparent 100%); pointer-events:none"></div>
+      ${sorted.map((e, idx) => {
+        const isLast = idx === sorted.length - 1;
+        const dateText = e.date || '날짜 없음';
+        const dateColor = e.date ? '#374151' : '#9ca3af';
+        return `
+          <div style="position:relative; display:grid; grid-template-columns:80px 24px 1fr; gap:0; align-items:flex-start; padding:6px 0">
+            <!-- 좌: 날짜 -->
+            <div style="font-size:11px; font-weight:600; color:${dateColor}; padding-top:18px; text-align:right; padding-right:8px; line-height:1.3">
+              ${escapeHtml(dateText)}
+            </div>
+            <!-- 중: dot -->
+            <div style="position:relative; height:100%; display:flex; justify-content:center; padding-top:18px">
+              <div style="width:14px; height:14px; border-radius:50%; background:${tabConf.dot}; border:3px solid #fff; box-shadow:0 0 0 2px ${tabConf.dot}55; flex-shrink:0; z-index:1"></div>
+            </div>
+            <!-- 우: 카드 -->
+            <div class="card" style="padding:10px 12px; display:flex; gap:10px; align-items:flex-start; margin-left:8px; border-left:3px solid ${tabConf.dot}; box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+              ${e.image ? `<img src="${escapeHtml(e.image)}" alt="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #e5e7eb; flex-shrink:0" onerror="this.style.display='none'">` : ''}
+              <div style="flex:1; min-width:0">
+                <div style="font-size:13px; font-weight:700; color:#111; margin-bottom:2px; line-height:1.35">${escapeHtml(e.title || '(제목 없음)')}</div>
+                ${e.content ? `<div style="font-size:11px; color:#6b7280; line-height:1.5; max-height:40px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${renderRichContent(e.content)}</div>` : ''}
+                ${e.link ? `<div style="font-size:10px; color:#1d4ed8; margin-top:3px; word-break:break-all; opacity:0.85">🔗 ${escapeHtml(e.link)}</div>` : ''}
+              </div>
+              <div style="display:flex; flex-direction:column; gap:4px; flex-shrink:0">
+                <button class="btn" style="font-size:11px; padding:4px 9px; cursor:pointer" onclick="adminEditEntry('${e.id}')">✏</button>
+                <button class="btn" style="font-size:11px; padding:4px 9px; cursor:pointer; color:#991b1b; border-color:#fecaca" onclick="adminDeleteEntry('${e.id}')">🗑</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
 }
 
 // ─── Quill 에디터 lazy 초기화 ───

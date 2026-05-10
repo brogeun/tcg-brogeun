@@ -4211,6 +4211,12 @@ async function getBoxIdBySetCode(code, brand) {
 
   // 디버그 로그 — F12 콘솔에서 매칭 흐름 확인
   console.log(`[boxMap] code=${code} brand=${brand} products=${products.length} enName="${enName}" enNorm="${enNorm}"`);
+  // raw name 에 "151" 포함된 박스 직접 검색 (normalize 전)
+  const rawHas = products.filter(p => (p.name || '').toLowerCase().includes(enName.toLowerCase()));
+  console.log(`[boxMap] RAW name 안에 "${enName}" 포함된 박스 ${rawHas.length}개:`,
+    rawHas.map(p => `${p.id}: ${(p.name || '').slice(0, 100)}`));
+  // 첫 3개 박스 raw name (어떤 데이터인지 확인용)
+  console.log('[boxMap] products 샘플 3개:', products.slice(0, 3).map(p => p.name));
 
   // 1차: code 직접 매칭 (manual-boxes 에 code 있는 박스)
   let found = products.find(p => p.code === code);

@@ -76,9 +76,10 @@ def fetch_one(context, machine):
     t0 = time.time()
     page = context.new_page()
     try:
-        page.goto(machine["url"], wait_until="networkidle", timeout=30000)
-        # 추가 대기 (lazy 컴포넌트 로드)
-        page.wait_for_timeout(2000)
+        # networkidle 은 Beezie background polling 때문에 30초 초과 → domcontentloaded 로 변경
+        page.goto(machine["url"], wait_until="domcontentloaded", timeout=20000)
+        # JS 렌더링 + lazy 컴포넌트 로드 대기 (5초면 충분)
+        page.wait_for_timeout(5000)
         html = page.content()
         price, avg = parse_html(html)
         ev = (avg / price - 1) * 100 if (price and avg) else None

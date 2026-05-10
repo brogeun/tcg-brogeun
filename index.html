@@ -949,8 +949,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div id="etcList" style="display:flex; flex-direction:column; gap:12px"></div>
     </section>
 
-    <!-- 관리자 — 이벤트/기타 직접 입력 -->
-    <section class="page admin-only" data-page="admin">
+    <!-- 관리자 — 이벤트/기타 직접 입력 (admin-only 제거 — 페이지 라우팅이 자동으로 숨김 처리, 진입은 사이드바 nav-item.admin-only 에서만 차단) -->
+    <section class="page" data-page="admin">
       <div class="page-head" style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap">
         <div>
           <h1 class="page-title">🛠 관리자</h1>

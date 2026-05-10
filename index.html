@@ -843,10 +843,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div id="shopList" class="grid auto-shop"></div>
       </div>
       <div data-hubpanel="events" style="display:none">
-        <div id="eventListHub" class="grid auto-shop"></div>
+        <!-- 그레이딩과 동일한 가로 row 형식 — 카드가 페이지 폭 전체 차지 -->
+        <div id="eventListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
       <div data-hubpanel="cardshow" style="display:none">
-        <div id="cardshowListHub" class="grid auto-shop"></div>
+        <div id="cardshowListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
       <div data-hubpanel="apply" style="display:none">
         <div class="grid cols-2" id="applyListHub"></div>
@@ -5068,6 +5069,70 @@ function loadQuillJs() {
   return _QUILL_LOADING;
 }
 
+// 클릭한 이미지에 리사이즈 컨트롤 표시 — Quill 2.x 호환 DIY 구현
+// (외부 모듈 의존성 X, 화살표 핸들 없이 4개 사이즈 버튼만 — 가장 안정적)
+let _ADMIN_IMG_TOOLBAR = null;
+function _ensureImgToolbar() {
+  if (_ADMIN_IMG_TOOLBAR) return _ADMIN_IMG_TOOLBAR;
+  const tb = document.createElement('div');
+  tb.id = 'adminImgToolbar';
+  tb.style.cssText = 'position:absolute; display:none; z-index:9999; background:#111; color:#fff; border-radius:8px; padding:6px; gap:4px; box-shadow:0 4px 14px rgba(0,0,0,0.25); font-size:12px';
+  tb.innerHTML = `
+    <button type="button" data-w="25%"  style="background:#333; color:#fff; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; font-size:11px">25%</button>
+    <button type="button" data-w="50%"  style="background:#333; color:#fff; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; font-size:11px">50%</button>
+    <button type="button" data-w="75%"  style="background:#333; color:#fff; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; font-size:11px">75%</button>
+    <button type="button" data-w="100%" style="background:#333; color:#fff; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; font-size:11px">100%</button>
+    <span style="display:inline-block; width:1px; background:#444; margin:0 2px"></span>
+    <button type="button" data-align="left"   style="background:#333; color:#fff; border:none; border-radius:4px; padding:5px 8px; cursor:pointer; font-size:11px" title="좌측">⬅</button>
+    <button type="button" data-align="center" style="background:#333; color:#fff; border:none; border-radius:4px; padding:5px 8px; cursor:pointer; font-size:11px" title="중앙">⬛</button>
+    <button type="button" data-align="right"  style="background:#333; color:#fff; border:none; border-radius:4px; padding:5px 8px; cursor:pointer; font-size:11px" title="우측">➡</button>
+    <span style="display:inline-block; width:1px; background:#444; margin:0 2px"></span>
+    <button type="button" data-w="custom" style="background:#444; color:#fff; border:none; border-radius:4px; padding:5px 10px; cursor:pointer; font-size:11px" title="직접 입력">📐</button>
+  `;
+  document.body.appendChild(tb);
+  // 버튼 클릭
+  tb.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    const img = window._ADMIN_SELECTED_IMG;
+    if (!img) return;
+    if (btn.dataset.w === 'custom') {
+      const cur = img.style.width || '100%';
+      const v = prompt('이미지 너비를 입력하세요 (예: 60%, 300px)', cur);
+      if (v) {
+        img.style.width = v;
+        img.removeAttribute('width');
+      }
+    } else if (btn.dataset.w) {
+      img.style.width = btn.dataset.w;
+      img.removeAttribute('width');
+    } else if (btn.dataset.align) {
+      // align: 좌/중/우 — display:block + margin 조정
+      img.style.display = 'block';
+      if (btn.dataset.align === 'left')   { img.style.marginLeft = '0'; img.style.marginRight = 'auto'; }
+      if (btn.dataset.align === 'center') { img.style.marginLeft = 'auto'; img.style.marginRight = 'auto'; }
+      if (btn.dataset.align === 'right')  { img.style.marginLeft = 'auto'; img.style.marginRight = '0'; }
+    }
+    _placeImgToolbar(img);
+    // Quill 에 변경 반영 (text-change 이벤트 트리거)
+    if (_QUILL) _QUILL.update('user');
+  });
+  _ADMIN_IMG_TOOLBAR = tb;
+  return tb;
+}
+function _placeImgToolbar(img) {
+  if (!img) return;
+  const tb = _ensureImgToolbar();
+  const r = img.getBoundingClientRect();
+  tb.style.display = 'inline-flex';
+  tb.style.top = (window.scrollY + r.top - 42) + 'px';
+  tb.style.left = (window.scrollX + r.left) + 'px';
+}
+function _hideImgToolbar() {
+  if (_ADMIN_IMG_TOOLBAR) _ADMIN_IMG_TOOLBAR.style.display = 'none';
+  window._ADMIN_SELECTED_IMG = null;
+}
+
 async function ensureQuill() {
   if (_QUILL) return _QUILL;
   await loadQuillJs();
@@ -5089,6 +5154,37 @@ async function ensureQuill() {
       ],
     },
   });
+
+  // 이미지 클릭 시 리사이즈 툴바 표시
+  const editorEl = _QUILL.root;
+  editorEl.addEventListener('click', (ev) => {
+    const img = ev.target.closest('img');
+    if (img) {
+      window._ADMIN_SELECTED_IMG = img;
+      _placeImgToolbar(img);
+      // 시각적 표시 — outline
+      editorEl.querySelectorAll('img').forEach(i => i.style.outline = '');
+      img.style.outline = '2px solid #2563eb';
+    } else {
+      // 이미지 외 영역 클릭 → 툴바 숨김
+      editorEl.querySelectorAll('img').forEach(i => i.style.outline = '');
+      _hideImgToolbar();
+    }
+  });
+  // 스크롤 시 툴바 위치 갱신
+  window.addEventListener('scroll', () => {
+    if (window._ADMIN_SELECTED_IMG && _ADMIN_IMG_TOOLBAR && _ADMIN_IMG_TOOLBAR.style.display !== 'none') {
+      _placeImgToolbar(window._ADMIN_SELECTED_IMG);
+    }
+  }, { passive: true });
+  // 에디터 외부 클릭 시 툴바 숨김
+  document.addEventListener('mousedown', (ev) => {
+    if (_ADMIN_IMG_TOOLBAR && _ADMIN_IMG_TOOLBAR.contains(ev.target)) return;
+    if (editorEl.contains(ev.target)) return;
+    editorEl.querySelectorAll('img').forEach(i => i.style.outline = '');
+    _hideImgToolbar();
+  });
+
   return _QUILL;
 }
 

@@ -3966,7 +3966,7 @@ const CARDINFO = {
     {code:"SV4K", name:"고대의 포효 (Ancient Roar)", release:"2023.10.27", url:"https://www.tcgcollector.com/sets/11592/ancient-roar?setCardCountMode=anyCardVariant"},
     {code:"SV3a", name:"레이징 서프 (Raging Surf)", release:"2023.09.22", url:"https://www.tcgcollector.com/sets/11583/raging-surf?setCardCountMode=anyCardVariant"},
     {code:"SV3", name:"흑염의 지배자 (Ruler of the Black Flame)", release:"2023.07.28", url:"https://www.tcgcollector.com/sets/11578/ruler-of-the-black-flame?setCardCountMode=anyCardVariant"},
-    {code:"SV2a", name:"포켓몬 카드 151 (Pokemon Card 151)", release:"2023.06.16", url:"https://www.tcgcollector.com/sets/11575/pokemon-card-151?setCardCountMode=anyCardVariant"},
+    {code:"SV2a", name:"포켓몬 카드 151 (Pokemon Card 151)", release:"2023.06.16", boxId:"118914", url:"https://www.tcgcollector.com/sets/11575/pokemon-card-151?setCardCountMode=anyCardVariant"},
     {code:"SV2D", name:"클레이 버스트 (Clay Burst)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11570/clay-burst?setCardCountMode=anyCardVariant"},
     {code:"SV2P", name:"스노우 해저드 (Snow Hazard)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11569/snow-hazard?setCardCountMode=anyCardVariant"},
     {code:"SV1a", name:"트리플렛 비트 (Triplet Beat)", release:"2023.03.10", url:"https://www.tcgcollector.com/sets/11566/triplet-beat?setCardCountMode=anyCardVariant"},
@@ -4184,6 +4184,11 @@ async function getBoxIdBySetCode(code, brand) {
   const t = Math.floor(Date.now() / 3600000);
   // CARDINFO 에서 영문 이름 추출 — "메가 드림 ex (MEGA Dream ex)" → "MEGA Dream ex"
   const set = (CARDINFO[brand] || []).find(s => s.code === code);
+  // ★ 0순위 — CARDINFO 에 boxId 명시되어 있으면 즉시 사용 (자동 매칭 fragile 한 박스용)
+  if (set?.boxId) {
+    console.log(`[boxMap] ✓ CARDINFO.boxId 직접 매칭 → ${set.boxId}`);
+    return set.boxId;
+  }
   const enName = set ? ((set.name.match(/\(([^)]+)\)/) || [])[1] || '').toLowerCase() : '';
   // 박스 데이터 fetch (캐시)
   if (!_BOX_ID_BY_CODE_CACHE) {

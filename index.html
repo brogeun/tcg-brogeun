@@ -859,7 +859,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div id="gradingListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
       <div data-hubpanel="etc" style="display:none">
-        <div id="etcListHub" class="grid auto-shop"></div>
+        <!-- 그레이딩/이벤트/카드쇼와 동일 — 독립적인 가로 row -->
+        <div id="etcListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
     </section>
 
@@ -4889,9 +4890,8 @@ function renderEtc() {
   if (!ETC_LIST.length) {
     html = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">등록된 항목이 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
   } else {
-    _HUBCARD_OPTS = { contain: true };
-    html = ETC_LIST.map(e => _hubCollapsibleCard(e, null)).join('');
-    _HUBCARD_OPTS = {};
+    // 그레이딩/이벤트/카드쇼와 동일한 가로 row 형식 (독립 항목)
+    html = ETC_LIST.map(e => _hubRowCard(e, { bg:'#f3f4f6', color:'#374151', icon:'📦' }, 'etc')).join('');
   }
   targets.forEach(el => el.innerHTML = html);
 }

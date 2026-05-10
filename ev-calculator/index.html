@@ -450,9 +450,9 @@ async function tryAuto(){
   btn.textContent = "가져오는 중…";
 
   try {
-    // /api/prices (netlify.toml rewrite) 우선, 실패 시 직접 경로 fallback
+    // Cloudflare Pages Function 우선, fallback 으로 Netlify (호스팅 환경 따라)
     let data = null;
-    for(const endpoint of ["/api/prices", "/.netlify/functions/beezie-prices"]){
+    for(const endpoint of ["/api/beezie-prices", "/api/prices", "/.netlify/functions/beezie-prices"]){
       try{
         const res = await fetch(endpoint, {cache:"no-store"});
         if(res.ok){ data = await res.json(); break; }

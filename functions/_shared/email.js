@@ -6,7 +6,8 @@ export async function sendEmail(env, { to, subject, html, text, from }) {
   if (!env.RESEND_API_KEY) {
     throw new Error('RESEND_API_KEY env not set');
   }
-  const fromAddr = from || 'TCG Hub <onboarding@resend.dev>';
+  // 인증된 도메인 (mail.tcghub.kr) 사용 — 모든 수신자에게 발송 가능
+  const fromAddr = from || 'TCG Hub <no-reply@mail.tcghub.kr>';
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

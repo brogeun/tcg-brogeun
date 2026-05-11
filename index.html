@@ -3,7 +3,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>TCG Hub — 포켓몬 · 원피스 카드 시세</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
 
@@ -6227,7 +6227,7 @@ function openLoginModal(contextNote) {
         비밀번호 없음 · 회원가입 별도 X · 처음 들어와도 자동 가입
       </p>
       <input id="loginEmailInput" type="email" placeholder="your@email.com" autocomplete="email"
-             style="width:100%; padding:12px; border:1px solid var(--line); border-radius:8px; font-size:14px; margin-bottom:10px">
+             style="width:100%; padding:12px; border:1px solid var(--line); border-radius:8px; font-size:16px; margin-bottom:10px">
       <button id="loginSubmit" class="btn primary" style="width:100%; padding:12px; font-size:14px; cursor:pointer">로그인 링크 받기 →</button>
       <div id="loginMsg" style="font-size:12px; margin-top:10px; min-height:18px; line-height:1.5"></div>
     </div>`);
@@ -6243,7 +6243,10 @@ function openLoginModal(contextNote) {
       const allChecked = Array.from(document.querySelectorAll('.agreeItem')).every(c => c.checked);
       if (all) all.checked = allChecked;
     }));
-    document.getElementById('loginEmailInput')?.focus();
+    // 모바일에선 input 자동 focus 비활성화 (iOS 자동 확대/키보드 강제 띄움 방지)
+    if (window.matchMedia('(min-width: 900px)').matches) {
+      document.getElementById('loginEmailInput')?.focus();
+    }
   }, 100);
 }
 

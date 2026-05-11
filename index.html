@@ -139,9 +139,11 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
-  background: #111; color: #fff; font-weight: 700;
+  background: #14b8a6; color: #fff; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
+.avatar[data-nav] { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+.avatar[data-nav]:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(20,184,166,0.35); }
 
 /* ── 사이드바 브랜드 + 네비 ── */
 /* ── 브랜드 박스 — A 안 (배경 이미지 + 반투명 오버레이) ── */
@@ -1550,7 +1552,7 @@ document.addEventListener('click', e => {
   // 외부링크(target=_blank, http://) 는 절대 가로채지 않음
   const externalA = e.target.closest('a[target="_blank"], a[href^="http"], a[href^="https"]');
   if (externalA) return;
-  const navEl = e.target.closest('.nav-item[data-nav], .mnav-item[data-nav], .brand[data-nav], .brand-tile[data-nav], button[data-nav], .home-menu-card[data-nav], .pf-stat[data-nav], [data-nav][data-nav-clickable]');
+  const navEl = e.target.closest('.nav-item[data-nav], .mnav-item[data-nav], .brand[data-nav], .brand-tile[data-nav], button[data-nav], .home-menu-card[data-nav], .pf-stat[data-nav], .avatar[data-nav], [data-nav][data-nav-clickable]');
   if (!navEl) return;
   const page = navEl.dataset.nav;
   if (!page) return;

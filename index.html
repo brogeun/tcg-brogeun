@@ -27,6 +27,36 @@
 
 <!-- Quill rich text editor (관리자 글쓰기) -->
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+
+<!-- Lucide Icons (모던 SVG 아이콘) -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<script>
+  // 페이지 로드 시 + 동적 콘텐츠 생성 시 자동으로 아이콘 렌더
+  function _initLucide() {
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+  }
+  document.addEventListener('DOMContentLoaded', _initLucide);
+  // 동적 콘텐츠 (모달, 카드 상세 등) 생성 후에도 자동 적용
+  let _lucideDebounce = null;
+  const _lucideObserver = new MutationObserver(() => {
+    if (_lucideDebounce) clearTimeout(_lucideDebounce);
+    _lucideDebounce = setTimeout(() => {
+      if (document.querySelector('i[data-lucide]')) _initLucide();
+    }, 50);
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    _lucideObserver.observe(document.body, { childList: true, subtree: true });
+  });
+</script>
+<style>
+  /* Lucide 아이콘 공통 — nav/탭/버튼 안 아이콘 사이즈 */
+  [data-lucide], svg.lucide { width: 18px; height: 18px; stroke-width: 2; display: inline-block; vertical-align: middle; }
+  .nav-item [data-lucide], .nav-item svg.lucide,
+  .mnav-item [data-lucide], .mnav-item svg.lucide { width: 20px; height: 20px; }
+  .tab [data-lucide], .tab svg.lucide { width: 14px; height: 14px; }
+  /* page-title 옆 아이콘 정렬 */
+  .page-title svg.lucide, .page-title [data-lucide] { vertical-align: -3px; }
+</style>
 <style>
 :root {
   --bg: #fafafa;
@@ -537,12 +567,12 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     </div>
     <div class="nav-section">메뉴</div>
     <div class="nav-list">
-      <div class="nav-item" data-nav="home"><span class="ic">🏠</span> 홈</div>
-      <div class="nav-item" data-nav="price"><span class="ic">₩</span> 카드 시세</div>
-      <div class="nav-item" data-nav="hub"><span class="ic">📌</span> 정보 허브</div>
-      <div class="nav-item" data-nav="cardinfo"><span class="ic">🃏</span> 카드 정보</div>
-      <div class="nav-item" data-nav="portfolio"><span class="ic">👤</span> 마이페이지</div>
-      <div class="nav-item admin-only" data-nav="admin"><span class="ic">🛠</span> 관리자</div>
+      <div class="nav-item" data-nav="home"><span class="ic"><i data-lucide="house"></i></span> 홈</div>
+      <div class="nav-item" data-nav="price"><span class="ic"><i data-lucide="trending-up"></i></span> 카드 시세</div>
+      <div class="nav-item" data-nav="hub"><span class="ic"><i data-lucide="pin"></i></span> 정보 허브</div>
+      <div class="nav-item" data-nav="cardinfo"><span class="ic"><i data-lucide="layers"></i></span> 카드 정보</div>
+      <div class="nav-item" data-nav="portfolio"><span class="ic"><i data-lucide="user-round"></i></span> 마이페이지</div>
+      <div class="nav-item admin-only" data-nav="admin"><span class="ic"><i data-lucide="wrench"></i></span> 관리자</div>
     </div>
 
     <!-- 사이드바 하단 — 앱 설치 + 로그인 -->
@@ -772,23 +802,23 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 정보 허브 -->
     <section class="page" data-page="hub">
       <div class="page-head">
-        <h1 class="page-title">📌 정보 허브</h1>
+        <h1 class="page-title"><i data-lucide="pin" style="width:24px;height:24px"></i> 정보 허브</h1>
         <p class="page-sub">뉴스 · 매장 · 이벤트 · 응모 · 오리파 한 곳에서</p>
       </div>
       <!-- 데스크톱: 텍스트 탭 / 모바일: 가로 스크롤 pill -->
       <div class="tabs hub-tabs" id="hubTabs">
-        <div class="tab active" data-tab="news">📰 뉴스</div>
-        <div class="tab" data-tab="shops">🏪 공식매장</div>
-        <div class="tab" data-tab="more">📦 기타</div>
+        <div class="tab active" data-tab="news"><i data-lucide="newspaper"></i> 뉴스</div>
+        <div class="tab" data-tab="shops"><i data-lucide="store"></i> 공식매장</div>
+        <div class="tab" data-tab="more"><i data-lucide="package"></i> 기타</div>
       </div>
       <!-- "기타" 하위 sub-tabs (top tab 이 more 일 때만 표시) -->
       <div class="tabs pill" id="hubSubTabs" style="display:none; margin-bottom:14px; flex-wrap:wrap; gap:6px">
-        <div class="tab active" data-subtab="events">✨ 이벤트</div>
-        <div class="tab" data-subtab="cardshow">🎪 카드쇼</div>
-        <div class="tab" data-subtab="apply">🎟 응모</div>
-        <div class="tab" data-subtab="oripa">🎁 오리파</div>
-        <div class="tab" data-subtab="grading">🏆 그레이딩</div>
-        <div class="tab" data-subtab="etc">📦 기타</div>
+        <div class="tab active" data-subtab="events"><i data-lucide="sparkles"></i> 이벤트</div>
+        <div class="tab" data-subtab="cardshow"><i data-lucide="store"></i> 카드쇼</div>
+        <div class="tab" data-subtab="apply"><i data-lucide="ticket"></i> 응모</div>
+        <div class="tab" data-subtab="oripa"><i data-lucide="gift"></i> 오리파</div>
+        <div class="tab" data-subtab="grading"><i data-lucide="medal"></i> 그레이딩</div>
+        <div class="tab" data-subtab="etc"><i data-lucide="package"></i> 기타</div>
       </div>
       <style>
         /* 정보 허브 탭 — 모바일에서 한 줄 가로 스크롤 pill 형태 */
@@ -867,7 +897,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 카드 정보 -->
     <section class="page" data-page="cardinfo">
       <div class="page-head">
-        <h1 class="page-title">🃏 카드 정보</h1>
+        <h1 class="page-title"><i data-lucide="layers" style="width:24px;height:24px"></i> 카드 정보</h1>
         <p class="page-sub">포켓몬 · 원피스 확장팩 목록과 공식 정보</p>
       </div>
 
@@ -916,7 +946,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 응모 -->
     <section class="page" data-page="apply">
       <div class="page-head">
-        <h1 class="page-title">🎟 응모</h1>
+        <h1 class="page-title"><i data-lucide="ticket" style="width:24px;height:24px"></i> 응모</h1>
         <p class="page-sub">아마존 JP · 포켓몬 센터 JP 등 공식 응모 정보</p>
       </div>
       <div class="grid cols-2" id="applyList"></div>
@@ -925,7 +955,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 오리파 -->
     <section class="page" data-page="oripa">
       <div class="page-head">
-        <h1 class="page-title">🎁 오리파</h1>
+        <h1 class="page-title"><i data-lucide="gift" style="width:24px;height:24px"></i> 오리파</h1>
         <p class="page-sub">엄선된 온라인 오리파 서비스</p>
       </div>
       <div class="grid cols-2" id="oripaList"></div>
@@ -934,7 +964,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 이벤트 -->
     <section class="page" data-page="events">
       <div class="page-head">
-        <h1 class="page-title">✨ 이벤트</h1>
+        <h1 class="page-title"><i data-lucide="sparkles" style="width:24px;height:24px"></i> 이벤트</h1>
         <p class="page-sub">TCG 관련 최신 이벤트 · 발매 일정</p>
       </div>
       <div id="eventList" style="display:flex; flex-direction:column; gap:10px"></div>
@@ -943,7 +973,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 기타 -->
     <section class="page" data-page="etc">
       <div class="page-head">
-        <h1 class="page-title">📦 기타</h1>
+        <h1 class="page-title"><i data-lucide="package" style="width:24px;height:24px"></i> 기타</h1>
         <p class="page-sub">기타 정보</p>
       </div>
       <div id="etcList" style="display:flex; flex-direction:column; gap:12px"></div>
@@ -953,7 +983,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <section class="page" data-page="admin">
       <div class="page-head" style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap">
         <div>
-          <h1 class="page-title">🛠 관리자</h1>
+          <h1 class="page-title"><i data-lucide="wrench" style="width:24px;height:24px"></i> 관리자</h1>
           <p class="page-sub">이벤트 · 카드쇼 · 기타 글 작성 (KV에 저장 — 모든 방문자 공개)</p>
         </div>
         <button class="btn" type="button" onclick="adminExitMode()"
@@ -1072,7 +1102,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 센터링 툴 (카드 그레이딩 자가진단 + AI 분석) -->
     <section class="page" data-page="centering">
       <div class="page-head">
-        <h1 class="page-title">📏 카드 센터링 측정</h1>
+        <h1 class="page-title"><i data-lucide="ruler" style="width:24px;height:24px"></i> 카드 센터링 측정</h1>
         <p class="page-sub">PSA · BGS 그레이딩 전 자가진단 · 앞/뒷면 동시 · AI 분석 (일 4회 무료)</p>
       </div>
       <!-- 비로그인 안내 — 로그인해야 센터링 사용 가능 -->
@@ -1203,7 +1233,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 내 정보 (포트폴리오 + 관심 카드) -->
     <section class="page" data-page="portfolio">
       <div class="page-head">
-        <h1 class="page-title">👤 마이페이지</h1>
+        <h1 class="page-title"><i data-lucide="user-round" style="width:24px;height:24px"></i> 마이페이지</h1>
         <p class="page-sub">보유 카드 손익 · 관심 카드 추적 · 합산 평가액 차트</p>
       </div>
 
@@ -1421,11 +1451,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
   <!-- 모바일 하단 nav -->
   <nav class="mnav">
-    <div class="mnav-item" data-nav="home"><div class="ic">🏠</div>홈</div>
-    <div class="mnav-item" data-nav="price"><div class="ic">₩</div>시세</div>
-    <div class="mnav-item" data-nav="hub"><div class="ic">📌</div>정보</div>
-    <div class="mnav-item" data-nav="cardinfo"><div class="ic">🃏</div>카드</div>
-    <div class="mnav-item" data-nav="portfolio"><div class="ic">👤</div>마이페이지</div>
+    <div class="mnav-item" data-nav="home"><div class="ic"><i data-lucide="house"></i></div>홈</div>
+    <div class="mnav-item" data-nav="price"><div class="ic"><i data-lucide="trending-up"></i></div>시세</div>
+    <div class="mnav-item" data-nav="hub"><div class="ic"><i data-lucide="pin"></i></div>정보</div>
+    <div class="mnav-item" data-nav="cardinfo"><div class="ic"><i data-lucide="layers"></i></div>카드</div>
+    <div class="mnav-item" data-nav="portfolio"><div class="ic"><i data-lucide="user-round"></i></div>마이페이지</div>
   </nav>
 </div>
 
@@ -1979,11 +2009,11 @@ async function showPriceDetailPanel(productId) {
                     data-action="add-portfolio" data-card-id="${productId}"
                     data-card-name="${escapeHtml(product.name || '')}" data-card-image="${escapeHtml(product.image || '')}"
                     data-price="${price || 0}" data-grade="psa10">
-              📋 포트폴리오 추가
+              <i data-lucide="plus-circle" style="width:16px;height:16px"></i> 포트폴리오 추가
             </button>
             <a href="${product.url}" target="_blank" rel="noopener noreferrer"
                class="btn" style="text-decoration:none; cursor:pointer; padding:9px 16px; font-size:13px">
-              🛒 SNKRDUNK →
+              <i data-lucide="external-link" style="width:16px;height:16px"></i> SNKRDUNK
             </a>
             <button class="btn" type="button" title="카드 리스트로" aria-label="카드 리스트로"
                     style="cursor:pointer; padding:9px 12px; font-size:16px; margin-left:auto"

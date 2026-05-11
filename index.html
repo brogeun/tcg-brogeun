@@ -5671,8 +5671,10 @@ function renderHoldings() {
   const pfAvatar = document.getElementById('pfAvatar');
   const pfEmail = document.getElementById('pfEmail');
   if (CURRENT_USER && pfAvatar && pfEmail) {
-    pfAvatar.textContent = (CURRENT_USER.email || '?').charAt(0).toUpperCase();
-    pfEmail.textContent = CURRENT_USER.email || '';
+    // 카카오 user 면 닉네임, 아니면 이메일 표시
+    const display = CURRENT_USER.displayName || CURRENT_USER.name || CURRENT_USER.email || '';
+    pfAvatar.textContent = (display || '?').charAt(0).toUpperCase();
+    pfEmail.textContent = display;
   }
 
   if (!HOLDINGS.length) {
@@ -6089,14 +6091,16 @@ function renderAuthStatus() {
   const box = document.getElementById('authStatus');
   const topAvatar = document.getElementById('topAvatar');
   if (CURRENT_USER) {
-    const initial = (CURRENT_USER.email || '?').charAt(0).toUpperCase();
+    // 카카오 user 면 닉네임, 아니면 이메일 표시
+    const display = CURRENT_USER.displayName || CURRENT_USER.name || CURRENT_USER.email || '';
+    const initial = (display || '?').charAt(0).toUpperCase();
     if (box) {
       box.innerHTML = `
         <div style="display:flex; gap:8px; align-items:center; padding:6px 0">
           <div style="width:32px; height:32px; border-radius:50%; background:#14b8a6; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0">${initial}</div>
           <div style="flex:1; min-width:0">
             <div style="font-size:11px; color:var(--ink-mute)">로그인됨</div>
-            <div style="font-size:12px; font-weight:600; color:#111; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(CURRENT_USER.email)}</div>
+            <div style="font-size:12px; font-weight:600; color:#111; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(display)}</div>
           </div>
         </div>
         <button class="btn" onclick="doLogout()" style="width:100%; cursor:pointer; padding:7px; font-size:11px; margin-top:4px">로그아웃</button>`;

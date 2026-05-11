@@ -30,6 +30,8 @@
 
 <!-- Lucide Icons (모던 SVG 아이콘) -->
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<!-- SortableJS — 관리자 글 드래그앤드롭 (모바일 터치도 지원) -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
 <script>
   // 페이지 로드 시 + 동적 콘텐츠 생성 시 자동으로 아이콘 렌더
   function _initLucide() {
@@ -49,6 +51,11 @@
   });
 </script>
 <style>
+  /* 관리자 드래그앤드롭 시각 효과 */
+  .admin-row-ghost { opacity: 0.35; }
+  .admin-row-chosen { background: #fef3c7 !important; }
+  .admin-row .drag-handle:active { cursor: grabbing; }
+  .admin-row { transition: background 0.15s; }
   /* Lucide 아이콘 공통 — nav/탭/버튼 안 아이콘 사이즈 */
   [data-lucide], svg.lucide { width: 18px; height: 18px; stroke-width: 2; display: inline-block; vertical-align: middle; }
   .nav-item [data-lucide], .nav-item svg.lucide,
@@ -5115,20 +5122,22 @@ function renderAdminList() {
 
   const tabConf = ADMIN_TAB_COLORS[ADMIN_TAB] || ADMIN_TAB_COLORS.etc;
 
-  // 정렬 — 날짜 내림차순 (최신 위), 날짜 없는 항목은 맨 아래
-  const sorted = [...arr].sort((a, b) => _adminDateKey(b.date) - _adminDateKey(a.date));
+  // 배열 순서대로 표시 (사용자 페이지와 동일 순서) — ↑↓ 버튼으로 직접 swap 가능
+  const total = arr.length;
 
   // 타임라인 컨테이너 — 좌측 vertical line + dot + 우측 카드
   list.innerHTML = `
     <div style="position:relative; padding-left:0">
       <!-- vertical line — 92px 부터 (날짜 컬럼 뒤) -->
       <div style="position:absolute; left:88px; top:8px; bottom:8px; width:2px; background:linear-gradient(to bottom, ${tabConf.dot}33 0%, ${tabConf.dot}33 90%, transparent 100%); pointer-events:none"></div>
-      ${sorted.map((e, idx) => {
-        const isLast = idx === sorted.length - 1;
+      ${arr.map((e, idx) => {
         const dateText = e.date || '날짜 없음';
         const dateColor = e.date ? '#374151' : '#9ca3af';
+        const upDisabled = idx === 0;
+        const downDisabled = idx === total - 1;
         return `
-          <div style="position:relative; display:grid; grid-template-columns:80px 24px 1fr; gap:0; align-items:flex-start; padding:6px 0">
+          <div class="admin-row" data-id="${e.id}"
+               style="position:relative; display:grid; grid-template-columns:80px 24px 1fr; gap:0; align-items:flex-start; padding:6px 0">
             <!-- 좌: 날짜 -->
             <div style="font-size:11px; font-weight:600; color:${dateColor}; padding-top:18px; text-align:right; padding-right:8px; line-height:1.3">
               ${escapeHtml(dateText)}
@@ -5139,20 +5148,112 @@ function renderAdminList() {
             </div>
             <!-- 우: 카드 -->
             <div class="card" style="padding:10px 12px; display:flex; gap:10px; align-items:flex-start; margin-left:8px; border-left:3px solid ${tabConf.dot}; box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+              <!-- 드래그 핸들 -->
+              <div class="drag-handle" title="드래그로 순서 변경"
+                   style="cursor:grab; display:flex; align-items:center; justify-content:center; padding:0 2px; color:#9ca3af; font-size:18px; line-height:1; user-select:none">⋮⋮</div>
               ${e.image ? `<img src="${escapeHtml(e.image)}" alt="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #e5e7eb; flex-shrink:0" onerror="this.style.display='none'">` : ''}
               <div style="flex:1; min-width:0">
                 <div style="font-size:13px; font-weight:700; color:#111; margin-bottom:2px; line-height:1.35">${escapeHtml(e.title || '(제목 없음)')}</div>
                 ${e.content ? `<div style="font-size:11px; color:#6b7280; line-height:1.5; max-height:40px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${renderRichContent(e.content)}</div>` : ''}
                 ${e.link ? `<div style="font-size:10px; color:#1d4ed8; margin-top:3px; word-break:break-all; opacity:0.85">🔗 ${escapeHtml(e.link)}</div>` : ''}
               </div>
-              <div style="display:flex; flex-direction:column; gap:4px; flex-shrink:0">
-                <button class="btn" style="font-size:11px; padding:4px 9px; cursor:pointer" onclick="adminEditEntry('${e.id}')">✏</button>
-                <button class="btn" style="font-size:11px; padding:4px 9px; cursor:pointer; color:#991b1b; border-color:#fecaca" onclick="adminDeleteEntry('${e.id}')">🗑</button>
+              <!-- 우측 액션 — 순서 이동 + 편집/삭제 -->
+              <div style="display:flex; flex-direction:column; gap:3px; flex-shrink:0; align-items:center">
+                <button class="btn" title="위로 이동" ${upDisabled ? 'disabled' : ''}
+                        style="font-size:11px; padding:2px 8px; cursor:${upDisabled?'not-allowed':'pointer'}; opacity:${upDisabled?'0.3':'1'}; line-height:1"
+                        onclick="adminMoveEntry('${e.id}', -1)">▲</button>
+                <button class="btn" title="아래로 이동" ${downDisabled ? 'disabled' : ''}
+                        style="font-size:11px; padding:2px 8px; cursor:${downDisabled?'not-allowed':'pointer'}; opacity:${downDisabled?'0.3':'1'}; line-height:1"
+                        onclick="adminMoveEntry('${e.id}', 1)">▼</button>
+                <div style="display:flex; gap:3px; margin-top:2px">
+                  <button class="btn" style="font-size:11px; padding:3px 7px; cursor:pointer" onclick="adminEditEntry('${e.id}')">✏</button>
+                  <button class="btn" style="font-size:11px; padding:3px 7px; cursor:pointer; color:#991b1b; border-color:#fecaca" onclick="adminDeleteEntry('${e.id}')">🗑</button>
+                </div>
               </div>
             </div>
           </div>`;
       }).join('')}
     </div>`;
+
+  // 드래그앤드롭 활성화 (SortableJS — 모바일 터치도 지원)
+  _initAdminSortable();
+}
+
+// SortableJS 초기화 — renderAdminList 끝나면 호출됨
+let _adminSortableInst = null;
+function _initAdminSortable() {
+  const container = document.querySelector('#adminEntryList > div');
+  if (!container) return;
+  if (!window.Sortable) {
+    // SortableJS 가 아직 로드 안 됐으면 잠시 후 재시도
+    setTimeout(_initAdminSortable, 300);
+    return;
+  }
+  if (_adminSortableInst) { try { _adminSortableInst.destroy(); } catch {} }
+  _adminSortableInst = Sortable.create(container, {
+    animation: 200,
+    handle: '.drag-handle',
+    draggable: '.admin-row',
+    ghostClass: 'admin-row-ghost',
+    chosenClass: 'admin-row-chosen',
+    // 관리자는 데스크톱 전용 — 네이티브 HTML5 drag API 사용 (부드러움)
+    onEnd: async (evt) => {
+      if (evt.oldIndex === evt.newIndex) return;
+      // DOM 순서대로 새 배열 만들기
+      const newOrder = Array.from(container.querySelectorAll('.admin-row')).map(el => el.dataset.id);
+      const oldArr = adminCurrentArr();
+      const newArr = newOrder.map(id => oldArr.find(x => String(x.id) === String(id))).filter(Boolean);
+      if (newArr.length !== oldArr.length) return; // 무결성 체크
+      // 저장
+      const ok = await saveAdminData(ADMIN_TAB, newArr);
+      if (!ok) {
+        showToast('순서 저장 실패 — 새로고침 후 다시 시도', 'error');
+        renderAdminList();
+        return;
+      }
+      // 전역 변수 + 사용자 화면 갱신
+      if (ADMIN_TAB === 'events')        { EVENTS = newArr;       renderEvents(); }
+      else if (ADMIN_TAB === 'cardshow') { CARDSHOWS = newArr;    renderCardshows(); }
+      else if (ADMIN_TAB === 'grading')  { GRADING_LIST = newArr; renderGrading(); }
+      else if (ADMIN_TAB === 'etc')      { ETC_LIST = newArr;     renderEtc(); }
+      else if (ADMIN_TAB === 'news')     { NEWS_LIST = newArr; if (typeof loadNews === 'function') loadNews(); }
+      // 드래그 끝나도 row 인덱스가 바뀐 만큼 ▲▼ 비활성 상태 다시 그림
+      renderAdminList();
+    },
+  });
+}
+
+// 글 순서 이동 — 배열 인덱스 swap + 저장
+async function adminMoveEntry(id, direction) {
+  const arr = adminCurrentArr();
+  const idx = arr.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= arr.length) return;
+  // swap
+  [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+  // 즉시 UI 갱신 (체감 빠름)
+  renderAdminList();
+  // 백엔드 저장
+  const ok = await saveAdminData(ADMIN_TAB, arr);
+  if (!ok) {
+    showToast('순서 저장 실패 — 다시 시도해주세요', 'error');
+    // 실패 시 원래 데이터 다시 로드 (전역 변수 직접 갱신)
+    const fresh = await fetchAdminData(ADMIN_TAB);
+    if (ADMIN_TAB === 'events')      EVENTS = fresh;
+    else if (ADMIN_TAB === 'cardshow') CARDSHOWS = fresh;
+    else if (ADMIN_TAB === 'grading')  GRADING_LIST = fresh;
+    else if (ADMIN_TAB === 'etc')      ETC_LIST = fresh;
+    else if (ADMIN_TAB === 'news')     NEWS_LIST = fresh;
+    renderAdminList();
+  } else {
+    // 사용자 화면 (정보허브) 의 해당 배열도 갱신
+    if (ADMIN_TAB === 'events')        { EVENTS = arr;       renderEvents(); }
+    else if (ADMIN_TAB === 'cardshow') { CARDSHOWS = arr;    renderCardshows(); }
+    else if (ADMIN_TAB === 'grading')  { GRADING_LIST = arr; renderGrading(); }
+    else if (ADMIN_TAB === 'etc')      { ETC_LIST = arr;     renderEtc(); }
+    else if (ADMIN_TAB === 'news')     { NEWS_LIST = arr; if (typeof loadNews === 'function') loadNews(); }
+  }
 }
 
 // ─── Quill 에디터 lazy 초기화 ───

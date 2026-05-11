@@ -1959,7 +1959,17 @@ async function showPriceDetailPanel(productId) {
             <span style="font-size:11px; padding:3px 8px; border-radius:5px; background:#f3f4f6; color:#374151; font-weight:600">${brandLbl}</span>
             <!-- SNKRDUNK 인기 TOP 10 라벨 — 사용자 명시로 제거 (홈 헤더에 이미 "인기 TOP 10" 표기) -->
           </div>
-          <div style="font-size:16px; font-weight:800; color:#111; line-height:1.4">${product.name}</div>
+          <!-- 카드 이름 + 우측 상단 관심 토글 (쇼핑몰 스타일) -->
+          <div style="display:flex; align-items:flex-start; gap:12px">
+            <div style="flex:1; font-size:16px; font-weight:800; color:#111; line-height:1.4; min-width:0">${product.name}</div>
+            <button id="watchToggleBtn" type="button" title="관심 카드 토글"
+                    style="border:none; background:transparent; cursor:pointer; padding:6px; font-size:22px; line-height:1; flex-shrink:0; transition:transform 0.15s"
+                    onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"
+                    data-watch-id="${productId}" data-watch-name="${escapeHtml(product.name || '').replace(/"/g, '&quot;')}"
+                    onclick="event.stopPropagation(); toggleCardWatch('${productId}', this)">
+              ${(typeof WATCHLIST !== 'undefined' && WATCHLIST.some(w => String(w.snkrdunk_id) === String(productId))) ? '<span style="color:#f59e0b">★</span>' : '<span style="color:#d1d5db">☆</span>'}
+            </button>
+          </div>
           <div style="margin-top:6px">
             <div style="font-size:24px; font-weight:900; color:#111">${fmtKrw(price, product.currency)}</div>
             <div style="font-size:13px; color:var(--ink-sub); margin-top:2px">${fmtOrig(price, product.currency)}</div>
@@ -1970,11 +1980,6 @@ async function showPriceDetailPanel(productId) {
                     data-card-name="${escapeHtml(product.name || '')}" data-card-image="${escapeHtml(product.image || '')}"
                     data-price="${price || 0}" data-grade="psa10">
               📋 포트폴리오 추가
-            </button>
-            <button class="btn" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
-                    data-action="add-watchlist" data-card-id="${productId}"
-                    data-card-name="${escapeHtml(product.name || '')}" data-grade="psa10">
-              ⭐ 관심
             </button>
             <a href="${product.url}" target="_blank" rel="noopener noreferrer"
                class="btn" style="text-decoration:none; cursor:pointer; padding:9px 16px; font-size:13px">
@@ -3058,6 +3063,41 @@ window.toggleWatchlistFromSearch = function(cardId, btn) {
         showToast('관심 목록 추가 ⭐', 'success');
       } else showToast('추가 실패', 'error');
     });
+  }
+};
+
+// 카드 상세 페이지 우측 상단 별 토글 (쇼핑몰 스타일 — 추가/제거 둘 다)
+window.toggleCardWatch = async function(cardId, btn) {
+  if (!CURRENT_USER) {
+    openLoginModal('관심 카드에 추가하려면 로그인이 필요합니다');
+    return;
+  }
+  const existing = (typeof WATCHLIST !== 'undefined' ? WATCHLIST : []).find(w => String(w.snkrdunk_id) === String(cardId));
+  if (existing) {
+    // 제거
+    try {
+      const r = await fetch(`/api/portfolio/watchlist/${existing.id}`, { method: 'DELETE', credentials: 'include' });
+      if (r.ok) {
+        btn.innerHTML = '<span style="color:#d1d5db">☆</span>';
+        WATCHLIST = WATCHLIST.filter(w => w.id !== existing.id);
+        showToast('관심 목록에서 제거', 'info');
+      } else showToast('제거 실패', 'error');
+    } catch (e) { showToast('네트워크 오류', 'error'); }
+  } else {
+    // 추가
+    try {
+      const r = await fetch('/api/portfolio/watchlist', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card_id: cardId, grade: 'psa10' }),
+      });
+      if (r.ok) {
+        const d = await r.json().catch(() => ({}));
+        btn.innerHTML = '<span style="color:#f59e0b">★</span>';
+        if (d.watchlist && typeof WATCHLIST !== 'undefined') WATCHLIST.push(d.watchlist);
+        showToast('관심 목록 추가 ⭐', 'success');
+      } else showToast('추가 실패', 'error');
+    } catch (e) { showToast('네트워크 오류', 'error'); }
   }
 };
 

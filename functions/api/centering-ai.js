@@ -190,6 +190,27 @@ function fmtMetrics(m) {
   return `좌/우 ${m.lMm}mm/${m.rMm}mm (${m.lPct}/${m.rPct}%) · 상/하 ${m.tMm}mm/${m.bMm}mm (${m.tPct}/${m.bPct}%) · 추정 PSA ${m.grades?.psa || '?'} / BGS ${m.grades?.bgs || '?'}`;
 }
 
+// 일별 사용 한도 (계정당 일 3회)
+const DAILY_LIMIT = 3;
+
+// 한국시간 (KST=UTC+9) 기준 오늘 날짜 — YYYY-MM-DD
+function todayKst() {
+  const now = Date.now() + 9 * 60 * 60 * 1000; // UTC + 9h
+  return new Date(now).toISOString().slice(0, 10);
+}
+
+// JWT 세션 쿠키에서 user id 추출
+async function getUserId(request, env) {
+  try {
+    const cookie = request.headers.get('Cookie') || '';
+    const m = cookie.match(/(?:^|;\s*)session=([^;]+)/);
+    if (!m) return null;
+    const { verifyJwt } = await import('../_shared/jwt.js');
+    const payload = await verifyJwt(m[1], env.JWT_SECRET);
+    return payload?.sub || null;
+  } catch { return null; }
+}
+
 export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); }
@@ -200,6 +221,36 @@ export async function onRequestPost({ request, env }) {
     return new Response(JSON.stringify({ error: 'frontImage and backImage required' }), {
       status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
     });
+  }
+
+  // ── 사용량 체크 (계정당 일 3회) ──
+  const userId = await getUserId(request, env);
+  if (!userId) {
+    return new Response(JSON.stringify({
+      error: 'unauthorized',
+      message: '로그인이 필요합니다',
+    }), { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+  }
+  const today = todayKst();
+  if (env.DB) {
+    try {
+      const row = await env.DB.prepare(
+        'SELECT centering_used, centering_reset_date FROM users WHERE id = ?'
+      ).bind(userId).first();
+      const lastDate = row?.centering_reset_date || '';
+      const used = (lastDate === today) ? (row?.centering_used || 0) : 0;
+      if (used >= DAILY_LIMIT) {
+        return new Response(JSON.stringify({
+          error: 'quota_exceeded',
+          message: `일일 사용 한도 (${DAILY_LIMIT}회) 를 초과했습니다. 내일 다시 시도해주세요.`,
+          used, limit: DAILY_LIMIT,
+          resetAt: '00:00 KST',
+        }), { status: 429, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+      }
+    } catch (e) {
+      console.warn('[centering] quota check failed:', e?.message || e);
+      // DB 오류시엔 통과 (서비스 가용성 우선)
+    }
   }
 
   const userPrompt = `[앞면 측정값]\n${fmtMetrics(frontMetrics)}\n\n[뒷면 측정값]\n${fmtMetrics(backMetrics)}\n\n위 두 이미지 (앞/뒤) 를 분석해주세요.`;
@@ -290,6 +341,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     if (isNonCardResponse(text)) {
+      // 비카드는 카운트 안 함 (사용자가 실수로 잘못 올린 경우 한도 차감 불공정)
       return new Response(JSON.stringify({
         error: 'not_a_card',
         message: '⚠️ 업로드한 이미지가 포켓몬/원피스 TCG 카드로 인식되지 않습니다.\n선명한 카드 앞면+뒷면 사진을 다시 업로드해주세요.',
@@ -298,7 +350,28 @@ export async function onRequestPost({ request, env }) {
       }), { status: 422, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
-    return new Response(JSON.stringify({ text, provider: 'openai-gpt-4o' }), {
+    // ── 카운트 +1 (성공한 카드 분석만 차감) ──
+    let usedAfter = 0;
+    if (env.DB && userId) {
+      try {
+        const row = await env.DB.prepare(
+          'SELECT centering_used, centering_reset_date FROM users WHERE id = ?'
+        ).bind(userId).first();
+        const lastDate = row?.centering_reset_date || '';
+        const prev = (lastDate === today) ? (row?.centering_used || 0) : 0;
+        usedAfter = prev + 1;
+        await env.DB.prepare(
+          'UPDATE users SET centering_used = ?, centering_reset_date = ? WHERE id = ?'
+        ).bind(usedAfter, today, userId).run();
+      } catch (e) {
+        console.warn('[centering] quota update failed:', e?.message || e);
+      }
+    }
+
+    return new Response(JSON.stringify({
+      text, provider: 'openai-gpt-4o',
+      quota: { used: usedAfter, limit: DAILY_LIMIT, remaining: Math.max(0, DAILY_LIMIT - usedAfter) },
+    }), {
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
     });
   } catch (e) {

@@ -6301,7 +6301,7 @@ function renderAuthStatus() {
     const initial = (display || '?').charAt(0).toUpperCase();
     if (box) {
       box.innerHTML = `
-        <div style="display:flex; gap:8px; align-items:center; padding:6px 0">
+        <div data-nav="portfolio" title="마이페이지로 이동" style="display:flex; gap:8px; align-items:center; padding:6px 0; cursor:pointer; border-radius:8px; transition:background 0.15s" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
           <div style="width:32px; height:32px; border-radius:50%; background:#14b8a6; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0">${initial}</div>
           <div style="flex:1; min-width:0">
             <div style="font-size:11px; color:var(--ink-mute)">로그인됨</div>

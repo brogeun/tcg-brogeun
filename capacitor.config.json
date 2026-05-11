@@ -1,0 +1,28 @@
+{
+  "appId": "kr.tcghub.app",
+  "appName": "TCG Hub",
+  "webDir": "www",
+  "server": {
+    "url": "https://tcghub.kr",
+    "androidScheme": "https",
+    "cleartext": false,
+    "allowNavigation": [
+      "tcghub.kr",
+      "*.tcghub.kr",
+      "kauth.kakao.com",
+      "kapi.kakao.com",
+      "accounts.google.com",
+      "*.googleapis.com",
+      "oauth2.googleapis.com"
+    ]
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
+  }
+}

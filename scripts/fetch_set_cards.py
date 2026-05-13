@@ -28,6 +28,7 @@ displayAs=images 모드로 모든 카드 (RR, AR, SAR, SR 등) 한 페이지에 
 """
 
 import json
+import os
 import re
 import sys
 import time
@@ -41,6 +42,21 @@ from selenium.webdriver.chrome.options import Options
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "data" / "cards-by-set"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+def _atomic_save(path, payload):
+    """validate-before-replace"""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    try:
+        json.loads(tmp.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"    [atomic abort] {path.name}: {e}")
+        tmp.unlink(missing_ok=True)
+        return False
+    os.replace(tmp, path)
+    return True
+
+
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -464,6 +480,26 @@ def main():
     only_pokemon = "--pokemon" in sys.argv
     only_onepiece = "--onepiece" in sys.argv
     visible = "--visible" in sys.argv  # 브라우저 보이게 (디버깅)
+    legacy_refetch = "--legacy-refetch" in sys.argv
+    all_old = "--all-old-boxes" in sys.argv
+
+    if all_old:
+        boxes = json.loads((ROOT/"data"/"_pending-pokemon-boxes.json").read_text(encoding="utf-8"))["boxes"]
+        args_no_flag = [b["code"] for b in boxes]
+        force = True
+        only_pokemon = True
+        print(f"[--all-old-boxes] {len(boxes)} legacy boxes force-refetch")
+    elif legacy_refetch:
+        rf = ROOT/"data"/"_old-boxes-need-refetch.json"
+        if not rf.exists():
+            print(f"[ERROR] {rf} not found")
+            return
+        codes = json.loads(rf.read_text(encoding="utf-8"))
+        args_no_flag = list(codes)
+        force = True
+        only_pokemon = True
+        print(f"[--legacy-refetch] {len(codes)} boxes force-refetch")
+
     # case-insensitive 매칭 — POKEMON_SETS 의 코드 (SV3a, S8b 같은 mixed case) 와 비교 위해
     only_codes = set(a.upper() for a in args_no_flag) if args_no_flag else None
 
@@ -502,7 +538,7 @@ def main():
 
                 try:
                     data = scrape_pokemon_set(driver, code, name, url)
-                    out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                    _atomic_save(out_path, json.dumps(data, ensure_ascii=False, indent=2))
                     print(f"  {code:7s} â {data['cardCount']} ì¹´ë")
                     success += 1
                 except Exception as e:
@@ -531,7 +567,7 @@ def main():
                     driver = make_driver(headless=not visible)
                 try:
                     data = scrape_onepiece_set(driver, code, name, url)
-                    out_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                    _atomic_save(out_path, json.dumps(data, ensure_ascii=False, indent=2))
                     print(f"  {code:7s} â {data['cardCount']} ì¹´ë")
                     success += 1
                 except Exception as e:

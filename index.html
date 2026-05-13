@@ -3088,10 +3088,13 @@ document.addEventListener('keydown', e => {
   // dropdown 닫기
   const resultsBox = document.getElementById('cardSearchResults');
   if (resultsBox) resultsBox.style.display = 'none';
-  // 검색 실행 (data 캐시 보장 후 priceGrid 에 그리드 렌더)
+  // 검색 실행 (data 캐시 보장 후 priceGrid 에 그리드 렌더 — 인기순/listingCount desc)
   (async () => {
     await loadCardSearchData();
-    renderPriceSearchAsGrid(searchCards(q), q);
+    const results = searchCards(q, Infinity)
+      .slice()
+      .sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
+    renderPriceSearchAsGrid(results, q);
   })();
 });
 
@@ -3108,7 +3111,11 @@ document.addEventListener('click', e => {
   if (resultsBox) resultsBox.style.display = 'none';
   (async () => {
     await loadCardSearchData();
-    renderPriceSearchAsGrid(searchCards(input.value.trim()), input.value.trim());
+    const q = input.value.trim();
+    const results = searchCards(q, Infinity)
+      .slice()
+      .sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
+    renderPriceSearchAsGrid(results, q);
   })();
 });
 

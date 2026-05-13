@@ -110,7 +110,7 @@ def fetch_sales_chart_full(product_id, option_id):
     return out
 
 
-def extend_card(card_id, days_limit=365, resume=False):
+def extend_card(card_id, days_limit=9999, resume=False):
     """1개 카드 extend — 기존 데이터 보존 + 빈 영역만 추가"""
     hist_path = HISTORY_DIR / f"{card_id}.json"
     if not hist_path.exists():
@@ -181,7 +181,7 @@ def extend_card(card_id, days_limit=365, resume=False):
 
 def main():
     args = sys.argv[1:]
-    days_limit = 365
+    days_limit = 9999  # SNKRDUNK 가 주는 모든 history (자르지 않음)
     resume = "--resume" in args
     for a in args:
         if a.startswith("--days="):

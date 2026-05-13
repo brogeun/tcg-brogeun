@@ -3073,17 +3073,43 @@ document.addEventListener('input', e => {
   clearTimeout(_SEARCH_TIMER);
   _SEARCH_TIMER = setTimeout(async () => {
     await loadCardSearchData();
-    const results = searchCards(q);
-    if (isPrice) {
-      // 카드 시세 페이지: dropdown 안 표시 + priceGrid 영역을 검색 결과로 필터링
-      const resultsBox = document.getElementById(resultsId);
-      if (resultsBox) resultsBox.style.display = 'none';
-      renderPriceSearchAsGrid(results, q);
-    } else {
-      // 홈 페이지: dropdown 표시 (기존 동작)
-      renderSearchResultsTo(resultsId, results, q);
-    }
+    // 타이핑 중: dropdown 표시 (홈/카드시세 둘 다 미리보기)
+    renderSearchResultsTo(resultsId, searchCards(q), q);
   }, 250);
+});
+
+// 카드 시세 검색창에서 엔터 누르면 → dropdown 닫고 priceGrid 영역에 검색 결과 카드 표시
+document.addEventListener('keydown', e => {
+  if (e.target.id !== 'cardSearchInput') return;
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const q = e.target.value.trim();
+  if (!q) return;
+  // dropdown 닫기
+  const resultsBox = document.getElementById('cardSearchResults');
+  if (resultsBox) resultsBox.style.display = 'none';
+  // 검색 실행 (data 캐시 보장 후 priceGrid 에 그리드 렌더)
+  (async () => {
+    await loadCardSearchData();
+    renderPriceSearchAsGrid(searchCards(q), q);
+  })();
+});
+
+// 🔍 아이콘 클릭으로도 동일 동작 (input 옆 돋보기)
+document.addEventListener('click', e => {
+  // input wrapper 안의 🔍 emoji span 클릭
+  const wrap = e.target.closest('#cardSearchWrap');
+  if (!wrap) return;
+  if (e.target.tagName !== 'SPAN') return;
+  if (e.target.textContent.trim() !== '🔍') return;
+  const input = document.getElementById('cardSearchInput');
+  if (!input || !input.value.trim()) return;
+  const resultsBox = document.getElementById('cardSearchResults');
+  if (resultsBox) resultsBox.style.display = 'none';
+  (async () => {
+    await loadCardSearchData();
+    renderPriceSearchAsGrid(searchCards(input.value.trim()), input.value.trim());
+  })();
 });
 
 // 카드 시세 페이지 검색 모드 — priceGrid 영역에 검색 결과 카드 표시 (dropdown 안 씀)

@@ -3070,32 +3070,52 @@ document.addEventListener('input', e => {
   const clearId = isPrice ? 'cardSearchClear' : 'homeSearchClear';
   const resultsId = isPrice ? 'cardSearchResults' : 'homeSearchResults';
   document.getElementById(clearId).style.display = q ? 'block' : 'none';
-  // 카드 시세 페이지에서 검색 시: 하단 그리드/탭 hide → 검색 결과만 노출
-  if (isPrice) togglePriceSearchMode(!!q);
   clearTimeout(_SEARCH_TIMER);
   _SEARCH_TIMER = setTimeout(async () => {
     await loadCardSearchData();
-    renderSearchResultsTo(resultsId, searchCards(q), q);
+    const results = searchCards(q);
+    if (isPrice) {
+      // 카드 시세 페이지: dropdown 안 표시 + priceGrid 영역을 검색 결과로 필터링
+      const resultsBox = document.getElementById(resultsId);
+      if (resultsBox) resultsBox.style.display = 'none';
+      renderPriceSearchAsGrid(results, q);
+    } else {
+      // 홈 페이지: dropdown 표시 (기존 동작)
+      renderSearchResultsTo(resultsId, results, q);
+    }
   }, 250);
 });
 
-// 카드 시세 페이지 검색 모드 — 검색어 있으면 하단 그리드/탭/등급칩 hide
+// 카드 시세 페이지 검색 모드 — priceGrid 영역에 검색 결과 카드 표시 (dropdown 안 씀)
 function togglePriceSearchMode(hideMain) {
-  const ids = ['priceBrandTabs', 'priceCatTabs', 'priceGrid', 'priceStatus'];
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = hideMain ? 'none' : '';
-  });
-  // priceGradeChips 는 카드 탭일 때만 보이는 것 — 검색 종료 시 active 탭 보고 복원
-  const gradeChips = document.getElementById('priceGradeChips');
-  if (gradeChips) {
-    if (hideMain) {
-      gradeChips.style.display = 'none';
-    } else {
-      const cardTabActive = document.querySelector('#priceCatTabs [data-cat="card"].active');
-      gradeChips.style.display = cardTabActive ? '' : 'none';
-    }
+  // (deprecated — renderPriceSearchAsGrid 사용)
+}
+
+// 검색 결과를 priceGrid 의 큰 카드 형식으로 렌더링
+function renderPriceSearchAsGrid(results, query) {
+  const grid = document.getElementById('priceGrid');
+  const status = document.getElementById('priceStatus');
+  if (!grid) return;
+  if (status) status.innerHTML = `<div style="padding:8px 4px; font-size:13px; color:var(--ink-sub)">"<b>${escapeHtml(query)}</b>" 검색 결과: <b>${results.length}</b>개</div>`;
+  if (!results.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><div class="empty-title">"${escapeHtml(query)}" 일치 카드 없음</div><div class="empty-sub">한국어/일본어/영어/세트코드/ID 모두 가능</div></div>`;
+    return;
   }
+  // 검색 결과 → priceGrid 카드 형식으로 변환 후 renderPriceGrid 사용
+  const products = results.map(c => ({
+    id: c.id,
+    name: c.name,
+    image: c.thumbnailUrl,
+    lastPrice: c.minPrice,
+    lowestAsk: c.minPrice,
+    currency: 'USD',
+    brand: c.brand,
+  }));
+  // PRICE_CAT 무관하게 카드 표시 (검색 모드 표시용 임시 override)
+  const prevCat = window.PRICE_CAT;
+  window.PRICE_CAT = 'card';
+  renderPriceGrid(products);
+  window.PRICE_CAT = prevCat;
 }
 
 // 결과 렌더 — 두 위치 모두 지원
@@ -3204,8 +3224,12 @@ document.addEventListener('click', e => {
     const results = document.getElementById(resultsId);
     if (results) results.style.display = 'none';
     e.target.style.display = 'none';
-    // 카드 시세 페이지 검색 모드 해제 → 하단 그리드 복원
-    if (!isHome) togglePriceSearchMode(false);
+    // 카드 시세 페이지 검색 종료 → priceGrid 원래 카탈로그로 복원
+    if (!isHome) {
+      const status = document.getElementById('priceStatus');
+      if (status) status.innerHTML = '';
+      if (typeof initPrice === 'function') initPrice();
+    }
     if (input) input.focus();
   }
 });

@@ -4277,18 +4277,18 @@ async function renderSlidePanel(productId) {
     else if (code) pack = code;
     else if (pname) pack = pname;
   }
-  // 가격 — outlier 영향 줄이려 history 최근 7일 median 사용 (단일 spike 방지)
-  // product.lastPrice 도 함께 활용 (TOP10 캐시)
-  function pickStablePrice(field) {
+  // 가격 — 별도 페이지와 동일 로직 (최신부터 역순으로 각 등급 첫 non-null)
+  function pickLatestPrice(field) {
     if (!history || !history.length) return null;
-    const recent = history.slice(-7).map(r => r && r[field]).filter(v => v != null && v > 0);
-    if (!recent.length) return null;
-    const sorted = recent.slice().sort((a,b) => a-b);
-    return sorted[Math.floor(sorted.length / 2)];  // median
+    for (let i = history.length - 1; i >= 0; i--) {
+      const v = history[i] && history[i][field];
+      if (v != null && v > 0) return v;
+    }
+    return null;
   }
-  let psa10Jpy = pickStablePrice('psa10_price');
-  let psa9Jpy = pickStablePrice('psa9_price');
-  let rawJpy = pickStablePrice('raw_price');
+  let psa10Jpy = pickLatestPrice('psa10_price');
+  let psa9Jpy = pickLatestPrice('psa9_price');
+  let rawJpy = pickLatestPrice('raw_price');
   // history 없으면 product.lastPrice (top10 캐시) 사용
   if (psa10Jpy == null && product && product.lastPrice) psa10Jpy = product.lastPrice;
   const psa10Price = _krw(psa10Jpy);
@@ -4336,11 +4336,6 @@ async function renderSlidePanel(productId) {
       <div class="slide-price-label">SNKRDUNK 최저 실거래가</div>
       <div class="slide-price-val" id="slidePriceVal">${fmtChip(psa10Price)}</div>
       <div class="slide-price-sub" id="slidePriceSub">PSA 10 기준</div>
-      <div class="slide-stat-row">
-        <div class="slide-stat"><div class="slide-stat-label">7일 변동</div><div class="slide-stat-val" id="slide7d">—</div></div>
-        <div class="slide-stat"><div class="slide-stat-label">30일 변동</div><div class="slide-stat-val" id="slide30d">—</div></div>
-        <div class="slide-stat"><div class="slide-stat-label">최고가</div><div class="slide-stat-val" id="slideHigh">—</div></div>
-      </div>
     </div>
 
     <!-- 차트 -->
@@ -4377,29 +4372,6 @@ async function renderSlidePanel(productId) {
       document.getElementById('slidePriceSub').textContent = label;
     });
   });
-
-  // 변동률 계산 (psa10 기준)
-  if (history && history.length >= 2) {
-    const last = psa10Price;
-    const dayN = (n) => {
-      const row = history[history.length - 1 - n];
-      return row ? _krw(row.psa10_price) : null;
-    };
-    const calc = (then) => then && last ? ((last - then) / then * 100) : null;
-    const set = (id, pct) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (pct == null) { el.textContent = '—'; el.className = 'slide-stat-val'; return; }
-      const sign = pct >= 0 ? '+' : '';
-      el.textContent = `${sign}${pct.toFixed(1)}%`;
-      el.className = 'slide-stat-val ' + (pct >= 0 ? 'up' : 'down');
-    };
-    set('slide7d', calc(dayN(7)));
-    set('slide30d', calc(dayN(30)));
-    const allPrices = history.map(r => _krw(r.psa10_price)).filter(v => v);
-    const high = allPrices.length ? Math.max(...allPrices) : null;
-    document.getElementById('slideHigh').textContent = high ? `₩${high.toLocaleString()}` : '—';
-  }
 
   // 액션 버튼
   document.getElementById('slideAddPortfolio').onclick = () => {

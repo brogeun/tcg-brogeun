@@ -6149,16 +6149,70 @@ function renderCardshows() {
     target.innerHTML = `<div class="empty"><div class="empty-icon">🎪</div><div class="empty-title">등록된 카드쇼가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
     return;
   }
-  // 그레이딩과 동일한 가로 row 형식 (썸네일 좌측 + 정보 우측)
-  target.innerHTML = CARDSHOWS.map(e => _hubRowCard(e, { bg:'#f3e8ff', color:'#7c3aed', icon:'🎪' }, 'cardshow')).join('');
+  // 카드쇼만 — D-day 임박순 자동 정렬 (날짜 없는 항목은 뒤로)
+  const sorted = [...CARDSHOWS].sort((a, b) => {
+    const da = parseDday(a.date);
+    const db = parseDday(b.date);
+    // 1) 종료 안 된 (days >= 0) 우선
+    const aActive = da && da.days >= 0 ? 0 : 1;
+    const bActive = db && db.days >= 0 ? 0 : 1;
+    if (aActive !== bActive) return aActive - bActive;
+    // 2) 둘 다 활성 — D-day 작은 (임박한) 순
+    if (da && db) return da.days - db.days;
+    // 3) 날짜 없는 건 뒤로
+    if (da && !db) return -1;
+    if (!da && db) return 1;
+    return 0;
+  });
+  target.innerHTML = sorted.map(e => _hubRowCard(e, { bg:'#f3e8ff', color:'#7c3aed', icon:'🎪', dday:true }, 'cardshow')).join('');
+}
+
+// D-day 계산 헬퍼 — 카드쇼 전용 (다양한 날짜 포맷 지원)
+function parseDday(dateStr) {
+  if (!dateStr) return null;
+  const s = String(dateStr).trim();
+  let m, y, mo, d;
+  // 2026-05-24 / 2026.05.24 / 2026/05/24 / 2026년 5월 24일
+  if ((m = s.match(/(\d{4})[\-./년\s]+(\d{1,2})[\-./월\s]+(\d{1,2})/))) {
+    y = +m[1]; mo = +m[2]; d = +m[3];
+  } else if ((m = s.match(/^(\d{1,2})[월\-/.\s]+(\d{1,2})/))) {
+    // 5/24, 5월 24일 → 올해 또는 내년 (이미 지났으면 내년)
+    const today = new Date();
+    y = today.getFullYear(); mo = +m[1]; d = +m[2];
+    const tryDate = new Date(y, mo - 1, d);
+    const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (tryDate < todayMid) y++;
+  } else {
+    return null;
+  }
+  const target = new Date(y, mo - 1, d);
+  if (isNaN(target.getTime())) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((target - today) / 86400000);
+  let label, fg, bg;
+  if (diff === 0)      { label = 'D-DAY'; fg = '#fff'; bg = 'linear-gradient(135deg,#ef4444,#dc2626)'; }
+  else if (diff > 0 && diff <= 7)   { label = `D-${diff}`; fg = '#fff'; bg = 'linear-gradient(135deg,#19DFDF,#11B5B5)'; }
+  else if (diff > 7 && diff <= 30)  { label = `D-${diff}`; fg = '#fff'; bg = 'linear-gradient(135deg,#60a5fa,#3b82f6)'; }
+  else if (diff > 30)               { label = `D-${diff}`; fg = '#374151'; bg = '#f3f4f6'; }
+  else                              { label = `종료 D+${Math.abs(diff)}`; fg = '#9ca3af'; bg = '#f3f4f6'; }
+  return { days: diff, label, fg, bg };
 }
 
 // 가로 긴 row 형식 (썸네일 좌측 + 정보 우측) — 그레이딩/이벤트/카드쇼 공통
-// badge: { bg, color, icon }  prefix(id 충돌 방지): 'grading'/'event'/'cardshow'
+// badge: { bg, color, icon, dday }  dday=true 면 D-day 배지 우선 표시 (카드쇼만)
+// prefix(id 충돌 방지): 'grading'/'event'/'cardshow'
 function _hubRowCard(e, badge, prefix) {
   const id = (prefix || 'row') + '-' + (e.id || Math.random().toString(36).slice(2));
+  // D-day 배지 — 카드쇼 전용 (badge.dday=true)
+  let ddayBadge = '';
+  if (badge && badge.dday && e.date) {
+    const d = parseDday(e.date);
+    if (d) {
+      ddayBadge = `<div style="display:inline-block; font-size:11px; font-weight:900; padding:3px 10px; background:${d.bg}; color:${d.fg}; border-radius:999px; margin-bottom:6px; letter-spacing:.3px">${d.label}</div>`;
+    }
+  }
   const dateBadge = e.date && badge
-    ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:${badge.bg}; color:${badge.color}; border-radius:4px; font-weight:700; margin-bottom:5px">${badge.icon} ${escapeHtml(e.date)}</div>`
+    ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:${badge.bg}; color:${badge.color}; border-radius:4px; font-weight:700; margin-bottom:5px${ddayBadge ? '; margin-left:5px' : ''}">${badge.icon} ${escapeHtml(e.date)}</div>`
     : (e.date ? `<div style="font-size:10px; color:var(--ink-sub); margin-bottom:5px">${escapeHtml(e.date)}</div>` : '');
   const thumb = e.image
     ? `<img src="${escapeHtml(e.image)}" alt="" loading="lazy"
@@ -6178,7 +6232,7 @@ function _hubRowCard(e, badge, prefix) {
         <div style="width:140px; height:140px; background:#f3f4f6; overflow:hidden; flex-shrink:0">${thumb}</div>
         <!-- 우: 정보 -->
         <div style="padding:13px 16px; display:flex; flex-direction:column; justify-content:center; min-width:0">
-          ${dateBadge}
+          ${ddayBadge}${dateBadge}
           <div style="font-size:14px; font-weight:800; color:#111; line-height:1.35; margin-bottom:4px">${escapeHtml(e.title || '')}</div>
           <div id="${id}-preview" style="font-size:11px; color:#9ca3af; cursor:pointer" onclick="toggleHubCard('${id}')">탭해서 자세히 보기 ↓</div>
           ${body}

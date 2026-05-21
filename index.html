@@ -4277,6 +4277,8 @@ async function renderSlidePanel(productId) {
     else if (code) pack = code;
     else if (pname) pack = pname;
   }
+  // 박스 vs 카드 — history 에 psa10_price/psa9_price 있으면 카드, 없으면 박스
+  const isBox = !history || !history.length || !history.some(h => h && (h.psa10_price != null || h.psa9_price != null));
   // 가격 — 별도 페이지와 동일 로직 (최신부터 역순으로 각 등급 첫 non-null)
   function pickLatestPrice(field) {
     if (!history || !history.length) return null;
@@ -4286,14 +4288,20 @@ async function renderSlidePanel(productId) {
     }
     return null;
   }
-  let psa10Jpy = pickLatestPrice('psa10_price');
-  let psa9Jpy = pickLatestPrice('psa9_price');
-  let rawJpy = pickLatestPrice('raw_price');
-  // history 없으면 product.lastPrice (top10 캐시) 사용
-  if (psa10Jpy == null && product && product.lastPrice) psa10Jpy = product.lastPrice;
+  let psa10Jpy = null, psa9Jpy = null, rawJpy = null, boxJpy = null;
+  if (isBox) {
+    boxJpy = pickLatestPrice('box_price');
+    if (boxJpy == null && product && product.lastPrice) boxJpy = product.lastPrice;
+  } else {
+    psa10Jpy = pickLatestPrice('psa10_price');
+    psa9Jpy = pickLatestPrice('psa9_price');
+    rawJpy = pickLatestPrice('raw_price');
+    if (psa10Jpy == null && product && product.lastPrice) psa10Jpy = product.lastPrice;
+  }
   const psa10Price = _krw(psa10Jpy);
   const psa9Price = _krw(psa9Jpy);
   const rawPrice = _krw(rawJpy);
+  const boxPrice = _krw(boxJpy);
   const directPrice = psa10Price ? Math.round(psa10Price * 1.1 + 50000) : null;
 
   // 헤더
@@ -4306,11 +4314,11 @@ async function renderSlidePanel(productId) {
   const imgWrap = document.getElementById('slideCardImg');
   imgWrap.innerHTML = image ? `<img src="${escapeHtml(image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.textContent='🃏'">` : '🃏';
 
-  // body — 등급칩 4개 + 가격박스 + 차트 + 액션 + 정보
+  // body — 박스 / 카드 구분 렌더
   const fmtChip = (val) => val ? `₩${val.toLocaleString()}` : '—';
   const body = document.getElementById('slideBody');
-  body.innerHTML = `
-    <!-- 등급 4개 칩 -->
+  const gradeRowHTML = isBox ? '' : `
+    <!-- 등급 4개 칩 (카드만) -->
     <div class="slide-grade-row">
       <div class="slide-grade-chip active" data-grade="psa10">
         <div class="gc-label">PSA 10</div>
@@ -4329,13 +4337,16 @@ async function renderSlidePanel(productId) {
         <div class="gc-val">${fmtChip(directPrice)}</div>
         <div class="gc-tip">※ PSA10 기준 부가세, 배송비 포함 예시 가격</div>
       </div>
-    </div>
-
+    </div>`;
+  const mainPrice = isBox ? boxPrice : psa10Price;
+  const mainLabel = isBox ? '박스 상품 — 그레이딩 거래 없음' : 'PSA 10 기준';
+  body.innerHTML = `
+    ${gradeRowHTML}
     <!-- 현재 시세 박스 -->
     <div class="slide-price-box">
       <div class="slide-price-label">SNKRDUNK 최저 실거래가</div>
-      <div class="slide-price-val" id="slidePriceVal">${fmtChip(psa10Price)}</div>
-      <div class="slide-price-sub" id="slidePriceSub">PSA 10 기준</div>
+      <div class="slide-price-val" id="slidePriceVal">${fmtChip(mainPrice)}</div>
+      <div class="slide-price-sub" id="slidePriceSub">${mainLabel}</div>
     </div>
 
     <!-- 차트 -->
@@ -4392,10 +4403,13 @@ async function renderSlidePanel(productId) {
     }
   };
 
-  // 차트 — 간단 SVG 라인 차트 (Chart.js 의존성 회피)
+  // 차트 — 박스는 box_price, 카드는 psa10_price 기준
   if (history && history.length >= 2) {
-    drawSlideChart(history);
+    drawSlideChart(history, isBox);
   }
+  // 정보 테이블 타입 표시 — isBox 기반
+  const typeCell = body.querySelector('.slide-info-table tr:first-child td:last-child');
+  if (typeCell) typeCell.textContent = isBox ? '박스' : '카드';
 }
 
 function _krw(jpy) {
@@ -4404,7 +4418,7 @@ function _krw(jpy) {
   return Math.floor(jpy * rate);
 }
 
-function drawSlideChart(history) {
+function drawSlideChart(history, isBox) {
   const canvas = document.getElementById('slideChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -4416,8 +4430,11 @@ function drawSlideChart(history) {
   ctx.scale(dpr, dpr);
   const W = rect.width;
   const padding = { top: 14, right: 12, bottom: 32, left: 48 };
+  // 박스면 box_price/box_vol, 카드면 psa10_price/total_vol
+  const priceKey = isBox ? 'box_price' : 'psa10_price';
+  const volKey = isBox ? 'box_vol' : 'total_vol';
   // 데이터 — KRW 환산 + outlier 자동 제거 (이웃 median 대비 2배 spike 제거)
-  const rowsRaw = (history || []).map(r => ({ date: r.date, price: _krw(r.psa10_price), vol: r.total_vol || r.psa10_vol || 0 }));
+  const rowsRaw = (history || []).map(r => ({ date: r.date, price: _krw(r[priceKey]), vol: r[volKey] || (isBox ? 0 : r.psa10_vol) || 0 }));
   const rowsClean = rowsRaw.filter(r => r.price && r.price > 0);
   if (rowsClean.length < 2) {
     ctx.fillStyle = '#999';

@@ -9,6 +9,45 @@
 <!-- Google AdSense — pub-3666596378671353 -->
 <meta name="google-adsense-account" content="ca-pub-3666596378671353">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3666596378671353" crossorigin="anonymous"></script>
+
+<!-- UI/UX 개편 — Noto Sans KR 폰트 + 새 디자인 토큰 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* 새 디자인 토큰 (홈 + 점진적 적용용) */
+  --brand2: #19DFDF;
+  --brand2-hover: #0FB8B8;
+  --brand2-subtle: #E8FAFA;
+  --brand2-text: #066666;
+  --price-up: #16A34A;
+  --price-up-subtle: #DCFCE7;
+  --price-up-text: #166534;
+  --price-down: #DC2626;
+  --price-down-subtle: #FEE2E2;
+  --price-down-text: #991B1B;
+  --pk-color: #D4A800;
+  --pk-subtle: #FEF9C3;
+  --pk-text: #7a5c00;
+  --op-color: #CC2244;
+  --op-subtle: #FEE2E2;
+  --op-text: #991B1B;
+  --bg-page2: #F7F6F2;
+  --bg-surface2: #FFFFFF;
+  --bg-muted2: #EDECE8;
+  --border2: #D9D8D3;
+  --border-subtle: #EDECE8;
+  --text-primary: #0D0D0D;
+  --text-secondary: #666560;
+  --text-tertiary: #999894;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+}
+</style>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
 
 <!-- PWA — 홈화면 추가 + 오프라인 캐시 + 앱 출시 준비 -->
@@ -84,9 +123,10 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
   font-size: 14px; color: var(--ink); background: var(--bg);
   -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
@@ -665,130 +705,214 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
     </script>
 
-    <!-- 홈 -->
+    <!-- 홈 (UI 개편 — 자산 위젯 + 브랜드별 TOP 시세 + 그레이딩 배너 + 소식) -->
     <section class="page" data-page="home">
-      <div class="hero">
-        <h2>오늘의 TCG, 한 눈에.</h2>
-        <p>SNKRDUNK 라이브 시세부터 응모, 오리파까지. 포켓몬 · 원피스 카드를 위한 올인원 허브.</p>
-        <!-- 메뉴 카드 4종 (hero 안에 통합, 컴팩트) -->
-        <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin-top:14px">
-          <div class="home-menu-card" data-nav="price">
-            <div class="home-menu-icon">💰</div>
-            <div class="home-menu-name">시세</div>
-            <div class="home-menu-sub">SNKRDUNK 라이브</div>
+
+      <!-- 내 자산 위젯 (포트폴리오) -->
+      <div class="asset-widget" id="homeAssetWidget">
+        <div class="asset-main">
+          <div class="asset-label">총 평가액</div>
+          <div class="asset-value" id="homeAssetValue">—</div>
+          <div class="asset-change" id="homeAssetChange" style="display:none"></div>
+        </div>
+        <div class="asset-divider"></div>
+        <div class="asset-stat"><div class="asset-stat-val" id="homeAssetHoldCount">0종</div><div class="asset-stat-label">보유 카드</div></div>
+        <div class="asset-divider"></div>
+        <div class="asset-stat"><div class="asset-stat-val" id="homeAssetWatchCount">0종</div><div class="asset-stat-label">관심 카드</div></div>
+        <button type="button" class="asset-action" onclick="go('mypage')">포트폴리오 →</button>
+      </div>
+
+      <!-- SNKRDUNK 안내 (소형) -->
+      <div style="display:flex; justify-content:flex-end; margin-bottom:14px">
+        <button type="button" class="snkr-help-btn" onclick="document.getElementById('snkrHelpModal').classList.add('show')">
+          ❓ SNKRDUNK란?
+        </button>
+      </div>
+
+      <!-- 브랜드별 TOP 시세 -->
+      <div class="section2">
+        <div class="section-header2">
+          <div class="section-title2">브랜드별 TOP 시세</div>
+          <span class="section-more2" onclick="go('price')">전체 시세 보기 →</span>
+        </div>
+        <div class="top-summary-grid">
+          <!-- 포켓몬 -->
+          <div class="brand-card">
+            <div class="brand-card-header">
+              <div class="brand-badge pk"><div class="brand-badge-dot"></div>POKEMON</div>
+              <span class="brand-update">방금 업데이트</span>
+            </div>
+            <div id="homeTopPokemon" data-brand="pokemon"></div>
+            <div class="brand-card-footer">
+              <button type="button" class="expand-btn" id="homeTopPokemonBtn" onclick="toggleHomeTopMore('pokemon')">
+                TOP 10 더보기 <span class="arrow">▼</span>
+              </button>
+            </div>
           </div>
-          <div class="home-menu-card" data-nav="hub">
-            <div class="home-menu-icon">📰</div>
-            <div class="home-menu-name">정보</div>
-            <div class="home-menu-sub">뉴스 · 매장 · 이벤트</div>
-          </div>
-          <div class="home-menu-card" data-nav="cardinfo">
-            <div class="home-menu-icon">🃏</div>
-            <div class="home-menu-name">카드</div>
-            <div class="home-menu-sub">확장팩 · 발매 정보</div>
-          </div>
-          <div class="home-menu-card" data-nav="centering">
-            <div class="home-menu-icon">📏</div>
-            <div class="home-menu-name">센터링툴</div>
-            <div class="home-menu-sub">PSA·BGS 자가진단</div>
+          <!-- 원피스 -->
+          <div class="brand-card">
+            <div class="brand-card-header">
+              <div class="brand-badge op"><div class="brand-badge-dot"></div>ONE PIECE</div>
+              <span class="brand-update">방금 업데이트</span>
+            </div>
+            <div id="homeTopOnepiece" data-brand="onepiece"></div>
+            <div class="brand-card-footer">
+              <button type="button" class="expand-btn" id="homeTopOnepieceBtn" onclick="toggleHomeTopMore('onepiece')">
+                TOP 10 더보기 <span class="arrow">▼</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      <style>
-        /* 홈 메뉴 카드 (컴팩트) */
-        .home-menu-card {
-          cursor: pointer;
-          padding: 9px 8px;
-          background: rgba(255,255,255,0.95);
-          border: 1px solid rgba(0,0,0,0.08);
-          border-radius: 10px;
-          transition: all 0.2s;
-          text-align: center;
-        }
-        .home-menu-icon { font-size: 18px; margin-bottom: 2px; line-height: 1; }
-        .home-menu-name { font-size: 12px; font-weight: 800; color: #111; margin-bottom: 1px; }
-        .home-menu-sub { font-size: 9px; color: var(--ink-sub); }
-        .home-menu-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-      </style>
 
-      <h3 style="margin:0 0 12px; font-size:15px">브랜드별 시세</h3>
-      <!-- 포켓몬/원피스 + TOP10 — grid-template-areas 로 데스크톱·모바일 자연스럽게 배치 -->
-      <div class="home-brands-grid">
-        <div class="brand-tile" data-home-brand="pokemon" style="cursor:pointer; grid-area:p-tile">
-          <div class="brand-tile-img">
-            <img src="images/pokemon-box.jpg" alt="포켓몬" onerror="this.parentElement.textContent='⚡'; this.parentElement.style.fontSize='64px'">
-          </div>
-          <div class="brand-tile-body">
-            <div class="brand-tile-name">포켓몬 카드</div>
-            <div class="brand-tile-sub" id="homeBrandSubPokemon">인기 TOP 10 시세 ↓</div>
-          </div>
+      <!-- 그레이딩 배너 (클릭 시 센터링툴 페이지로) -->
+      <div class="grading-banner" onclick="go('centering')">
+        <div class="grading-icon">🏆</div>
+        <div class="grading-content">
+          <div class="grading-label">PSA · BGS 그레이딩</div>
+          <div class="grading-title">카드 등급 받고 가치를 높이세요</div>
+          <div class="grading-desc">앞/뒷면 사진으로 AI 자가진단 · 그레이딩 업체 안내 · 일 3회 무료</div>
         </div>
+        <div class="grading-arrow">→</div>
+      </div>
 
-        <!-- 포켓몬 TOP 10 -->
-        <div data-home-top="pokemon" style="display:none; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px; grid-area:p-top">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
-            <div>
-              <div style="font-size:15px; font-weight:800; color:#111">⚡ 포켓몬 인기 카드 TOP 10</div>
-              <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
-            </div>
-            <button class="btn" type="button" data-home-more="pokemon" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
-          </div>
-          <div data-home-top-list="pokemon" class="home-top-grid"></div>
+      <!-- 소식 큐레이션 -->
+      <div class="section2">
+        <div class="section-header2">
+          <div class="section-title2">소식</div>
+          <span class="section-more2" onclick="go('hub')">전체 보기 →</span>
         </div>
+        <div class="news-grid2" id="homeNewsGrid"></div>
+      </div>
 
-        <div class="brand-tile" data-home-brand="onepiece" style="cursor:pointer; grid-area:o-tile">
-          <div class="brand-tile-img">
-            <img src="images/onepiece-box.jpg" alt="원피스" onerror="this.parentElement.textContent='🏴‍☠️'; this.parentElement.style.fontSize='64px'">
+      <!-- SNKRDUNK 설명 모달 -->
+      <div class="modal-overlay2" id="snkrHelpModal" onclick="if(event.target===this)this.classList.remove('show')">
+        <div class="modal2">
+          <div class="modal-header2">
+            <div class="modal-title2">SNKRDUNK란?</div>
+            <span class="modal-close2" onclick="document.getElementById('snkrHelpModal').classList.remove('show')">✕</span>
           </div>
-          <div class="brand-tile-body">
-            <div class="brand-tile-name">원피스 카드</div>
-            <div class="brand-tile-sub" id="homeBrandSubOnepiece">인기 TOP 10 시세 ↓</div>
+          <div class="modal-body2">
+            <strong>SNKRDUNK</strong>는 일본 최대 트레이딩 카드 & 스니커즈 리셀 플랫폼이에요.<br><br>
+            실제 거래된 가격을 기반으로 시세 데이터를 제공하기 때문에, 단순 호가가 아닌 <strong>실거래가</strong>를 확인할 수 있어요.<br><br>
+            TCG Hub는 이 데이터를 24시간 자동으로 가져와 원화로 환산해 보여드려요.
+            <div class="modal-tag2">📊 실거래가 기반 · 24시간 자동 갱신</div>
           </div>
-        </div>
-
-        <!-- 원피스 TOP 10 -->
-        <div data-home-top="onepiece" style="display:none; padding:14px; background:#fff; border:1px solid var(--line); border-radius:12px; grid-area:o-top">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; flex-wrap:wrap">
-            <div>
-              <div style="font-size:15px; font-weight:800; color:#111">🏴‍☠️ 원피스 인기 카드 TOP 10</div>
-              <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">SNKRDUNK 인기 카드 · 24시간 자동 갱신</div>
-            </div>
-            <button class="btn" type="button" data-home-more="onepiece" style="font-size:12px; padding:7px 12px; cursor:pointer">전체 시세 보기 →</button>
-          </div>
-          <div data-home-top-list="onepiece" class="home-top-grid"></div>
         </div>
       </div>
-      <style>
-        /* 데스크톱: 2열 (tile 옆-옆), TOP10은 풀 너비로 아래 */
-        .home-brands-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          grid-template-areas:
-            "p-tile o-tile"
-            "p-top  p-top"
-            "o-top  o-top";
-          gap: 14px;
-          margin-bottom: 18px;
-        }
-        /* 모바일: 1열 — 각 브랜드 바로 아래 TOP10 inline 펼침 */
-        @media (max-width: 640px) {
-          .home-brands-grid {
-            grid-template-columns: 1fr;
-            grid-template-areas:
-              "p-tile"
-              "p-top"
-              "o-tile"
-              "o-top";
-          }
-        }
-      </style>
 
       <style>
-        .home-top-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px; }
-        @media (max-width: 1100px) { .home-top-grid { grid-template-columns:repeat(5, minmax(0,1fr)); } }
-        @media (max-width: 850px)  { .home-top-grid { grid-template-columns:repeat(4, minmax(0,1fr)); } }
-        @media (max-width: 640px)  { .home-top-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
-        @media (max-width: 480px)  { .home-top-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+        /* ─── 새 홈 디자인 CSS ─── */
+        section[data-page="home"] { font-family: 'Noto Sans KR', sans-serif; }
+
+        /* 자산 위젯 */
+        .asset-widget {
+          background: #0D0D0D; border-radius: var(--radius-lg);
+          padding: 16px 20px; margin-bottom: 14px;
+          display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+        }
+        .asset-main { flex: 1; min-width: 160px; }
+        .asset-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 3px; }
+        .asset-value { font-size: 24px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+        .asset-change { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 20px; margin-top: 5px; }
+        .asset-change.up { background: rgba(22,163,74,0.2); color: #4ade80; }
+        .asset-change.down { background: rgba(220,38,38,0.2); color: #fca5a5; }
+        .asset-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.1); }
+        .asset-stat { text-align: center; }
+        .asset-stat-val { font-size: 15px; font-weight: 600; color: #fff; }
+        .asset-stat-label { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+        .asset-action { padding: 7px 14px; background: rgba(255,255,255,0.08); border-radius: var(--radius-md); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.6); cursor: pointer; transition: all 0.12s; white-space: nowrap; border: none; font-family: inherit; }
+        .asset-action:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+        /* SNKRDUNK 안내 버튼 */
+        .snkr-help-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-tertiary); padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border2); cursor: pointer; transition: all 0.12s; background: var(--bg-surface2); font-family: inherit; }
+        .snkr-help-btn:hover { border-color: var(--brand2); color: var(--brand2-text); }
+
+        /* 섹션 */
+        .section2 { margin-bottom: 24px; }
+        .section-header2 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .section-title2 { font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; }
+        .section-title2::before { content: ''; display: inline-block; width: 3px; height: 14px; background: var(--brand2); border-radius: 2px; }
+        .section-more2 { font-size: 12px; color: var(--brand2-text); font-weight: 500; cursor: pointer; }
+        .section-more2:hover { color: var(--brand2-hover); }
+
+        /* 브랜드 TOP 시세 */
+        .top-summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 720px) { .top-summary-grid { grid-template-columns: 1fr; } }
+        .brand-card { background: var(--bg-surface2); border: 1px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+        .brand-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 10px; border-bottom: 1px solid var(--border-subtle); }
+        .brand-badge { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px; display: flex; align-items: center; gap: 5px; }
+        .brand-badge.pk { background: var(--pk-subtle); color: var(--pk-text); }
+        .brand-badge.op { background: var(--op-subtle); color: var(--op-text); }
+        .brand-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .brand-badge.pk .brand-badge-dot { background: var(--pk-color); }
+        .brand-badge.op .brand-badge-dot { background: var(--op-color); }
+        .brand-update { font-size: 10px; color: var(--text-tertiary); }
+        .price-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; cursor: pointer; transition: background 0.1s; text-decoration: none; color: inherit; }
+        .price-row:hover { background: var(--bg-page2); }
+        .price-rank { font-size: 11px; font-weight: 700; color: var(--text-tertiary); width: 14px; flex-shrink: 0; text-align: center; }
+        .price-rank.top1 { color: #D4A800; }
+        .price-rank.top2 { color: #888; }
+        .price-rank.top3 { color: #A0522D; }
+        .card-img-thumb {
+          width: 36px; aspect-ratio: 5/7; border-radius: 4px;
+          flex-shrink: 0; overflow: hidden;
+          border: 1px solid var(--border-subtle);
+          background: var(--bg-muted2);
+        }
+        .card-img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .price-info { flex: 1; min-width: 0; }
+        .price-name { font-size: 12px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .price-pack { font-size: 10px; color: var(--text-tertiary); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .price-right { text-align: right; flex-shrink: 0; }
+        .price-val { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+        .price-change { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+        .price-change.up { background: var(--price-up-subtle); color: var(--price-up-text); }
+        .price-change.down { background: var(--price-down-subtle); color: var(--price-down-text); }
+        .price-list-hidden { display: none; border-top: 1px solid var(--border-subtle); }
+        .price-list-hidden.show { display: block; }
+        .brand-card-footer { border-top: 1px solid var(--border-subtle); }
+        .expand-btn { width: 100%; padding: 9px; display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; font-weight: 500; color: var(--text-secondary); cursor: pointer; background: transparent; border: none; font-family: inherit; transition: all 0.12s; }
+        .expand-btn:hover { background: var(--bg-page2); color: var(--text-primary); }
+        .expand-btn .arrow { transition: transform 0.2s; font-size: 10px; }
+        .expand-btn.open .arrow { transform: rotate(180deg); }
+
+        /* 그레이딩 배너 */
+        .grading-banner {
+          background: linear-gradient(135deg, #0D0D0D 0%, #1a1a2e 100%);
+          border-radius: var(--radius-lg); padding: 18px 20px;
+          display: flex; align-items: center; gap: 16px;
+          cursor: pointer; transition: transform 0.15s; margin-bottom: 24px;
+        }
+        .grading-banner:hover { transform: translateY(-1px); }
+        .grading-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(25,223,223,0.15); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+        .grading-content { flex: 1; min-width: 0; }
+        .grading-label { font-size: 10px; font-weight: 600; color: var(--brand2); letter-spacing: 0.07em; margin-bottom: 3px; }
+        .grading-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 3px; }
+        .grading-desc { font-size: 12px; color: rgba(255,255,255,0.45); }
+        .grading-arrow { font-size: 20px; color: rgba(255,255,255,0.25); flex-shrink: 0; }
+
+        /* 소식 큐레이션 */
+        .news-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        @media (max-width: 640px) { .news-grid2 { grid-template-columns: 1fr; } }
+        .news-card2 { background: var(--bg-surface2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 14px; cursor: pointer; transition: all 0.15s; display: flex; gap: 12px; box-shadow: var(--shadow-sm); }
+        .news-card2:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+        .news-thumb2 { width: 56px; height: 56px; border-radius: var(--radius-md); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; background: var(--brand2-subtle); }
+        .news-body2 { flex: 1; min-width: 0; }
+        .news-tag2 { font-size: 10px; font-weight: 600; color: var(--brand2-text); margin-bottom: 3px; }
+        .news-title2 { font-size: 12px; font-weight: 500; color: var(--text-primary); line-height: 1.4; margin-bottom: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .news-meta2 { font-size: 10px; color: var(--text-tertiary); }
+
+        /* SNKRDUNK 모달 */
+        .modal-overlay2 { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; align-items: center; justify-content: center; }
+        .modal-overlay2.show { display: flex; }
+        .modal2 { background: var(--bg-surface2); border-radius: var(--radius-lg); padding: 24px; max-width: 420px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.15); font-family: 'Noto Sans KR', sans-serif; }
+        .modal-header2 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .modal-title2 { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+        .modal-close2 { font-size: 18px; color: var(--text-tertiary); cursor: pointer; }
+        .modal-body2 { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+        .modal-body2 strong { color: var(--text-primary); font-weight: 600; }
+        .modal-tag2 { display: inline-block; margin-top: 12px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--brand2-subtle); color: var(--brand2-text); }
       </style>
     </section>
 
@@ -1536,6 +1660,7 @@ function go(pageOrPath) {
     history.pushState({page: pageOrPath}, '', newHash);
   }
   // 페이지별 초기화
+  if (page === 'home' && typeof initHome2 === 'function') initHome2();
   if (page === 'price') initPrice(productId);
   if (page === 'portfolio') refreshPortfolio();
   if (page === 'centering') {
@@ -1837,6 +1962,160 @@ async function toggleHomeTop(brand) {
   }
   // 펼쳐진 영역으로 스크롤
   setTimeout(() => box.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * 새 홈 디자인 — Phase 2 데이터 연동
+ * brand-card (price-row 형식) + 자산 위젯 + 소식 그리드
+ * ───────────────────────────────────────────────────────────── */
+function _homePriceRowHTML(p, i) {
+  const price = p.lastPrice ?? p.lowestAsk;
+  const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+  const name = p.name || '';
+  // "Pikachu VMAX [SGG 001/019](High Class Deck \"Gengar VMAX\")" → mainName + packName 분리
+  let mainName = name;
+  let packName = '';
+  const m = name.match(/^([^[(]+?)(?:\s*\[([^\]]+)\])?\s*(?:\(([^)]+)\))?\s*$/);
+  if (m) {
+    mainName = (m[1] || '').trim();
+    packName = (m[3] || m[2] || '').trim();
+  }
+  const imgHtml = p.image
+    ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
+    : '';
+  return `<a href="#price/${p.id}" data-price-id="${p.id}" class="price-row">
+    <span class="price-rank ${rankClass}">${i+1}</span>
+    <div class="card-img-thumb">${imgHtml}</div>
+    <div class="price-info">
+      <div class="price-name">${escapeHtml(mainName)}</div>
+      ${packName ? `<div class="price-pack">${escapeHtml(packName)}</div>` : ''}
+    </div>
+    <div class="price-right">
+      <div class="price-val">${fmtKrw(price, p.currency)}</div>
+    </div>
+  </a>`;
+}
+
+function renderHomeTopRow(brand) {
+  const containerId = brand === 'pokemon' ? 'homeTopPokemon' : 'homeTopOnepiece';
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const products = (HOME_TOP_CACHE[brand] || []).slice(0, 10);
+  if (!products.length) {
+    container.innerHTML = '<div style="padding:24px; text-align:center; color:var(--text-tertiary); font-size:12px">시세 데이터 준비 중…</div>';
+    return;
+  }
+  const top3 = products.slice(0, 3);
+  const rest = products.slice(3, 10);
+  container.innerHTML =
+    top3.map((p, i) => _homePriceRowHTML(p, i)).join('') +
+    `<div class="price-list-hidden" id="${brand}-more-list">` +
+    rest.map((p, i) => _homePriceRowHTML(p, i + 3)).join('') +
+    `</div>`;
+}
+
+window.toggleHomeTopMore = function(brand) {
+  const list = document.getElementById(`${brand}-more-list`);
+  const btnId = brand === 'pokemon' ? 'homeTopPokemonBtn' : 'homeTopOnepieceBtn';
+  const btn = document.getElementById(btnId);
+  if (!list || !btn) return;
+  const isOpen = list.classList.contains('show');
+  list.classList.toggle('show');
+  btn.classList.toggle('open');
+  // 첫 번째 텍스트 노드 교체
+  for (const node of btn.childNodes) {
+    if (node.nodeType === 3) { node.textContent = isOpen ? 'TOP 10 더보기 ' : '접기 '; break; }
+  }
+};
+
+function renderHomeNewsGrid() {
+  const grid = document.getElementById('homeNewsGrid');
+  if (!grid) return;
+  const items = (typeof NEWS_LIST !== 'undefined' && Array.isArray(NEWS_LIST)) ? NEWS_LIST.slice(0, 4) : [];
+  if (!items.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--text-tertiary); font-size:12px">아직 등록된 소식이 없습니다</div>';
+    return;
+  }
+  grid.innerHTML = items.map(n => {
+    const date = n.date || n.publishedAt || '';
+    const title = n.title || '';
+    const tag = n.tag || n.category || '뉴스';
+    const tagStr = String(tag);
+    const icon = (tagStr.includes('이벤트') || tagStr.includes('응모')) ? '🎪'
+               : (tagStr.includes('발매') || tagStr.includes('출시')) ? '🎴'
+               : tagStr.includes('시세') ? '📊'
+               : tagStr.includes('오리파') ? '🎰'
+               : tagStr.includes('카드쇼') ? '🎟️'
+               : '📰';
+    const link = n.link || n.url || '#hub';
+    const isExternal = /^https?:/.test(link);
+    return `<a href="${escapeHtml(link)}" ${isExternal ? 'target="_blank" rel="noopener"' : ''} class="news-card2" style="text-decoration:none">
+      <div class="news-thumb2">${icon}</div>
+      <div class="news-body2">
+        <div class="news-tag2">${escapeHtml(tagStr)}</div>
+        <div class="news-title2">${escapeHtml(title)}</div>
+        <div class="news-meta2">${escapeHtml(date)}</div>
+      </div>
+    </a>`;
+  }).join('');
+}
+
+function renderHomeAsset() {
+  const valEl = document.getElementById('homeAssetValue');
+  const changeEl = document.getElementById('homeAssetChange');
+  const holdEl = document.getElementById('homeAssetHoldCount');
+  const watchEl = document.getElementById('homeAssetWatchCount');
+  if (!valEl) return;
+  const user = (typeof CURRENT_USER !== 'undefined') ? CURRENT_USER : null;
+  if (!user) {
+    valEl.textContent = '로그인 필요';
+    valEl.style.fontSize = '16px';
+    if (changeEl) changeEl.style.display = 'none';
+    if (holdEl) holdEl.textContent = '—';
+    if (watchEl) watchEl.textContent = '—';
+    return;
+  }
+  valEl.style.fontSize = '24px';
+  const portfolio = (typeof PORTFOLIO !== 'undefined' && Array.isArray(PORTFOLIO)) ? PORTFOLIO : [];
+  const watchlist = (typeof WATCHLIST !== 'undefined' && Array.isArray(WATCHLIST)) ? WATCHLIST : [];
+  let totalValue = 0, totalCost = 0;
+  for (const h of portfolio) {
+    const v = Number(h.currentValue ?? h.lastPrice ?? h.value ?? 0) || 0;
+    const c = Number(h.cost ?? h.buyPrice ?? h.cost_krw ?? 0) || 0;
+    totalValue += v;
+    totalCost += c;
+  }
+  valEl.textContent = '₩' + Math.round(totalValue).toLocaleString();
+  if (totalCost && changeEl) {
+    const diff = totalValue - totalCost;
+    const pct = (diff / totalCost) * 100;
+    changeEl.style.display = 'inline-flex';
+    changeEl.className = 'asset-change ' + (diff >= 0 ? 'up' : 'down');
+    const sign = diff >= 0 ? '▲' : '▼';
+    const diffStr = diff >= 0 ? '+' : '';
+    changeEl.textContent = `${sign} ${diffStr}₩${Math.round(diff).toLocaleString()} · ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+  } else if (changeEl) {
+    changeEl.style.display = 'none';
+  }
+  if (holdEl) holdEl.textContent = portfolio.length + '종';
+  if (watchEl) watchEl.textContent = watchlist.length + '종';
+}
+
+async function initHome2() {
+  // 두 브랜드 TOP10 캐시 로드 + 새 디자인 렌더
+  for (const brand of ['pokemon', 'onepiece']) {
+    try {
+      await loadHomeTop(brand);
+      renderHomeTopRow(brand);
+    } catch (e) {
+      console.warn(`[home2] ${brand} load fail:`, e.message);
+      const containerId = brand === 'pokemon' ? 'homeTopPokemon' : 'homeTopOnepiece';
+      const container = document.getElementById(containerId);
+      if (container) container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-tertiary); font-size:12px">시세 데이터 준비 중…<br><span style="font-size:10px">매일 04:00 KST 자동 갱신</span></div>`;
+    }
+  }
+  renderHomeNewsGrid();
+  renderHomeAsset();
 }
 
 document.addEventListener('click', e => {

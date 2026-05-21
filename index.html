@@ -916,9 +916,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
     <!-- 카드 시세 -->
     <section class="page" data-page="price">
-      <div class="page-head">
-        <h1 class="page-title">카드 시세</h1>
-        <p class="page-sub">SNKRDUNK 라이브 · 24시간 자동 갱신</p>
+      <!-- 새 헤더 — 라이브 dot -->
+      <div class="page-head2" style="margin-bottom:20px">
+        <h1 class="page-title2">시세</h1>
+        <div class="page-desc2">
+          <span class="live-dot2"></span>
+          SNKRDUNK 실거래가 기준 · 24시간 자동 갱신
+        </div>
       </div>
 
       <!-- 선택 상품 상세 패널 (top10 카드 클릭 시 표시) -->
@@ -935,19 +939,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div id="cardSearchResults" style="display:none; position:absolute; left:0; right:0; top:100%; margin-top:6px; background:#fff; border:1px solid var(--line); border-radius:10px; max-height:480px; overflow-y:auto; box-shadow:0 6px 20px rgba(0,0,0,0.08); z-index:50"></div>
       </div>
 
-      <!-- 1차 탭: 브랜드 -->
-      <div class="tabs" id="priceBrandTabs">
-        <div class="tab active" data-brand="pokemon">⚡ 포켓몬</div>
-        <div class="tab" data-brand="onepiece">🏴‍☠️ 원피스</div>
+      <!-- 1차 탭: 브랜드 (새 디자인 — underline) -->
+      <div class="brand-tabs2" id="priceBrandTabs">
+        <div class="brand-tab2 active-pk tab active" data-brand="pokemon">⚡ 포켓몬</div>
+        <div class="brand-tab2 tab" data-brand="onepiece">🏴‍☠️ 원피스</div>
       </div>
 
-      <!-- 2차 탭: 박스 / 카드 -->
-      <div class="tabs pill" id="priceCatTabs">
-        <div class="tab active" data-cat="box">📦 박스</div>
-        <div class="tab" data-cat="card">🃏 카드</div>
+      <!-- 2차 탭: 박스 / 카드 (새 디자인 — pill) -->
+      <div class="type-tabs2" id="priceCatTabs">
+        <button type="button" class="type-tab2 tab active" data-cat="box">📦 박스</button>
+        <button type="button" class="type-tab2 tab" data-cat="card">🃏 카드</button>
       </div>
 
-      <!-- 등급 칩 (카드 탭일 때만) -->
+      <!-- 등급 칩 (카드 탭일 때만) — 사용자 요청으로 상세 패널 안으로 이동, 숨김 -->
       <div class="chips" id="priceGradeChips" style="display:none">
         <div class="chip active" data-grade="psa10">PSA 10</div>
         <div class="chip" data-grade="psa9">PSA 9</div>
@@ -956,7 +960,149 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
       <div class="price-status" id="priceStatus"></div>
       <div id="priceGrid" class="price-grid"></div>
+
+      <style>
+        /* ─── 시세 페이지 새 디자인 ─── */
+        section[data-page="price"] { font-family: 'Noto Sans KR', sans-serif; }
+        .page-head2 .page-title2 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; color: var(--text-primary); }
+        .page-head2 .page-desc2 { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+        .live-dot2 { width: 6px; height: 6px; border-radius: 50%; background: var(--price-up); display: inline-block; animation: pulse2 1.5s infinite; }
+        @keyframes pulse2 { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+        /* 브랜드 탭 — underline */
+        .brand-tabs2 { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); }
+        .brand-tab2 { padding: 10px 16px; font-size: 13px; font-weight: 500; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.12s; display: flex; align-items: center; gap: 6px; }
+        .brand-tab2:hover { color: var(--text-primary); }
+        .brand-tab2.active[data-brand="pokemon"] { color: var(--pk-text); border-bottom-color: var(--pk-color); font-weight: 600; }
+        .brand-tab2.active[data-brand="onepiece"] { color: var(--op-text); border-bottom-color: var(--op-color); font-weight: 600; }
+
+        /* 타입 탭 — pill */
+        .type-tabs2 { display: flex; gap: 6px; margin-bottom: 14px; }
+        .type-tab2 { padding: 6px 14px; font-size: 12px; font-weight: 500; border-radius: 20px; border: 1px solid var(--border2); color: var(--text-secondary); cursor: pointer; transition: all 0.12s; background: transparent; font-family: inherit; }
+        .type-tab2:hover { border-color: var(--brand2); color: var(--brand2-text); }
+        .type-tab2.active { background: var(--text-primary); color: white; border-color: var(--text-primary); }
+      </style>
     </section>
+
+    <!-- ─── 시세 슬라이드 패널 (카드 그리드 클릭 시 우측에서 슬라이드) ─── -->
+    <div class="slide-overlay" id="slideOverlay" onclick="closeSlidePanel()"></div>
+    <aside class="slide-panel" id="slidePanel" aria-hidden="true">
+      <div class="slide-header">
+        <div class="slide-card-img" id="slideCardImg">🃏</div>
+        <div class="slide-info">
+          <span class="slide-badge" id="slideBadge">—</span>
+          <div class="slide-name" id="slideName">—</div>
+          <div class="slide-name-en" id="slideNameEn"></div>
+          <div class="slide-pack" id="slidePack"></div>
+        </div>
+        <div class="slide-actions-top">
+          <button type="button" class="slide-icon-btn" id="slideShareBtn" title="공유" aria-label="공유">📤</button>
+          <button type="button" class="slide-icon-btn" id="slideFullBtn" title="전체 페이지로 보기" aria-label="전체화면">⛶</button>
+          <button type="button" class="slide-icon-btn" onclick="closeSlidePanel()" title="닫기" aria-label="닫기">✕</button>
+        </div>
+      </div>
+      <div class="slide-body" id="slideBody">
+        <div style="padding:40px; text-align:center; color:var(--text-tertiary)">불러오는 중...</div>
+      </div>
+    </aside>
+
+    <style>
+      /* ─── 슬라이드 패널 ─── */
+      .slide-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 300; }
+      .slide-overlay.show { display: block; }
+      .slide-panel {
+        position: fixed; top: 0; right: -560px; bottom: 0; width: 540px; max-width: 95vw;
+        background: var(--bg-surface2, #fff); z-index: 301;
+        box-shadow: -4px 0 40px rgba(0,0,0,0.12);
+        overflow-y: auto; transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+        display: flex; flex-direction: column;
+        font-family: 'Noto Sans KR', sans-serif;
+      }
+      .slide-panel.show { right: 0; }
+      .slide-header {
+        padding: 20px 20px 16px; border-bottom: 1px solid var(--border-subtle);
+        display: flex; align-items: flex-start; gap: 14px;
+        position: sticky; top: 0; background: var(--bg-surface2, #fff); z-index: 1;
+      }
+      .slide-card-img {
+        width: 70px; aspect-ratio: 5/7; border-radius: var(--radius-md);
+        background: var(--bg-muted2, #EDECE8); flex-shrink: 0; overflow: hidden;
+        display: flex; align-items: center; justify-content: center; font-size: 28px;
+      }
+      .slide-card-img img { width: 100%; height: 100%; object-fit: cover; }
+      .slide-info { flex: 1; min-width: 0; }
+      .slide-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; display: inline-block; margin-bottom: 5px; }
+      .slide-badge.pk { background: var(--pk-subtle); color: var(--pk-text); }
+      .slide-badge.op { background: var(--op-subtle); color: var(--op-text); }
+      .slide-name { font-size: 16px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; color: var(--text-primary); }
+      .slide-name-en { font-size: 11px; color: var(--text-tertiary); margin-bottom: 6px; }
+      .slide-pack { font-size: 12px; color: var(--text-secondary); }
+      .slide-actions-top { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+      .slide-icon-btn {
+        width: 32px; height: 32px; border-radius: 8px;
+        border: none; background: transparent; cursor: pointer;
+        font-size: 14px; color: var(--text-tertiary); transition: all 0.12s;
+        display: flex; align-items: center; justify-content: center; font-family: inherit;
+      }
+      .slide-icon-btn:hover { background: var(--bg-page2, #F7F6F2); color: var(--text-primary); }
+      .slide-body { padding: 20px; flex: 1; }
+
+      /* 등급 칩 4개 (PSA10/9/A급/직구) */
+      .slide-grade-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+      .slide-grade-chip {
+        padding: 8px 4px; border-radius: 10px; border: 1px solid var(--border2);
+        background: var(--bg-surface2); cursor: pointer; transition: all 0.12s;
+        text-align: center; font-family: inherit; position: relative;
+      }
+      .slide-grade-chip:hover { border-color: var(--brand2); }
+      .slide-grade-chip.active { background: var(--brand2-subtle); border-color: var(--brand2); }
+      .slide-grade-chip .gc-label { font-size: 10px; font-weight: 600; color: var(--text-tertiary); margin-bottom: 2px; }
+      .slide-grade-chip.active .gc-label { color: var(--brand2-text); }
+      .slide-grade-chip .gc-val { font-size: 12px; font-weight: 700; color: var(--text-primary); }
+      .slide-grade-chip .gc-tip {
+        position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+        background: #0D0D0D; color: #fff; font-size: 10px; padding: 6px 10px; border-radius: 6px;
+        white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5;
+      }
+      .slide-grade-chip:hover .gc-tip { opacity: 1; }
+
+      /* 현재 시세 박스 */
+      .slide-price-box { background: var(--bg-page2, #F7F6F2); border-radius: var(--radius-lg); padding: 16px 18px; margin-bottom: 16px; }
+      .slide-price-label { font-size: 11px; font-weight: 600; color: var(--brand2-text); letter-spacing: 0.05em; margin-bottom: 6px; }
+      .slide-price-val { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 3px; }
+      .slide-price-sub { font-size: 13px; color: var(--text-tertiary); margin-bottom: 10px; }
+      .slide-stat-row { display: flex; gap: 10px; }
+      .slide-stat { flex: 1; background: var(--bg-surface2); border-radius: var(--radius-md); padding: 10px 12px; }
+      .slide-stat-label { font-size: 10px; color: var(--text-tertiary); margin-bottom: 3px; }
+      .slide-stat-val { font-size: 14px; font-weight: 600; }
+      .slide-stat-val.up { color: var(--price-up); }
+      .slide-stat-val.down { color: var(--price-down); }
+
+      /* 차트 영역 */
+      .slide-chart-section { margin-bottom: 16px; }
+      .slide-chart-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; }
+      .slide-chart-wrap { background: var(--bg-page2, #F7F6F2); border-radius: var(--radius-lg); padding: 12px; min-height: 200px; }
+
+      /* 액션 */
+      .slide-action-row { display: flex; gap: 8px; margin-bottom: 16px; }
+      .slide-btn-primary { flex: 1; padding: 11px; border-radius: var(--radius-md); background: var(--text-primary); color: white; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.12s; }
+      .slide-btn-primary:hover { background: #333; }
+      .slide-btn-secondary { flex: 1; padding: 11px; border-radius: var(--radius-md); border: 1px solid var(--border2); background: transparent; color: var(--text-primary); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.12s; }
+      .slide-btn-secondary:hover { border-color: var(--brand2); color: var(--brand2-text); }
+
+      /* 정보 테이블 */
+      .slide-info-table { width: 100%; border-collapse: collapse; }
+      .slide-info-table tr { border-bottom: 1px solid var(--border-subtle); }
+      .slide-info-table tr:last-child { border-bottom: none; }
+      .slide-info-table td { padding: 9px 0; font-size: 13px; }
+      .slide-info-table td:first-child { color: var(--text-tertiary); width: 120px; }
+      .slide-info-table td:last-child { font-weight: 500; text-align: right; color: var(--text-primary); }
+
+      /* 모바일 — 풀 화면 */
+      @media (max-width: 640px) {
+        .slide-panel { width: 100vw; max-width: 100vw; right: -100vw; }
+      }
+    </style>
     <style>
       /* 카드시세 그리드 — 카드 크기 확대 */
       .price-grid { display:grid; gap:16px; grid-template-columns:repeat(5, minmax(0,1fr)); }
@@ -3999,7 +4145,8 @@ function renderPriceGrid(products) {
       ? `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}"><strong>${ko}</strong><div style="font-size:11px; color:var(--ink-sub); font-weight:400; line-height:1.3; margin-top:3px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${safeName}</div></div>`
       : `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}">${safeName}</div>`;
     return `
-      <a href="#price/${p.id}" data-price-id="${p.id}" class="price-card" style="text-decoration:none; color:inherit; cursor:pointer">
+      <a href="#price/${p.id}" data-price-id="${p.id}" class="price-card" style="text-decoration:none; color:inherit; cursor:pointer"
+         onclick="event.preventDefault(); openSlidePanel('${p.id}')">
         <div class="price-card-img">
           ${p.image ? `<img src="${p.image}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="ph">🃏</div>'}
         </div>
@@ -4016,6 +4163,326 @@ function renderPriceGrid(products) {
 function changePricePage(d) {
   // (지금은 페이지네이션 없음 — TOP 10 만 보여주므로)
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * 슬라이드 패널 — 카드 그리드 클릭 시 우측에서 슬라이드 (빠른 미리보기)
+ * 별도 페이지 (#price/{id}) 는 그대로 유지 — URL 공유 시 활용
+ * ───────────────────────────────────────────────────────────── */
+let CURRENT_SLIDE_ID = null;
+
+window.openSlidePanel = async function(productId) {
+  CURRENT_SLIDE_ID = String(productId);
+  const overlay = document.getElementById('slideOverlay');
+  const panel = document.getElementById('slidePanel');
+  if (!overlay || !panel) return;
+  overlay.classList.add('show');
+  panel.classList.add('show');
+  panel.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  // 초기 로딩 상태
+  document.getElementById('slideBody').innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-tertiary)">불러오는 중...</div>';
+  document.getElementById('slideName').textContent = '—';
+  document.getElementById('slideNameEn').textContent = '';
+  document.getElementById('slidePack').textContent = '';
+  document.getElementById('slideCardImg').innerHTML = '🃏';
+  // 데이터 fetch + 렌더
+  try {
+    await renderSlidePanel(productId);
+  } catch (e) {
+    console.error('[slide] fetch fail:', e);
+    document.getElementById('slideBody').innerHTML = `<div style="padding:40px; text-align:center; color:var(--price-down)">데이터를 불러올 수 없습니다. <br><button onclick="closeSlidePanel(); go('price/${productId}')" style="margin-top:10px; padding:8px 16px; border:1px solid var(--border2); border-radius:8px; background:transparent; cursor:pointer">전체 페이지에서 보기 →</button></div>`;
+  }
+};
+
+window.closeSlidePanel = function() {
+  const overlay = document.getElementById('slideOverlay');
+  const panel = document.getElementById('slidePanel');
+  if (overlay) overlay.classList.remove('show');
+  if (panel) { panel.classList.remove('show'); panel.setAttribute('aria-hidden', 'true'); }
+  document.body.style.overflow = '';
+  CURRENT_SLIDE_ID = null;
+};
+
+async function renderSlidePanel(productId) {
+  // 1. product 메타 — 기존 showPriceDetailPanel 과 동일한 fallback chain
+  let product = null;
+  // HOME_TOP_CACHE 우선
+  for (const brand of ['pokemon', 'onepiece']) {
+    const list = HOME_TOP_CACHE[brand];
+    if (list) {
+      const found = list.find(p => String(p.id) === String(productId));
+      if (found) { product = { ...found, _brand: brand }; break; }
+    }
+  }
+  // 정적 파일 fallback
+  if (!product) {
+    const sources = [];
+    for (const brand of ['pokemon', 'onepiece']) {
+      sources.push({brand, file: `top10-${brand}`});
+      sources.push({brand, file: `price-${brand}-box`});
+      sources.push({brand, file: `manual-boxes-${brand}`});
+      sources.push({brand, file: `price-${brand}-card`});
+    }
+    for (const {brand, file} of sources) {
+      if (product) break;
+      try {
+        const r = await fetch(`/data/${file}.json?t=${Math.floor(Date.now()/3600000)}`);
+        if (!r.ok) continue;
+        const d = await r.json();
+        const found = (d.products || []).find(p => String(p.id) === String(productId));
+        if (found) { product = { ...found, _brand: brand }; break; }
+      } catch {}
+    }
+  }
+  // 최종 fallback — all-cards.json
+  if (!product) {
+    try {
+      if (!window._ALL_CARDS_DETAILS) {
+        const r = await fetch(`/data/all-cards.json?t=${Math.floor(Date.now()/3600000)}`);
+        if (r.ok) {
+          const d = await r.json();
+          window._ALL_CARDS_DETAILS = d.details || [];
+        }
+      }
+      const found = (window._ALL_CARDS_DETAILS || []).find(c => String(c.id) === String(productId));
+      if (found) {
+        product = { id: found.id, name: found.name, image: found.thumbnailUrl, brand: found.brand || 'pokemon', _brand: found.brand || 'pokemon' };
+      }
+    } catch (e) { console.warn('[slide] all-cards fallback fail:', e); }
+  }
+  // 2. history 받기 — 등급별 가격
+  let history = null;
+  try {
+    const r2 = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
+    if (r2.ok) {
+      const d2 = await r2.json();
+      history = d2 && d2.history;
+    }
+  } catch (e) {}
+
+  const name = (product && product.name) || `카드 #${productId}`;
+  const image = (product && product.image) || '';
+  const brand = (product && (product._brand || product.brand)) || 'pokemon';
+  const pack = (product && (product.set_name || product.pack || product.jp_name)) || '';
+  // 가격 — history 의 가장 최근 row
+  const latest = history && history.length ? history[history.length - 1] : {};
+  const psa10Price = _krw(latest.psa10_price);
+  const psa9Price = _krw(latest.psa9_price);
+  const rawPrice = _krw(latest.raw_price);
+  const directPrice = psa10Price ? Math.round(psa10Price * 1.1 + 50000) : null;
+
+  // 헤더
+  document.getElementById('slideName').textContent = name;
+  document.getElementById('slideNameEn').textContent = (product && product.name_en) || '';
+  document.getElementById('slidePack').textContent = pack ? `📦 ${pack}` : '';
+  const badge = document.getElementById('slideBadge');
+  badge.textContent = brand === 'onepiece' ? 'ONE PIECE' : 'POKEMON';
+  badge.className = 'slide-badge ' + (brand === 'onepiece' ? 'op' : 'pk');
+  const imgWrap = document.getElementById('slideCardImg');
+  imgWrap.innerHTML = image ? `<img src="${escapeHtml(image)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.textContent='🃏'">` : '🃏';
+
+  // body — 등급칩 4개 + 가격박스 + 차트 + 액션 + 정보
+  const fmtChip = (val) => val ? `₩${val.toLocaleString()}` : '—';
+  const body = document.getElementById('slideBody');
+  body.innerHTML = `
+    <!-- 등급 4개 칩 -->
+    <div class="slide-grade-row">
+      <div class="slide-grade-chip active" data-grade="psa10">
+        <div class="gc-label">PSA 10</div>
+        <div class="gc-val">${fmtChip(psa10Price)}</div>
+      </div>
+      <div class="slide-grade-chip" data-grade="psa9">
+        <div class="gc-label">PSA 9</div>
+        <div class="gc-val">${fmtChip(psa9Price)}</div>
+      </div>
+      <div class="slide-grade-chip" data-grade="raw">
+        <div class="gc-label">A급(미개봉)</div>
+        <div class="gc-val">${fmtChip(rawPrice)}</div>
+      </div>
+      <div class="slide-grade-chip" data-grade="direct">
+        <div class="gc-label">직구가격</div>
+        <div class="gc-val">${fmtChip(directPrice)}</div>
+        <div class="gc-tip">※ PSA10 기준 부가세, 배송비 포함 예시 가격</div>
+      </div>
+    </div>
+
+    <!-- 현재 시세 박스 -->
+    <div class="slide-price-box">
+      <div class="slide-price-label">SNKRDUNK 최저 실거래가</div>
+      <div class="slide-price-val" id="slidePriceVal">${fmtChip(psa10Price)}</div>
+      <div class="slide-price-sub" id="slidePriceSub">PSA 10 기준</div>
+      <div class="slide-stat-row">
+        <div class="slide-stat"><div class="slide-stat-label">7일 변동</div><div class="slide-stat-val" id="slide7d">—</div></div>
+        <div class="slide-stat"><div class="slide-stat-label">30일 변동</div><div class="slide-stat-val" id="slide30d">—</div></div>
+        <div class="slide-stat"><div class="slide-stat-label">최고가</div><div class="slide-stat-val" id="slideHigh">—</div></div>
+      </div>
+    </div>
+
+    <!-- 차트 -->
+    <div class="slide-chart-section">
+      <div class="slide-chart-title">가격 · 거래량 히스토리</div>
+      <div class="slide-chart-wrap">
+        <canvas id="slideChart" style="width:100%; height:200px"></canvas>
+      </div>
+    </div>
+
+    <!-- 액션 -->
+    <div class="slide-action-row">
+      <button type="button" class="slide-btn-primary" id="slideAddPortfolio">+ 포트폴리오 추가</button>
+      <button type="button" class="slide-btn-secondary" id="slideToggleWatch">☆ 관심 카드</button>
+    </div>
+
+    <!-- 정보 테이블 -->
+    <table class="slide-info-table">
+      <tr><td>타입</td><td>${PRICE_CAT === 'box' ? '박스' : '카드'}</td></tr>
+      <tr><td>확장팩</td><td>${escapeHtml(pack || '—')}</td></tr>
+      <tr><td>데이터 출처</td><td>SNKRDUNK · 24시간 자동 갱신</td></tr>
+    </table>
+  `;
+
+  // 등급 칩 클릭 → slide-price-val 업데이트
+  body.querySelectorAll('.slide-grade-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      body.querySelectorAll('.slide-grade-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      const g = chip.dataset.grade;
+      const map = { psa10: [psa10Price, 'PSA 10 기준'], psa9: [psa9Price, 'PSA 9 기준'], raw: [rawPrice, 'A급(미개봉) 기준'], direct: [directPrice, '직구가격 (PSA10 × 1.1 + 50,000)'] };
+      const [val, label] = map[g] || [null, ''];
+      document.getElementById('slidePriceVal').textContent = fmtChip(val);
+      document.getElementById('slidePriceSub').textContent = label;
+    });
+  });
+
+  // 변동률 계산 (psa10 기준)
+  if (history && history.length >= 2) {
+    const last = psa10Price;
+    const dayN = (n) => {
+      const row = history[history.length - 1 - n];
+      return row ? _krw(row.psa10_price) : null;
+    };
+    const calc = (then) => then && last ? ((last - then) / then * 100) : null;
+    const set = (id, pct) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (pct == null) { el.textContent = '—'; el.className = 'slide-stat-val'; return; }
+      const sign = pct >= 0 ? '+' : '';
+      el.textContent = `${sign}${pct.toFixed(1)}%`;
+      el.className = 'slide-stat-val ' + (pct >= 0 ? 'up' : 'down');
+    };
+    set('slide7d', calc(dayN(7)));
+    set('slide30d', calc(dayN(30)));
+    const allPrices = history.map(r => _krw(r.psa10_price)).filter(v => v);
+    const high = allPrices.length ? Math.max(...allPrices) : null;
+    document.getElementById('slideHigh').textContent = high ? `₩${high.toLocaleString()}` : '—';
+  }
+
+  // 액션 버튼
+  document.getElementById('slideAddPortfolio').onclick = () => {
+    if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
+      if (typeof openLoginModal === 'function') openLoginModal('포트폴리오 추가는 로그인이 필요합니다');
+      return;
+    }
+    closeSlidePanel();
+    go('price/' + productId);  // 별도 페이지에서 포트폴리오 추가
+  };
+  document.getElementById('slideToggleWatch').onclick = () => {
+    if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
+      if (typeof openLoginModal === 'function') openLoginModal('관심 카드 추가는 로그인이 필요합니다');
+      return;
+    }
+    if (typeof toggleCardWatch === 'function') {
+      toggleCardWatch(productId, document.getElementById('slideToggleWatch'));
+    }
+  };
+
+  // 차트 — 간단 SVG 라인 차트 (Chart.js 의존성 회피)
+  if (history && history.length >= 2) {
+    drawSlideChart(history);
+  }
+}
+
+function _krw(jpy) {
+  if (jpy == null) return null;
+  const rate = (typeof JPY_KRW !== 'undefined') ? JPY_KRW : 9.5;
+  return Math.floor(jpy * rate);
+}
+
+function drawSlideChart(history) {
+  const canvas = document.getElementById('slideChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = 200 * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = 200;
+  const padding = { top: 10, right: 10, bottom: 24, left: 10 };
+  const prices = history.map(r => _krw(r.psa10_price)).filter(v => v);
+  if (prices.length < 2) return;
+  const minP = Math.min(...prices), maxP = Math.max(...prices);
+  const range = maxP - minP || 1;
+  const stepX = (W - padding.left - padding.right) / (prices.length - 1);
+  // 선
+  ctx.strokeStyle = '#19DFDF';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  prices.forEach((p, i) => {
+    const x = padding.left + i * stepX;
+    const y = padding.top + (H - padding.top - padding.bottom) * (1 - (p - minP) / range);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  // 영역 그라데이션
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(25,223,223,0.18)');
+  grad.addColorStop(1, 'rgba(25,223,223,0)');
+  ctx.fillStyle = grad;
+  ctx.lineTo(padding.left + (prices.length - 1) * stepX, H - padding.bottom);
+  ctx.lineTo(padding.left, H - padding.bottom);
+  ctx.closePath();
+  ctx.fill();
+  // 현재 포인트
+  const lastX = padding.left + (prices.length - 1) * stepX;
+  const lastY = padding.top + (H - padding.top - padding.bottom) * (1 - (prices[prices.length-1] - minP) / range);
+  ctx.fillStyle = '#19DFDF';
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// 슬라이드 패널 — 공유 + 전체화면 버튼 핸들러
+document.addEventListener('click', async (e) => {
+  if (e.target.id === 'slideShareBtn') {
+    if (!CURRENT_SLIDE_ID) return;
+    const url = `${location.origin}${location.pathname}#price/${CURRENT_SLIDE_ID}`;
+    const name = document.getElementById('slideName')?.textContent || 'TCG Hub';
+    const title = `${name} 시세 — TCG Hub`;
+    if (navigator.share) {
+      try { await navigator.share({ title, text: title, url }); return; } catch (e) {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      if (typeof showToast === 'function') showToast('🔗 링크가 복사됐어요', 'success');
+      else alert('링크가 복사됐어요:\n' + url);
+    } catch (e) {
+      prompt('아래 링크를 복사하세요:', url);
+    }
+  }
+  if (e.target.id === 'slideFullBtn') {
+    if (!CURRENT_SLIDE_ID) return;
+    const id = CURRENT_SLIDE_ID;
+    closeSlidePanel();
+    go('price/' + id);
+  }
+});
+
+// ESC 키로 슬라이드 닫기
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('slidePanel')?.classList.contains('show')) {
+    closeSlidePanel();
+  }
+});
 
 // 시세 탭/칩 클릭
 document.addEventListener('click', e => {

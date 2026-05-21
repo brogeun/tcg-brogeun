@@ -1060,9 +1060,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       .slide-grade-chip.active .gc-label { color: var(--brand2-text); }
       .slide-grade-chip .gc-val { font-size: 12px; font-weight: 700; color: var(--text-primary); }
       .slide-grade-chip .gc-tip {
-        position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+        position: absolute; bottom: calc(100% + 6px); right: 0;
         background: #0D0D0D; color: #fff; font-size: 10px; padding: 6px 10px; border-radius: 6px;
-        white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5;
+        white-space: normal; width: max-content; max-width: 220px; line-height: 1.4;
+        pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 5;
+        text-align: left;
       }
       .slide-grade-chip:hover .gc-tip { opacity: 1; }
 
@@ -2299,9 +2301,9 @@ document.addEventListener('click', e => {
     go('price');
     return;
   }
-  // TOP 10 카드 클릭 → 내부 시세 상세로
+  // TOP 10 카드 클릭 → 내부 시세 상세로 (단, 슬라이드 패널 표시 카드는 skip)
   const priceCard = e.target.closest('[data-price-id]');
-  if (priceCard) {
+  if (priceCard && !priceCard.hasAttribute('data-slide-panel')) {
     e.preventDefault();
     const id = priceCard.dataset.priceId;
     go('price/' + id);
@@ -4145,8 +4147,8 @@ function renderPriceGrid(products) {
       ? `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}"><strong>${ko}</strong><div style="font-size:11px; color:var(--ink-sub); font-weight:400; line-height:1.3; margin-top:3px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${safeName}</div></div>`
       : `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}">${safeName}</div>`;
     return `
-      <a href="#price/${p.id}" data-price-id="${p.id}" class="price-card" style="text-decoration:none; color:inherit; cursor:pointer"
-         onclick="event.preventDefault(); openSlidePanel('${p.id}')">
+      <a href="#price/${p.id}" data-price-id="${p.id}" class="price-card" data-slide-panel="1" style="text-decoration:none; color:inherit; cursor:pointer"
+         onclick="event.preventDefault(); event.stopPropagation(); openSlidePanel('${p.id}'); return false;">
         <div class="price-card-img">
           ${p.image ? `<img src="${p.image}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="ph">🃏</div>'}
         </div>
@@ -4263,12 +4265,35 @@ async function renderSlidePanel(productId) {
   const name = (product && product.name) || `카드 #${productId}`;
   const image = (product && product.image) || '';
   const brand = (product && (product._brand || product.brand)) || 'pokemon';
-  const pack = (product && (product.set_name || product.pack || product.jp_name)) || '';
-  // 가격 — history 의 가장 최근 row
-  const latest = history && history.length ? history[history.length - 1] : {};
-  const psa10Price = _krw(latest.psa10_price);
-  const psa9Price = _krw(latest.psa9_price);
-  const rawPrice = _krw(latest.raw_price);
+  // 확장팩 — product 직접 필드 → 카드명에서 [코드 번호/총수](영문 박스명) 패턴 파싱
+  let pack = (product && (product.set_name || product.pack || product.jp_name)) || '';
+  if (!pack && name) {
+    // 예: "Psyduck AR [M2a 199/193](High Class Pack "MEGA Dream ex")"
+    const m1 = name.match(/\[([^\]]+)\]/);  // [M2a 199/193]
+    const m2 = name.match(/\(([^)]+)\)\s*$/);  // (High Class Pack "MEGA Dream ex")
+    const code = m1 ? m1[1].split(/\s+/)[0] : '';
+    const pname = m2 ? m2[1].replace(/^[^"]*"([^"]+)".*$/, '$1') : '';
+    if (code && pname) pack = `${pname} · ${code}`;
+    else if (code) pack = code;
+    else if (pname) pack = pname;
+  }
+  // 가격 — outlier 영향 줄이려 history 최근 7일 median 사용 (단일 spike 방지)
+  // product.lastPrice 도 함께 활용 (TOP10 캐시)
+  function pickStablePrice(field) {
+    if (!history || !history.length) return null;
+    const recent = history.slice(-7).map(r => r && r[field]).filter(v => v != null && v > 0);
+    if (!recent.length) return null;
+    const sorted = recent.slice().sort((a,b) => a-b);
+    return sorted[Math.floor(sorted.length / 2)];  // median
+  }
+  let psa10Jpy = pickStablePrice('psa10_price');
+  let psa9Jpy = pickStablePrice('psa9_price');
+  let rawJpy = pickStablePrice('raw_price');
+  // history 없으면 product.lastPrice (top10 캐시) 사용
+  if (psa10Jpy == null && product && product.lastPrice) psa10Jpy = product.lastPrice;
+  const psa10Price = _krw(psa10Jpy);
+  const psa9Price = _krw(psa9Jpy);
+  const rawPrice = _krw(rawJpy);
   const directPrice = psa10Price ? Math.round(psa10Price * 1.1 + 50000) : null;
 
   // 헤더
@@ -4413,23 +4438,66 @@ function drawSlideChart(history) {
   const ctx = canvas.getContext('2d');
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
+  const H = 200;
   canvas.width = rect.width * dpr;
-  canvas.height = 200 * dpr;
+  canvas.height = H * dpr;
   ctx.scale(dpr, dpr);
-  const W = rect.width, H = 200;
-  const padding = { top: 10, right: 10, bottom: 24, left: 10 };
-  const prices = history.map(r => _krw(r.psa10_price)).filter(v => v);
-  if (prices.length < 2) return;
+  const W = rect.width;
+  const padding = { top: 14, right: 12, bottom: 32, left: 48 };
+  // 데이터 — KRW 환산 + outlier 자동 제거 (이웃 median 대비 2배 spike 제거)
+  const rowsRaw = (history || []).map(r => ({ date: r.date, price: _krw(r.psa10_price), vol: r.total_vol || r.psa10_vol || 0 }));
+  const rowsClean = rowsRaw.filter(r => r.price && r.price > 0);
+  if (rowsClean.length < 2) {
+    ctx.fillStyle = '#999';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('데이터 부족', W/2 - 30, H/2);
+    return;
+  }
+  // outlier 제거 — 자기 제외 ±3일 median 대비 [0.5, 2.0] 벗어나면 skip
+  const rows = rowsClean.filter((r, i, arr) => {
+    const lo = Math.max(0, i - 3), hi = Math.min(arr.length, i + 4);
+    const neighbors = arr.slice(lo, hi).filter((_, j) => j !== i - lo).map(n => n.price).sort((a,b) => a-b);
+    if (!neighbors.length) return true;
+    const med = neighbors[Math.floor(neighbors.length / 2)];
+    return r.price >= med * 0.5 && r.price <= med * 2.0;
+  });
+  if (rows.length < 2) return;
+  const prices = rows.map(r => r.price);
+  const vols = rows.map(r => r.vol);
   const minP = Math.min(...prices), maxP = Math.max(...prices);
-  const range = maxP - minP || 1;
-  const stepX = (W - padding.left - padding.right) / (prices.length - 1);
-  // 선
+  const rangeP = maxP - minP || 1;
+  const maxV = Math.max(...vols, 1);
+  const innerW = W - padding.left - padding.right;
+  const innerH = H - padding.top - padding.bottom;
+  const stepX = innerW / (rows.length - 1);
+
+  // 거래량 막대 (아래 영역, 차트 높이의 30%)
+  const volH = innerH * 0.3;
+  const barW = Math.max(1, stepX * 0.6);
+  ctx.fillStyle = 'rgba(22, 163, 74, 0.25)';
+  rows.forEach((r, i) => {
+    if (!r.vol) return;
+    const x = padding.left + i * stepX - barW / 2;
+    const h = (r.vol / maxV) * volH;
+    ctx.fillRect(x, H - padding.bottom - h, barW, h);
+  });
+
+  // Y축 라벨 (가격)
+  ctx.fillStyle = '#999';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'right';
+  [maxP, (maxP + minP) / 2, minP].forEach((v, i) => {
+    const y = padding.top + (innerH * 0.7) * (i / 2);
+    ctx.fillText('₩' + Math.round(v / 10000) + '만', padding.left - 4, y + 3);
+  });
+
+  // 가격 라인
   ctx.strokeStyle = '#19DFDF';
   ctx.lineWidth = 2;
   ctx.beginPath();
   prices.forEach((p, i) => {
     const x = padding.left + i * stepX;
-    const y = padding.top + (H - padding.top - padding.bottom) * (1 - (p - minP) / range);
+    const y = padding.top + (innerH * 0.7) * (1 - (p - minP) / rangeP);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.stroke();
@@ -4438,17 +4506,33 @@ function drawSlideChart(history) {
   grad.addColorStop(0, 'rgba(25,223,223,0.18)');
   grad.addColorStop(1, 'rgba(25,223,223,0)');
   ctx.fillStyle = grad;
-  ctx.lineTo(padding.left + (prices.length - 1) * stepX, H - padding.bottom);
-  ctx.lineTo(padding.left, H - padding.bottom);
+  ctx.lineTo(padding.left + (prices.length - 1) * stepX, padding.top + innerH * 0.7);
+  ctx.lineTo(padding.left, padding.top + innerH * 0.7);
   ctx.closePath();
   ctx.fill();
   // 현재 포인트
   const lastX = padding.left + (prices.length - 1) * stepX;
-  const lastY = padding.top + (H - padding.top - padding.bottom) * (1 - (prices[prices.length-1] - minP) / range);
+  const lastY = padding.top + (innerH * 0.7) * (1 - (prices[prices.length-1] - minP) / rangeP);
   ctx.fillStyle = '#19DFDF';
   ctx.beginPath();
   ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
   ctx.fill();
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 7, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(25,223,223,0.2)';
+  ctx.fill();
+
+  // X축 라벨 (날짜) — 첫 / 중간 / 끝
+  ctx.fillStyle = '#999';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'left';
+  const yLabel = H - 8;
+  const fmtDate = (s) => (s || '').replace(/-(\d{2})-\d{2}$/, '.$1');
+  ctx.fillText(fmtDate(rows[0].date), padding.left, yLabel);
+  ctx.textAlign = 'center';
+  ctx.fillText(fmtDate(rows[Math.floor(rows.length / 2)].date), padding.left + innerW / 2, yLabel);
+  ctx.textAlign = 'right';
+  ctx.fillText(fmtDate(rows[rows.length - 1].date), padding.left + innerW, yLabel);
 }
 
 // 슬라이드 패널 — 공유 + 전체화면 버튼 핸들러

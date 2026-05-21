@@ -678,6 +678,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <input id="globalSearch" placeholder="카드 이름, 확장팩 검색 (예: 리자몽)">
       </div>
       <div class="top-actions">
+        <button type="button" class="snkr-help-btn" id="topSnkrHelp" onclick="document.getElementById('snkrHelpModal').classList.add('show')" style="display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--text-tertiary); padding:5px 10px; border-radius:20px; border:1px solid var(--border2, #D9D8D3); cursor:pointer; background:#fff; font-family:inherit; white-space:nowrap; margin-right:6px">❓ SNKRDUNK란?</button>
         <div class="icon-btn mobile-search-toggle" id="mobileSearchToggle" title="검색" aria-label="검색">🔍</div>
         <div class="avatar" id="topAvatar" title="마이페이지" data-nav="portfolio" style="display:none; cursor:pointer">?</div>
       </div>
@@ -719,14 +720,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="asset-stat"><div class="asset-stat-val" id="homeAssetHoldCount">0종</div><div class="asset-stat-label">보유 카드</div></div>
         <div class="asset-divider"></div>
         <div class="asset-stat"><div class="asset-stat-val" id="homeAssetWatchCount">0종</div><div class="asset-stat-label">관심 카드</div></div>
-        <button type="button" class="asset-action" onclick="go('mypage')">포트폴리오 →</button>
-      </div>
-
-      <!-- SNKRDUNK 안내 (소형) -->
-      <div style="display:flex; justify-content:flex-end; margin-bottom:14px">
-        <button type="button" class="snkr-help-btn" onclick="document.getElementById('snkrHelpModal').classList.add('show')">
-          ❓ SNKRDUNK란?
-        </button>
+        <button type="button" class="asset-action" onclick="openPortfolioOrLogin()">포트폴리오 →</button>
       </div>
 
       <!-- 브랜드별 TOP 시세 -->
@@ -2119,6 +2113,16 @@ function renderHomeAsset() {
   if (holdEl) holdEl.textContent = portfolio.length + '종';
   if (watchEl) watchEl.textContent = watchlist.length + '종';
 }
+
+window.openPortfolioOrLogin = function() {
+  const user = (typeof CURRENT_USER !== 'undefined') ? CURRENT_USER : null;
+  if (!user) {
+    if (typeof openLoginModal === 'function') openLoginModal('포트폴리오 확인은 로그인이 필요합니다');
+    else alert('로그인이 필요합니다');
+  } else {
+    go('mypage');
+  }
+};
 
 async function initHome2() {
   // 두 브랜드 TOP10 캐시 로드 + 새 디자인 렌더

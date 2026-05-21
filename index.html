@@ -3338,8 +3338,24 @@ async function renderGradesPanel(productId, product) {
       }
     } catch (e) { console.warn('PSA POP fetch fail:', e); }
 
-    // grid 메인 렌더 + A급 옆 4번째 박스로 POP 표시 (popCount > 0 일 때만)
+    // grid 메인 렌더 + A급 옆 4번째 박스로 직구가격 + 5번째로 POP 표시
     let html = ORDER.map(k => renderBlock(k, grades[k])).join('');
+    // 직구가격 칩 — (PSA10 KRW × 1.1) + 50,000
+    const psa10Grade = grades.psa10;
+    const psa10Val = psa10Grade ? (psa10Grade.lowest_ask ?? psa10Grade.recent_avg ?? psa10Grade.last5_avg ?? psa10Grade.avg ?? psa10Grade.avg_jpy) : null;
+    const psa10Cur = psa10Grade?.currency || (psa10Grade?.avg_jpy ? 'JPY' : 'USD');
+    if (psa10Val && psa10Val > 0) {
+      const psa10Krw = toKrw(psa10Val, psa10Cur);
+      const directKrw = Math.round(psa10Krw * 1.1 + 50000);
+      html += `
+        <div class="detail-grade-chip" style="position:relative; background:#ecfeff; border:1px solid #06b6d455; border-radius:8px; padding:12px 14px; cursor:help">
+          <div style="font-size:11px; font-weight:800; color:#0891b2; margin-bottom:6px">직구가격 <span style="font-size:9px; color:#06b6d4; background:#cffafe; padding:1px 4px; border-radius:3px; margin-left:2px">NEW</span></div>
+          <div style="font-size:15px; font-weight:800; color:#111">₩${directKrw.toLocaleString()}</div>
+          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">PSA10 × 1.1 + 50,000</div>
+          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">예시 환산가</div>
+          <div class="dg-tip" style="position:absolute; bottom:calc(100% + 6px); right:0; background:#111; color:#fff; padding:8px 10px; border-radius:6px; font-size:11px; font-weight:500; line-height:1.45; white-space:normal; width:max-content; max-width:220px; opacity:0; pointer-events:none; transition:opacity 0.15s; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.18)">※ PSA10 기준 부가세, 배송비 포함 예시 가격</div>
+        </div>`;
+    }
     if (popCount > 0) {
       html += `
         <div style="background:#fef3c7; border:1px solid #fbbf2455; border-radius:8px; padding:12px 14px">
@@ -3349,6 +3365,15 @@ async function renderGradesPanel(productId, product) {
         </div>`;
     }
     grid.innerHTML = html;
+    // 직구가격 hover 효과 (CSS 가 호환 안 되는 경우 대비 인라인)
+    const dgChip = grid.querySelector('.detail-grade-chip');
+    if (dgChip) {
+      const tip = dgChip.querySelector('.dg-tip');
+      if (tip) {
+        dgChip.addEventListener('mouseenter', () => { tip.style.opacity = '1'; });
+        dgChip.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
+      }
+    }
   } catch (e) {
     console.warn('grades load fail:', e);
   }
@@ -4289,18 +4314,40 @@ async function renderSlidePanel(productId) {
     return null;
   }
   let psa10Jpy = null, psa9Jpy = null, rawJpy = null, boxJpy = null;
+  let psa10Cur = 'JPY', psa9Cur = 'JPY', rawCur = 'JPY';
   if (isBox) {
     boxJpy = pickLatestPrice('box_price');
     if (boxJpy == null && product && product.lastPrice) boxJpy = product.lastPrice;
   } else {
-    psa10Jpy = pickLatestPrice('psa10_price');
-    psa9Jpy = pickLatestPrice('psa9_price');
-    rawJpy = pickLatestPrice('raw_price');
-    if (psa10Jpy == null && product && product.lastPrice) psa10Jpy = product.lastPrice;
+    // 1순위 — cards-detail.json (별도 페이지와 동일 소스, lowest_ask 신선)
+    try {
+      const cdData = await loadCardsDetail();
+      const cdCard = cdData?.cards?.[productId];
+      const cdGrades = cdCard?.grades || {};
+      const pick = (g) => g ? (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy) : null;
+      if (cdGrades.psa10) { psa10Jpy = pick(cdGrades.psa10); psa10Cur = cdGrades.psa10.currency || 'JPY'; }
+      if (cdGrades.psa9)  { psa9Jpy  = pick(cdGrades.psa9);  psa9Cur  = cdGrades.psa9.currency  || 'JPY'; }
+      if (cdGrades.raw)   { rawJpy   = pick(cdGrades.raw);   rawCur   = cdGrades.raw.currency   || 'JPY'; }
+    } catch (e) {}
+    // 2순위 — history pickLatestPrice (없는 등급만 보충)
+    if (psa10Jpy == null) psa10Jpy = pickLatestPrice('psa10_price');
+    if (psa9Jpy  == null) psa9Jpy  = pickLatestPrice('psa9_price');
+    if (rawJpy   == null) rawJpy   = pickLatestPrice('raw_price');
+    // 3순위 — product.lastPrice (PSA10 만)
+    if (psa10Jpy == null && product && product.lastPrice) {
+      psa10Jpy = product.lastPrice;
+      psa10Cur = product.currency || 'JPY';
+    }
   }
-  const psa10Price = _krw(psa10Jpy);
-  const psa9Price = _krw(psa9Jpy);
-  const rawPrice = _krw(rawJpy);
+  const _conv = (val, cur) => {
+    if (val == null) return null;
+    if (cur === 'USD' && typeof USD_KRW !== 'undefined') return Math.floor(val * USD_KRW);
+    const rate = (typeof JPY_KRW !== 'undefined') ? JPY_KRW : 9.5;
+    return Math.floor(val * rate);
+  };
+  const psa10Price = _conv(psa10Jpy, psa10Cur);
+  const psa9Price = _conv(psa9Jpy, psa9Cur);
+  const rawPrice = _conv(rawJpy, rawCur);
   const boxPrice = _krw(boxJpy);
   const directPrice = psa10Price ? Math.round(psa10Price * 1.1 + 50000) : null;
 

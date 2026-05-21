@@ -2035,9 +2035,24 @@ window.toggleHomeTopMore = function(brand) {
 function renderHomeNewsGrid() {
   const grid = document.getElementById('homeNewsGrid');
   if (!grid) return;
-  const items = (typeof NEWS_LIST !== 'undefined' && Array.isArray(NEWS_LIST)) ? NEWS_LIST.slice(0, 4) : [];
+  const isLoaded = (typeof NEWS_LIST !== 'undefined' && Array.isArray(NEWS_LIST));
+  const items = isLoaded ? NEWS_LIST.slice(0, 4) : [];
   if (!items.length) {
-    grid.innerHTML = '<div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--text-tertiary); font-size:12px">아직 등록된 소식이 없습니다</div>';
+    if (!window._adminLoaded) {
+      // 로딩 중 — 스켈레톤 4개
+      grid.innerHTML = Array.from({length: 4}, () => `
+        <div class="news-card2" style="cursor:default; pointer-events:none">
+          <div class="news-thumb2" style="background:#f3f4f6; color:transparent">·</div>
+          <div class="news-body2">
+            <div style="background:#f3f4f6; height:10px; border-radius:3px; width:40px; margin-bottom:6px"></div>
+            <div style="background:#f3f4f6; height:14px; border-radius:3px; margin-bottom:6px"></div>
+            <div style="background:#f3f4f6; height:10px; border-radius:3px; width:60px"></div>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      grid.innerHTML = '<div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--text-tertiary); font-size:12px">아직 등록된 소식이 없습니다</div>';
+    }
     return;
   }
   grid.innerHTML = items.map(n => {
@@ -5251,6 +5266,35 @@ async function saveAdminData(type, items) {
 }
 
 let NEWS_LIST = [];
+
+// 홈 소식 그리드 빠른 로드 — localStorage 캐시 + 단독 우선 fetch
+(function preloadNews() {
+  try {
+    const cached = localStorage.getItem('home_news_cache_v1');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length) {
+        NEWS_LIST = parsed;
+        window._adminLoaded = true;  // 스켈레톤 안 보이게
+      }
+    }
+  } catch (e) {}
+})();
+
+async function loadNewsFast() {
+  try {
+    const news = await fetchAdminData('news');
+    if (Array.isArray(news) && news.length) {
+      NEWS_LIST = news;
+      window._adminLoaded = true;
+      try { localStorage.setItem('home_news_cache_v1', JSON.stringify(news.slice(0, 8))); } catch (e) {}
+      if (typeof renderHomeNewsGrid === 'function') renderHomeNewsGrid();
+    }
+  } catch (e) { console.warn('[news fast] fail:', e); }
+}
+// 페이지 로드 즉시 news 단독 fetch (다른 admin data 보다 우선)
+loadNewsFast();
+
 async function loadAllAdminData() {
   const [events, etc, cardshow, grading, news] = await Promise.all([
     fetchAdminData('events'),
@@ -5264,6 +5308,7 @@ async function loadAllAdminData() {
   CARDSHOWS = cardshow;
   GRADING_LIST = grading;
   NEWS_LIST = news;
+  try { localStorage.setItem('home_news_cache_v1', JSON.stringify((news || []).slice(0, 8))); } catch (e) {}
 }
 
 const _applyHtml = APPLIES.map((a, i) => {
@@ -5567,11 +5612,14 @@ function renderGrading() {
 
 // API 에서 데이터 로드 후 렌더
 loadAllAdminData().then(() => {
+  window._adminLoaded = true;
   renderEvents();
   renderEtc();
   renderCardshows();
   renderGrading();
   renderAdminList();
+  // 홈의 소식 그리드도 NEWS_LIST 로드 후 즉시 재렌더 (홈 진입 시 빈 상태 방지)
+  if (typeof renderHomeNewsGrid === 'function') renderHomeNewsGrid();
 });
 
 // ─── 관리자 페이지 ───

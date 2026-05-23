@@ -4403,10 +4403,13 @@ async function renderSlidePanel(productId) {
     return null;
   }
   let psa10Jpy = null, psa9Jpy = null, rawJpy = null, boxJpy = null;
-  let psa10Cur = 'JPY', psa9Cur = 'JPY', rawCur = 'JPY';
+  let psa10Cur = 'JPY', psa9Cur = 'JPY', rawCur = 'JPY', boxCur = 'JPY';
   if (isBox) {
     boxJpy = pickLatestPrice('box_price');
-    if (boxJpy == null && product && product.lastPrice) boxJpy = product.lastPrice;
+    if (boxJpy == null && product && product.lastPrice) {
+      boxJpy = product.lastPrice;
+      boxCur = product.currency || 'JPY';
+    }
   } else {
     // 1순위 — cards-detail.json (별도 페이지와 동일 소스, lowest_ask 신선)
     try {
@@ -4437,7 +4440,7 @@ async function renderSlidePanel(productId) {
   const psa10Price = _conv(psa10Jpy, psa10Cur);
   const psa9Price = _conv(psa9Jpy, psa9Cur);
   const rawPrice = _conv(rawJpy, rawCur);
-  const boxPrice = _krw(boxJpy);
+  const boxPrice = _conv(boxJpy, boxCur);
   const directPrice = psa10Price ? Math.round(psa10Price * 1.1 + 50000) : null;
 
   // 헤더

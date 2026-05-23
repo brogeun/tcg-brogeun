@@ -64,6 +64,7 @@ UA = (
 )
 
 POKEMON_SETS = [
+    ("M5", "어비스아이", "https://www.tcgcollector.com/sets/11810/abyss-eye"),
     ("M4", "닌자 스페너", "https://www.tcgcollector.com/sets/11800/ninja-spinner"),
     ("M3", "무니키스 제로", "https://www.tcgcollector.com/sets/11684/nullifying-zero"),
     ("M2a", "메가 드림 ex", "https://www.tcgcollector.com/sets/11678/mega-dream-ex"),

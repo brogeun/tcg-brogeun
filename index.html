@@ -7528,6 +7528,9 @@ const _origRenderAuthStatus = renderAuthStatus;
 renderAuthStatus = function() {
   _origRenderAuthStatus();
   if (location.hash === '#portfolio') refreshPortfolio();
+  // 홈 페이지에 있을 때는 자산 바도 다시 그림 (CURRENT_USER 로드 직후 갱신)
+  const path = (location.hash || '#home').replace('#', '') || 'home';
+  if (path === 'home' && typeof renderHomeAsset === 'function') renderHomeAsset();
 };
 
 /* ────────────────────────────────────

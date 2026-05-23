@@ -1141,6 +1141,16 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       @media (max-width: 900px)  { .price-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
       @media (max-width: 640px)  { .price-grid { grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; } }
       @media (max-width: 380px)  { .price-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; } }
+
+      /* CLS 방지 스켈레톤 카드 — 로딩 중 자리 예약용 */
+      .price-card-skeleton { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+      .price-card-skeleton .ps-img { aspect-ratio:1/1; background:#ececec; animation:sk-pulse 1.5s ease-in-out infinite; }
+      .price-card-skeleton .ps-body { padding:12px 14px; }
+      .price-card-skeleton .sk-line { height:11px; background:#ececec; border-radius:4px; animation:sk-pulse 1.5s ease-in-out infinite; }
+      .price-card-skeleton .sk-line.long { width:90%; margin-bottom:6px; }
+      .price-card-skeleton .sk-line.short { width:55%; margin-bottom:12px; }
+      .price-card-skeleton .sk-line.price { height:18px; width:50%; }
+      @keyframes sk-pulse { 0%,100% { opacity:1; } 50% { opacity:0.55; } }
     </style>
 
     <!-- 정보 허브 -->
@@ -4142,7 +4152,7 @@ async function loadPriceGrid() {
   const dataFile = `price-${PRICE_BRAND}-${PRICE_CAT}`;
   const labelText = `${brandLbl} ${catLbl}`;
   status.textContent = `🔄 ${labelText} 불러오는 중...`;
-  grid.innerHTML = `<div class="empty">⏳ 잠시만 기다려주세요</div>`;
+  grid.innerHTML = Array.from({length:30}, () => `<div class="price-card-skeleton"><div class="ps-img"></div><div class="ps-body"><div class="sk-line long"></div><div class="sk-line short"></div><div class="sk-line price"></div></div></div>`).join('');
 
   try {
     const r = await fetch(`/data/${dataFile}.json?t=${Math.floor(Date.now()/3600000)}`);

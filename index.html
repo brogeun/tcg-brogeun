@@ -812,14 +812,14 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <style>
         .etc-carousel { position: relative; }
-        .etc-slide { background: var(--bg-surface2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 14px 16px; display: flex; gap: 14px; align-items: center; min-height: 88px; cursor: pointer; transition: opacity 0.35s; box-shadow: var(--shadow-sm); }
+        .etc-slide { background: var(--bg-surface2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; gap: 16px; align-items: center; min-height: 140px; cursor: pointer; transition: opacity 0.35s; box-shadow: var(--shadow-sm); }
         .etc-slide:hover { box-shadow: var(--shadow-md); }
         .etc-slide.fading { opacity: 0; }
-        .etc-slide-thumb { width: 72px; height: 72px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+        .etc-slide-thumb { width: 120px; height: 120px; flex-shrink: 0; border-radius: 10px; overflow: hidden; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 40px; }
         .etc-slide-thumb img { width: 100%; height: 100%; object-fit: cover; }
         .etc-slide-body { flex: 1; min-width: 0; }
         .etc-slide-tag { font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px; }
-        .etc-slide-title { font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.3; margin-bottom: 4px; word-break: keep-all; }
+        .etc-slide-title { font-size: 16px; font-weight: 700; color: var(--text-primary); line-height: 1.35; margin-bottom: 6px; word-break: keep-all; }
         .etc-slide-date { font-size: 11px; color: var(--text-tertiary); }
         .etc-dots { display: flex; justify-content: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
         .etc-dot { width: 6px; height: 6px; border-radius: 50%; background: #d1d5db; cursor: pointer; transition: all 0.2s; }
@@ -2306,6 +2306,7 @@ function renderHomeEtcCarousel() {
     }
     return;
   }
+  if (wrap.parentElement && wrap.parentElement.style.display === 'none') wrap.parentElement.style.display = '';
   if (_ETC_CAROUSEL_IDX >= items.length) _ETC_CAROUSEL_IDX = 0;
   const e = items[_ETC_CAROUSEL_IDX];
   slide.classList.add('fading');

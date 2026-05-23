@@ -7129,8 +7129,9 @@ function renderHoldings() {
   const gradeValue = { psa10: 0, psa9: 0, raw: 0 };
   const enriched = HOLDINGS.map(h => {
     const meta = _PF_PRICE_CACHE[h.card_id] || {};
-    // 박스는 grade 무시하고 latestPrices.box 사용
-    const isBox = meta.kind === 'box' || /\b(Box|ボックス|BOX|Booster|パック|박스)\b/i.test(meta.name || '');
+    // 박스 판정 — grade='box' 또는 BOX_ID_SET 포함 시에만 박스로 인식
+    // (옛 정규식 방식은 카드 이름 괄호 안의 "Booster"/"Box" 까지 잡아서 PSA10/9/A급 시세가 박스 단일가로 덮어지는 버그 발생)
+    const isBox = h.grade === 'box' || meta.kind === 'box' || (BOX_ID_SET && BOX_ID_SET.has(String(h.card_id)));
     const cur = isBox
       ? (meta.latestPrices?.box || h.buy_price)
       : (meta.latestPrices?.[h.grade] || h.buy_price);
@@ -7175,12 +7176,13 @@ function renderHoldings() {
 
   list.innerHTML = enriched.map(h => {
     const sign = h.itemPnl >= 0 ? '#10b981' : '#ef4444';
-    // PSA cert 인라인 영역 — PSA10/PSA9 카드만 표시 (raw, box 는 숨김)
+    // PSA cert 인라인 영역 — PSA10 카드만 표시 (PSA9/raw/box 숨김)
+    // (PSA9 는 POP 통계 의미 X → 사용자 요청으로 제거)
     // grade 가 box 가 아니어도, card_id 가 박스 ID Set 에 있으면 박스 (사용자가 잘못 등록한 케이스)
     const isBoxItem = h.grade === 'box' || (BOX_ID_SET && BOX_ID_SET.has(String(h.card_id)));
-    const isGradedCard = !isBoxItem && (h.grade === 'psa10' || h.grade === 'psa9');
+    const isGradedCard = !isBoxItem && h.grade === 'psa10';
     const linkedCert = isGradedCard
-      ? PSA_CERTS.find(c => String(c.holding_id) === String(h.id) || (String(c.card_id) === String(h.card_id) && c.grade === (h.grade === 'psa10' ? 10 : 9)))
+      ? PSA_CERTS.find(c => String(c.holding_id) === String(h.id) || (String(c.card_id) === String(h.card_id) && c.grade === 10))
       : null;
     let certBlock = '';
     if (isGradedCard) {
@@ -7404,7 +7406,8 @@ async function renderDistributionCharts() {
   const byBrand = {}, byGrade = {};
   for (const h of HOLDINGS) {
     const meta = _PF_PRICE_CACHE[h.card_id];
-    const isBox = meta?.kind === 'box' || /\b(Box|ボックス|BOX|Booster|パック|박스)\b/i.test(meta?.name || '');
+    // 박스 판정 — 정규식 false-positive 방지 (renderHoldings 와 동일 로직)
+    const isBox = h.grade === 'box' || meta?.kind === 'box' || (BOX_ID_SET && BOX_ID_SET.has(String(h.card_id)));
     const cur = isBox
       ? (meta?.latestPrices?.box || h.buy_price)
       : (meta?.latestPrices?.[h.grade] || h.buy_price);
@@ -7957,10 +7960,6 @@ window.addEventListener('appinstalled', () => {
   console.log('[PWA] installed');
 });
 
-// 이미 standalone 모드로 켜진 경우 (설치된 PWA에서 열림) — 버튼 숨김
-if (window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone) {
-  document.getElementById('pwaInstallBtn')?.remove();
-}
-</script>
+// </script>
 </body>
 </html>

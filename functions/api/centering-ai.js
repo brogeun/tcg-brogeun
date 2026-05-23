@@ -316,7 +316,8 @@ export async function onRequestPost({ request, env }) {
         status: r.status,
         message: `OpenAI API 오류: ${r.status}`,
         detail: txt.slice(0, 500),
-      }), { status: 502, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+        upstreamStatus: r.status,
+      }), { status: 200, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
     const d = await r.json();
@@ -327,7 +328,7 @@ export async function onRequestPost({ request, env }) {
         error: 'empty_response',
         message: 'AI 응답이 비어있습니다 — 잠시 후 다시 시도해주세요',
         detail: text,
-      }), { status: 502, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+      }), { status: 200, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
 
     if (isNonCardResponse(text)) {
@@ -370,11 +371,11 @@ export async function onRequestPost({ request, env }) {
       return new Response(JSON.stringify({
         error: 'timeout',
         message: '⏰ AI 응답 시간 초과 (25초). OpenAI 일시 지연으로 보입니다 — 잠시 후 다시 시도해주세요.',
-      }), { status: 504, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+      }), { status: 200, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
     return new Response(JSON.stringify({
       error: 'fetch_error',
       message: `AI 호출 실패: ${e.message}`,
-    }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+    }), { status: 200, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 }

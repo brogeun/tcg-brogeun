@@ -3201,6 +3201,17 @@ async function aiAnalyzeCentering() {
       throw new Error(`API ${r.status}: ${fullErrText}`);
     }
     const d = await r.json();
+    // Backend 가 Cloudflare 의 502 HTML overlay 를 회피하려고 에러도 status 200 으로 wrap 함 — error 필드 확인
+    if (d.error) {
+      console.error('[ai] backend error:', d);
+      const wrap = document.getElementById('centeringAIResult');
+      wrap.style.display = '';
+      let msg = d.message || `❌ 에러: ${d.error}`;
+      if (d.upstreamStatus) msg += `\n\n(OpenAI 응답 코드: ${d.upstreamStatus})`;
+      if (d.detail) msg += `\n\n--- 상세 ---\n${String(d.detail).slice(0, 1000)}`;
+      wrap.querySelector('#centeringAIText').textContent = msg;
+      return;
+    }
     incAICenteringCount();
     // provider 정보를 화면에 작게 표시 (디버깅 + 사용자 확인용)
     const wrap = document.getElementById('centeringAIResult');

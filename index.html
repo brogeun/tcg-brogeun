@@ -216,7 +216,7 @@ img { max-width: 100%; height: auto; display: block; }
   display: flex; align-items: center;
   padding: 18px 16px; margin-bottom: 16px;
   background-color: #fafbff;
-  background-image: url('images/brand-hero.png');
+  background-image: url('images/brand-hero.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -5794,7 +5794,7 @@ const APPLIES = [
     brand: "포켓몬", platform: "아마존 JP",
     title: "포켓몬 TCG 「어비스아이」 박스 응모",
     boxLabelKo: "어비스아이",
-    img: "images/pokemon-box.jpg",
+    img: "images/pokemon-box.webp",
     link: "https://amzn.to/3QloIxO",
     prize: "어비스아이 확장팩 박스",
     method: [
@@ -5809,7 +5809,7 @@ const APPLIES = [
     brand: "원피스", platform: "아마존 JP",
     title: "원피스 TCG 「OP-16」 박스 응모",
     boxLabelKo: "EXPERT BREAKERS",
-    img: "images/onepiece-box.jpg",
+    img: "images/onepiece-box.webp",
     link: "https://amzn.to/4mJq3dP",
     prize: "원피스 카드게임 OP-16 박스",
     method: [
@@ -5824,7 +5824,7 @@ const APPLIES = [
     brand: "포켓몬", platform: "아마존 JP",
     title: "아마존 JP 포켓몬 TCG 전체 응모 (다중)",
     boxLabelKo: "7개 상품 일괄",
-    img: "images/pokemon-box.jpg",
+    img: "images/pokemon-box.webp",
     ribbon: "BUNDLE",
     prize: "닌자 스페너 · 인페르노X · 무니키스 · 메가심포니아 · 테라크리스탈 · 메가브레이브 · 메가드림",
     multi: [
@@ -6003,7 +6003,7 @@ const _applyHtml = APPLIES.map((a, i) => {
   <div class="apply-card" style="position:relative">
     ${ribbon}
     <div class="apply-card-thumb">
-      <img src="${a.img}" alt="${a.title}" onerror="this.parentElement.style.fontSize='48px'; this.parentElement.textContent='🎟'">
+      <img src="${a.img}" alt="${a.title}" loading="lazy" decoding="async" width="600" height="328" onerror="this.parentElement.style.fontSize='48px'; this.parentElement.textContent='🎟'">
     </div>
     <div class="apply-card-body">
       <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap">

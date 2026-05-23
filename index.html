@@ -2250,7 +2250,7 @@ function renderHomeNewsGrid() {
   }).join('');
 }
 
-function renderHomeAsset() {
+async function renderHomeAsset() {
   const valEl = document.getElementById('homeAssetValue');
   const changeEl = document.getElementById('homeAssetChange');
   const holdEl = document.getElementById('homeAssetHoldCount');
@@ -2266,15 +2266,65 @@ function renderHomeAsset() {
     return;
   }
   valEl.style.fontSize = '24px';
-  const portfolio = (typeof PORTFOLIO !== 'undefined' && Array.isArray(PORTFOLIO)) ? PORTFOLIO : [];
-  const watchlist = (typeof WATCHLIST !== 'undefined' && Array.isArray(WATCHLIST)) ? WATCHLIST : [];
-  let totalValue = 0, totalCost = 0;
-  for (const h of portfolio) {
-    const v = Number(h.currentValue ?? h.lastPrice ?? h.value ?? 0) || 0;
-    const c = Number(h.cost ?? h.buyPrice ?? h.cost_krw ?? 0) || 0;
-    totalValue += v;
-    totalCost += c;
+
+  // HOLDINGS/WATCHLIST 가 비어있으면 portfolio API 로 로드 (마이페이지 방문 안 했을 때)
+  if ((typeof HOLDINGS === 'undefined' || !HOLDINGS.length) && typeof loadPortfolio === 'function') {
+    try {
+      const data = await loadPortfolio();
+      if (data) {
+        HOLDINGS = data.holdings || [];
+        WATCHLIST = data.watchlists || [];
+        if (typeof PSA_CERTS !== 'undefined') PSA_CERTS = data.psa_certs || [];
+      }
+    } catch {}
   }
+
+  const holdings = (typeof HOLDINGS !== 'undefined' && Array.isArray(HOLDINGS)) ? HOLDINGS : [];
+  const watchlist = (typeof WATCHLIST !== 'undefined' && Array.isArray(WATCHLIST)) ? WATCHLIST : [];
+
+  // 카운트는 즉시 표시 (가격 캐시 미로드 여부와 무관)
+  if (holdEl) holdEl.textContent = holdings.length + '종';
+  if (watchEl) watchEl.textContent = watchlist.length + '종';
+
+  if (!holdings.length) {
+    valEl.textContent = '₩0';
+    if (changeEl) changeEl.style.display = 'none';
+    return;
+  }
+
+  // 가격 캐시 + BOX_ID_SET 준비 (renderHoldings / drawAnalytics 와 동일 로직 재사용)
+  const cache = (typeof _PF_PRICE_CACHE !== 'undefined') ? _PF_PRICE_CACHE : {};
+  const missingIds = holdings.filter(h => !cache[h.card_id]).map(h => h.card_id);
+  if (missingIds.length) {
+    valEl.textContent = '계산 중…';
+    valEl.style.fontSize = '16px';
+    if (changeEl) changeEl.style.display = 'none';
+    try {
+      if (typeof ensureBoxIdSet === 'function') await ensureBoxIdSet();
+      if (typeof loadCardMeta === 'function') {
+        await Promise.all(missingIds.map(id => loadCardMeta(id).catch(() => null)));
+      }
+    } catch {}
+    valEl.style.fontSize = '24px';
+  } else if (typeof ensureBoxIdSet === 'function' && (typeof BOX_ID_SET === 'undefined' || !BOX_ID_SET)) {
+    try { await ensureBoxIdSet(); } catch {}
+  }
+
+  // renderHoldings (line ~7134) / drawAnalytics (line ~7410) 와 동일한 평가액 계산
+  const boxSet = (typeof BOX_ID_SET !== 'undefined') ? BOX_ID_SET : null;
+  let totalValue = 0, totalCost = 0;
+  for (const h of holdings) {
+    const meta = cache[h.card_id] || {};
+    const isBox = h.grade === 'box' || meta.kind === 'box' || (boxSet && boxSet.has(String(h.card_id)));
+    const cur = isBox
+      ? (meta.latestPrices?.box || h.buy_price)
+      : (meta.latestPrices?.[h.grade] || h.buy_price);
+    const value = (cur || 0) * (h.qty || 0);
+    const cost = (h.buy_price || 0) * (h.qty || 0);
+    totalValue += value;
+    totalCost += cost;
+  }
+
   valEl.textContent = '₩' + Math.round(totalValue).toLocaleString();
   if (totalCost && changeEl) {
     const diff = totalValue - totalCost;
@@ -2287,8 +2337,6 @@ function renderHomeAsset() {
   } else if (changeEl) {
     changeEl.style.display = 'none';
   }
-  if (holdEl) holdEl.textContent = portfolio.length + '종';
-  if (watchEl) watchEl.textContent = watchlist.length + '종';
 }
 
 window.openPortfolioOrLogin = function() {

@@ -264,7 +264,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   // OpenAI API 호출 함수 (재사용용)
-  const callOpenAI = async (timeoutMs = 22000) => {
+  const callOpenAI = async (timeoutMs = 25000) => {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -298,25 +298,15 @@ export async function onRequestPost({ request, env }) {
   };
 
   try {
-    // 1차 시도
-    let r;
-    try {
-      r = await callOpenAI(15000);
-    } catch (e) {
-      // 1차 실패 (timeout 또는 network) → 잠시 대기 후 재시도
-      if (e.name === 'AbortError') {
-        await new Promise(res => setTimeout(res, 500));
-        r = await callOpenAI(20000);
-      } else {
-        throw e;
-      }
-    }
+    // 1차 시도 — 25초 timeout (Cloudflare 30초 wall-clock 한도 내 여유 확보)
+    // AbortError(timeout) 시에는 재시도 안 함 — 이미 25초 썼기 때문에 재시도하면 30초 초과
+    let r = await callOpenAI(25000);
 
-    // 2차 retry — 5xx 응답 시 (OpenAI 서버 측 일시 오류)
+    // 5xx 응답 시에만 재시도 (OpenAI 서버 측 일시 오류) — 보통 오류는 빨리 돌아와서 재시도 여유 있음
     if (r.status >= 500 && r.status < 600) {
-      console.warn(`[openai] 1차 ${r.status} → 1초 후 재시도`);
-      await new Promise(res => setTimeout(res, 1000));
-      r = await callOpenAI(20000);
+      console.warn(`[openai] 1차 ${r.status} → 0.5초 후 짧은 재시도 (3초 timeout)`);
+      await new Promise(res => setTimeout(res, 500));
+      r = await callOpenAI(3000);
     }
 
     if (!r.ok) {
@@ -379,7 +369,7 @@ export async function onRequestPost({ request, env }) {
     if (e.name === 'AbortError') {
       return new Response(JSON.stringify({
         error: 'timeout',
-        message: '⏰ AI 응답 시간 초과 (재시도 포함). OpenAI 일시 지연 가능. 잠시 후 다시 시도해주세요.',
+        message: '⏰ AI 응답 시간 초과 (25초). OpenAI 일시 지연으로 보입니다 — 잠시 후 다시 시도해주세요.',
       }), { status: 504, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
     return new Response(JSON.stringify({

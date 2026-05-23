@@ -2340,9 +2340,13 @@ function renderHomeEtcCarousel() {
         <div class="etc-slide-date">${escapeHtml(date)}</div>
       </div>`;
     slide.onclick = () => {
-      const lk = e.link || '';
-      if (lk && /^https?:/.test(lk)) { window.open(lk, '_blank', 'noopener'); return; }
-      if (lk) { location.href = lk; return; }
+      let lk = (e.link || '').trim();
+      if (lk) {
+        // scheme 없는 URL 은 https:// 자동 부여 (예: t.me/foo, youtube.com/foo)
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(lk)) lk = 'https://' + lk;
+        window.open(lk, '_blank', 'noopener');
+        return;
+      }
       _gotoHubSub(e._sub || 'etc');
     };
     slide.classList.remove('fading');

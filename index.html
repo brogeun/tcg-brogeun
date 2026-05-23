@@ -803,7 +803,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="section2">
         <div class="section-header2">
           <div class="section-title2">추천 글</div>
-          <span class="section-more2" onclick="go('hub'); setTimeout(()=>{const t=document.querySelector('.tab[data-subtab=\"etc\"]'); if(t)t.click();},80)">전체 보기 →</span>
+          <span class="section-more2" onclick="_gotoHubSub('etc')">전체 보기 →</span>
         </div>
         <div class="etc-carousel" id="homeEtcCarousel">
           <div class="etc-slide" id="homeEtcSlide"></div>
@@ -2290,13 +2290,31 @@ function renderHomeNewsGrid() {
 let _ETC_CAROUSEL_IDX = 0;
 let _ETC_CAROUSEL_TIMER = null;
 
+window._gotoHubSub = function(subName) {
+  if (typeof go === 'function') go('hub');
+  setTimeout(() => {
+    if (typeof HUB_SUB !== 'undefined') HUB_SUB = subName || 'etc';
+    if (typeof applyHubTab === 'function') applyHubTab('more');
+  }, 80);
+};
+
+function _carouselGetItems() {
+  const etc = (typeof ETC_LIST !== 'undefined' && Array.isArray(ETC_LIST)) ? ETC_LIST : [];
+  const grd = (typeof GRADING_LIST !== 'undefined' && Array.isArray(GRADING_LIST)) ? GRADING_LIST : [];
+  // 각 항목에 _sub 태그 (클릭 시 올바른 sub-tab 으로 이동용) + _tag 표시용
+  return [
+    ...etc.map(e => ({...e, _sub: 'etc', _tag: '추천 글'})),
+    ...grd.map(e => ({...e, _sub: 'grading', _tag: '그레이딩'})),
+  ];
+}
+
 function renderHomeEtcCarousel() {
   const wrap = document.getElementById('homeEtcCarousel');
   const slide = document.getElementById('homeEtcSlide');
   const dots = document.getElementById('homeEtcDots');
   if (!slide || !wrap || !dots) return;
-  const isLoaded = (typeof ETC_LIST !== 'undefined' && Array.isArray(ETC_LIST));
-  const items = isLoaded ? ETC_LIST : [];
+  const isLoaded = (typeof ETC_LIST !== 'undefined' || typeof GRADING_LIST !== 'undefined');
+  const items = isLoaded ? _carouselGetItems() : [];
   if (!items.length) {
     if (!window._adminLoaded) {
       slide.innerHTML = `<div class="etc-slide-thumb" style="background:#f3f4f6">·</div><div class="etc-slide-body"><div style="background:#f3f4f6; height:11px; border-radius:3px; width:60px; margin-bottom:6px"></div><div style="background:#f3f4f6; height:15px; border-radius:3px; margin-bottom:6px; width:80%"></div><div style="background:#f3f4f6; height:11px; border-radius:3px; width:50px"></div></div>`;
@@ -2317,7 +2335,7 @@ function renderHomeEtcCarousel() {
     slide.innerHTML = `
       <div class="etc-slide-thumb">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.textContent='📌'">` : '📌'}</div>
       <div class="etc-slide-body">
-        <div class="etc-slide-tag">추천 글</div>
+        <div class="etc-slide-tag">${escapeHtml(e._tag || '추천 글')}</div>
         <div class="etc-slide-title">${escapeHtml(title)}</div>
         <div class="etc-slide-date">${escapeHtml(date)}</div>
       </div>`;
@@ -2325,8 +2343,7 @@ function renderHomeEtcCarousel() {
       const lk = e.link || '';
       if (lk && /^https?:/.test(lk)) { window.open(lk, '_blank', 'noopener'); return; }
       if (lk) { location.href = lk; return; }
-      go('hub');
-      setTimeout(() => { const t = document.querySelector('.tab[data-subtab="etc"]'); if (t) t.click(); }, 80);
+      _gotoHubSub(e._sub || 'etc');
     };
     slide.classList.remove('fading');
   }, 250);
@@ -2341,10 +2358,11 @@ window._etcCarouselGoto = function(idx) {
 
 function _etcCarouselRestart() {
   if (_ETC_CAROUSEL_TIMER) { clearInterval(_ETC_CAROUSEL_TIMER); _ETC_CAROUSEL_TIMER = null; }
-  if (typeof ETC_LIST === 'undefined' || !ETC_LIST.length) return;
+  if (!_carouselGetItems().length) return;
   _ETC_CAROUSEL_TIMER = setInterval(() => {
-    if (typeof ETC_LIST === 'undefined' || !ETC_LIST.length) return;
-    _ETC_CAROUSEL_IDX = (_ETC_CAROUSEL_IDX + 1) % ETC_LIST.length;
+    const all = _carouselGetItems();
+    if (!all.length) return;
+    _ETC_CAROUSEL_IDX = (_ETC_CAROUSEL_IDX + 1) % all.length;
     renderHomeEtcCarousel();
   }, 4000);
 }
@@ -6448,6 +6466,7 @@ function renderGrading() {
     return;
   }
   target.innerHTML = GRADING_LIST.map(e => _hubRowCard(e, { bg:'#dcfce7', color:'#15803d', icon:'🏆' }, 'grading')).join('');
+  if (typeof renderHomeEtcCarousel === 'function') { renderHomeEtcCarousel(); _etcCarouselRestart(); }
 }
 
 // API 에서 데이터 로드 후 렌더

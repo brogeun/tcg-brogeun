@@ -2325,15 +2325,17 @@ async function renderHomeAsset() {
     totalCost += cost;
   }
 
-  valEl.textContent = '₩' + Math.round(totalValue).toLocaleString();
+  // JPY → KRW 환산 (price cache 와 buy_price 는 JPY 저장, mypage 와 동일하게 표시 직전 변환)
+  const rate = (typeof JPY_KRW !== 'undefined') ? JPY_KRW : 9.5;
+  valEl.textContent = '₩' + Math.floor(totalValue * rate).toLocaleString();
   if (totalCost && changeEl) {
     const diff = totalValue - totalCost;
     const pct = (diff / totalCost) * 100;
     changeEl.style.display = 'inline-flex';
     changeEl.className = 'asset-change ' + (diff >= 0 ? 'up' : 'down');
     const sign = diff >= 0 ? '▲' : '▼';
-    const diffStr = diff >= 0 ? '+' : '';
-    changeEl.textContent = `${sign} ${diffStr}₩${Math.round(diff).toLocaleString()} · ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+    const diffStr = diff >= 0 ? '+' : '-';
+    changeEl.textContent = `${sign} ${diffStr}₩${Math.floor(Math.abs(diff) * rate).toLocaleString()} · ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
   } else if (changeEl) {
     changeEl.style.display = 'none';
   }

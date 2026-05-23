@@ -708,43 +708,35 @@ def main():
 
     GRADE_OPTION_IDS_HIST = {"psa10": 22, "psa9": 23, "raw": 18}
 
-    def fetch_card_history_1ea(cid, opt_id, max_pages=5):
-        """카드 sales-history — size==1 거래만 등급별로 수집 (일별 단가 list)"""
-        from collections import defaultdict as _dd
-        from datetime import datetime as _dt, timedelta as _td
-        prices_by_date = _dd(list)
-        for page in range(1, max_pages + 1):
-            url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-history"
-                   f"?page={page}&per_page=20&salesChartOptionId={opt_id}")
-            try:
-                req = urllib.request.Request(url, headers={
-                    "User-Agent": UA, "Accept": "application/json",
-                    "Referer": "https://snkrdunk.com/",
-                })
-                with urllib.request.urlopen(req, timeout=15) as r:
-                    d2 = json.loads(r.read().decode("utf-8"))
-            except Exception:
-                break
-            items = d2.get("history") or []
-            if not items: break
-            today_now = _dt.now()
-            for it in items:
-                date_str = (it.get("date") or "").strip()
-                m = re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
-                if m: dt_str = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-                else:
-                    m2 = re.match(r"(\d+)\s*(日|day)", date_str)
-                    dt_str = (today_now - _td(days=int(m2.group(1)))).strftime("%Y-%m-%d") if m2 else today_now.strftime("%Y-%m-%d")
-                pr = it.get("price")
-                if isinstance(pr, str):
-                    pm = re.search(r"([\d,]+)", pr.replace("¥", ""))
-                    pr = int(pm.group(1).replace(",", "")) if pm else None
-                if pr is None: continue
-                # 모든 거래 수집 (size 검사 X) — 일별 outlier 는 산출 단계에서 cut
-                prices_by_date[dt_str].append(pr)
-            if len(items) < 20: break
-            time.sleep(0.2)
-        return dict(prices_by_date)
+    def fetch_chart_grade(cid, opt_id):
+        """sales-chart/used + 옵션 ID → {date: price}
+        ⚠ FIX (2026-05): 이전 버전은 sales-history?salesChartOptionId={} 를 사용했으나
+                          sales-history API 는 salesChartOptionId 를 무시함 (등급 통합 데이터 반환).
+                          결과 — PSA10/PSA9/Raw 가 모두 동일값으로 덮어쓰기 됨.
+                          이제 sales-chart/used 사용 — 등급별 정확히 분리됨 (백필 v2 와 동일 소스).
+        """
+        url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart/used"
+               f"?range=oneMonth&salesChartOptionId={opt_id}")
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": UA, "Accept": "application/json",
+                "Referer": "https://snkrdunk.com/",
+            })
+            with urllib.request.urlopen(req, timeout=15) as r:
+                d = json.loads(r.read().decode("utf-8"))
+        except Exception:
+            return {}
+        points = d.get("points") or []
+        by_date = {}
+        for p in points:
+            if isinstance(p, list) and len(p) >= 2:
+                ts_ms, price = p[0], p[1]
+                try:
+                    date = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+                    by_date[date] = int(price)
+                except Exception:
+                    pass
+        return by_date
 
     appended = 0
     fetched_at = datetime.now(timezone.utc).isoformat()
@@ -839,19 +831,15 @@ def main():
                 any_new = True
 
         if is_card:
-            # 카드: 등급별 sales-history 1個 거래만 수집
+            # 카드: 등급별 sales-chart/used 사용 (sales-history 는 등급 무시 → 동일값 버그)
             for grade, opt_id in GRADE_OPTION_IDS_HIST.items():
-                prices_by_date = fetch_card_history_1ea(cid, opt_id, max_pages=5)
-                for date, prs in prices_by_date.items():
-                    if not prs: continue
-                    sorted_prs = sorted(prs)
-                    med = sorted_prs[len(sorted_prs) // 2]
+                chart = fetch_chart_grade(cid, opt_id)
+                for date, price in chart.items():
                     if date not in by_date:
                         by_date[date] = {"date": date}
-                    by_date[date][f"{grade}_price"] = med
-                    by_date[date][f"{grade}_vol"] = len(prs)
+                    by_date[date][f"{grade}_price"] = price
                     any_new = True
-                time.sleep(0.3)
+                time.sleep(0.2)
 
         if not any_new and not by_date:
             continue

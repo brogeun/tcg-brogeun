@@ -149,36 +149,60 @@ def main():
     days_limit = None
     only_ids = []
     fresh = "--fresh" in args
+    # NEW: --ids-file=PATH  텍스트 파일에서 ID 리스트 읽음 (한 줄당 하나)
+    # NEW: --resume  이미 valid JSON 인 파일 skip
+    ids_file = None
+    resume = "--resume" in args
     for i, a in enumerate(args):
         if a == "--days" and i + 1 < len(args):
             days_limit = int(args[i + 1])
+        elif a.startswith("--ids-file="):
+            ids_file = a.split("=", 1)[1]
         elif a.isdigit():
             only_ids.append(a)
 
+    if ids_file:
+        try:
+            with open(ids_file, "r", encoding="utf-8") as fp:
+                only_ids = [line.strip() for line in fp if line.strip() and not line.startswith("#")]
+            print(f"[--ids-file] {ids_file} 에서 {len(only_ids)} ID 로드")
+        except Exception as e:
+            print(f"⚠ ids-file 읽기 실패: {e}")
+            return
+
     print("=" * 60)
     print("카드 백필 v2 — sales-chart/used (등급별) + sales-history (통합 거래량)")
-    print(f"days_limit: {days_limit or 'ALL'}, target: {only_ids or 'ALL CARDS'}, fresh: {fresh}")
+    print(f"days_limit: {days_limit or 'ALL'}, target: {len(only_ids) if only_ids else 'ALL CARDS'}, fresh: {fresh}, resume: {resume}")
     print("=" * 60)
 
     # 카드 ID 추출 — history 폴더에서 카드 history 만
     targets = []
+    only_ids_set = set(only_ids) if only_ids else None
     for f in sorted(HISTORY_DIR.glob("*.json")):
         cid = f.stem
-        if only_ids and cid not in only_ids:
+        if only_ids_set and cid not in only_ids_set:
             continue
         try:
             raw = f.read_bytes().replace(b"\x00", b"").rstrip()
             try:
                 d = json.loads(raw)
+                valid_json = True
             except json.JSONDecodeError:
                 last = raw.rfind(b"}")
                 if last > 0:
-                    d = json.loads(raw[:last + 1] + b"\n  ]\n}")
+                    try:
+                        d = json.loads(raw[:last + 1] + b"\n  ]\n}")
+                        valid_json = False
+                    except Exception:
+                        continue
                 else:
                     continue
             history = d.get("history", [])
             # only_ids 명시 시 카드/박스 가리지 않고 처리 (강제 카드로 재백필)
-            if only_ids or is_card_history(history):
+            if only_ids_set or is_card_history(history):
+                # resume 모드 — 이미 valid 한 JSON 이면 skip (only_ids 없을 때만 의미)
+                if resume and valid_json and not only_ids_set:
+                    continue
                 targets.append((cid, f, d))
         except Exception as e:
             print(f"  [{cid}] read fail: {e}")
@@ -225,11 +249,27 @@ def main():
             "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
             "history": new_history,
         }
+        # Atomic write — tmp 파일에 쓰고 JSON 검증 후 os.replace
+        # (이전 path.unlink() + write_bytes() 는 atomic 아니라 중단 시 partial-write 발생)
+        import os as _os
+        tmp_path = path.with_suffix(".tmp")
+        json_bytes = json.dumps(out, ensure_ascii=False, indent=2).encode('utf-8')
         try:
-            path.unlink()
-        except Exception:
-            pass
-        path.write_bytes(json.dumps(out, ensure_ascii=False, indent=2).encode('utf-8'))
+            # 1. 임시 파일에 쓰기
+            tmp_path.write_bytes(json_bytes)
+            # 2. JSON 유효성 검증 (write 후 다시 읽어서 parse 시도)
+            json.loads(tmp_path.read_text(encoding='utf-8'))
+            # 3. 원자적 교체 (Windows/Unix 둘 다 atomic)
+            _os.replace(str(tmp_path), str(path))
+        except Exception as e:
+            # 검증 실패 — 임시파일 삭제, 원본 보존
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+            print(f"⚠ atomic-write fail (원본 유지): {e}")
+            fail += 1
+            continue
         # 통계 — 등급별 days + 통합 거래량
         vol_total = sum(h.get("total_vol", 0) for h in new_history)
         print(f"OK psa10={grade_counts['psa10']}d psa9={grade_counts['psa9']}d "

@@ -684,24 +684,53 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
     </header>
     <script>
-      // 모바일 — 돋보기 클릭 시 상단 검색바 토글 + 자동 포커스
+      // 모바일/데스크톱 — 돋보기 클릭 시 시세 페이지로 이동 후 검색 input 포커스
+      // (globalSearch input 자체에는 아무 핸들러도 없어서 빈 input 만 열리던 버그 fix)
       (function bindMobileSearchToggle(){
         const btn = document.getElementById('mobileSearchToggle');
         const bar = document.getElementById('topSearchBar');
         if (!btn || !bar) return;
         btn.addEventListener('click', () => {
-          const isOpen = bar.classList.toggle('mobile-open');
-          if (isOpen) {
-            const input = bar.querySelector('input');
-            setTimeout(() => input?.focus(), 50);
-          }
+          // 1) 시세 페이지로 이동
+          if (typeof go === 'function') go('price');
+          // 2) 약간 지연 후 카드 검색 input 에 포커스
+          setTimeout(() => {
+            const cardInput = document.getElementById('cardSearchInput');
+            if (cardInput) {
+              cardInput.focus();
+              // 모바일에서 스크롤 위로
+              cardInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 200);
         });
-        // 검색창 외부 클릭 시 닫기
-        document.addEventListener('click', (e) => {
-          if (!bar.classList.contains('mobile-open')) return;
-          if (bar.contains(e.target) || btn.contains(e.target)) return;
-          bar.classList.remove('mobile-open');
-        });
+        // globalSearch input 에 직접 타이핑하는 경우도 처리 (혹시 모바일에서 열려있다면)
+        const gs = document.getElementById('globalSearch');
+        if (gs) {
+          gs.addEventListener('input', () => {
+            if (typeof go === 'function') go('price');
+            setTimeout(() => {
+              const cardInput = document.getElementById('cardSearchInput');
+              if (cardInput) {
+                cardInput.value = gs.value;
+                cardInput.dispatchEvent(new Event('input', { bubbles: true }));
+                cardInput.focus();
+              }
+            }, 100);
+          });
+          gs.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              if (typeof go === 'function') go('price');
+              setTimeout(() => {
+                const cardInput = document.getElementById('cardSearchInput');
+                if (cardInput) {
+                  cardInput.value = gs.value;
+                  cardInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                }
+              }, 150);
+            }
+          });
+        }
       })();
 
     </script>

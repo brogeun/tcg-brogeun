@@ -264,11 +264,14 @@ export async function onRequestPost({ request, env }) {
   }
 
   // OpenAI API 호출 함수 (재사용용)
+  // Cloudflare AI Gateway URL (env.AI_GATEWAY_OPENAI_URL) 등록 시 region 차단 우회 (CF가 미국 IP로 프록시)
+  // 형식: https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openai
+  const OPENAI_BASE = env.AI_GATEWAY_OPENAI_URL || 'https://api.openai.com/v1';
   const callOpenAI = async (timeoutMs = 25000) => {
     const controller = new AbortController();
     const tid = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      const resp = await fetch(`${OPENAI_BASE}/chat/completions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${env.OPENAI_API_KEY}`,

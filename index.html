@@ -1976,6 +1976,10 @@ function go(pageOrPath) {
       if (typeof updateAICenteringCountUI === 'function') updateAICenteringCountUI();
     }, 50);
   }
+  if (page === 'casing') {
+    // TCG Casing 진입 시 카드 검색 인덱스 prefetch
+    if (typeof loadCardSearchData === 'function') loadCardSearchData();
+  }
   // 스크롤 맨 위로
   window.scrollTo({top: 0, behavior: 'instant'});
 }
@@ -6378,11 +6382,11 @@ function showOripaHelper(i) {
 // ─── TCG Casing — 확장 아트 시안 생성 (admin only) ───
 // 카드 검색 (debounced)
 let _CASING_SEARCH_TIMER = null;
-document.addEventListener('input', e => {
+document.addEventListener('input', async e => {
   if (e.target.id !== 'casingSearchInput') return;
   clearTimeout(_CASING_SEARCH_TIMER);
   const q = e.target.value;
-  _CASING_SEARCH_TIMER = setTimeout(() => {
+  _CASING_SEARCH_TIMER = setTimeout(async () => {
     const box = document.getElementById('casingSearchResults');
     if (!box) return;
     if (!q.trim()) { box.style.display = 'none'; box.innerHTML = ''; return; }
@@ -6390,6 +6394,12 @@ document.addEventListener('input', e => {
       box.innerHTML = '<div style="padding:14px; color:#b91c1c; font-size:12px">⚠ 카드 검색 함수 없음 — 페이지 새로고침 필요</div>';
       box.style.display = 'block';
       return;
+    }
+    // 인덱스 미로드 시 자동 로드 (첫 검색은 1~2초 대기)
+    if (typeof _ALL_CARDS_INDEX !== 'undefined' && !_ALL_CARDS_INDEX && typeof loadCardSearchData === 'function') {
+      box.innerHTML = '<div style="padding:14px; text-align:center; color:#6b7280; font-size:12px">⏳ 카드 인덱스 로딩 중...</div>';
+      box.style.display = 'block';
+      await loadCardSearchData();
     }
     const results = searchCards(q, 30);
     casingRenderSearchResults(results, q);

@@ -38,21 +38,23 @@ export async function onRequestOptions() {
 }
 
 // 카드 일러스트 연속 확장 — 카드 위주 (80%+), 외곽은 좁은 띠
-const CORE_INSTRUCTION = `Take this Pokemon trading card and ADD a narrow extension border around it where the card's illustration continues naturally outward. The card itself MUST DOMINATE the output (about 80% of the frame). The extension is just a thin decorative band around the card edges, NOT a wide landscape.
+// CRITICAL: 캐릭터(포켓몬)는 카드 안에만 — 카드 경계 밖으로 절대 escape 금지
+const CORE_INSTRUCTION = `Take this Pokemon trading card and place it in the center of a slightly larger canvas, then add a narrow extension band around the card edges showing more of the same background environment depicted INSIDE the card.
 
-ABSOLUTE RULES:
-1. PRESERVE the card EXACTLY — every pixel, every character (Pokemon/creature), every text, every border line, every holographic effect, every set symbol, every number must remain pixel-perfect identical. DO NOT redraw or modify the card in any way.
-2. The card stays in its ORIGINAL aspect ratio (63:88 vertical) and occupies roughly 80-85% of the output canvas.
-3. Around the card, add ONLY a NARROW extension band (about 10-12% of the canvas width on each side, 6-8% on top/bottom) — NOT a wide landscape, NOT an open sky, NOT a huge environment. Think of it as the card slightly zoomed out, showing just a little more of the scene that's already inside the card.
-4. SEAMLESS CONTINUITY — whatever is at the edges of the card's illustration must continue smoothly into the narrow extension band. Same art style, same brushwork, same colors, same lighting. The card's frame line (the actual card border) should still be visible as the boundary between card and extension.
-5. NO PSA slab, NO label, NO barcode, NO frame around the card. Just the card + small illustration extension.
-6. NO new characters. The Pokemon on the card stays inside the card. Only the environment extends slightly outward.
+ABSOLUTE RULES (must all be followed):
+1. PRESERVE the card EXACTLY as the input image — every single pixel, the Pokemon character, all text, all numbers, all set symbols, all holographic effects, the card's outer border line, the entire card frame must remain pixel-perfect identical to the input. DO NOT redraw, do not reinterpret, do not change pose, do not change the holographic pattern.
+2. CHARACTER STAYS INSIDE THE CARD: The Pokemon/character on the card must remain ENTIRELY WITHIN the rectangular card border. The character must NEVER extend, overlap, or escape beyond the card's edge into the extension area. Treat the card border as a HARD CLIP MASK for the character.
+3. The card's outer rectangular border must remain visible as a clear, sharp boundary line between the card itself and the extension area outside.
+4. The card occupies roughly 80-85% of the output canvas (in its original 63:88 vertical aspect ratio).
+5. Around the card, add ONLY a narrow extension band (about 8-12% of canvas on each side) showing MORE BACKGROUND ENVIRONMENT — sky, clouds, terrain, water, etc. — but NEVER any characters or Pokemon. Just the environment.
+6. SEAMLESS CONTINUITY of BACKGROUND ONLY: whatever environmental elements (clouds, mountains, ocean, trees, walls) are visible at the very edge of the card's illustration must continue smoothly into the extension band. Match art style, color palette, lighting.
+7. NO PSA slab, NO label, NO barcode, NO frame decoration. Just the original card + narrow environment extension.
 
-CONTENT (analyze the card first):
-- Identify what's inside the card's illustration — the character pose, the immediate background (a few meters around the character), specific objects, colors, lighting.
-- The extension must show MORE OF EXACTLY THAT scene, just slightly wider — same beach with the same waves, same forest with the same trees right next to the ones visible, same room with the same wall pattern, etc.
+ENVIRONMENT (analyze first):
+- Identify the background environment shown on the card behind the character (e.g., sky with clouds, beach with ocean, forest, volcanic landscape, city street, indoor room).
+- The extension shows MORE of that exact same environment continuing outward — same sky, same ocean, same trees. No new content, just more of what's already there.
 
-OUTPUT FORMAT: Portrait orientation (taller than wide), close to the card's own aspect ratio. The card fills most of the image, with only a narrow scene extension around it.`;
+OUTPUT: Portrait orientation, close to the card's own 63:88 aspect ratio. The card is the hero in the center. The extension is a thin scenic frame.`;
 
 const STYLE_PROMPTS = [
   {
@@ -88,8 +90,8 @@ async function callFalGemini({ apiKey, imageUrl, prompt, seed }) {
       signal: controller.signal,
       body: JSON.stringify({
         prompt,
-        image_urls: [imageUrl],  // Gemini 는 배열로 받음
-        aspect_ratio: '3:4',     // 세로형 — 카드 비율(63:88)과 가까움. 카드가 화면 대부분 차지
+        image_urls: [imageUrl],  // Nano Banana Pro 는 배열로 받음
+        aspect_ratio: 'auto',    // 입력 카드 비율 따름 — '3:4' 강제 시 카드가 가로로 늘어나는 문제 회피
         num_images: 1,
         output_format: 'jpeg',
         safety_tolerance: '5',

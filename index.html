@@ -658,6 +658,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="nav-item" data-nav="cardinfo"><span class="ic"><i data-lucide="layers"></i></span> 카드 정보</div>
       <div class="nav-item" data-nav="portfolio"><span class="ic"><i data-lucide="user-round"></i></span> 마이페이지</div>
       <div class="nav-item admin-only" data-nav="admin"><span class="ic"><i data-lucide="wrench"></i></span> 관리자</div>
+      <div class="nav-item admin-only" data-nav="casing"><span class="ic"><i data-lucide="image-plus"></i></span> TCG Casing</div>
     </div>
 
     <!-- 사이드바 하단 — 앱 설치 + 로그인 -->
@@ -1611,6 +1612,86 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
     </section>
 
+    <!-- TCG Casing — 관리자 전용 (확장 아트 시안 생성, Flux Pro 1.1 Ultra) -->
+    <section class="page" data-page="casing">
+      <style>
+        section[data-page="casing"] { font-family: 'Noto Sans KR', sans-serif; }
+        .casing-section { background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px; }
+        .casing-section-title { font-size:13px; font-weight:800; color:#374151; margin-bottom:12px; letter-spacing:.3px; }
+        .casing-input { width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; box-sizing:border-box; }
+        .casing-input:focus { outline:none; border-color:#3b82f6; }
+        .casing-label { display:block; font-size:12px; font-weight:700; color:#6b7280; margin-bottom:6px; }
+        .casing-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+        @media (max-width:640px) { .casing-row { grid-template-columns:1fr; } }
+        .casing-btn-primary { background:linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color:#fff; padding:12px 24px; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+        .casing-btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(99,102,241,0.3); }
+        .casing-btn-primary:disabled { opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none; }
+        .casing-status { background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:14px 16px; color:#1e40af; font-size:13px; font-weight:600; }
+        .casing-error { background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; }
+        .casing-variants-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+        @media (max-width:900px) { .casing-variants-grid { grid-template-columns:1fr; } }
+        .casing-variant { border:2px solid #e5e7eb; border-radius:12px; overflow:hidden; cursor:pointer; transition:all 0.2s; background:#fafafa; }
+        .casing-variant:hover { border-color:#a5b4fc; transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.08); }
+        .casing-variant.selected { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,0.15); }
+        .casing-variant img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#f3f4f6; }
+        .casing-variant-info { padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+        .casing-variant-label { font-size:11px; font-weight:800; color:#6366f1; padding:3px 8px; background:#eef2ff; border-radius:4px; }
+        .casing-variant-actions { display:flex; gap:4px; }
+        .casing-action-btn { padding:5px 10px; background:#fff; border:1px solid #d1d5db; border-radius:6px; font-size:11px; cursor:pointer; color:#374151; }
+        .casing-action-btn:hover { background:#f3f4f6; border-color:#9ca3af; }
+        .casing-orig-preview { width:120px; aspect-ratio:3/4; object-fit:contain; background:#f3f4f6; border-radius:6px; border:1px solid #e5e7eb; }
+      </style>
+      <div class="page-head">
+        <h1 class="page-title">🎴 TCG Casing — 확장 아트 시안</h1>
+        <p class="page-sub">관리자 전용 · Flux Pro 1.1 Ultra 기반 카드 확장 아트 3개 시안 자동 생성 (테스트 단계)</p>
+      </div>
+
+      <!-- 안내 -->
+      <div class="casing-section" style="background:linear-gradient(135deg, #fafbff 0%, #f3f4ff 100%); border-color:#e0e7ff">
+        <div style="font-size:12px; color:#4b5563; line-height:1.7">
+          💡 <b>작동 원리</b>: 카드 이름/이미지 URL 입력 → fal.ai Flux Pro 1.1 Ultra 가 <b>3가지 스타일</b> (시네마틱 / 일러스트 / 추상) 으로 확장 아트 시안 생성<br>
+          ⏱ <b>소요 시간</b>: 약 15~30초 (3개 시안 병렬 생성) · <b>비용</b>: 약 210원/주문 ($0.05 × 3장)
+        </div>
+      </div>
+
+      <!-- 입력 폼 -->
+      <div class="casing-section">
+        <div class="casing-section-title">📝 카드 정보 입력</div>
+        <div class="casing-row">
+          <div>
+            <label class="casing-label">카드 이름 (선택, 프롬프트 강화용)</label>
+            <input id="casingCardName" class="casing-input" placeholder="예: Rayquaza VMAX / Charizard ex / Luffy" />
+          </div>
+          <div>
+            <label class="casing-label">카드 이미지 URL (선택, 참조용 표시)</label>
+            <input id="casingCardImageUrl" class="casing-input" placeholder="https://... (없어도 작동)" />
+          </div>
+        </div>
+        <div style="margin-bottom:14px">
+          <label class="casing-label">커스텀 프롬프트 (선택, 영문 권장)</label>
+          <textarea id="casingCustomPrompt" class="casing-input" rows="3" placeholder="비워두면 기본 프롬프트 사용: 'Trading card game extended art, featuring [카드이름], vibrant detailed character illustration, high quality digital art...'"></textarea>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+          <button id="casingGenerateBtn" class="casing-btn-primary" onclick="casingGenerate()">✨ 시안 3개 생성</button>
+          <span style="font-size:11px; color:#9ca3af">⌘+Enter 단축키 지원</span>
+        </div>
+      </div>
+
+      <!-- 진행 상태 -->
+      <div id="casingStatusWrap" style="display:none; margin-bottom:18px">
+        <div id="casingStatus" class="casing-status">⏳ 시안 생성 중... (약 15~30초)</div>
+      </div>
+
+      <!-- 결과 -->
+      <div id="casingResults" style="display:none">
+        <div class="casing-section">
+          <div class="casing-section-title">🎨 생성된 시안 (3개) — 클릭하여 선택, "원본 보기"로 비교</div>
+          <div id="casingVariants" class="casing-variants-grid"></div>
+          <div id="casingMeta" style="font-size:11px; color:#9ca3af; text-align:right; margin-top:12px"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- 내 정보 (포트폴리오 + 관심 카드) -->
     <section class="page" data-page="portfolio">
       <div class="page-head">
@@ -1854,6 +1935,15 @@ function go(pageOrPath) {
     const parts = pageOrPath.split('/');
     page = parts[0];
     productId = parts[1] || null;
+  }
+  // 관리자 전용 페이지 — admin 비밀번호 없으면 home 으로 리다이렉트 (일반 사용자 차단)
+  const ADMIN_ONLY_PAGES = ['casing'];
+  if (ADMIN_ONLY_PAGES.includes(page)) {
+    if (typeof getAdminPwd === 'function' && !getAdminPwd()) {
+      const input = prompt('🔐 관리자 비밀번호를 입력하세요:');
+      if (!input) { go('home'); return; }
+      if (typeof setAdminPwd === 'function') setAdminPwd(input);
+    }
   }
   // 모든 페이지 숨김
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -6281,6 +6371,110 @@ function showOripaHelper(i) {
     </div>`;
   openAnyModal(html, 'wide');
 }
+
+// ─── TCG Casing — 확장 아트 시안 생성 (admin only) ───
+async function casingGenerate() {
+  const btn = document.getElementById('casingGenerateBtn');
+  const statusWrap = document.getElementById('casingStatusWrap');
+  const statusEl = document.getElementById('casingStatus');
+  const resultsEl = document.getElementById('casingResults');
+  const cardName = document.getElementById('casingCardName').value.trim();
+  const cardImageUrl = document.getElementById('casingCardImageUrl').value.trim();
+  const customPrompt = document.getElementById('casingCustomPrompt').value.trim();
+  if (!cardName && !cardImageUrl && !customPrompt) {
+    alert('카드 이름, 이미지 URL, 또는 커스텀 프롬프트 중 최소 1개는 입력해주세요.');
+    return;
+  }
+  if (typeof getAdminPwd === 'function' && !getAdminPwd()) {
+    const input = prompt('🔐 관리자 비밀번호를 입력하세요:');
+    if (!input) return;
+    setAdminPwd(input);
+  }
+  btn.disabled = true;
+  btn.textContent = '⏳ 생성 중... (15~30초)';
+  statusWrap.style.display = '';
+  statusEl.className = 'casing-status';
+  statusEl.textContent = '⏳ 시안 생성 중... fal.ai Flux Pro 1.1 Ultra 호출 (3개 병렬)';
+  resultsEl.style.display = 'none';
+  const startMs = Date.now();
+  try {
+    const encoded = btoa(unescape(encodeURIComponent(getAdminPwd() || '')));
+    const r = await fetch('/api/casing-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': encoded },
+      body: JSON.stringify({
+        cardName: cardName || undefined,
+        cardImageUrl: cardImageUrl || 'placeholder',
+        prompt: customPrompt || undefined,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      if (r.status === 401) {
+        clearAdminPwd();
+        statusEl.className = 'casing-status casing-error';
+        statusEl.textContent = '❌ 관리자 비밀번호가 틀렸습니다. 다시 시도해주세요.';
+        return;
+      }
+      throw new Error(data.error || `HTTP ${r.status}`);
+    }
+    renderCasingVariants(data);
+    const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+    statusEl.textContent = `✅ ${data.variants.length}개 시안 생성 완료 (${elapsed}초${data.failed ? `, ${data.failed}개 실패` : ''})`;
+  } catch (e) {
+    console.error('[casing] error:', e);
+    statusEl.className = 'casing-status casing-error';
+    statusEl.textContent = `❌ 생성 실패: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ 시안 3개 생성';
+  }
+}
+function renderCasingVariants(data) {
+  const grid = document.getElementById('casingVariants');
+  const metaEl = document.getElementById('casingMeta');
+  const wrap = document.getElementById('casingResults');
+  grid.innerHTML = data.variants.map((v, i) => `
+    <div class="casing-variant" data-variant-idx="${i}" onclick="casingSelectVariant(${i})">
+      <img src="${escapeHtml(v.url)}" alt="시안 ${i+1}" loading="lazy" />
+      <div class="casing-variant-info">
+        <span class="casing-variant-label">${escapeHtml(v.label || v.style)}</span>
+        <div class="casing-variant-actions">
+          <button class="casing-action-btn" onclick="event.stopPropagation(); window.open('${escapeHtml(v.url)}', '_blank')">크게</button>
+          <button class="casing-action-btn" onclick="event.stopPropagation(); casingDownloadVariant('${escapeHtml(v.url)}', ${i+1})">⬇</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  metaEl.textContent = `⚙️ ${data.provider} · ${(data.elapsedMs / 1000).toFixed(1)}초${data.failed ? ` · ${data.failed} 시안 실패` : ''}`;
+  wrap.style.display = '';
+}
+function casingSelectVariant(idx) {
+  document.querySelectorAll('.casing-variant').forEach((el, i) => el.classList.toggle('selected', i === idx));
+}
+async function casingDownloadVariant(url, n) {
+  try {
+    const r = await fetch(url);
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `tcg-casing-${Date.now()}-${n}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } catch (e) {
+    console.error('[casing] download fail:', e);
+    window.open(url, '_blank');
+  }
+}
+// Ctrl+Enter / Cmd+Enter 단축키 → casing 페이지에서 생성 트리거
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && document.body.dataset.page === 'casing') {
+    e.preventDefault();
+    casingGenerate();
+  }
+});
 
 // ─── 이벤트 / 기타 / 관리자 CRUD ───
 function escapeHtml(s) {

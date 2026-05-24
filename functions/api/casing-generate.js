@@ -31,9 +31,11 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Password',
 };
 
-const json = (obj, status = 200) =>
-  new Response(JSON.stringify(obj), {
-    status,
+// 모든 응답은 status 200 으로 wrap — Cloudflare 가 502/504 를 자체 HTML 페이지로 덮어쓰는 동작 회피
+// 진짜 status 는 응답 본문의 _status 필드 + error 필드로 구분
+const json = (obj, _httpStatus = 200) =>
+  new Response(JSON.stringify(obj.ok === false ? { ...obj, _httpStatus: obj._httpStatus || _httpStatus } : obj), {
+    status: 200,  // 항상 200
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',

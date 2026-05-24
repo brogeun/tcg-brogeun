@@ -1673,8 +1673,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <!-- 안내 -->
       <div class="casing-section" style="background:linear-gradient(135deg, #fafbff 0%, #f3f4ff 100%); border-color:#e0e7ff">
         <div style="font-size:12px; color:#4b5563; line-height:1.7">
-          💡 <b>작동 원리</b>: 카드 검색 → 선택 → fal.ai Flux Pro Kontext 가 카드 이미지를 reference 로 <b>3가지 스타일</b> (시네마틱 / 일러스트 / 추상) 확장 아트 자동 생성<br>
-          ⏱ <b>소요 시간</b>: 약 15~30초 (3개 시안 병렬 생성) · <b>비용</b>: 약 210원/주문 ($0.05 × 3장)
+          💡 <b>작동 원리</b>: 카드 일러스트가 카드 밖으로 <b>자연스럽게 이어지는 확장 아트</b>. 카드는 그대로 + 외곽이 카드 안 그림과 하나의 풍경처럼 연결. fal.ai <b>Gemini 2.5 Flash Image (Nano Banana)</b> 가 <b>3가지 시안</b> (자연스러운 연장 / 시네마틱 / 드림) 으로 자동 생성<br>
+          ⏱ <b>소요 시간</b>: 약 10~20초 (3개 시안 병렬 생성) · <b>비용</b>: 약 165원/주문 ($0.039 × 3장)
         </div>
       </div>
 
@@ -6501,51 +6501,6 @@ function casingClearSelection() {
   document.getElementById('casingSelectedWrap').style.display = 'none';
   document.getElementById('casingSearchInput').focus();
 }
-// 카드 이미지 + 4:3 확장 canvas + outpaint mask 생성
-// 결과: { imageDataUrl, maskDataUrl } — Backend 에서 fal.ai Fill 모델에 전달
-async function casingBuildOutpaintCanvas(cardImageUrl, opts = {}) {
-  const W = opts.width || 1536;   // 4:3 가로형
-  const H = opts.height || 1152;  // 1536/1152 = 4:3
-  // 카드 비율 (포켓몬/원피스 카드 표준 ≈ 63:88 ≈ 0.716)
-  const CARD_RATIO = 63 / 88;
-  // 카드 높이를 캔버스 높이의 75% 로 (중앙 + 외곽 여백)
-  const cardH = Math.round(H * 0.78);
-  const cardW = Math.round(cardH * CARD_RATIO);
-  const cardX = Math.round((W - cardW) / 2);
-  const cardY = Math.round((H - cardH) / 2);
-  // 카드 이미지 로딩 — CDN CORS 우회 위해 /api/casing-proxy-image 통해 same-origin 으로 fetch
-  // (SNKRDUNK CDN 은 Access-Control-Allow-Origin 헤더 없음 → 직접 로드 시 canvas tainted)
-  const proxyUrl = `/api/casing-proxy-image?url=${encodeURIComponent(cardImageUrl)}`;
-  const img = await new Promise((res, rej) => {
-    const im = new Image();
-    im.crossOrigin = 'anonymous';
-    im.onload = () => res(im);
-    im.onerror = () => rej(new Error('카드 이미지 로딩 실패 (proxy 또는 CDN 404). URL: ' + cardImageUrl));
-    im.src = proxyUrl;
-  });
-  // 1. 확장된 이미지 canvas — 외곽은 평균색으로 채워서 AI 힌트 제공 (검정/흰색은 부자연스러움)
-  const cvImg = document.createElement('canvas');
-  cvImg.width = W; cvImg.height = H;
-  const ctxImg = cvImg.getContext('2d');
-  // 외곽 fill — 카드 가장자리 평균색 계산하기 어려우니 어두운 회색
-  ctxImg.fillStyle = '#1a1a2a';
-  ctxImg.fillRect(0, 0, W, H);
-  ctxImg.drawImage(img, cardX, cardY, cardW, cardH);
-  const imageDataUrl = cvImg.toDataURL('image/jpeg', 0.92);
-  // 2. mask canvas — 흰색 = 채울 영역 (외곽), 검정 = 보존 (카드)
-  // 카드 가장자리에 작은 여유(feather)를 둬서 자연스러운 블렌딩
-  const FEATHER = 4;  // px
-  const cvMask = document.createElement('canvas');
-  cvMask.width = W; cvMask.height = H;
-  const ctxMask = cvMask.getContext('2d');
-  ctxMask.fillStyle = '#ffffff';
-  ctxMask.fillRect(0, 0, W, H);
-  ctxMask.fillStyle = '#000000';
-  ctxMask.fillRect(cardX + FEATHER, cardY + FEATHER, cardW - FEATHER * 2, cardH - FEATHER * 2);
-  const maskDataUrl = cvMask.toDataURL('image/png');
-  return { imageDataUrl, maskDataUrl, cardW, cardH, W, H };
-}
-
 async function casingGenerate() {
   const btn = document.getElementById('casingGenerateBtn');
   const statusWrap = document.getElementById('casingStatusWrap');
@@ -6566,21 +6521,9 @@ async function casingGenerate() {
   btn.textContent = '⏳ 생성 중... (15~30초)';
   statusWrap.style.display = '';
   statusEl.className = 'casing-status';
-  statusEl.textContent = '⏳ 1/2 — 카드 이미지 + outpaint mask 준비 중...';
+  statusEl.textContent = '⏳ fal.ai Gemini 2.5 Flash Image 호출 중 (3개 시안 병렬, 10~20초 예상)...';
   resultsEl.style.display = 'none';
   const startMs = Date.now();
-  // canvas 작업 — 카드를 4:3 캔버스 중앙에 배치 + mask 생성
-  let canvasData;
-  try {
-    canvasData = await casingBuildOutpaintCanvas(cardImageUrl);
-  } catch (e) {
-    statusEl.className = 'casing-status casing-error';
-    statusEl.textContent = `❌ 카드 이미지 로딩 실패\n${e.message}\n\nCORS 차단 또는 잘못된 URL 일 수 있습니다.`;
-    btn.disabled = false;
-    btn.textContent = '✨ 시안 3개 생성';
-    return;
-  }
-  statusEl.textContent = '⏳ 2/2 — fal.ai Flux Pro Fill 호출 중 (outpainting, 3개 병렬)...';
   try {
     const encoded = btoa(unescape(encodeURIComponent(getAdminPwd() || '')));
     const r = await fetch('/api/casing-generate', {
@@ -6589,10 +6532,6 @@ async function casingGenerate() {
       body: JSON.stringify({
         cardName: cardName || undefined,
         cardImageUrl,
-        imageDataUrl: canvasData.imageDataUrl,
-        maskDataUrl: canvasData.maskDataUrl,
-        canvasWidth: canvasData.W,
-        canvasHeight: canvasData.H,
       }),
     });
     // response 가 JSON 이 아닐 수 있음 (Cloudflare 502 HTML 페이지 등) → text 로 먼저 받고 파싱 시도

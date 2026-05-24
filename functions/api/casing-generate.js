@@ -58,37 +58,8 @@ const STYLE_PROMPTS = [
   },
 ];
 
-// fal.ai storage 업로드 — data URL 을 public URL 로 변환
-// Fill 모델은 image_url + mask_url 이 필요한데, data URL 직접 지원이 불확실하므로 storage 업로드
-async function uploadToFalStorage(apiKey, dataUrl) {
-  // data:image/png;base64,xxx → Blob
-  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!m) throw new Error('invalid data URL format');
-  const mime = m[1];
-  const b64 = m[2];
-  // base64 → Uint8Array
-  const binStr = atob(b64);
-  const bytes = new Uint8Array(binStr.length);
-  for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-
-  // fal.ai upload API — multipart form
-  const fd = new FormData();
-  const blob = new Blob([bytes], { type: mime });
-  fd.append('file', blob, `upload.${mime.split('/')[1] || 'png'}`);
-
-  const resp = await fetch('https://fal.run/storage/upload', {
-    method: 'POST',
-    headers: { 'Authorization': `Key ${apiKey}` },
-    body: fd,
-  });
-  if (!resp.ok) {
-    const t = await resp.text();
-    throw new Error(`fal.storage upload ${resp.status}: ${t.slice(0, 200)}`);
-  }
-  const j = await resp.json();
-  if (!j.url) throw new Error(`fal.storage no url: ${JSON.stringify(j).slice(0, 200)}`);
-  return j.url;
-}
+// (fal.ai storage 우회 — 대부분 fal.ai 모델이 data URL 을 image_url 로 직접 받음)
+// 만약 결과가 안 나오면 R2 / 다른 임시 호스팅으로 전환 필요
 
 // fal.ai Flux Pro Fill 호출 — image + mask + prompt → outpainted image
 async function callFalFluxFill({ apiKey, imageUrl, maskUrl, prompt, seed }) {
@@ -168,16 +139,9 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: 'imageDataUrl 과 maskDataUrl 필수 (Frontend canvas 결과)' }, 400);
   }
 
-  // ── fal.ai storage 업로드 (image + mask 각 1회) ──
-  let imageUrl, maskUrl;
-  try {
-    [imageUrl, maskUrl] = await Promise.all([
-      uploadToFalStorage(env.FAL_API_KEY, imageDataUrl),
-      uploadToFalStorage(env.FAL_API_KEY, maskDataUrl),
-    ]);
-  } catch (e) {
-    return json({ ok: false, error: `fal.ai storage upload 실패: ${e.message}` }, 502);
-  }
+  // data URL 을 image_url 로 직접 전달 (대부분 fal.ai 모델 지원)
+  const imageUrl = imageDataUrl;
+  const maskUrl = maskDataUrl;
 
   // ── 프롬프트 prefix ──
   const namePrefix = cardName

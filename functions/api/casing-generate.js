@@ -16,7 +16,7 @@
  *   {
  *     ok: true,
  *     variants: [{ url: string, seed: number, style: string }, ...],  // 3개
- *     provider: 'fal-ai/flux-pro-1.1-ultra',
+ *     provider: 'fal-ai/flux-pro/kontext',
  *     elapsedMs: number,
  *   }
  *
@@ -46,29 +46,30 @@ export async function onRequestOptions() {
 }
 
 // 3가지 스타일 — 각각 다른 분위기의 확장 아트 시안 생성
+// Flux Pro Kontext 는 이미지를 reference 로 받아 텍스트 가이드대로 변형/확장
 const STYLE_PROMPTS = [
   {
     style: 'cinematic',
     label: '시네마틱',
-    suffix: 'in a dramatic cinematic composition with depth and atmosphere, extending the original card artwork into a wider epic scene with matching color palette and lighting',
+    prompt: 'Extend this trading card artwork outward into a wider cinematic scene. Keep the original character and central composition intact in the center, but extend the background and environment naturally to all sides with dramatic atmosphere, depth, and matching lighting. The extended areas should feel like a natural continuation of the existing art.',
   },
   {
     style: 'illustration',
     label: '일러스트',
-    suffix: 'as a polished hand-drawn illustration extending naturally beyond the card borders, maintaining the original artwork style and details in the center, with the extended areas seamlessly continuing the scene',
+    prompt: 'Extend this trading card artwork outward as a polished hand-drawn illustration. Maintain the original character and artwork style perfectly in the center, and extend the surrounding environment seamlessly with matching colors, brushwork, and details. The extension should look like it was painted by the same artist.',
   },
   {
     style: 'abstract',
     label: '추상',
-    suffix: 'with the central card artwork surrounded by an abstract atmospheric background of soft gradients, magical particles, and ambient color that complements the original art',
+    prompt: 'Extend this trading card artwork outward with an atmospheric abstract background. Keep the central character and original artwork unchanged, surrounded by soft gradients, magical light particles, and ambient color washes that complement and frame the original art without competing with it.',
   },
 ];
 
-// fal.ai 호출 — 1개 시안 생성
+// fal.ai 호출 — 1개 시안 생성 (Flux Pro Kontext, image-aware)
 async function callFalFluxPro({ apiKey, imageUrl, prompt, seed }) {
-  // Flux Pro 1.1 Ultra — 가장 새롭고 품질 우수, $0.05/장
-  // 동기 endpoint (queue 안 씀 — 보통 8~15초 안에 응답)
-  const endpoint = 'https://fal.run/fal-ai/flux-pro/v1.1-ultra';
+  // Flux Pro Kontext — 이미지+텍스트 → 이미지 (image-aware editing/extension)
+  // $0.04/장, 동기 endpoint (보통 8~20초)
+  const endpoint = 'https://fal.run/fal-ai/flux-pro/kontext';
 
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), 60000); // 60s
@@ -83,11 +84,10 @@ async function callFalFluxPro({ apiKey, imageUrl, prompt, seed }) {
       signal: controller.signal,
       body: JSON.stringify({
         prompt,
-        // Flux Pro 1.1 Ultra 는 image_url 안 받음 (텍스트→이미지)
-        // 카드 일러스트는 prompt 로 reference (Kontext 시리즈와 달리)
-        aspect_ratio: '4:3',  // 백판 형태에 가까운 가로형
+        image_url: imageUrl,  // reference 카드 이미지
+        aspect_ratio: '4:3',   // 백판 형태 (가로형)
         num_images: 1,
-        enable_safety_checker: true,
+        guidance_scale: 3.5,
         output_format: 'jpeg',
         safety_tolerance: '5',
         seed,
@@ -140,29 +140,27 @@ export async function onRequestPost({ request, env }) {
   try { body = await request.json(); }
   catch { return json({ ok: false, error: 'invalid JSON body' }, 400); }
 
-  const { cardImageUrl, cardName = '', prompt: userPrompt, style: forceStyle } = body || {};
+  const { cardImageUrl, cardName = '' } = body || {};
   if (!cardImageUrl) {
-    return json({ ok: false, error: 'cardImageUrl required' }, 400);
+    return json({ ok: false, error: 'cardImageUrl 필수 (카드를 먼저 선택하세요)' }, 400);
+  }
+  // URL 형식 간단 검증 (Kontext 는 public URL 필요)
+  if (!/^https?:\/\//i.test(cardImageUrl)) {
+    return json({ ok: false, error: 'cardImageUrl must be http(s) public URL' }, 400);
   }
 
-  // ── 프롬프트 구성 ──
-  // 카드 이미지 자체를 fal.ai 에 직접 reference 하기 어려우므로 (Flux Pro 1.1 Ultra 는 텍스트→이미지)
-  // 카드 이름과 일반적 TCG 카드 일러스트 스타일을 텍스트로 묘사
-  const basePrompt = userPrompt
-    || `Trading card game extended art, ${cardName ? `featuring ${cardName}, ` : ''}vibrant detailed character illustration, high quality digital art, extends naturally with matching style`;
+  // 카드 이름 prefix (없으면 일반 묘사) — 각 스타일 프롬프트에 합성
+  const namePrefix = cardName
+    ? `Trading card "${cardName}". `
+    : 'Trading card game artwork. ';
 
-  // 스타일 3종 (forceStyle 지정 시 그것만 3번)
-  const stylesToUse = forceStyle
-    ? STYLE_PROMPTS.filter(s => s.style === forceStyle).concat(STYLE_PROMPTS).slice(0, 3)
-    : STYLE_PROMPTS;
-
-  // 3개 시안 병렬 생성
+  // 3개 시안 병렬 생성 (3가지 고정 스타일)
   const seedBase = Date.now() % 1000000;
-  const tasks = stylesToUse.map((s, idx) =>
+  const tasks = STYLE_PROMPTS.map((s, idx) =>
     callFalFluxPro({
       apiKey: env.FAL_API_KEY,
       imageUrl: cardImageUrl,
-      prompt: `${basePrompt}, ${s.suffix}`,
+      prompt: namePrefix + s.prompt,
       seed: seedBase + idx * 1000,
     }).then(r => ({ ...r, style: s.style, label: s.label }))
   );
@@ -187,7 +185,7 @@ export async function onRequestPost({ request, env }) {
     variants: successes.map(r => ({ url: r.url, seed: r.seed, style: r.style, label: r.label })),
     failed: failures.length,
     failures: failures.length ? failures.map(f => ({ style: f.style, error: f.error })) : undefined,
-    provider: 'fal-ai/flux-pro-1.1-ultra',
+    provider: 'fal-ai/flux-pro/kontext',
     elapsedMs: Date.now() - startMs,
   });
 }

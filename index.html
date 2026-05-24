@@ -1633,7 +1633,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .casing-variant { border:2px solid #e5e7eb; border-radius:12px; overflow:hidden; cursor:pointer; transition:all 0.2s; background:#fafafa; }
         .casing-variant:hover { border-color:#a5b4fc; transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,0.08); }
         .casing-variant.selected { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,0.15); }
-        .casing-variant img { width:100%; aspect-ratio:4/3; object-fit:cover; display:block; background:#f3f4f6; }
+        .casing-variant img { width:100%; aspect-ratio:92/122; object-fit:contain; display:block; background:#f3f4f6; }
+        .casing-variant-img-wrap { aspect-ratio:92/122; background:#f3f4f6; display:flex; align-items:center; justify-content:center; }
         .casing-variant-info { padding:10px 12px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
         .casing-variant-label { font-size:11px; font-weight:800; color:#6366f1; padding:3px 8px; background:#eef2ff; border-radius:4px; }
         .casing-variant-actions { display:flex; gap:4px; }
@@ -1675,8 +1676,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <!-- 안내 -->
       <div class="casing-section" style="background:linear-gradient(135deg, #fafbff 0%, #f3f4ff 100%); border-color:#e0e7ff">
         <div style="font-size:12px; color:#4b5563; line-height:1.7">
-          💡 <b>작동 원리</b>: 카드 위주(80%+) + 외곽에 <b>좁은 일러스트 띠</b>가 자연스럽게 이어지는 형태. fal.ai <b>Nano Banana Pro (Gemini 3 Pro Image)</b> 가 <b>3가지 시안</b> (원본 충실 / 부드러운 톤 / 글로우) 으로 자동 생성<br>
-          ⏱ <b>소요 시간</b>: 약 15~30초 (3개 시안 병렬 생성) · <b>비용</b>: 약 670원/주문 ($0.15 × 3장)
+          💡 <b>작동 원리</b>: AI 가 카드 일러스트의 <b>확장 아트 배경 (Extended Art)</b> 생성 → 가운데에 카드/라벨 자리(흰 사각형)를 깔끔히 비워둠 → 사장님이 인쇄 후 실물 PSA 슬랩을 위에 올려서 케이싱 완성<br>
+          ⏱ <b>소요 시간</b>: 약 15~30초 (3개 시안 병렬 생성) · <b>비용</b>: 약 670원/주문 ($0.15 × 3장) · 모델: <b>Nano Banana Pro</b>
         </div>
       </div>
 
@@ -6581,24 +6582,114 @@ async function casingGenerate() {
     btn.textContent = '✨ 시안 3개 생성';
   }
 }
-function renderCasingVariants(data) {
+// PSA 슬랩 시트 합성 — AI 풍경 + 흰 사각형 2개 (라벨/카드 자리)
+// 표준 PSA 슬랩 spec: 92×122mm
+//   라벨 자리: x=2.7%, y=5.7%, w=94.6%, h=18%   (87×22mm 상단)
+//   카드 자리: x=14.7%, y=26.2%, w=70.7%, h=73.8%  (65×90mm 중앙)
+// 300 DPI: 92×122mm = 1086×1441 px (표시는 더 작게)
+const CASING_SHEET_W = 1086;
+const CASING_SHEET_H = 1441;
+const CASING_LABEL = { x: 0.027, y: 0.057, w: 0.946, h: 0.180 };
+const CASING_CARD  = { x: 0.147, y: 0.262, w: 0.707, h: 0.738 };
+
+async function casingComposeSlabSheet(aiImageUrl) {
+  // AI 결과 이미지 로딩 (proxy 통해서 CORS 회피)
+  const proxyUrl = `/api/casing-proxy-image?url=${encodeURIComponent(aiImageUrl)}`;
+  const img = await new Promise((res, rej) => {
+    const im = new Image();
+    im.crossOrigin = 'anonymous';
+    im.onload = () => res(im);
+    im.onerror = () => {
+      // proxy 실패 시 직접 시도 (fal.ai storage 는 CORS 허용일 수 있음)
+      const im2 = new Image();
+      im2.crossOrigin = 'anonymous';
+      im2.onload = () => res(im2);
+      im2.onerror = () => rej(new Error('AI 이미지 로딩 실패'));
+      im2.src = aiImageUrl;
+    };
+    im.src = proxyUrl;
+  });
+  const cv = document.createElement('canvas');
+  cv.width = CASING_SHEET_W;
+  cv.height = CASING_SHEET_H;
+  const ctx = cv.getContext('2d');
+  // 1. AI 풍경을 캔버스 전체에 cover 방식으로 그림 (비율 맞추고 일부 잘릴 수 있음)
+  const imgRatio = img.width / img.height;
+  const cvRatio = CASING_SHEET_W / CASING_SHEET_H;
+  let drawW, drawH, drawX, drawY;
+  if (imgRatio > cvRatio) {
+    drawH = CASING_SHEET_H;
+    drawW = drawH * imgRatio;
+    drawX = (CASING_SHEET_W - drawW) / 2;
+    drawY = 0;
+  } else {
+    drawW = CASING_SHEET_W;
+    drawH = drawW / imgRatio;
+    drawX = 0;
+    drawY = (CASING_SHEET_H - drawH) / 2;
+  }
+  ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  // 2. 흰 사각형 overlay — 라벨 자리 + 카드 자리
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(CASING_LABEL.x * CASING_SHEET_W, CASING_LABEL.y * CASING_SHEET_H, CASING_LABEL.w * CASING_SHEET_W, CASING_LABEL.h * CASING_SHEET_H);
+  ctx.fillRect(CASING_CARD.x  * CASING_SHEET_W, CASING_CARD.y  * CASING_SHEET_H, CASING_CARD.w  * CASING_SHEET_W, CASING_CARD.h  * CASING_SHEET_H);
+  return cv.toDataURL('image/png');
+}
+
+async function renderCasingVariants(data) {
   const grid = document.getElementById('casingVariants');
   const metaEl = document.getElementById('casingMeta');
   const wrap = document.getElementById('casingResults');
+  // 결과 표시 — 먼저 로딩 상태
   grid.innerHTML = data.variants.map((v, i) => `
-    <div class="casing-variant" data-variant-idx="${i}" onclick="casingSelectVariant(${i})">
-      <img src="${escapeHtml(v.url)}" alt="시안 ${i+1}" loading="lazy" />
+    <div class="casing-variant" data-variant-idx="${i}" id="casingVariant${i}">
+      <div class="casing-variant-img-wrap" style="display:flex; align-items:center; justify-content:center; aspect-ratio:92/122; background:#f3f4f6; color:#9ca3af; font-size:12px">⏳ 슬랩 시트 합성 중...</div>
       <div class="casing-variant-info">
         <span class="casing-variant-label">${escapeHtml(v.label || v.style)}</span>
-        <div class="casing-variant-actions">
-          <button class="casing-action-btn" onclick="event.stopPropagation(); window.open('${escapeHtml(v.url)}', '_blank')">크게</button>
-          <button class="casing-action-btn" onclick="event.stopPropagation(); casingDownloadVariant('${escapeHtml(v.url)}', ${i+1})">⬇</button>
-        </div>
       </div>
     </div>
   `).join('');
   metaEl.textContent = `⚙️ ${data.provider} · ${(data.elapsedMs / 1000).toFixed(1)}초${data.failed ? ` · ${data.failed} 시안 실패` : ''}`;
   wrap.style.display = '';
+  // 각 시안 합성 (병렬)
+  await Promise.all(data.variants.map(async (v, i) => {
+    try {
+      const composedUrl = await casingComposeSlabSheet(v.url);
+      // 합성 결과 저장 (다운로드용)
+      v._composedUrl = composedUrl;
+      const tile = document.getElementById('casingVariant' + i);
+      if (!tile) return;
+      tile.onclick = () => casingSelectVariant(i);
+      tile.style.cursor = 'pointer';
+      tile.innerHTML = `
+        <img src="${composedUrl}" alt="시안 ${i+1}" />
+        <div class="casing-variant-info">
+          <span class="casing-variant-label">${escapeHtml(v.label || v.style)}</span>
+          <div class="casing-variant-actions">
+            <button class="casing-action-btn" onclick="event.stopPropagation(); casingShowRaw('${escapeHtml(v.url)}')">원본 풍경</button>
+            <button class="casing-action-btn" onclick="event.stopPropagation(); casingDownloadComposed(${i})">⬇ 인쇄용</button>
+          </div>
+        </div>
+      `;
+    } catch (e) {
+      console.error('[casing] compose fail:', e);
+      const tile = document.getElementById('casingVariant' + i);
+      if (tile) tile.innerHTML = `<div style="padding:18px; color:#b91c1c; font-size:12px">합성 실패: ${e.message}<br><a href="${escapeHtml(v.url)}" target="_blank" style="color:#3b82f6">원본 보기</a></div>`;
+    }
+  }));
+  // 다운로드용 variants 전역 저장
+  window._CASING_LAST_VARIANTS = data.variants;
+}
+function casingShowRaw(url) { window.open(url, '_blank'); }
+function casingDownloadComposed(idx) {
+  const v = (window._CASING_LAST_VARIANTS || [])[idx];
+  if (!v?._composedUrl) { alert('합성 결과가 없습니다.'); return; }
+  const a = document.createElement('a');
+  a.href = v._composedUrl;
+  a.download = `tcg-casing-sheet-${Date.now()}-${idx + 1}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 function casingSelectVariant(idx) {
   document.querySelectorAll('.casing-variant').forEach((el, i) => el.classList.toggle('selected', i === idx));

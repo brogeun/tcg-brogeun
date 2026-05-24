@@ -37,24 +37,49 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
-// 카드 일러스트 연속 확장 — 카드 위주 (80%+), 외곽은 좁은 띠
-// CRITICAL: 캐릭터(포켓몬)는 카드 안에만 — 카드 경계 밖으로 절대 escape 금지
-const CORE_INSTRUCTION = `Take this Pokemon trading card and place it in the center of a slightly larger canvas, then add a narrow extension band around the card edges showing more of the same background environment depicted INSIDE the card.
+// PSA 슬랩 케이싱 시트 — 'Extended Art' 배경 + 사용자가 카드/라벨 합성할 흰 빈 공간
+// (사용자 직접 작성 prompt 영문 변환 + PSA 슬랩 표준 비율 명시)
+const CORE_INSTRUCTION = `Generate an "Extended Art" background sheet based on the illustration of this Pokemon trading card. The output will be printed as a sheet that wraps around a PSA-graded slab — the user will physically place the actual card slab on top of the white areas after printing.
 
-ABSOLUTE RULES (must all be followed):
-1. PRESERVE the card EXACTLY as the input image — every single pixel, the Pokemon character, all text, all numbers, all set symbols, all holographic effects, the card's outer border line, the entire card frame must remain pixel-perfect identical to the input. DO NOT redraw, do not reinterpret, do not change pose, do not change the holographic pattern.
-2. CHARACTER STAYS INSIDE THE CARD: The Pokemon/character on the card must remain ENTIRELY WITHIN the rectangular card border. The character must NEVER extend, overlap, or escape beyond the card's edge into the extension area. Treat the card border as a HARD CLIP MASK for the character.
-3. The card's outer rectangular border must remain visible as a clear, sharp boundary line between the card itself and the extension area outside.
-4. The card occupies roughly 80-85% of the output canvas (in its original 63:88 vertical aspect ratio).
-5. Around the card, add ONLY a narrow extension band (about 8-12% of canvas on each side) showing MORE BACKGROUND ENVIRONMENT — sky, clouds, terrain, water, etc. — but NEVER any characters or Pokemon. Just the environment.
-6. SEAMLESS CONTINUITY of BACKGROUND ONLY: whatever environmental elements (clouds, mountains, ocean, trees, walls) are visible at the very edge of the card's illustration must continue smoothly into the extension band. Match art style, color palette, lighting.
-7. NO PSA slab, NO label, NO barcode, NO frame decoration. Just the original card + narrow environment extension.
+1. BACKGROUND EXTENSION
+   - Keep the card's original illustration style, art technique, color palette, brushwork, and atmosphere completely intact.
+   - Extend the artwork naturally outward into the surrounding case area so the entire image looks like one cohesive painting that continues beyond the card's borders.
+   - Match every detail of the card's art style: same brush strokes, same lighting direction, same color mood, same level of detail. The result should look like the original card artist painted the whole wider scene.
 
-ENVIRONMENT (analyze first):
-- Identify the background environment shown on the card behind the character (e.g., sky with clouds, beach with ocean, forest, volcanic landscape, city street, indoor room).
-- The extension shows MORE of that exact same environment continuing outward — same sky, same ocean, same trees. No new content, just more of what's already there.
+2. EMPTY WHITE SPACES FOR PHYSICAL COMPOSITING (CRITICAL)
+   The user will physically place the actual PSA slab on top of this printed sheet. So you must leave TWO clean rectangular WHITE (#FFFFFF) areas where the slab will be placed:
 
-OUTPUT: Portrait orientation, close to the card's own 63:88 aspect ratio. The card is the hero in the center. The extension is a thin scenic frame.`;
+   (a) PSA GRADING LABEL area — top center
+       · Position: starts at ~6% from the top of the canvas
+       · Size: ~95% width × ~18% height (horizontal rectangle, almost full width)
+       · Color: pure white #FFFFFF, NO artwork, NO text, NO decoration inside
+       · Sharp clean rectangular edges
+
+   (b) CARD BODY area — center
+       · Position: starts at ~26% from the top of the canvas (right below the label area, with small gap)
+       · Size: ~71% width × ~74% height (vertical rectangle, slightly narrower than label)
+       · Color: pure white #FFFFFF, NO artwork, NO text, NO decoration inside
+       · Sharp clean rectangular edges
+       · Centered horizontally
+
+3. RATIO AND POSITIONING
+   - Overall canvas: portrait orientation, 3:4 ratio (matching standard PSA slab dimensions 92mm × 122mm).
+   - The two white rectangles must be positioned and sized PRECISELY as described above.
+   - The Extended Art background fills ALL areas OUTSIDE the two white rectangles (i.e., the borders around them, the small gap between label and card area).
+
+4. ABSOLUTELY FORBIDDEN
+   - NO Pokemon character, NO creature, NO trainer, NO humanoid figure anywhere in the image.
+   - NO text, NO numbers, NO logos, NO barcodes.
+   - NO holographic effects, NO card frame, NO border decorations.
+   - Just the environmental background (sky, ocean, beach, forest, mountains, etc.) extending around two clean white rectangles.
+
+5. CONTENT ANALYSIS (analyze the card first)
+   - Identify the environment type shown on the card (water/beach, forest, sky, urban, indoor, volcanic, etc.)
+   - Identify time of day, weather, lighting direction
+   - Identify specific background elements (clouds, waves, palm trees, mountains, buildings, etc.)
+   - Recreate ALL of those elements in the wider scene in the same style.
+
+OUTPUT: 3:4 portrait canvas. Extended scenery background. Two clean white rectangles (label slot top, card slot center).`;
 
 const STYLE_PROMPTS = [
   {
@@ -90,10 +115,10 @@ async function callFalGemini({ apiKey, imageUrl, prompt, seed }) {
       signal: controller.signal,
       body: JSON.stringify({
         prompt,
-        image_urls: [imageUrl],  // Nano Banana Pro 는 배열로 받음
-        aspect_ratio: 'auto',    // 입력 카드 비율 따름 — '3:4' 강제 시 카드가 가로로 늘어나는 문제 회피
+        image_urls: [imageUrl],  // Nano Banana Pro 는 배열로 받음 (reference)
+        aspect_ratio: '3:4',     // PSA 슬랩 비율 (92:122 ≈ 3:4) — Frontend overlay 위치 정확히 맞춤
         num_images: 1,
-        output_format: 'jpeg',
+        output_format: 'png',    // 합성 시 alpha 활용 가능
         safety_tolerance: '5',
         seed,
       }),

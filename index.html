@@ -1673,8 +1673,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <!-- 안내 -->
       <div class="casing-section" style="background:linear-gradient(135deg, #fafbff 0%, #f3f4ff 100%); border-color:#e0e7ff">
         <div style="font-size:12px; color:#4b5563; line-height:1.7">
-          💡 <b>작동 원리</b>: 카드 위주(80%+) + 외곽에 <b>좁은 일러스트 띠</b>가 자연스럽게 이어지는 형태. 카드는 그대로, 외곽만 살짝 확장. fal.ai <b>Gemini 2.5 Flash Image (Nano Banana)</b> 가 <b>3가지 시안</b> (원본 충실 / 부드러운 톤 / 글로우) 으로 자동 생성<br>
-          ⏱ <b>소요 시간</b>: 약 10~20초 (3개 시안 병렬 생성) · <b>비용</b>: 약 165원/주문 ($0.039 × 3장)
+          💡 <b>작동 원리</b>: 카드 위주(80%+) + 외곽에 <b>좁은 일러스트 띠</b>가 자연스럽게 이어지는 형태. fal.ai <b>Nano Banana Pro (Gemini 3 Pro Image)</b> 가 <b>3가지 시안</b> (원본 충실 / 부드러운 톤 / 글로우) 으로 자동 생성<br>
+          ⏱ <b>소요 시간</b>: 약 15~30초 (3개 시안 병렬 생성) · <b>비용</b>: 약 670원/주문 ($0.15 × 3장)
         </div>
       </div>
 
@@ -6521,7 +6521,7 @@ async function casingGenerate() {
   btn.textContent = '⏳ 생성 중... (15~30초)';
   statusWrap.style.display = '';
   statusEl.className = 'casing-status';
-  statusEl.textContent = '⏳ fal.ai Gemini 2.5 Flash Image 호출 중 (3개 시안 병렬, 10~20초 예상)...';
+  statusEl.textContent = '⏳ fal.ai Nano Banana Pro 호출 중 (3개 시안 병렬, 15~30초 예상)...';
   resultsEl.style.display = 'none';
   const startMs = Date.now();
   try {

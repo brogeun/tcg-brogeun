@@ -1,8 +1,8 @@
 /**
- * TCG Casing — fal.ai Gemini 2.5 Flash Image Edit (Nano Banana) 로 카드 확장 아트 생성
+ * TCG Casing — fal.ai Nano Banana Pro (Gemini 3 Pro Image) 로 카드 확장 아트 생성
  *
- * 모델: fal-ai/gemini-25-flash-image/edit ($0.039/장)
- * 특징: mask 불필요 — Gemini 가 자연어 prompt 만으로 카드 보존 + 외곽 확장 알아서 처리
+ * 모델: fal-ai/nano-banana-pro/edit ($0.15/장 — Gemini 2.5 Flash 의 4배지만 prompt 준수도 우수)
+ * 특징: semantic editing without masks, 캐릭터 일관성 + 카드 디테일 보존 강화
  *
  * 인증: X-Admin-Password 헤더
  *
@@ -72,9 +72,9 @@ const STYLE_PROMPTS = [
   },
 ];
 
-// fal.ai Gemini 2.5 Flash Image Edit 호출
+// fal.ai Nano Banana Pro (Gemini 3 Pro Image) 호출
 async function callFalGemini({ apiKey, imageUrl, prompt, seed }) {
-  const endpoint = 'https://fal.run/fal-ai/gemini-25-flash-image/edit';
+  const endpoint = 'https://fal.run/fal-ai/nano-banana-pro/edit';
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), 90000);
 
@@ -195,7 +195,7 @@ export async function onRequestPost({ request, env }) {
     variants: successes.map(r => ({ url: r.url, seed: r.seed, style: r.style, label: r.label })),
     failed: failures.length,
     failures: failures.length ? failures.map(f => ({ style: f.style, error: f.error })) : undefined,
-    provider: 'fal-ai/gemini-25-flash-image/edit',
+    provider: 'fal-ai/nano-banana-pro/edit',
     elapsedMs: Date.now() - startMs,
   });
 }

@@ -94,14 +94,27 @@ async function callFalFluxFill({ apiKey, imageUrl, maskUrl, prompt, seed }) {
     const text = await resp.text();
     let data;
     try { data = JSON.parse(text); } catch {
-      return { ok: false, error: `fal.ai invalid JSON: ${text.slice(0, 200)}`, status: resp.status };
+      return { ok: false, error: `fal.ai invalid JSON (HTTP ${resp.status}): ${text.slice(0, 400)}`, status: resp.status };
     }
+    // 에러 메시지 추출 — fal.ai 는 detail 이 string/array/object 모두 가능
+    const stringifyErr = (v) => {
+      if (v == null) return null;
+      if (typeof v === 'string') return v;
+      if (Array.isArray(v)) return v.map(stringifyErr).filter(Boolean).join(' | ');
+      if (typeof v === 'object') {
+        // {msg, loc, type} 형태 (Pydantic validation 에러) 흔함
+        if (v.msg) return `${v.msg}${v.loc ? ` @ ${(Array.isArray(v.loc) ? v.loc.join('.') : v.loc)}` : ''}`;
+        return JSON.stringify(v).slice(0, 400);
+      }
+      return String(v);
+    };
     if (!resp.ok) {
-      return { ok: false, error: data.detail || data.error || JSON.stringify(data).slice(0, 300), status: resp.status };
+      const errMsg = stringifyErr(data.detail) || stringifyErr(data.error) || stringifyErr(data.message) || JSON.stringify(data).slice(0, 400);
+      return { ok: false, error: `HTTP ${resp.status}: ${errMsg}`, status: resp.status };
     }
     const url = data.images?.[0]?.url;
     if (!url) {
-      return { ok: false, error: `no image in response: ${JSON.stringify(data).slice(0, 200)}`, status: 200 };
+      return { ok: false, error: `no image in response: ${JSON.stringify(data).slice(0, 400)}`, status: 200 };
     }
     return { ok: true, url, seed };
   } catch (e) {

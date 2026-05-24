@@ -1641,18 +1641,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .casing-action-btn:hover { background:#f3f4f6; border-color:#9ca3af; }
         .casing-orig-preview {
           width: 460px !important;
-          height: auto !important;
-          aspect-ratio: 63 / 88 !important;
-          max-width: 100%;
-          object-fit: contain !important;
-          background: #0a0a14;
+          height: 643px !important;
+          flex: 0 0 460px !important;
+          object-fit: cover !important;
+          background: transparent;
           border-radius: 14px;
           border: 1px solid #e5e7eb;
           box-shadow: 0 10px 28px rgba(0,0,0,0.15);
+          display: block;
         }
-        @media (max-width:1024px) { .casing-orig-preview { width: 380px !important; } }
-        @media (max-width:768px) { .casing-orig-preview { width: 280px !important; } }
-        @media (max-width:520px) { .casing-orig-preview { width: 220px !important; } }
+        @media (max-width:1024px) { .casing-orig-preview { width: 380px !important; height: 531px !important; flex-basis: 380px !important; } }
+        @media (max-width:768px)  { .casing-orig-preview { width: 280px !important; height: 391px !important; flex-basis: 280px !important; } }
+        @media (max-width:520px)  { .casing-orig-preview { width: 100% !important; height: auto !important; aspect-ratio: 63/88 !important; flex-basis: auto !important; } }
         /* 검색 결과 그리드 — 카드 시세 페이지처럼 5/4/3/2 컬럼 반응형 */
         .casing-search-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; margin-top:14px; }
         @media (max-width:1100px) { .casing-search-grid { grid-template-columns:repeat(4, 1fr); } }
@@ -6466,10 +6466,25 @@ document.addEventListener('click', e => {
   if (!card) return;
   casingSelectCard(card);
 });
+// imgix CDN 카드 이미지를 큰 사이즈로 (SNKRDUNK 썸네일은 보통 300px 이라 흐림)
+function casingGetLargeImageUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url, location.origin);
+    if (u.hostname.includes('imgix.net') || u.hostname.includes('imgix.com')) {
+      u.searchParams.set('w', '1200');
+      u.searchParams.delete('h');
+      u.searchParams.delete('dpr');
+      return u.toString();
+    }
+  } catch {}
+  return url;
+}
 function casingSelectCard(card) {
+  const largeUrl = casingGetLargeImageUrl(card.thumbnailUrl || '');
   document.getElementById('casingCardName').value = card.name || '';
-  document.getElementById('casingCardImageUrl').value = card.thumbnailUrl || '';
-  document.getElementById('casingSelectedImg').src = card.thumbnailUrl || '';
+  document.getElementById('casingCardImageUrl').value = largeUrl;
+  document.getElementById('casingSelectedImg').src = largeUrl;
   document.getElementById('casingSelectedName').textContent = card.name || '(이름 없음)';
   const brandIcon = card.brand === 'pokemon' ? '⚡' : (card.brand === 'onepiece' ? '🏴‍☠️' : '🃏');
   document.getElementById('casingSelectedMeta').textContent = `${brandIcon} ${(card.productNumber || '').toUpperCase()} · ID ${card.id}`;
@@ -6604,7 +6619,10 @@ async function casingGenerate() {
       let msg = `❌ 생성 실패: ${data.error || '알 수 없는 에러'}`;
       if (data._httpStatus) msg += ` (HTTP ${data._httpStatus})`;
       if (data.failures && data.failures.length) {
-        msg += `\n\n--- 시안별 실패 사유 ---\n` + data.failures.map(f => `[${f.style}] ${f.error}`).join('\n');
+        msg += `\n\n--- 시안별 실패 사유 ---\n` + data.failures.map(f => {
+          const errStr = (typeof f.error === 'string') ? f.error : JSON.stringify(f.error);
+          return `[${f.style}] ${errStr}`;
+        }).join('\n');
       }
       statusEl.textContent = msg;
       return;

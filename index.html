@@ -7417,18 +7417,21 @@ async function adminSaveEntry() {
 
   // 게시판 → 데이터 배열 매핑
   const ARR_MAP = {
+    news: () => NEWS_LIST,
     events: () => EVENTS,
     cardshow: () => CARDSHOWS,
     grading: () => GRADING_LIST,
     etc: () => ETC_LIST,
   };
   const SET_MAP = {
+    news: (a) => { NEWS_LIST = a; if (typeof renderHomeNewsGrid === 'function') renderHomeNewsGrid(); },
     events: (a) => { EVENTS = a; renderEvents(); },
     cardshow: (a) => { CARDSHOWS = a; renderCardshows(); },
     grading: (a) => { GRADING_LIST = a; renderGrading(); },
     etc: (a) => { ETC_LIST = a; renderEtc(); },
   };
   const targetKey = board;
+  if (!ARR_MAP[targetKey]) { alert('알 수 없는 게시판: ' + targetKey); return; }
   const targetArr = [...ARR_MAP[targetKey]()];
 
   if (editId) {
@@ -7443,7 +7446,7 @@ async function adminSaveEntry() {
         createdAt: new Date().toISOString(),
       });
       // 어느 다른 게시판에 있었는지 찾아서 제거
-      for (const otherKey of ['events', 'cardshow', 'grading', 'etc']) {
+      for (const otherKey of ['news', 'events', 'cardshow', 'grading', 'etc']) {
         if (otherKey === targetKey) continue;
         const otherArr = ARR_MAP[otherKey]();
         if (otherArr.some(e => e.id === editId)) {

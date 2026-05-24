@@ -1639,9 +1639,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .casing-variant-actions { display:flex; gap:4px; }
         .casing-action-btn { padding:5px 10px; background:#fff; border:1px solid #d1d5db; border-radius:6px; font-size:11px; cursor:pointer; color:#374151; }
         .casing-action-btn:hover { background:#f3f4f6; border-color:#9ca3af; }
-        .casing-orig-preview { width:320px; aspect-ratio:3/4; object-fit:contain; background:#f3f4f6; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 6px 20px rgba(0,0,0,0.08); }
-        @media (max-width:768px) { .casing-orig-preview { width:240px; } }
-        @media (max-width:520px) { .casing-orig-preview { width:180px; } }
+        .casing-orig-preview { width:420px; aspect-ratio:63/88; object-fit:contain; background:#0a0a14; border-radius:12px; border:1px solid #e5e7eb; box-shadow:0 8px 24px rgba(0,0,0,0.12); }
+        @media (max-width:1024px) { .casing-orig-preview { width:340px; } }
+        @media (max-width:768px) { .casing-orig-preview { width:260px; } }
+        @media (max-width:520px) { .casing-orig-preview { width:200px; } }
         /* 검색 결과 그리드 — 카드 시세 페이지처럼 5/4/3/2 컬럼 반응형 */
         .casing-search-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; margin-top:14px; }
         @media (max-width:1100px) { .casing-search-grid { grid-template-columns:repeat(4, 1fr); } }
@@ -6488,13 +6489,15 @@ async function casingBuildOutpaintCanvas(cardImageUrl, opts = {}) {
   const cardW = Math.round(cardH * CARD_RATIO);
   const cardX = Math.round((W - cardW) / 2);
   const cardY = Math.round((H - cardH) / 2);
-  // 카드 이미지 로딩 (CORS 허용 URL 이어야 함)
+  // 카드 이미지 로딩 — CDN CORS 우회 위해 /api/casing-proxy-image 통해 same-origin 으로 fetch
+  // (SNKRDUNK CDN 은 Access-Control-Allow-Origin 헤더 없음 → 직접 로드 시 canvas tainted)
+  const proxyUrl = `/api/casing-proxy-image?url=${encodeURIComponent(cardImageUrl)}`;
   const img = await new Promise((res, rej) => {
     const im = new Image();
     im.crossOrigin = 'anonymous';
     im.onload = () => res(im);
-    im.onerror = () => rej(new Error('카드 이미지 로딩 실패 (CORS 또는 404)'));
-    im.src = cardImageUrl;
+    im.onerror = () => rej(new Error('카드 이미지 로딩 실패 (proxy 또는 CDN 404). URL: ' + cardImageUrl));
+    im.src = proxyUrl;
   });
   // 1. 확장된 이미지 canvas — 외곽은 평균색으로 채워서 AI 힌트 제공 (검정/흰색은 부자연스러움)
   const cvImg = document.createElement('canvas');

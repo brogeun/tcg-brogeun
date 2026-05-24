@@ -82,7 +82,7 @@ async function callFalFluxFill({ apiKey, imageUrl, maskUrl, prompt, seed }) {
         image_url: imageUrl,
         mask_url: maskUrl,
         num_images: 1,
-        guidance_scale: 30,         // Fill 모델은 guidance 높게 (Flux 권장값)
+        guidance_scale: 3.5,        // Flux Pro Fill 권장 (max 20 — 30 은 422 에러)
         num_inference_steps: 28,
         output_format: 'jpeg',
         safety_tolerance: '5',

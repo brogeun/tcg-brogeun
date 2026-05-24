@@ -1640,19 +1640,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .casing-action-btn { padding:5px 10px; background:#fff; border:1px solid #d1d5db; border-radius:6px; font-size:11px; cursor:pointer; color:#374151; }
         .casing-action-btn:hover { background:#f3f4f6; border-color:#9ca3af; }
         .casing-orig-preview {
-          width: 460px !important;
-          height: 643px !important;
-          flex: 0 0 460px !important;
+          width: 280px !important;
+          height: 391px !important;
+          flex: 0 0 280px !important;
           object-fit: cover !important;
           background: transparent;
-          border-radius: 14px;
+          border-radius: 12px;
           border: 1px solid #e5e7eb;
-          box-shadow: 0 10px 28px rgba(0,0,0,0.15);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.12);
           display: block;
         }
-        @media (max-width:1024px) { .casing-orig-preview { width: 380px !important; height: 531px !important; flex-basis: 380px !important; } }
-        @media (max-width:768px)  { .casing-orig-preview { width: 280px !important; height: 391px !important; flex-basis: 280px !important; } }
-        @media (max-width:520px)  { .casing-orig-preview { width: 100% !important; height: auto !important; aspect-ratio: 63/88 !important; flex-basis: auto !important; } }
+        @media (max-width:768px) { .casing-orig-preview { width: 220px !important; height: 307px !important; flex-basis: 220px !important; } }
+        @media (max-width:520px) { .casing-orig-preview { width: 180px !important; height: 251px !important; flex-basis: 180px !important; } }
         /* 검색 결과 그리드 — 카드 시세 페이지처럼 5/4/3/2 컬럼 반응형 */
         .casing-search-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; margin-top:14px; }
         @media (max-width:1100px) { .casing-search-grid { grid-template-columns:repeat(4, 1fr); } }

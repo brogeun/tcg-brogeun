@@ -37,37 +37,38 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
-// 카드 일러스트 연속 확장 — 카드는 그대로, 카드 밖으로 같은 일러스트가 자연스럽게 이어짐
-// 핵심: 카드 + 외곽이 "하나의 큰 그림"처럼 보여야 함 (카드는 그 그림의 중앙 사각형 영역)
-const CORE_INSTRUCTION = `Extend the artwork of this Pokemon trading card beyond its borders into a wider 4:3 horizontal canvas. The result must look like ONE unified painting where the card is the central rectangular focus, and the surrounding area is a natural continuation of the very same scene depicted inside the card.
+// 카드 일러스트 연속 확장 — 카드 위주 (80%+), 외곽은 좁은 띠
+const CORE_INSTRUCTION = `Take this Pokemon trading card and ADD a narrow extension border around it where the card's illustration continues naturally outward. The card itself MUST DOMINATE the output (about 80% of the frame). The extension is just a thin decorative band around the card edges, NOT a wide landscape.
 
-ABSOLUTE RULES (must follow):
-1. PRESERVE the card EXACTLY — every pixel, every character (Pokemon/creature), every text, every border, every holographic effect, every set symbol, every number must remain pixel-perfect identical to the input card. DO NOT redraw the card.
-2. The card occupies the center of the output (vertical orientation), keeping its original aspect ratio (about 63:88).
-3. EXTEND the same illustration outward from all four sides of the card. The background/environment/characters shown inside the card must continue seamlessly into the area outside the card edges as if the card is just a window cut out of a larger painting.
-4. The extension must use the same art style, brush strokes, color palette, lighting, and level of detail as the card's own illustration. Goal: viewer can't tell where the card ends and the extension begins (except by the card's frame).
-5. DO NOT add a PSA slab, do not add a label, do not add a barcode, do not add any frame around the card — only the card itself in the center, with the illustration extending outward into nature/scene.
-6. DO NOT introduce new Pokemon characters that aren't on the card. The character on the card stays inside the card area; only the background extends.
+ABSOLUTE RULES:
+1. PRESERVE the card EXACTLY — every pixel, every character (Pokemon/creature), every text, every border line, every holographic effect, every set symbol, every number must remain pixel-perfect identical. DO NOT redraw or modify the card in any way.
+2. The card stays in its ORIGINAL aspect ratio (63:88 vertical) and occupies roughly 80-85% of the output canvas.
+3. Around the card, add ONLY a NARROW extension band (about 10-12% of the canvas width on each side, 6-8% on top/bottom) — NOT a wide landscape, NOT an open sky, NOT a huge environment. Think of it as the card slightly zoomed out, showing just a little more of the scene that's already inside the card.
+4. SEAMLESS CONTINUITY — whatever is at the edges of the card's illustration must continue smoothly into the narrow extension band. Same art style, same brushwork, same colors, same lighting. The card's frame line (the actual card border) should still be visible as the boundary between card and extension.
+5. NO PSA slab, NO label, NO barcode, NO frame around the card. Just the card + small illustration extension.
+6. NO new characters. The Pokemon on the card stays inside the card. Only the environment extends slightly outward.
 
-CONTENT MATCHING (analyze first, then extend):
-- Look at what's IN the card illustration: identify the environment (beach, forest, sky, volcano, city street, room interior, underwater, cave, etc.), the time of day, the weather, the specific background details visible behind the character.
-- The extended area must show MORE OF THAT SAME ENVIRONMENT — same beach with same waves and sky, same forest with same trees, same city with same buildings, etc. Never invent a different environment.`;
+CONTENT (analyze the card first):
+- Identify what's inside the card's illustration — the character pose, the immediate background (a few meters around the character), specific objects, colors, lighting.
+- The extension must show MORE OF EXACTLY THAT scene, just slightly wider — same beach with the same waves, same forest with the same trees right next to the ones visible, same room with the same wall pattern, etc.
+
+OUTPUT FORMAT: Portrait orientation (taller than wide), close to the card's own aspect ratio. The card fills most of the image, with only a narrow scene extension around it.`;
 
 const STYLE_PROMPTS = [
   {
-    style: 'natural',
-    label: '자연스러운 연장',
-    prompt: CORE_INSTRUCTION + ' RENDERING: Faithfully match the card\'s own illustration style as closely as possible. The output should look like the original card artist painted the entire wider scene. This is the most natural and conservative extension.',
+    style: 'faithful',
+    label: '원본 충실',
+    prompt: CORE_INSTRUCTION + ' RENDERING: Match the card\'s own illustration style as faithfully as possible. The narrow extension band should look like a direct continuation by the same artist — same brushwork, same texture, same level of detail. The viewer should barely notice the extension exists.',
   },
   {
-    style: 'cinematic',
-    label: '시네마틱',
-    prompt: CORE_INSTRUCTION + ' RENDERING: While still matching the card\'s scene and art style, give the extended area a slightly more cinematic feeling — atmospheric depth, soft volumetric light, gentle dramatic lighting, a wider sense of space. The card itself remains unchanged; only the surrounding extension takes on a more atmospheric quality.',
+    style: 'soft',
+    label: '부드러운 톤',
+    prompt: CORE_INSTRUCTION + ' RENDERING: Match the card\'s illustration style, but in the narrow extension band soften the colors slightly and add gentle atmospheric depth. The extension is still clearly the same scene, just rendered with a touch more softness and warmth than the card itself.',
   },
   {
-    style: 'dreamy',
-    label: '드림',
-    prompt: CORE_INSTRUCTION + ' RENDERING: Extend the scene in the card\'s style but with a slightly dreamlike softness in the outer areas — gentle bloom, soft particles, slightly blurred far edges, magical light hints. The core scene continues faithfully, but the edges fade with subtle dreamy atmosphere. The card itself is untouched and sharp.',
+    style: 'glow',
+    label: '글로우',
+    prompt: CORE_INSTRUCTION + ' RENDERING: Match the card\'s illustration style. In the narrow extension band, add subtle magical particles, soft light bloom, or gentle ambient glow that matches the card\'s element (fire = warm embers, water = soft caustics, electric = tiny sparks, grass = pollen/petals, etc.). Very subtle — the scene continuity must still be primary.',
   },
 ];
 
@@ -88,7 +89,7 @@ async function callFalGemini({ apiKey, imageUrl, prompt, seed }) {
       body: JSON.stringify({
         prompt,
         image_urls: [imageUrl],  // Gemini 는 배열로 받음
-        aspect_ratio: '4:3',     // 백판 형태 (가로 4:3)
+        aspect_ratio: '3:4',     // 세로형 — 카드 비율(63:88)과 가까움. 카드가 화면 대부분 차지
         num_images: 1,
         output_format: 'jpeg',
         safety_tolerance: '5',

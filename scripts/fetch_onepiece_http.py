@@ -28,6 +28,7 @@ BASE = "https://www.onepiece-cardgame.com"
 
 # 디스커버리 완료된 매핑 (사용자 PowerShell 실행으로 확인됨)
 SERIES = [
+    ("OP16", "550116"),
     ("OP01", "550101"),
     ("OP02", "550102"),
     ("OP03", "550103"),

@@ -811,6 +811,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <div class="etc-dots" id="homeEtcDots"></div>
         </div>
       </div>
+
+      <!-- 이벤트 자동 캐러셀 (종료 이벤트 제외) -->
+      <div class="section2">
+        <div class="section-header2">
+          <div class="section-title2">이벤트</div>
+          <span class="section-more2" onclick="_gotoHubSub('events')">전체 보기 →</span>
+        </div>
+        <div class="etc-carousel" id="homeEventsCarousel">
+          <div class="etc-slide" id="homeEventsSlide"></div>
+          <div class="etc-dots" id="homeEventsDots"></div>
+        </div>
+      </div>
       <style>
         .etc-carousel { position: relative; }
         .etc-slide { background: var(--bg-surface2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; gap: 16px; align-items: center; min-height: 140px; cursor: pointer; transition: opacity 0.35s; box-shadow: var(--shadow-sm); }
@@ -2500,11 +2512,89 @@ document.addEventListener('mouseenter', e => {
   if (t && t.id === 'homeEtcCarousel' && _ETC_CAROUSEL_TIMER) {
     clearInterval(_ETC_CAROUSEL_TIMER); _ETC_CAROUSEL_TIMER = null;
   }
+  if (t && t.id === 'homeEventsCarousel' && _EVENTS_CAROUSEL_TIMER) {
+    clearInterval(_EVENTS_CAROUSEL_TIMER); _EVENTS_CAROUSEL_TIMER = null;
+  }
 }, true);
 document.addEventListener('mouseleave', e => {
   const t = e.target;
   if (t && t.id === 'homeEtcCarousel') _etcCarouselRestart();
+  if (t && t.id === 'homeEventsCarousel') _eventsCarouselRestart();
 }, true);
+
+/* ───── 이벤트 캐러셀 (제목 앞에 "종료" 붙은 항목 제외) ───── */
+let _EVENTS_CAROUSEL_IDX = 0;
+let _EVENTS_CAROUSEL_TIMER = null;
+
+function _eventsCarouselGetItems() {
+  const evt = (typeof EVENTS !== 'undefined' && Array.isArray(EVENTS)) ? EVENTS : [];
+  return evt.filter(e => {
+    const title = (e && e.title || '').trim();
+    return !title.startsWith('종료');
+  });
+}
+
+function renderHomeEventsCarousel() {
+  const wrap = document.getElementById('homeEventsCarousel');
+  const slide = document.getElementById('homeEventsSlide');
+  const dots = document.getElementById('homeEventsDots');
+  if (!slide || !wrap || !dots) return;
+  const isLoaded = (typeof EVENTS !== 'undefined');
+  const items = isLoaded ? _eventsCarouselGetItems() : [];
+  if (!items.length) {
+    if (!window._adminLoaded) {
+      slide.innerHTML = `<div class="etc-slide-thumb" style="background:#f3f4f6">·</div><div class="etc-slide-body"><div style="background:#f3f4f6; height:11px; border-radius:3px; width:60px; margin-bottom:6px"></div><div style="background:#f3f4f6; height:15px; border-radius:3px; margin-bottom:6px; width:80%"></div><div style="background:#f3f4f6; height:11px; border-radius:3px; width:50px"></div></div>`;
+      dots.innerHTML = '';
+    } else {
+      wrap.parentElement.style.display = 'none';
+    }
+    return;
+  }
+  if (wrap.parentElement && wrap.parentElement.style.display === 'none') wrap.parentElement.style.display = '';
+  if (_EVENTS_CAROUSEL_IDX >= items.length) _EVENTS_CAROUSEL_IDX = 0;
+  const e = items[_EVENTS_CAROUSEL_IDX];
+  slide.classList.add('fading');
+  setTimeout(() => {
+    const title = e.title || '';
+    const date = e.date || '';
+    const image = e.image || '';
+    slide.innerHTML = `
+      <div class="etc-slide-thumb">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.textContent='🎉'">` : '🎉'}</div>
+      <div class="etc-slide-body">
+        <div class="etc-slide-tag">이벤트</div>
+        <div class="etc-slide-title">${escapeHtml(title)}</div>
+        <div class="etc-slide-date">${escapeHtml(date)}</div>
+      </div>`;
+    slide.onclick = () => {
+      let lk = (e.link || '').trim();
+      if (lk) {
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(lk)) lk = 'https://' + lk;
+        window.open(lk, '_blank', 'noopener');
+        return;
+      }
+      _gotoHubSub('events');
+    };
+    slide.classList.remove('fading');
+  }, 250);
+  dots.innerHTML = items.map((_, i) => `<div class="etc-dot ${i === _EVENTS_CAROUSEL_IDX ? 'active' : ''}" onclick="_eventsCarouselGoto(${i})"></div>`).join('');
+}
+
+window._eventsCarouselGoto = function(idx) {
+  _EVENTS_CAROUSEL_IDX = idx;
+  renderHomeEventsCarousel();
+  _eventsCarouselRestart();
+};
+
+function _eventsCarouselRestart() {
+  if (_EVENTS_CAROUSEL_TIMER) { clearInterval(_EVENTS_CAROUSEL_TIMER); _EVENTS_CAROUSEL_TIMER = null; }
+  if (!_eventsCarouselGetItems().length) return;
+  _EVENTS_CAROUSEL_TIMER = setInterval(() => {
+    const all = _eventsCarouselGetItems();
+    if (!all.length) return;
+    _EVENTS_CAROUSEL_IDX = (_EVENTS_CAROUSEL_IDX + 1) % all.length;
+    renderHomeEventsCarousel();
+  }, 4000);
+}
 
 async function renderHomeAsset() {
   const valEl = document.getElementById('homeAssetValue');
@@ -2623,6 +2713,8 @@ async function initHome2() {
   renderHomeNewsGrid();
   renderHomeEtcCarousel();
   _etcCarouselRestart();
+  renderHomeEventsCarousel();
+  _eventsCarouselRestart();
   renderHomeAsset();
 }
 
@@ -6804,6 +6896,7 @@ function renderEvents() {
     html = EVENTS.map(e => _hubRowCard(e, { bg:'#fef3c7', color:'#92400e', icon:'✨' }, 'event')).join('');
   }
   targets.forEach(el => el.innerHTML = html);
+  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
 }
 // 사용자 요청 (B 방식) — 정보허브 뉴스/카드쇼/그레이딩/기타 카드 이미지는 잘림 없이 전체 보이게 (contain)
 let _HUBCARD_OPTS = {};
@@ -6819,6 +6912,7 @@ function renderEtc() {
   }
   targets.forEach(el => el.innerHTML = html);
   if (typeof renderHomeEtcCarousel === 'function') { renderHomeEtcCarousel(); _etcCarouselRestart(); }
+  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
 }
 function renderCardshows() {
   const target = document.getElementById('cardshowListHub');
@@ -6932,6 +7026,7 @@ function renderGrading() {
   }
   target.innerHTML = GRADING_LIST.map(e => _hubRowCard(e, { bg:'#dcfce7', color:'#15803d', icon:'🏆' }, 'grading')).join('');
   if (typeof renderHomeEtcCarousel === 'function') { renderHomeEtcCarousel(); _etcCarouselRestart(); }
+  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
 }
 
 // API 에서 데이터 로드 후 렌더

@@ -8505,10 +8505,73 @@ async function startGoogleLogin() {
 }
 
 // 카카오 로그인 시작
-function startKakaoLogin() {
+async function startKakaoLogin() {
   if (!_verifyAgreements()) return;
-  window.location.href = '/api/auth/kakao/start';
+
+  const isCapacitor = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+  if (!isCapacitor) {
+    // 브라우저 — 기존 OAuth redirect 흐름
+    window.location.href = '/api/auth/kakao/start';
+    return;
+  }
+
+  // 앱 환경 — Capacitor Browser 로 외부 Chrome/Safari 열기 (?app=1)
+  // 카카오톡 앱이 폰에 있으면 자동으로 간편 인증 가능
+  try {
+    const Browser = window.Capacitor?.Plugins?.Browser;
+    if (!Browser) {
+      if (typeof showToast === 'function') showToast('Browser 플러그인이 없습니다. 앱 업데이트가 필요해요.');
+      return;
+    }
+    const url = `${location.origin}/api/auth/kakao/start?app=1`;
+    await Browser.open({ url, presentationStyle: 'popover' });
+    // 콜백은 deep link 리스너 (_setupAppDeepLinkListener) 에서 받음
+  } catch (err) {
+    console.error('Kakao login open error:', err);
+    if (typeof showToast === 'function') showToast('카카오 로그인 오류: ' + (err.message || err));
+  }
 }
+
+// Deep link (kr.tcghub.app://kakao-callback?code=...) 리스너 — 앱 시작 시 1회 등록
+(function _setupAppDeepLinkListener() {
+  if (!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())) return;
+  const App = window.Capacitor?.Plugins?.App;
+  const Browser = window.Capacitor?.Plugins?.Browser;
+  if (!App || typeof App.addListener !== 'function') return;
+
+  App.addListener('appUrlOpen', async (event) => {
+    try {
+      const url = event?.url || '';
+      if (!url.startsWith('kr.tcghub.app://')) return;
+      // 외부 브라우저 닫기 (가능하면)
+      try { if (Browser && Browser.close) await Browser.close(); } catch {}
+
+      const u = new URL(url.replace('kr.tcghub.app://', 'https://placeholder.local/'));
+      const path = u.pathname.replace(/^\//, '');
+      const code = u.searchParams.get('code');
+
+      if (path === 'kakao-callback' && code) {
+        // 임시 코드 → 진짜 세션 교환
+        const r = await fetch('/api/auth/exchange-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+          credentials: 'include',
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.ok) {
+          if (typeof showToast === 'function') showToast('카카오 로그인 실패: ' + (data.error || r.statusText));
+          return;
+        }
+        // 세션 쿠키 적용됨 — 새로고침
+        window.location.href = '/?login=success';
+      }
+    } catch (err) {
+      console.error('appUrlOpen handler error:', err);
+    }
+  });
+})();
 
 // 클릭/Enter 위임
 document.addEventListener('click', e => {

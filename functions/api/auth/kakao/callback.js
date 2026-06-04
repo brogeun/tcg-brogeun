@@ -12,7 +12,10 @@ import { signJwt } from '../../../_shared/jwt.js';
 
 const SESSION_DAYS = 30;
 
-function errorPage(title, message) {
+function errorPage(title, message, isApp = false) {
+  const appLink = isApp
+    ? `<a href="kr.tcghub.app://kakao-cancel" style="margin-left:8px;background:#6b7280">📱 앱으로 돌아가기</a>`
+    : '';
   return new Response(`
 <!DOCTYPE html>
 <html><head>
@@ -29,20 +32,27 @@ a{display:inline-block;padding:10px 20px;background:#111;color:#fff;text-decorat
   <div style="font-size:36px;margin-bottom:12px">⚠️</div>
   <h1>${title}</h1>
   <p>${message}</p>
-  <a href="/">← 홈으로</a>
+  <a href="/">← 홈으로</a>${appLink}
 </div></body></html>`, {
     status: 400,
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Set-Cookie': 'k_oauth_state=; Path=/; Max-Age=0',
-    },
+    headers: [
+      ['Content-Type', 'text/html; charset=utf-8'],
+      ['Set-Cookie', 'k_oauth_state=; Path=/; Max-Age=0'],
+      ['Set-Cookie', 'k_oauth_app=; Path=/; Max-Age=0'],
+    ],
   });
 }
 
+function isAppRequest(request) {
+  const cookie = request.headers.get('Cookie') || '';
+  return /(?:^|;\s*)k_oauth_app=1/.test(cookie);
+}
+
 export async function onRequestGet({ request, env }) {
-  if (!env.DB) return errorPage('서버 오류', 'D1 database not bound');
-  if (!env.JWT_SECRET) return errorPage('서버 오류', 'JWT_SECRET not set');
-  if (!env.KAKAO_CLIENT_ID) return errorPage('서버 오류', 'KAKAO_CLIENT_ID env not set');
+  const isApp = isAppRequest(request);
+  if (!env.DB) return errorPage('서버 오류', 'D1 database not bound', isApp);
+  if (!env.JWT_SECRET) return errorPage('서버 오류', 'JWT_SECRET not set', isApp);
+  if (!env.KAKAO_CLIENT_ID) return errorPage('서버 오류', 'KAKAO_CLIENT_ID env not set', isApp);
 
   const url = new URL(request.url);
   const origin = url.origin;
@@ -51,17 +61,17 @@ export async function onRequestGet({ request, env }) {
   const errorParam = url.searchParams.get('error');
 
   if (errorParam) {
-    return errorPage('카카오 로그인 취소', `카카오에서 거부되었습니다: ${errorParam}`);
+    return errorPage('카카오 로그인 취소', `카카오에서 거부되었습니다: ${errorParam}`, isApp);
   }
   if (!code || !state) {
-    return errorPage('잘못된 요청', 'code 또는 state 파라미터가 없습니다.');
+    return errorPage('잘못된 요청', 'code 또는 state 파라미터가 없습니다.', isApp);
   }
 
   // CSRF state 검증
   const cookie = request.headers.get('Cookie') || '';
   const m = cookie.match(/(?:^|;\s*)k_oauth_state=([^;]+)/);
   if (!m || m[1] !== state) {
-    return errorPage('보안 오류', 'CSRF state 검증 실패. 다시 시도해주세요.');
+    return errorPage('보안 오류', 'CSRF state 검증 실패. 다시 시도해주세요.', isApp);
   }
 
   // 1) code → access_token 교환
@@ -84,10 +94,10 @@ export async function onRequestGet({ request, env }) {
     });
     tokenData = await tokenRes.json();
     if (!tokenRes.ok || !tokenData.access_token) {
-      return errorPage('토큰 교환 실패', JSON.stringify(tokenData));
+      return errorPage('토큰 교환 실패', JSON.stringify(tokenData), isApp);
     }
   } catch (e) {
-    return errorPage('서버 오류', `토큰 교환 중 오류: ${e.message || e}`);
+    return errorPage('서버 오류', `토큰 교환 중 오류: ${e.message || e}`, isApp);
   }
 
   // 2) access_token → user info 조회
@@ -98,10 +108,10 @@ export async function onRequestGet({ request, env }) {
     });
     userinfo = await uiRes.json();
     if (!uiRes.ok || !userinfo.id) {
-      return errorPage('사용자 정보 조회 실패', JSON.stringify(userinfo));
+      return errorPage('사용자 정보 조회 실패', JSON.stringify(userinfo), isApp);
     }
   } catch (e) {
-    return errorPage('서버 오류', `사용자 정보 조회 중 오류: ${e.message || e}`);
+    return errorPage('서버 오류', `사용자 정보 조회 중 오류: ${e.message || e}`, isApp);
   }
 
   const kakaoId = String(userinfo.id);
@@ -120,7 +130,7 @@ export async function onRequestGet({ request, env }) {
       'SELECT id, email, name FROM users WHERE email = ?'
     ).bind(pseudoEmail).first();
   } catch (e) {
-    return errorPage('서버 오류', `사용자 조회 실패: ${e.message || e}`);
+    return errorPage('서버 오류', `사용자 조회 실패: ${e.message || e}`, isApp);
   }
 
   if (!user) {
@@ -136,7 +146,7 @@ export async function onRequestGet({ request, env }) {
           'INSERT INTO users (id, email, last_login) VALUES (?, ?, ?)'
         ).bind(userId, pseudoEmail, now).run();
       } catch (e2) {
-        return errorPage('서버 오류', `사용자 생성 실패: ${e2.message || e2}`);
+        return errorPage('서버 오류', `사용자 생성 실패: ${e2.message || e2}`, isApp);
       }
     }
     user = { id: userId, email: pseudoEmail, name: nickname };
@@ -152,7 +162,33 @@ export async function onRequestGet({ request, env }) {
   const exp = now + SESSION_DAYS * 24 * 60 * 60;
   const jwt = await signJwt({ sub: user.id, email: user.email, exp }, env.JWT_SECRET);
 
-  // 5) session cookie + redirect
+  // 5) app 모드 (Capacitor 앱) 인지 확인 — 임시 1회용 코드 발급 + deep link redirect
+  const isApp = /(?:^|;\s*)k_oauth_app=1/.test(cookie);
+  if (isApp && env.ADMIN_KV) {
+    // 5-1) 임시 1회용 코드 생성 (UUID), KV 에 5분 저장
+    const oneTimeCode = crypto.randomUUID();
+    try {
+      await env.ADMIN_KV.put(
+        `oauth_code:${oneTimeCode}`,
+        JSON.stringify({ user_id: user.id, email: user.email, name: user.name || null, provider: 'kakao' }),
+        { expirationTtl: 300 }, // 5분
+      );
+    } catch (e) {
+      return errorPage('서버 오류', `임시 코드 저장 실패: ${e.message || e}`, isApp);
+    }
+    // 5-2) deep link 로 redirect — 앱이 이 URL 받고 exchange-code 호출해서 진짜 세션 받음
+    const deepLink = `kr.tcghub.app://kakao-callback?code=${encodeURIComponent(oneTimeCode)}`;
+    return new Response(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${deepLink}"></head><body><script>location.href=${JSON.stringify(deepLink)};</script><p style="font-family:sans-serif;padding:24px">앱으로 돌아가는 중...</p></body></html>`, {
+      status: 200,
+      headers: [
+        ['Content-Type', 'text/html; charset=utf-8'],
+        ['Set-Cookie', 'k_oauth_state=; Path=/; Max-Age=0'],
+        ['Set-Cookie', 'k_oauth_app=; Path=/; Max-Age=0'],
+      ],
+    });
+  }
+
+  // 6) 브라우저 모드 — 기존대로 session cookie + redirect
   return new Response(null, {
     status: 302,
     headers: [

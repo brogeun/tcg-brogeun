@@ -17,6 +17,8 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const origin = url.origin;
   const state = genState();
+  // ?app=1 이면 앱(Capacitor) 모드 — 콜백을 deep link 로 처리
+  const isApp = url.searchParams.get('app') === '1';
 
   // 카카오 authorize URL — 검수 없는 기본 스코프 (profile_nickname)
   const params = new URLSearchParams({
@@ -28,11 +30,18 @@ export async function onRequestGet({ request, env }) {
   });
   const kakaoUrl = `https://kauth.kakao.com/oauth/authorize?${params.toString()}`;
 
+  const cookies = [
+    `k_oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=300`,
+  ];
+  if (isApp) {
+    cookies.push('k_oauth_app=1; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=300');
+  }
+
   return new Response(null, {
     status: 302,
-    headers: {
-      'Location': kakaoUrl,
-      'Set-Cookie': `k_oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=300`,
-    },
+    headers: [
+      ['Location', kakaoUrl],
+      ...cookies.map(c => ['Set-Cookie', c]),
+    ],
   });
 }

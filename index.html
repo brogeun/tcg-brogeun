@@ -8455,9 +8455,53 @@ function _verifyAgreements() {
 }
 
 // Google 로그인 시작
-function startGoogleLogin() {
+async function startGoogleLogin() {
   if (!_verifyAgreements()) return;
-  window.location.href = '/api/auth/google/start';
+
+  // Capacitor 앱(WebView) 환경 감지
+  const isCapacitor = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+  if (!isCapacitor) {
+    // 일반 브라우저 — 기존 OAuth redirect 흐름
+    window.location.href = '/api/auth/google/start';
+    return;
+  }
+
+  // 앱 환경 — Google 정책상 WebView OAuth 차단됨 → 네이티브 SDK 사용
+  try {
+    const GoogleAuth = window.Capacitor?.Plugins?.GoogleAuth;
+    if (!GoogleAuth) {
+      if (typeof showToast === 'function') showToast('GoogleAuth 플러그인이 설치되지 않았습니다. 앱을 업데이트해주세요.');
+      return;
+    }
+    // 일부 환경에서 initialize 필요
+    try { await GoogleAuth.initialize(); } catch {}
+
+    const result = await GoogleAuth.signIn();
+    const idToken = result?.authentication?.idToken || result?.idToken;
+    if (!idToken) {
+      if (typeof showToast === 'function') showToast('Google ID 토큰을 받지 못했습니다.');
+      return;
+    }
+
+    // 서버에 idToken 전송 → 검증 + JWT 세션 발급
+    const r = await fetch('/api/auth/google/native', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+      credentials: 'include',
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      if (typeof showToast === 'function') showToast('로그인 실패: ' + (data.error || r.statusText));
+      return;
+    }
+    // 성공 — 세션 쿠키 적용된 상태로 새로고침
+    window.location.href = '/?login=success';
+  } catch (err) {
+    console.error('GoogleAuth native error:', err);
+    if (typeof showToast === 'function') showToast('Google 로그인 오류: ' + (err.message || err));
+  }
 }
 
 // 카카오 로그인 시작

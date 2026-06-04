@@ -23,6 +23,11 @@
   "plugins": {
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "163173913025-2smamjb11famoenksmsoqf0b52q9qges.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
     }
   }
 }

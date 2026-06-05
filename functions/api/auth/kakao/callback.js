@@ -163,7 +163,6 @@ export async function onRequestGet({ request, env }) {
   const jwt = await signJwt({ sub: user.id, email: user.email, exp }, env.JWT_SECRET);
 
   // 5) app 모드 (Capacitor 앱) 인지 확인 — 임시 1회용 코드 발급 + deep link redirect
-  const isApp = /(?:^|;\s*)k_oauth_app=1/.test(cookie);
   if (isApp && env.ADMIN_KV) {
     // 5-1) 임시 1회용 코드 생성 (UUID), KV 에 5분 저장
     const oneTimeCode = crypto.randomUUID();

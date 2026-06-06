@@ -8476,40 +8476,71 @@ async function startGoogleLogin() {
     return;
   }
 
-  // 앱 환경 — Google 정책상 WebView OAuth 차단됨 → 네이티브 SDK 사용
+  // 앱 환경 — @capgo/capacitor-social-login 네이티브 사용
   try {
-    const GoogleAuth = window.Capacitor?.Plugins?.GoogleAuth;
-    if (!GoogleAuth) {
-      if (typeof showToast === 'function') showToast('GoogleAuth 플러그인이 설치되지 않았습니다. 앱을 업데이트해주세요.');
+    const SocialLogin = window.Capacitor?.Plugins?.SocialLogin;
+    if (!SocialLogin || typeof SocialLogin.login !== 'function') {
+      if (typeof showToast === 'function') showToast('Social Login 플러그인이 설치되지 않았습니다. 앱을 업데이트해주세요.');
       return;
     }
-    // 일부 환경에서 initialize 필요
-    try { await GoogleAuth.initialize(); } catch {}
 
-    const result = await GoogleAuth.signIn();
-    const idToken = result?.authentication?.idToken || result?.idToken;
+    await _initSocialLogin();
+
+    const result = await SocialLogin.login({
+      provider: 'google',
+      options: {
+        scopes: ['email', 'profile'],
+      },
+    });
+
+    // social-login Google 응답: { provider: 'google', result: { idToken, accessToken, profile: {...} } }
+    const r = result?.result || result;
+    const idToken = r?.idToken;
     if (!idToken) {
       if (typeof showToast === 'function') showToast('Google ID 토큰을 받지 못했습니다.');
+      console.error('Google login result:', result);
       return;
     }
 
     // 서버에 idToken 전송 → 검증 + JWT 세션 발급
-    const r = await fetch('/api/auth/google/native', {
+    const resp = await fetch('/api/auth/google/native', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken }),
       credentials: 'include',
     });
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok || !data.ok) {
-      if (typeof showToast === 'function') showToast('로그인 실패: ' + (data.error || r.statusText));
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) {
+      if (typeof showToast === 'function') showToast('로그인 실패: ' + (data.error || resp.statusText));
       return;
     }
     // 성공 — 세션 쿠키 적용된 상태로 새로고침
     window.location.href = '/?login=success';
   } catch (err) {
-    console.error('GoogleAuth native error:', err);
+    console.error('Google social-login native error:', err);
     if (typeof showToast === 'function') showToast('Google 로그인 오류: ' + (err.message || err));
+  }
+}
+
+// SocialLogin 통합 초기화 — Apple + Google 둘 다 같이 설정 (idempotent)
+let _socialLoginInitialized = false;
+async function _initSocialLogin() {
+  if (_socialLoginInitialized) return;
+  const SocialLogin = window.Capacitor?.Plugins?.SocialLogin;
+  if (!SocialLogin || typeof SocialLogin.initialize !== 'function') return;
+  try {
+    await SocialLogin.initialize({
+      google: {
+        iOSClientId: '163173913025-ndu8nof28n3h8bemldpskr197h1luo7h.apps.googleusercontent.com',
+        iOSServerClientId: '163173913025-2smamjb11famoenksmsoqf0b52q9qges.apps.googleusercontent.com',
+      },
+      apple: {
+        clientId: 'kr.tcghub.app',
+      },
+    });
+    _socialLoginInitialized = true;
+  } catch (e) {
+    console.warn('SocialLogin.initialize error (ignored):', e);
   }
 }
 
@@ -8517,7 +8548,6 @@ async function startGoogleLogin() {
 // iOS 앱: @capgo/capacitor-social-login 플러그인 (Capacitor 8 호환)
 // 웹/기타: AppleID JS SDK (window.AppleID.auth)
 let _appleJsLoaded = false;
-let _socialLoginInitialized = false;
 async function _loadAppleJs() {
   if (_appleJsLoaded) return;
   await new Promise((resolve, reject) => {
@@ -8545,19 +8575,7 @@ async function startAppleLogin() {
         return;
       }
 
-      // 한 번만 초기화 (idempotent)
-      if (!_socialLoginInitialized) {
-        try {
-          await SocialLogin.initialize({
-            apple: {
-              clientId: 'kr.tcghub.app',
-            },
-          });
-          _socialLoginInitialized = true;
-        } catch (e) {
-          console.warn('SocialLogin.initialize error (ignored):', e);
-        }
-      }
+      await _initSocialLogin();
 
       const result = await SocialLogin.login({
         provider: 'apple',

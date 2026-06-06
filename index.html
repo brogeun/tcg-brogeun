@@ -8514,9 +8514,10 @@ async function startGoogleLogin() {
 }
 
 // ---- Apple Sign In ----
-// iOS 앱: @capacitor-community/apple-sign-in 플러그인 (네이티브)
+// iOS 앱: @capgo/capacitor-social-login 플러그인 (Capacitor 8 호환)
 // 웹/기타: AppleID JS SDK (window.AppleID.auth)
 let _appleJsLoaded = false;
+let _socialLoginInitialized = false;
 async function _loadAppleJs() {
   if (_appleJsLoaded) return;
   await new Promise((resolve, reject) => {
@@ -8535,35 +8536,60 @@ async function startAppleLogin() {
   const isCapacitor = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
   const platform = isCapacitor ? (window.Capacitor.getPlatform?.() || '') : '';
 
-  // 1) iOS 네이티브 — Apple Sign In 플러그인 사용
+  // 1) iOS 네이티브 — @capgo/capacitor-social-login 사용
   if (isCapacitor && platform === 'ios') {
     try {
-      const SignInWithApple = window.Capacitor?.Plugins?.SignInWithApple;
-      if (!SignInWithApple || typeof SignInWithApple.authorize !== 'function') {
-        if (typeof showToast === 'function') showToast('Apple Sign In 플러그인이 없습니다. 앱 업데이트가 필요해요.');
+      const SocialLogin = window.Capacitor?.Plugins?.SocialLogin;
+      if (!SocialLogin || typeof SocialLogin.login !== 'function') {
+        if (typeof showToast === 'function') showToast('Social Login 플러그인이 없습니다. 앱 업데이트가 필요해요.');
         return;
       }
-      const options = {
-        clientId: 'kr.tcghub.app',
-        redirectURI: 'https://tcghub.kr/api/auth/apple/native',
-        scopes: 'email name',
-        state: crypto.randomUUID(),
-        nonce: crypto.randomUUID(),
-      };
-      const result = await SignInWithApple.authorize(options);
-      const r = result?.response || result;
-      const identityToken = r?.identityToken;
+
+      // 한 번만 초기화 (idempotent)
+      if (!_socialLoginInitialized) {
+        try {
+          await SocialLogin.initialize({
+            apple: {
+              clientId: 'kr.tcghub.app',
+            },
+          });
+          _socialLoginInitialized = true;
+        } catch (e) {
+          console.warn('SocialLogin.initialize error (ignored):', e);
+        }
+      }
+
+      const result = await SocialLogin.login({
+        provider: 'apple',
+        options: {
+          scopes: ['email', 'fullName'],
+          nonce: crypto.randomUUID(),
+        },
+      });
+
+      // @capgo/capacitor-social-login 응답 구조:
+      // { provider: 'apple', result: { profile: {...}, idToken, accessToken, authorizationCode } }
+      const r = result?.result || result;
+      const identityToken = r?.idToken || r?.identityToken;
+
       if (!identityToken) {
         if (typeof showToast === 'function') showToast('Apple identityToken 을 받지 못했습니다.');
+        console.error('Apple login result:', result);
         return;
       }
+
+      const profile = r?.profile || {};
       const userPayload = {
         identityToken,
         user: {
-          name: (r?.givenName || r?.familyName) ? { firstName: r.givenName || '', lastName: r.familyName || '' } : undefined,
-          email: r?.email || undefined,
+          name: (profile.givenName || profile.familyName) ? {
+            firstName: profile.givenName || '',
+            lastName: profile.familyName || '',
+          } : undefined,
+          email: profile.email || undefined,
         },
       };
+
       const resp = await fetch('/api/auth/apple/native', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

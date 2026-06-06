@@ -21,8 +21,10 @@
     "webContentsDebuggingEnabled": false
   },
   "plugins": {
-    "PushNotifications": {
-      "presentationOptions": ["badge", "sound", "alert"]
+    "SocialLogin": {
+      "apple": {
+        "clientId": "kr.tcghub.app"
+      }
     },
     "GoogleAuth": {
       "scopes": ["profile", "email"],

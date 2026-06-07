@@ -3686,7 +3686,7 @@ async function renderGradesPanel(productId, product) {
     psa10:    { label: 'PSA 10',     color: '#fbbf24', bg: '#fffbeb' },
     psa9:     { label: 'PSA 9',      color: '#9ca3af', bg: '#f3f4f6' },
     raw:      { label: 'A급(싱글)',   color: '#06b6d4', bg: '#ecfeff' },
-    bgs10_bl: { label: 'BGS 10 BL',  color: '#111111', bg: '#fafafa' },
+    bgs10_bl: { label: 'BGS 10 BL',  color: '#fbbf24', bg: '#111111', textColor: '#ffffff', subColor: '#9ca3af' },
     bgs10_gl: { label: 'BGS 10 GL',  color: '#b45309', bg: '#fffbeb' },
     bgs95:    { label: 'BGS 9.5',    color: '#9ca3af', bg: '#f3f4f6' },
   };
@@ -3699,6 +3699,8 @@ async function renderGradesPanel(productId, product) {
   };
   const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
+    const textColor = info.textColor || '#111';
+    const subColor  = info.subColor  || 'var(--ink-sub)';
     // 신 스키마: lowest_ask (active 매물 최저가, SNKRDUNK 헤드라인)
     // 호환: recent_avg, last5_avg, avg, avg_jpy
     const val = g ? (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy) : null;
@@ -3721,9 +3723,9 @@ async function renderGradesPanel(productId, product) {
       return `
         <div style="background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px">
           <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
-          <div style="font-size:15px; font-weight:800; color:#111">${fmtPrice(val, cur||'USD')}</div>
-          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">${fmtSecondary(val, cur||'USD')}</div>
-          ${subline ? `<div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${subline}</div>` : ''}
+          <div style="font-size:15px; font-weight:800; color:${textColor}">${fmtPrice(val, cur||'USD')}</div>
+          <div style="font-size:11px; color:${subColor}; margin-top:2px">${fmtSecondary(val, cur||'USD')}</div>
+          ${subline ? `<div style="font-size:10px; color:${subColor}; margin-top:6px">${subline}</div>` : ''}
         </div>`;
     }
     return `
@@ -3743,28 +3745,25 @@ async function renderGradesPanel(productId, product) {
     let grades = card?.grades || {};
 
     // 2순위 폴백: data/history/{id}.json — 백필된 6,600+ 카드에 PSA10/9/raw 가격 있음
-    const hasAnyData = ORDER.some(k => grades[k] && Object.keys(grades[k]).length > 0);
-    if (!hasAnyData) {
+    const hasPsaData = ['psa10','psa9','raw'].some(k => grades[k] && Object.keys(grades[k]).length > 0);
+    if (!hasPsaData) {
       try {
         const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
         if (r.ok) {
           const hist = await r.json();
           const points = hist.history || [];
           // 최신 일자부터 역순으로 보면서 각 등급 첫 가격 채택
-          const latest = { psa10: null, psa9: null, raw: null, bgs10_bl: null, bgs10_gl: null, bgs95: null };
+          const latest = { psa10: null, psa9: null, raw: null };
           for (let i = points.length - 1; i >= 0; i--) {
             const p = points[i];
-            if (latest.psa10    == null && p.psa10_price)    latest.psa10    = p.psa10_price;
-            if (latest.psa9     == null && p.psa9_price)     latest.psa9     = p.psa9_price;
-            if (latest.raw      == null && p.raw_price)      latest.raw      = p.raw_price;
-            if (latest.bgs10_bl == null && p.bgs10_bl_price) latest.bgs10_bl = p.bgs10_bl_price;
-            if (latest.bgs10_gl == null && p.bgs10_gl_price) latest.bgs10_gl = p.bgs10_gl_price;
-            if (latest.bgs95    == null && p.bgs95_price)    latest.bgs95    = p.bgs95_price;
-            if (latest.psa10 && latest.psa9 && latest.raw && latest.bgs10_bl && latest.bgs10_gl && latest.bgs95) break;
+            if (latest.psa10 == null && p.psa10_price) latest.psa10 = p.psa10_price;
+            if (latest.psa9  == null && p.psa9_price)  latest.psa9  = p.psa9_price;
+            if (latest.raw   == null && p.raw_price)   latest.raw   = p.raw_price;
+            if (latest.psa10 && latest.psa9 && latest.raw) break;
           }
-          grades = {};
-          for (const k of ORDER) {
-            if (latest[k] != null) {
+          grades = grades || {};
+          for (const k of ['psa10','psa9','raw']) {
+            if (latest[k] != null && !grades[k]) {
               grades[k] = { lowest_ask: latest[k], currency: 'JPY' };
             }
           }
@@ -3772,6 +3771,32 @@ async function renderGradesPanel(productId, product) {
       } catch (e) {
         console.warn('history fallback fail:', e);
       }
+    }
+
+    // BGS 보충 — cards-detail.json 에 BGS 가 없어서 history 에서 항상 보충
+    const hasBgsData = ['bgs10_bl','bgs10_gl','bgs95'].some(k => grades[k] && Object.keys(grades[k]).length > 0);
+    if (!hasBgsData) {
+      try {
+        const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
+        if (r.ok) {
+          const hist = await r.json();
+          const points = hist.history || [];
+          const bgsLatest = { bgs10_bl: null, bgs10_gl: null, bgs95: null };
+          for (let i = points.length - 1; i >= 0; i--) {
+            const p = points[i];
+            if (bgsLatest.bgs10_bl == null && p.bgs10_bl_price) bgsLatest.bgs10_bl = p.bgs10_bl_price;
+            if (bgsLatest.bgs10_gl == null && p.bgs10_gl_price) bgsLatest.bgs10_gl = p.bgs10_gl_price;
+            if (bgsLatest.bgs95    == null && p.bgs95_price)    bgsLatest.bgs95    = p.bgs95_price;
+            if (bgsLatest.bgs10_bl && bgsLatest.bgs10_gl && bgsLatest.bgs95) break;
+          }
+          grades = grades || {};
+          for (const k of ['bgs10_bl','bgs10_gl','bgs95']) {
+            if (bgsLatest[k] != null) {
+              grades[k] = { lowest_ask: bgsLatest[k], currency: 'JPY' };
+            }
+          }
+        }
+      } catch (e) { console.warn('BGS history fetch fail:', e); }
     }
 
     // PSA10 POP 카운트 — 위에서 박스는 이미 return 됐으니 여기는 카드 확정
@@ -4848,16 +4873,16 @@ async function renderSlidePanel(productId) {
   const bgsRowHTML = hasBgs ? `
     <!-- BGS 등급 (선택 카드만, 거래량 적어 참고용) -->
     <div class="slide-grade-row" style="margin-top:6px">
-      <div class="slide-grade-chip" data-grade="bgs10_bl" style="background:#fafafa">
-        <div class="gc-label" style="color:#666">BGS 10 BL</div>
-        <div class="gc-val">${fmtChip(bgs10BlPrice)}</div>
+      <div class="slide-grade-chip" data-grade="bgs10_bl" style="background:#111; color:#fff">
+        <div class="gc-label" style="color:#fff">BGS 10 BL</div>
+        <div class="gc-val" style="color:#fff">${fmtChip(bgs10BlPrice)}</div>
       </div>
-      <div class="slide-grade-chip" data-grade="bgs10_gl" style="background:#fafafa">
-        <div class="gc-label" style="color:#666">BGS 10 GL</div>
+      <div class="slide-grade-chip" data-grade="bgs10_gl" style="background:#fffbeb">
+        <div class="gc-label" style="color:#b45309">BGS 10 GL</div>
         <div class="gc-val">${fmtChip(bgs10GlPrice)}</div>
       </div>
-      <div class="slide-grade-chip" data-grade="bgs95" style="background:#fafafa">
-        <div class="gc-label" style="color:#666">BGS 9.5</div>
+      <div class="slide-grade-chip" data-grade="bgs95" style="background:#f3f4f6">
+        <div class="gc-label" style="color:#6b7280">BGS 9.5</div>
         <div class="gc-val">${fmtChip(bgs95Price)}</div>
       </div>
     </div>` : '';

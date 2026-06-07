@@ -3701,6 +3701,10 @@ async function renderGradesPanel(productId, product) {
     const info = GRADE_INFO[k];
     const textColor = info.textColor || '#111';
     const subColor  = info.subColor  || 'var(--ink-sub)';
+    const isBgs = k.startsWith('bgs');
+    // BGS hover 시 메모 표시 (거래량 적어 가격 상이 가능)
+    const bgsTip = isBgs ? `<div class="dg-tip" style="position:absolute; bottom:calc(100% + 6px); left:0; background:#111; color:#fff; padding:8px 10px; border-radius:6px; font-size:11px; font-weight:500; line-height:1.45; white-space:normal; width:max-content; max-width:240px; opacity:0; pointer-events:none; transition:opacity 0.15s; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.18)">※ BGS 는 거래량이 적어 가격이 상이할 수 있으며, 최근 거래가격 반영</div>` : '';
+    const cursorStyle = isBgs ? 'cursor:help' : '';
     // 신 스키마: lowest_ask (active 매물 최저가, SNKRDUNK 헤드라인)
     // 호환: recent_avg, last5_avg, avg, avg_jpy
     const val = g ? (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy) : null;
@@ -3721,11 +3725,12 @@ async function renderGradesPanel(productId, product) {
       }
       // count 정보 없으면 subline 안 보임 (history 폴백 경우)
       return `
-        <div style="background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px">
+        <div class="detail-grade-chip" style="position:relative; background:${info.bg}; border:1px solid ${info.color}55; border-radius:8px; padding:12px 14px; ${cursorStyle}">
           <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
           <div style="font-size:15px; font-weight:800; color:${textColor}">${fmtPrice(val, cur||'USD')}</div>
           <div style="font-size:11px; color:${subColor}; margin-top:2px">${fmtSecondary(val, cur||'USD')}</div>
           ${subline ? `<div style="font-size:10px; color:${subColor}; margin-top:6px">${subline}</div>` : ''}
+          ${bgsTip}
         </div>`;
     }
     return `
@@ -3820,8 +3825,9 @@ async function renderGradesPanel(productId, product) {
     if (psa10Val && psa10Val > 0) {
       const psa10Krw = toKrw(psa10Val, psa10Cur);
       const directKrw = Math.round(psa10Krw * 1.1 + 50000);
+      // 직구가격은 항상 그리드의 마지막 컬럼에 고정 (BGS 박스 다음 맨 오른쪽)
       html += `
-        <div class="detail-grade-chip" style="position:relative; background:#ecfeff; border:1px solid #06b6d455; border-radius:8px; padding:12px 14px; cursor:help">
+        <div class="detail-grade-chip" style="position:relative; background:#ecfeff; border:1px solid #06b6d455; border-radius:8px; padding:12px 14px; cursor:help; grid-column:-2 / -1">
           <div style="font-size:11px; font-weight:800; color:#0891b2; margin-bottom:6px">직구가격 <span style="font-size:9px; color:#06b6d4; background:#cffafe; padding:1px 4px; border-radius:3px; margin-left:2px">NEW</span></div>
           <div style="font-size:15px; font-weight:800; color:#111">₩${directKrw.toLocaleString()}</div>
           <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">PSA10 × 1.1 + 50,000</div>
@@ -3838,15 +3844,14 @@ async function renderGradesPanel(productId, product) {
         </div>`;
     }
     grid.innerHTML = html;
-    // 직구가격 hover 효과 (CSS 가 호환 안 되는 경우 대비 인라인)
-    const dgChip = grid.querySelector('.detail-grade-chip');
-    if (dgChip) {
-      const tip = dgChip.querySelector('.dg-tip');
+    // 모든 칩 hover 효과 — 직구가격 + BGS 박스 (.dg-tip 보이게)
+    grid.querySelectorAll('.detail-grade-chip').forEach(chip => {
+      const tip = chip.querySelector('.dg-tip');
       if (tip) {
-        dgChip.addEventListener('mouseenter', () => { tip.style.opacity = '1'; });
-        dgChip.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
+        chip.addEventListener('mouseenter', () => { tip.style.opacity = '1'; });
+        chip.addEventListener('mouseleave', () => { tip.style.opacity = '0'; });
       }
-    }
+    });
   } catch (e) {
     console.warn('grades load fail:', e);
   }

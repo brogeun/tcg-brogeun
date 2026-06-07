@@ -8601,7 +8601,21 @@ async function startGoogleLogin() {
     window.location.href = '/?login=success';
   } catch (err) {
     console.error('Google native sign-in error:', err);
-    if (typeof showToast === 'function') showToast('Google 로그인 오류: ' + (err.message || err));
+    // 자세한 오류 정보 — 디버깅용 (사용자에게 모든 정보 표시)
+    let errDetail = '';
+    if (err) {
+      if (typeof err === 'string') errDetail = err;
+      else {
+        const parts = [];
+        if (err.message) parts.push('msg=' + err.message);
+        if (err.code) parts.push('code=' + err.code);
+        if (err.errorCode) parts.push('errorCode=' + err.errorCode);
+        if (err.name) parts.push('name=' + err.name);
+        if (err.statusCode) parts.push('statusCode=' + err.statusCode);
+        errDetail = parts.length ? parts.join(', ') : JSON.stringify(err);
+      }
+    }
+    if (typeof showToast === 'function') showToast('Google 로그인 오류: ' + errDetail);
   }
 }
 

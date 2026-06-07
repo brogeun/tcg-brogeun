@@ -8804,6 +8804,18 @@ async function startKakaoLogin() {
 }
 
 // Deep link (kr.tcghub.app://kakao-callback?code=...) 리스너 — 앱 시작 시 1회 등록
+// 앱 시작 시 StatusBar 초기화 — 시스템 상단 바 침범 방지 (배터리/시간 영역)
+(async function _initStatusBar() {
+  try {
+    if (!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())) return;
+    const StatusBar = window.Capacitor?.Plugins?.StatusBar;
+    if (!StatusBar) return;
+    try { await StatusBar.setOverlaysWebView({ overlay: false }); } catch {}
+    try { await StatusBar.setBackgroundColor({ color: '#ffffff' }); } catch {}
+    try { await StatusBar.setStyle({ style: 'Default' }); } catch {}
+  } catch (e) { console.warn('StatusBar init failed:', e); }
+})();
+
 (function _setupAppDeepLinkListener() {
   if (!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())) return;
   const App = window.Capacitor?.Plugins?.App;

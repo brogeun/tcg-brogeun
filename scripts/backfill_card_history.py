@@ -38,8 +38,16 @@ UA = (
 
 # SNKRDUNK 의 sales-chart/used?salesChartOptionId={ID} 등급 매핑
 # 옛 코드 기준: 18=raw(D, 미개봉), 22=PSA10, 23=PSA9
-# 검증: 풀백필 후 PSA10 > PSA9 > raw 순서 자연스러운지 가격 갭 보면 됨
-GRADE_OPTION_IDS = {"psa10": 22, "psa9": 23, "raw": 18}
+# BGS (cid 671486 으로 검증): 25=BGS10 BL(Black Label), 26=BGS10 GL(Gold Label), 27=BGS9.5
+# 검증: 풀백필 후 PSA10 > PSA9 > raw, BGS10 BL > BGS10 GL > BGS9.5 자연스러운지 가격 갭 보면 됨
+GRADE_OPTION_IDS = {
+    "psa10":    22,
+    "psa9":     23,
+    "raw":      18,
+    "bgs10_bl": 25,
+    "bgs10_gl": 26,
+    "bgs95":    27,
+}
 
 
 def fetch_chart_grade(cid, opt_id):
@@ -272,8 +280,15 @@ def main():
             continue
         # 통계 — 등급별 days + 통합 거래량
         vol_total = sum(h.get("total_vol", 0) for h in new_history)
+        # BGS 는 데이터 있을 때만 표시 (보통 0이라 noise)
+        bgs_parts = []
+        for g in ("bgs10_bl", "bgs10_gl", "bgs95"):
+            n = grade_counts.get(g, 0)
+            if n > 0:
+                bgs_parts.append(f"{g}={n}d")
+        bgs_str = (" " + " ".join(bgs_parts)) if bgs_parts else ""
         print(f"OK psa10={grade_counts['psa10']}d psa9={grade_counts['psa9']}d "
-              f"raw={grade_counts['raw']}d vol={vol_total}")
+              f"raw={grade_counts['raw']}d vol={vol_total}{bgs_str}")
         success += 1
         time.sleep(0.3)
 

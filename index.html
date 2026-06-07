@@ -3679,13 +3679,16 @@ async function renderGradesPanel(productId, product) {
     return;
   }
 
-  // ───────── 카드: PSA10 / PSA9 / A급(싱글) 3칸 ─────────
+  // ───────── 카드: PSA10 / PSA9 / A급(싱글) 3칸 + BGS (데이터 있을 때만) ─────────
   if (header) header.innerHTML = '📊 등급별 SNKRDUNK 최저가';
-  const ORDER = ['psa10','psa9','raw'];
+  const ORDER = ['psa10','psa9','raw','bgs10_bl','bgs10_gl','bgs95'];
   const GRADE_INFO = {
-    psa10: { label: 'PSA 10',  color: '#fbbf24', bg: '#fffbeb' },
-    psa9:  { label: 'PSA 9',   color: '#9ca3af', bg: '#f3f4f6' },
-    raw:   { label: 'A급(싱글)', color: '#06b6d4', bg: '#ecfeff' },
+    psa10:    { label: 'PSA 10',     color: '#fbbf24', bg: '#fffbeb' },
+    psa9:     { label: 'PSA 9',      color: '#9ca3af', bg: '#f3f4f6' },
+    raw:      { label: 'A급(싱글)',   color: '#06b6d4', bg: '#ecfeff' },
+    bgs10_bl: { label: 'BGS 10 BL',  color: '#111111', bg: '#fafafa' },
+    bgs10_gl: { label: 'BGS 10 GL',  color: '#b45309', bg: '#fffbeb' },
+    bgs95:    { label: 'BGS 9.5',    color: '#9ca3af', bg: '#f3f4f6' },
   };
   // 메인 = KRW, 서브 = SNKRDUNK 원본 통화 (참고용)
   const fmtPrice = (val, cur) => fmtKrw(val, cur);
@@ -3748,13 +3751,16 @@ async function renderGradesPanel(productId, product) {
           const hist = await r.json();
           const points = hist.history || [];
           // 최신 일자부터 역순으로 보면서 각 등급 첫 가격 채택
-          const latest = { psa10: null, psa9: null, raw: null };
+          const latest = { psa10: null, psa9: null, raw: null, bgs10_bl: null, bgs10_gl: null, bgs95: null };
           for (let i = points.length - 1; i >= 0; i--) {
             const p = points[i];
-            if (latest.psa10 == null && p.psa10_price) latest.psa10 = p.psa10_price;
-            if (latest.psa9 == null && p.psa9_price) latest.psa9 = p.psa9_price;
-            if (latest.raw == null && p.raw_price) latest.raw = p.raw_price;
-            if (latest.psa10 && latest.psa9 && latest.raw) break;
+            if (latest.psa10    == null && p.psa10_price)    latest.psa10    = p.psa10_price;
+            if (latest.psa9     == null && p.psa9_price)     latest.psa9     = p.psa9_price;
+            if (latest.raw      == null && p.raw_price)      latest.raw      = p.raw_price;
+            if (latest.bgs10_bl == null && p.bgs10_bl_price) latest.bgs10_bl = p.bgs10_bl_price;
+            if (latest.bgs10_gl == null && p.bgs10_gl_price) latest.bgs10_gl = p.bgs10_gl_price;
+            if (latest.bgs95    == null && p.bgs95_price)    latest.bgs95    = p.bgs95_price;
+            if (latest.psa10 && latest.psa9 && latest.raw && latest.bgs10_bl && latest.bgs10_gl && latest.bgs95) break;
           }
           grades = {};
           for (const k of ORDER) {
@@ -3779,7 +3785,9 @@ async function renderGradesPanel(productId, product) {
     } catch (e) { console.warn('PSA POP fetch fail:', e); }
 
     // grid 메인 렌더 + A급 옆 4번째 박스로 직구가격 + 5번째로 POP 표시
-    let html = ORDER.map(k => renderBlock(k, grades[k])).join('');
+    // BGS 등급은 데이터 있는 카드만 표시 (대부분 카드에 BGS 거래 없음)
+    const _hasGradeData = (g) => g && (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy);
+    let html = ORDER.filter(k => !k.startsWith('bgs') || _hasGradeData(grades[k])).map(k => renderBlock(k, grades[k])).join('');
     // 직구가격 칩 — (PSA10 KRW × 1.1) + 50,000
     const psa10Grade = grades.psa10;
     const psa10Val = psa10Grade ? (psa10Grade.lowest_ask ?? psa10Grade.recent_avg ?? psa10Grade.last5_avg ?? psa10Grade.avg ?? psa10Grade.avg_jpy) : null;
@@ -4782,6 +4790,10 @@ async function renderSlidePanel(productId) {
       psa10Cur = product.currency || 'JPY';
     }
   }
+  // BGS 가격 — history 에서만 (SNKRDUNK 가 거래 적어 차트 불안정 → 가격만 표시)
+  const bgs10BlJpy = pickLatestPrice('bgs10_bl_price');
+  const bgs10GlJpy = pickLatestPrice('bgs10_gl_price');
+  const bgs95Jpy   = pickLatestPrice('bgs95_price');
   const _conv = (val, cur) => {
     if (val == null) return null;
     if (cur === 'USD' && typeof USD_KRW !== 'undefined') return Math.floor(val * USD_KRW);
@@ -4793,6 +4805,9 @@ async function renderSlidePanel(productId) {
   const rawPrice = _conv(rawJpy, rawCur);
   const boxPrice = _conv(boxJpy, boxCur);
   const directPrice = psa10Price ? Math.round(psa10Price * 1.1 + 50000) : null;
+  const bgs10BlPrice = _conv(bgs10BlJpy, 'JPY');
+  const bgs10GlPrice = _conv(bgs10GlJpy, 'JPY');
+  const bgs95Price   = _conv(bgs95Jpy, 'JPY');
 
   // 헤더
   document.getElementById('slideName').textContent = name;
@@ -4828,10 +4843,29 @@ async function renderSlidePanel(productId) {
         <div class="gc-tip">※ PSA10 기준 부가세, 배송비 포함 예시 가격</div>
       </div>
     </div>`;
+  // BGS 그룹 — 데이터 1개라도 있는 카드만 표시 (조건부)
+  const hasBgs = !isBox && (bgs10BlPrice || bgs10GlPrice || bgs95Price);
+  const bgsRowHTML = hasBgs ? `
+    <!-- BGS 등급 (선택 카드만, 거래량 적어 참고용) -->
+    <div class="slide-grade-row" style="margin-top:6px">
+      <div class="slide-grade-chip" data-grade="bgs10_bl" style="background:#fafafa">
+        <div class="gc-label" style="color:#666">BGS 10 BL</div>
+        <div class="gc-val">${fmtChip(bgs10BlPrice)}</div>
+      </div>
+      <div class="slide-grade-chip" data-grade="bgs10_gl" style="background:#fafafa">
+        <div class="gc-label" style="color:#666">BGS 10 GL</div>
+        <div class="gc-val">${fmtChip(bgs10GlPrice)}</div>
+      </div>
+      <div class="slide-grade-chip" data-grade="bgs95" style="background:#fafafa">
+        <div class="gc-label" style="color:#666">BGS 9.5</div>
+        <div class="gc-val">${fmtChip(bgs95Price)}</div>
+      </div>
+    </div>` : '';
   const mainPrice = isBox ? boxPrice : psa10Price;
   const mainLabel = isBox ? '박스 상품 — 그레이딩 거래 없음' : 'PSA 10 기준';
   body.innerHTML = `
     ${gradeRowHTML}
+    ${bgsRowHTML}
     <!-- 현재 시세 박스 -->
     <div class="slide-price-box">
       <div class="slide-price-label">SNKRDUNK 최저 실거래가</div>
@@ -4867,7 +4901,15 @@ async function renderSlidePanel(productId) {
       body.querySelectorAll('.slide-grade-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       const g = chip.dataset.grade;
-      const map = { psa10: [psa10Price, 'PSA 10 기준'], psa9: [psa9Price, 'PSA 9 기준'], raw: [rawPrice, 'A급(미개봉) 기준'], direct: [directPrice, '직구가격 (PSA10 × 1.1 + 50,000)'] };
+      const map = {
+        psa10:    [psa10Price,    'PSA 10 기준'],
+        psa9:     [psa9Price,     'PSA 9 기준'],
+        raw:      [rawPrice,      'A급(미개봉) 기준'],
+        direct:   [directPrice,   '직구가격 (PSA10 × 1.1 + 50,000)'],
+        bgs10_bl: [bgs10BlPrice,  'BGS 10 Black Label 기준 (거래 적어 참고용)'],
+        bgs10_gl: [bgs10GlPrice,  'BGS 10 Gold Label 기준 (거래 적어 참고용)'],
+        bgs95:    [bgs95Price,    'BGS 9.5 기준 (거래 적어 참고용)'],
+      };
       const [val, label] = map[g] || [null, ''];
       document.getElementById('slidePriceVal').textContent = fmtChip(val);
       document.getElementById('slidePriceSub').textContent = label;
@@ -7755,13 +7797,16 @@ async function loadCardMeta(cardId) {
   } catch {}
 
   const points = history?.history || [];
-  const histLatest = { psa10: null, psa9: null, raw: null };
+  const histLatest = { psa10: null, psa9: null, raw: null, bgs10_bl: null, bgs10_gl: null, bgs95: null };
   for (let i = points.length - 1; i >= 0; i--) {
     const p = points[i];
-    if (histLatest.psa10 == null && p.psa10_price) histLatest.psa10 = p.psa10_price;
-    if (histLatest.psa9 == null && p.psa9_price) histLatest.psa9 = p.psa9_price;
-    if (histLatest.raw == null && p.raw_price) histLatest.raw = p.raw_price;
-    if (histLatest.psa10 && histLatest.psa9 && histLatest.raw) break;
+    if (histLatest.psa10    == null && p.psa10_price)    histLatest.psa10    = p.psa10_price;
+    if (histLatest.psa9     == null && p.psa9_price)     histLatest.psa9     = p.psa9_price;
+    if (histLatest.raw      == null && p.raw_price)      histLatest.raw      = p.raw_price;
+    if (histLatest.bgs10_bl == null && p.bgs10_bl_price) histLatest.bgs10_bl = p.bgs10_bl_price;
+    if (histLatest.bgs10_gl == null && p.bgs10_gl_price) histLatest.bgs10_gl = p.bgs10_gl_price;
+    if (histLatest.bgs95    == null && p.bgs95_price)    histLatest.bgs95    = p.bgs95_price;
+    if (histLatest.psa10 && histLatest.psa9 && histLatest.raw && histLatest.bgs10_bl && histLatest.bgs10_gl && histLatest.bgs95) break;
   }
 
   // detailGrades 가 있으면 lowest_ask 우선, 없으면 history 사용
@@ -8476,29 +8521,37 @@ async function startGoogleLogin() {
     return;
   }
 
-  // 앱 환경 — @capgo/capacitor-social-login 네이티브 사용
+  // 앱 환경 — 사용 가능한 네이티브 플러그인 자동 선택
+  // 우선순위:
+  //   1. SocialLogin (iOS 1.0.4+, 미래 안드로이드 빌드)
+  //   2. GoogleAuth (안드로이드 1.0.3 등 구버전 빌드)
   try {
+    let idToken = null;
+
     const SocialLogin = window.Capacitor?.Plugins?.SocialLogin;
-    if (!SocialLogin || typeof SocialLogin.login !== 'function') {
-      if (typeof showToast === 'function') showToast('Social Login 플러그인이 설치되지 않았습니다. 앱을 업데이트해주세요.');
+    const GoogleAuth = window.Capacitor?.Plugins?.GoogleAuth;
+
+    if (SocialLogin && typeof SocialLogin.login === 'function') {
+      // 새 빌드 — @capgo/capacitor-social-login 사용
+      await _initSocialLogin();
+      const result = await SocialLogin.login({
+        provider: 'google',
+        options: { scopes: ['email', 'profile'] },
+      });
+      const r = result?.result || result;
+      idToken = r?.idToken;
+    } else if (GoogleAuth && typeof GoogleAuth.signIn === 'function') {
+      // 구버전 빌드 (안드로이드 1.0.3) — @codetrix-studio/capacitor-google-auth 사용
+      try { await GoogleAuth.initialize(); } catch {}
+      const result = await GoogleAuth.signIn();
+      idToken = result?.authentication?.idToken || result?.idToken;
+    } else {
+      if (typeof showToast === 'function') showToast('로그인 플러그인이 설치되지 않았습니다. 앱을 업데이트해주세요.');
       return;
     }
 
-    await _initSocialLogin();
-
-    const result = await SocialLogin.login({
-      provider: 'google',
-      options: {
-        scopes: ['email', 'profile'],
-      },
-    });
-
-    // social-login Google 응답: { provider: 'google', result: { idToken, accessToken, profile: {...} } }
-    const r = result?.result || result;
-    const idToken = r?.idToken;
     if (!idToken) {
       if (typeof showToast === 'function') showToast('Google ID 토큰을 받지 못했습니다.');
-      console.error('Google login result:', result);
       return;
     }
 
@@ -8517,7 +8570,7 @@ async function startGoogleLogin() {
     // 성공 — 세션 쿠키 적용된 상태로 새로고침
     window.location.href = '/?login=success';
   } catch (err) {
-    console.error('Google social-login native error:', err);
+    console.error('Google native sign-in error:', err);
     if (typeof showToast === 'function') showToast('Google 로그인 오류: ' + (err.message || err));
   }
 }
@@ -8565,6 +8618,14 @@ async function startAppleLogin() {
 
   const isCapacitor = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
   const platform = isCapacitor ? (window.Capacitor.getPlatform?.() || '') : '';
+
+  // 안드로이드 앱에서는 Apple 로그인 지원 안 함 (Apple 정책상 iOS 만 의무)
+  if (isCapacitor && platform !== 'ios') {
+    if (typeof showToast === 'function') {
+      showToast('이 앱에서는 Apple 로그인을 지원하지 않습니다. 카카오 또는 Google 로그인을 이용해주세요.');
+    }
+    return;
+  }
 
   // 1) iOS 네이티브 — @capgo/capacitor-social-login 사용
   if (isCapacitor && platform === 'ios') {

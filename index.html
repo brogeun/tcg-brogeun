@@ -1781,6 +1781,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <button class="btn" onclick="doLogout()" style="cursor:pointer; padding:7px 14px; font-size:12px; flex-shrink:0">로그아웃</button>
         </div>
 
+        <!-- 회원 탈퇴 (Apple App Store Guideline 5.1.1(v) 준수) -->
+        <div style="margin-top:24px; padding-top:16px; border-top:1px solid #f3f4f6; text-align:right">
+          <button type="button" onclick="doDeleteAccount()" style="background:none; border:none; color:#9ca3af; font-size:11px; text-decoration:underline; cursor:pointer; padding:4px 8px">회원 탈퇴 (계정 영구 삭제)</button>
+        </div>
+
         <!-- 메인 평가액 카드 (큰 숫자) -->
         <div class="pf-hero">
           <div class="pf-hero-label">💰 총 평가액</div>
@@ -8377,6 +8382,59 @@ async function doLogout() {
   CURRENT_USER = null;
   renderAuthStatus();
   showToast('로그아웃되었습니다', 'info');
+}
+
+// 회원 탈퇴 — Apple App Store Guideline 5.1.1(v) 준수
+async function doDeleteAccount() {
+  if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
+    showToast('로그인 상태가 아닙니다.', 'error');
+    return;
+  }
+
+  // 1단계: 1차 확인
+  const ok1 = confirm(
+    '⚠️ 회원 탈퇴 안내\n\n' +
+    '계정과 함께 다음 데이터가 영구 삭제됩니다:\n' +
+    '• 보유 카드 (Portfolio)\n' +
+    '• 거래 기록\n' +
+    '• 관심 카드\n' +
+    '• PSA cert 등록 내역\n\n' +
+    '삭제 후 복구가 불가능합니다. 계속하시겠습니까?'
+  );
+  if (!ok1) return;
+
+  // 2단계: 확인 문자열 입력
+  const confirmText = prompt(
+    '정말 삭제하시려면 아래 칸에 "DELETE" 라고 정확히 입력해주세요\n(대문자 영문, 띄어쓰기 없이):'
+  );
+  if (confirmText !== 'DELETE') {
+    showToast('확인 문자열이 일치하지 않아 취소되었습니다.', 'info');
+    return;
+  }
+
+  // 3단계: API 호출
+  try {
+    const r = await fetch('/api/auth/delete-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE' }),
+      credentials: 'include',
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      showToast('탈퇴 실패: ' + (data.error || r.statusText), 'error');
+      return;
+    }
+    // 성공 — 세션 쿠키 만료 처리됨 + 로그아웃
+    CURRENT_USER = null;
+    if (typeof renderAuthStatus === 'function') renderAuthStatus();
+    alert('✓ 계정이 영구적으로 삭제되었습니다.\n모든 데이터가 제거되었습니다.\n이용해주셔서 감사합니다.');
+    // 홈으로 이동
+    window.location.href = '/';
+  } catch (err) {
+    console.error('Delete account error:', err);
+    showToast('탈퇴 처리 중 오류: ' + (err.message || err), 'error');
+  }
 }
 
 function openLoginModal(contextNote) {

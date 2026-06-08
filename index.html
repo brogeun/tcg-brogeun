@@ -5566,6 +5566,15 @@ document.addEventListener('click', e => {
     HUB_SUB = sub.dataset.subtab;
     document.querySelectorAll('#hubSubTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.subtab === HUB_SUB));
     showHubPanel(HUB_SUB);
+    // 응모/이벤트 탭은 별도 공유 URL — pathname 동기화 (브라우저 주소창에 표시)
+    if (HUB_SUB === 'apply' && location.pathname !== '/raffles') {
+      history.replaceState(null, '', '/raffles');
+    } else if (HUB_SUB === 'events' && location.pathname !== '/events') {
+      history.replaceState(null, '', '/events');
+    } else if (HUB_SUB !== 'apply' && HUB_SUB !== 'events' && (location.pathname === '/raffles' || location.pathname === '/events')) {
+      // 다른 탭으로 이동 — pathname 원복
+      history.replaceState(null, '', '/#hub');
+    }
   }
 });
 

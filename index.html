@@ -8804,16 +8804,46 @@ async function startKakaoLogin() {
 }
 
 // Deep link (kr.tcghub.app://kakao-callback?code=...) 리스너 — 앱 시작 시 1회 등록
-// 앱 시작 시 StatusBar 초기화 — 시스템 상단 바 침범 방지 (배터리/시간 영역)
+// 앱 시작 시 StatusBar 초기화 — 일반 앱 표준 방식 (시스템 바 영역 분리)
 (async function _initStatusBar() {
   try {
     if (!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())) return;
     const StatusBar = window.Capacitor?.Plugins?.StatusBar;
     if (!StatusBar) return;
+    // overlay=false → web view 가 시스템 바 영역 절대 안 침범 (인스타/카톡 등 표준 방식)
     try { await StatusBar.setOverlaysWebView({ overlay: false }); } catch {}
     try { await StatusBar.setBackgroundColor({ color: '#ffffff' }); } catch {}
     try { await StatusBar.setStyle({ style: 'Default' }); } catch {}
   } catch (e) { console.warn('StatusBar init failed:', e); }
+})();
+
+// 앱 시작 시 자동 업데이트 체크 — Google Play In-App Update API
+// 새 버전이 Play Store 에 있으면 강제 업데이트 모달 (IMMEDIATE 모드)
+(async function _checkAppUpdate() {
+  try {
+    if (!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())) return;
+    if (window.Capacitor.getPlatform?.() !== 'android') return; // 안드로이드만 (iOS 는 App Store 자체 처리)
+    const AppUpdate = window.Capacitor?.Plugins?.AppUpdate;
+    if (!AppUpdate) return; // 구버전 빌드는 plugin 없음
+    // 3초 후 체크 — 앱 로딩 후 안정적 시점
+    setTimeout(async () => {
+      try {
+        const info = await AppUpdate.getAppUpdateInfo();
+        // updateAvailability: 1=NOT_AVAILABLE, 2=UPDATE_AVAILABLE, 3=DEVELOPER_TRIGGERED, 0=UNKNOWN
+        if (info?.updateAvailability === 2) {
+          // immediateUpdateAllowed = true 면 IMMEDIATE 모드 가능
+          if (info.immediateUpdateAllowed) {
+            await AppUpdate.performImmediateUpdate();
+          } else if (info.flexibleUpdateAllowed) {
+            // flexible 폴백 — 사용자에게 알림
+            await AppUpdate.startFlexibleUpdate();
+          }
+        }
+      } catch (e) {
+        console.warn('App update check failed:', e);
+      }
+    }, 3000);
+  } catch (e) { console.warn('AppUpdate init failed:', e); }
 })();
 
 (function _setupAppDeepLinkListener() {
@@ -8873,7 +8903,8 @@ function showToast(message, type = 'success') {
   if (!el) {
     el = document.createElement('div');
     el.id = 'toastBox';
-    el.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none';
+    // bottom: 안드로이드 시스템 네비게이션 바 + 안전 영역 고려 (CSS env + 패딩 합산)
+    el.style.cssText = 'position:fixed; bottom:calc(24px + env(safe-area-inset-bottom, 0px) + 56px); left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; max-width:90vw';
     document.body.appendChild(el);
   }
   const colors = {

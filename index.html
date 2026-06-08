@@ -1429,7 +1429,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <div style="display:flex; gap:10px; align-items:flex-start">
             <div id="adminMainImagePreview" style="width:160px; aspect-ratio:16/9; background:#f3f4f6; border:1px dashed #d1d5db; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af; flex-shrink:0; overflow:hidden">없음</div>
             <div style="flex:1">
-              <input type="file" id="adminMainImageFile" accept="image/*" style="display:none">
+              <input type="file" id="adminMainImageFile" accept="image/*,.heic,.heif,image/heic,image/heif" style="display:none">
               <input id="adminMainImageUrl" placeholder="이미지 URL (또는 아래 파일 선택)" style="width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:12px; background:#fff; margin-bottom:6px">
               <div style="display:flex; gap:6px">
                 <button class="btn" type="button" onclick="document.getElementById('adminMainImageFile').click()" style="font-size:11px; padding:6px 12px; cursor:pointer">📁 파일 선택</button>
@@ -1531,8 +1531,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <div style="font-size:11px; font-weight:800; color:#3b82f6; margin-bottom:8px">앞면 (FRONT)</div>
             <div style="font-size:36px; margin-bottom:8px; opacity:0.5">⬆️</div>
             <div style="font-size:12px; color:#9ca3af; margin-bottom:10px">드래그앤드롭 또는 선택</div>
-            <input type="file" data-centering-file="front" accept="image/*" style="display:none">
-            <input type="file" data-centering-file="front-camera" accept="image/*" capture="environment" style="display:none">
+            <input type="file" data-centering-file="front" accept="image/*,.heic,.heif,image/heic,image/heif" style="display:none">
+            <input type="file" data-centering-file="front-camera" accept="image/*,.heic,.heif,image/heic,image/heif" capture="environment" style="display:none">
             <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap">
               <button class="btn primary" type="button" data-centering-btn="front-album" style="cursor:pointer; padding:6px 14px; font-size:12px">📁 앨범</button>
               <button class="btn" type="button" data-centering-btn="front-camera" style="cursor:pointer; padding:6px 14px; font-size:12px">📷 카메라</button>
@@ -1544,8 +1544,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <div style="font-size:11px; font-weight:800; color:#10b981; margin-bottom:8px">뒷면 (BACK)</div>
             <div style="font-size:36px; margin-bottom:8px; opacity:0.5">⬆️</div>
             <div style="font-size:12px; color:#9ca3af; margin-bottom:10px">드래그앤드롭 또는 선택</div>
-            <input type="file" data-centering-file="back" accept="image/*" style="display:none">
-            <input type="file" data-centering-file="back-camera" accept="image/*" capture="environment" style="display:none">
+            <input type="file" data-centering-file="back" accept="image/*,.heic,.heif,image/heic,image/heif" style="display:none">
+            <input type="file" data-centering-file="back-camera" accept="image/*,.heic,.heif,image/heic,image/heif" capture="environment" style="display:none">
             <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap">
               <button class="btn primary" type="button" data-centering-btn="back-album" style="cursor:pointer; padding:6px 14px; font-size:12px">📁 앨범</button>
               <button class="btn" type="button" data-centering-btn="back-camera" style="cursor:pointer; padding:6px 14px; font-size:12px">📷 카메라</button>
@@ -3136,10 +3136,39 @@ function setupCentering() {
   updateAICenteringCountUI();
 }
 
-function loadCenteringImage(side, file) {
+async function loadCenteringImage(side, file) {
+  // HEIC/HEIF (iPhone/iPad 기본 포맷) 자동 변환 → JPEG
+  const isHeic = /\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type || '');
+  if (isHeic) {
+    if (typeof showToast === 'function') showToast('HEIC 이미지 변환 중...', 'info');
+    try {
+      // heic2any 라이브러리 동적 로드 (CDN)
+      if (!window.heic2any) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+          s.onload = resolve;
+          s.onerror = () => reject(new Error('heic2any 라이브러리 로드 실패'));
+          document.head.appendChild(s);
+        });
+      }
+      const blob = await window.heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+      file = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('HEIC 변환 실패: ' + (e.message || e) + ' — JPEG/PNG 로 저장 후 다시 시도하세요', 'error');
+      return;
+    }
+  }
+
   const reader = new FileReader();
+  reader.onerror = () => {
+    if (typeof showToast === 'function') showToast('파일 읽기 실패: ' + (reader.error?.message || 'unknown'), 'error');
+  };
   reader.onload = e => {
     const img = new Image();
+    img.onerror = () => {
+      if (typeof showToast === 'function') showToast('이미지 인식 실패 — 파일 형식: ' + (file.type || '알 수 없음') + ', 크기: ' + (file.size/1024/1024).toFixed(2) + 'MB. JPEG/PNG/HEIC 만 지원', 'error');
+    };
     img.onload = () => {
       const s = _CENTERING[side];
       s.img = img;

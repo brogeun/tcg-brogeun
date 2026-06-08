@@ -1268,12 +1268,24 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div data-hubpanel="events" style="display:none">
         <!-- 그레이딩과 동일한 가로 row 형식 — 카드가 페이지 폭 전체 차지 -->
+        <div style="display:flex; justify-content:flex-end; margin-bottom:10px">
+          <button type="button" onclick="shareCurrentPage('events')" style="display:flex; align-items:center; gap:6px; padding:6px 12px; background:#f3f4f6; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:12px; color:#374151; font-weight:600">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            이벤트 페이지 공유
+          </button>
+        </div>
         <div id="eventListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
       <div data-hubpanel="cardshow" style="display:none">
         <div id="cardshowListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
       <div data-hubpanel="apply" style="display:none">
+        <div style="display:flex; justify-content:flex-end; margin-bottom:10px">
+          <button type="button" onclick="shareCurrentPage('raffles')" style="display:flex; align-items:center; gap:6px; padding:6px 12px; background:#f3f4f6; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:12px; color:#374151; font-weight:600">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            응모 페이지 공유
+          </button>
+        </div>
         <div class="grid cols-2" id="applyListHub"></div>
       </div>
       <div data-hubpanel="oripa" style="display:none">
@@ -8370,6 +8382,44 @@ async function doLogout() {
   showToast('로그아웃되었습니다', 'info');
 }
 
+// 응모/이벤트 페이지 공유 — Web Share API (모바일) → 클립보드 복사 (데스크톱)
+async function shareCurrentPage(type) {
+  const cfg = {
+    raffles: {
+      url: 'https://tcghub.kr/raffles',
+      title: '응모 페이지 - TCG Hub',
+      text: '포켓몬 · 원피스 TCG 박스 응모 정보를 확인하세요!',
+    },
+    events: {
+      url: 'https://tcghub.kr/events',
+      title: '이벤트 페이지 - TCG Hub',
+      text: 'TCG 카드쇼, 그레이딩 이벤트 등 최신 소식을 확인하세요!',
+    },
+  };
+  const c = cfg[type] || cfg.raffles;
+
+  // 1) Web Share API (모바일 — 카카오톡/메시지 등 시스템 공유 시트)
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: c.title, text: c.text, url: c.url });
+      return;
+    } catch (e) {
+      if (e?.name === 'AbortError') return; // 사용자 취소
+      console.warn('share failed, falling back:', e);
+    }
+  }
+
+  // 2) 클립보드 복사 (데스크톱)
+  try {
+    await navigator.clipboard.writeText(c.url);
+    if (typeof showToast === 'function') showToast('링크가 복사되었습니다: ' + c.url, 'success');
+    else alert('링크가 복사되었습니다:\n' + c.url);
+  } catch (e) {
+    // 3) 최후 폴백 — prompt
+    prompt('아래 링크를 복사해서 공유하세요:', c.url);
+  }
+}
+
 // 회원 탈퇴 — Apple App Store Guideline 5.1.1(v) 준수
 async function doDeleteAccount() {
   if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
@@ -8848,6 +8898,34 @@ async function startKakaoLogin() {
 }
 
 // Deep link (kr.tcghub.app://kakao-callback?code=...) 리스너 — 앱 시작 시 1회 등록
+// 공유 URL 라우팅 — /raffles 또는 /events 접속 시 자동으로 정보허브 → 응모/이벤트 탭 전환
+(function _handleSpecialPath() {
+  const path = location.pathname;
+  if (path !== '/raffles' && path !== '/events') return;
+  // 즉시 hash 를 #hub 로 (정보허브)
+  if (location.hash !== '#hub') location.hash = '#hub';
+  // DOM 준비 후 탭 자동 클릭 (재시도)
+  const targetSubtab = path === '/raffles' ? 'apply' : 'events';
+  let attempts = 0;
+  const trySwitch = () => {
+    attempts++;
+    const tabEl = document.querySelector(`[data-subtab="${targetSubtab}"]`);
+    if (tabEl) {
+      tabEl.click();
+      // URL 정리 — pathname 을 / 로 (브라우저 history)
+      history.replaceState(null, '', '/#hub');
+    } else if (attempts < 20) {
+      setTimeout(trySwitch, 200);
+    }
+  };
+  // 페이지 로딩 후 시작
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(trySwitch, 300));
+  } else {
+    setTimeout(trySwitch, 500);
+  }
+})();
+
 // 앱 시작 시 StatusBar 초기화 — 일반 앱 표준 방식 (시스템 바 영역 분리)
 (async function _initStatusBar() {
   try {

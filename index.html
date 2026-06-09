@@ -8996,9 +8996,31 @@ async function startKakaoLogin() {
 })();
 
 // 앱 시작 시 StatusBar 초기화 — 일반 앱 표준 방식 (시스템 바 영역 분리)
+// + 사이트 측 안전망 패딩 — native 처리가 실패해도 콘텐츠가 상태바에 안 가리도록
 (async function _initStatusBar() {
   try {
-    if (!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())) return;
+    if (!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform())) {
+      return;
+    }
+    const platform = window.Capacitor.getPlatform?.() || '';
+
+    // 사이트 측 안전망 — body 에 상단/하단 패딩 강제 적용 (CSS env + 최소값)
+    // 안드로이드: 상태바 보통 24~28dp, 하단 제스처 바 보통 0~16dp
+    // iOS: 노치 + 홈 인디케이터
+    const minTop = platform === 'ios' ? 0 : 24;   // 안드로이드 최소 24px
+    const minBot = platform === 'ios' ? 0 : 0;
+    try {
+      document.documentElement.style.setProperty('--app-safe-top', `max(env(safe-area-inset-top, 0px), ${minTop}px)`);
+      document.documentElement.style.setProperty('--app-safe-bot', `max(env(safe-area-inset-bottom, 0px), ${minBot}px)`);
+      // body 직접 padding (가장 광범위한 안전망)
+      const body = document.body;
+      if (body) {
+        body.style.paddingTop = `var(--app-safe-top)`;
+        body.style.paddingBottom = `var(--app-safe-bot)`;
+        body.style.boxSizing = 'border-box';
+      }
+    } catch {}
+
     const StatusBar = window.Capacitor?.Plugins?.StatusBar;
     if (!StatusBar) return;
     // overlay=false → web view 가 시스템 바 영역 절대 안 침범 (인스타/카톡 등 표준 방식)

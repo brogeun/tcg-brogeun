@@ -9276,7 +9276,19 @@ go(initialPage);
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('[PWA] SW registered:', reg.scope))
+      .then(reg => {
+        console.log('[PWA] SW registered:', reg.scope);
+        // 강제 update — 옛 SW 가 있어도 새 sw.js 즉시 fetch + activate
+        try { reg.update(); } catch {}
+        // 새 SW 가 controller 됐을 때 자동 reload (옛 캐시 → 새 코드)
+        let _swReloaded = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (_swReloaded) return;
+          _swReloaded = true;
+          console.log('[PWA] SW controller changed — reloading');
+          window.location.reload();
+        });
+      })
       .catch(err => console.warn('[PWA] SW register fail:', err));
   });
 }

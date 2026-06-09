@@ -55,6 +55,24 @@ def fetch_meta(cid):
     }
 
 
+def _atomic_save(path, data):
+    """Atomic write — tmp 파일에 쓰고 JSON 검증 후 os.replace 로 교체.
+    중단/동시 read 와 안전. 누적 손상 방지."""
+    import os
+    tmp = path.with_suffix(".tmp")
+    json_bytes = json.dumps(data, ensure_ascii=False, indent=0).encode("utf-8")
+    try:
+        tmp.write_bytes(json_bytes)
+        # 검증
+        json.loads(tmp.read_text(encoding="utf-8"))
+        # 원자적 교체
+        os.replace(str(tmp), str(path))
+    except Exception as e:
+        try: tmp.unlink()
+        except: pass
+        print(f"  ! atomic_save fail: {e}")
+
+
 def collect_ids():
     """대상 ID 수집 — history 디렉토리 + box 데이터"""
     ids = set()
@@ -99,9 +117,8 @@ def main():
     for i, cid in enumerate(target_ids, 1):
         if i % 50 == 0:
             print(f"  Progress: {i}/{len(target_ids)} (saved={saved}, failed={failed})")
-            # 중간 저장
-            with open(INDEX_FILE, "w", encoding="utf-8") as f:
-                json.dump(index, f, ensure_ascii=False, indent=0)
+            # 중간 저장 — atomic write (tmp -> 검증 -> os.replace)
+            _atomic_save(INDEX_FILE, index)
         meta = fetch_meta(cid)
         if meta:
             index[cid] = meta
@@ -110,9 +127,8 @@ def main():
             failed += 1
         time.sleep(0.3)  # SNKRDUNK 부하 분산
 
-    # 최종 저장
-    with open(INDEX_FILE, "w", encoding="utf-8") as f:
-        json.dump(index, f, ensure_ascii=False, indent=0)
+    # 최종 저장 — atomic
+    _atomic_save(INDEX_FILE, index)
     print(f"\n✓ Done. Total {len(index)} entries (saved {saved}, failed {failed})")
     print(f"  → {INDEX_FILE}")
 

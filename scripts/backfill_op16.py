@@ -5,10 +5,10 @@ backfill_op16.py — OP-16 전용 통합 백필 스크립트 (안전, 단계별)
 
 흐름:
   1. data 백업 (data.bak-op16-{timestamp}/)
-  2. SNKRDUNK 카탈로그 재수집 (onepiece) → all-cards.json 갱신
+  2. SNKRDUNK 카탈로그 재수집 (onepiece) -> all-cards.json 갱신
   3. OP-16 카드 SNKRDUNK 매칭 수 확인
   4. OP-16 박스 메타 (name, image, lastPrice) SNKRDUNK API fetch
-     → manual-boxes-onepiece.json 의 OP-16 entry 갱신
+     -> manual-boxes-onepiece.json 의 OP-16 entry 갱신
   5. OP-16 박스 시세 백필 (history/816932.json)
   6. OP-16 카드 빈 history 파일 생성 (data/op16_card_ids.txt 도 생성)
   7. cards-meta-index 갱신 (build_cards_meta_index 호출)
@@ -28,6 +28,7 @@ backfill_op16.py — OP-16 전용 통합 백필 스크립트 (안전, 단계별)
 """
 
 import argparse
+import io
 import json
 import shutil
 import subprocess
@@ -36,6 +37,13 @@ import time
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+
+# 윈도우 cmd 의 cp949 인코딩 우회 — 한글/유니코드 안전 출력
+try:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+except Exception:
+    pass
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -60,7 +68,7 @@ def banner(title):
 
 def step(n, title):
     print()
-    print(f"━━━ Step {n} ─ {title}")
+    print(f"--- Step {n} - {title}")
 
 
 def run(cmd, dry=False):
@@ -71,7 +79,7 @@ def run(cmd, dry=False):
         return
     r = subprocess.run(cmd, cwd=str(ROOT))
     if r.returncode != 0:
-        print(f"  ❌ exit {r.returncode} — 중단")
+        print(f"  [FAIL] exit {r.returncode} — 중단")
         sys.exit(r.returncode)
 
 
@@ -92,7 +100,7 @@ def backup_data(dry=False):
     """data 폴더의 핵심 파일들 timestamp 백업"""
     ts = datetime.now().strftime("%Y%m%d-%H%M%S")
     bak_dir = DATA / f"_bak-op16-{ts}"
-    print(f"  → {bak_dir}")
+    print(f"  -> {bak_dir}")
     if dry:
         return bak_dir
     bak_dir.mkdir(parents=True, exist_ok=True)
@@ -105,7 +113,7 @@ def backup_data(dry=False):
     if op16_box_hist.exists():
         (bak_dir / "history").mkdir(exist_ok=True)
         shutil.copy2(op16_box_hist, bak_dir / "history" / op16_box_hist.name)
-    print(f"  ✓ 백업 완료")
+    print(f"  [OK] 백업 완료")
     return bak_dir
 
 
@@ -124,18 +132,18 @@ def discover_op16_cards():
 
 
 def refresh_box_meta(dry=False):
-    """OP-16 박스 메타 (name, image, lastPrice) SNKRDUNK API 에서 fetch → manual-boxes 갱신"""
+    """OP-16 박스 메타 (name, image, lastPrice) SNKRDUNK API 에서 fetch -> manual-boxes 갱신"""
     if not MANUAL_BOXES.exists():
-        print("  ⚠ manual-boxes-onepiece.json 없음 — skip")
+        print("  [!] manual-boxes-onepiece.json 없음 — skip")
         return
-    print(f"  → SNKRDUNK API fetch (id={OP16_BOX_ID})")
+    print(f"  -> SNKRDUNK API fetch (id={OP16_BOX_ID})")
     if dry:
         print("  [dry-run] skip")
         return
     try:
         d = fetch_snkrdunk_meta(OP16_BOX_ID)
     except Exception as e:
-        print(f"  ⚠ fetch 실패: {e} — 기존 메타 유지")
+        print(f"  [!] fetch 실패: {e} — 기존 메타 유지")
         return
     a = d.get("apparel") or d.get("data", {}).get("apparel") or d
     name = a.get("name") or a.get("title") or ""
@@ -155,12 +163,12 @@ def refresh_box_meta(dry=False):
             found = True
             break
     if not found:
-        print(f"  ⚠ manual-boxes 에 OP-16 entry 없음")
+        print(f"  [!] manual-boxes 에 OP-16 entry 없음")
         return
     MANUAL_BOXES.write_text(json.dumps(mb, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"  ✓ name: {(name or '')[:60]}")
-    print(f"  ✓ image: {(image or '')[:80]}")
-    print(f"  ✓ lastPrice: {last_price}")
+    print(f"  [OK] name: {(name or '')[:60]}")
+    print(f"  [OK] image: {(image or '')[:80]}")
+    print(f"  [OK] lastPrice: {last_price}")
 
 
 def init_op16_card_history(op16_cards, dry=False):
@@ -189,8 +197,8 @@ def init_op16_card_history(op16_cards, dry=False):
     # ids file 작성
     if not dry:
         IDS_FILE.write_text("\n".join(cid_list) + "\n", encoding="utf-8")
-    print(f"  ✓ 신규 빈 history: {created}개 / 기존: {existing}개")
-    print(f"  ✓ ids 파일: {IDS_FILE.relative_to(ROOT)} ({len(cid_list)}개 cid)")
+    print(f"  [OK] 신규 빈 history: {created}개 / 기존: {existing}개")
+    print(f"  [OK] ids 파일: {IDS_FILE.relative_to(ROOT)} ({len(cid_list)}개 cid)")
     return cid_list
 
 
@@ -210,12 +218,13 @@ def main():
     step(1, "data 백업")
     backup_data(dry=dry)
 
-    # 2. SNKRDUNK 카탈로그 재수집
-    step(2, "SNKRDUNK 원피스 카탈로그 재수집")
+    # 2. SNKRDUNK 카탈로그 재수집 (포켓몬 + 원피스 둘 다 — 한 쪽만 하면 all-cards 가 덮어써짐)
+    step(2, "SNKRDUNK 카탈로그 재수집 (포켓몬 + 원피스)")
     if args.skip_discover:
         print("  [--skip-discover] skip")
     else:
-        run([sys.executable, str(ROOT / "scripts" / "discover_cards.py"), "onepiece"], dry=dry)
+        # 인자 안 줘서 양쪽 brand 모두 처리 (~3~5분)
+        run([sys.executable, str(ROOT / "scripts" / "discover_cards.py")], dry=dry)
 
     # 3. OP-16 카드 매칭 수 확인
     step(3, "OP-16 카드 SNKRDUNK 매칭 확인")
@@ -225,8 +234,8 @@ def main():
         for c in op16_cards[:3]:
             print(f"    {c.get('id')} {c.get('productNumber','?')} {(c.get('name') or '')[:50]}")
     if len(op16_cards) < 10:
-        print(f"  ⚠ 카드 매칭 너무 적음 ({len(op16_cards)}장) — SNKRDUNK 미인덱싱 가능")
-        print(f"  ⚠ 박스 백필은 계속, 카드 백필은 효과 없을 수 있음")
+        print(f"  [!] 카드 매칭 너무 적음 ({len(op16_cards)}장) — SNKRDUNK 미인덱싱 가능")
+        print(f"  [!] 박스 백필은 계속, 카드 백필은 효과 없을 수 있음")
 
     # 4. 박스 메타 갱신
     step(4, "OP-16 박스 메타 (name/image/lastPrice) SNKRDUNK fetch")
@@ -245,7 +254,7 @@ def main():
     step(6, "OP-16 카드 빈 history 파일 생성")
     cid_list = init_op16_card_history(op16_cards, dry=dry)
     if not cid_list:
-        print("  ⚠ OP-16 카드 0개 — 카드 백필 skip")
+        print("  [!] OP-16 카드 0개 — 카드 백필 skip")
         banner("완료 (카드 매칭 없음)")
         return
 
@@ -260,8 +269,8 @@ def main():
          f"--ids-file={IDS_FILE.relative_to(ROOT)}"], dry=dry)
 
     banner("완료")
-    print(f"  ✓ 박스 시세 백필: history/{OP16_BOX_ID}.json")
-    print(f"  ✓ 카드 시세 백필: {len(cid_list)}장")
+    print(f"  [OK] 박스 시세 백필: history/{OP16_BOX_ID}.json")
+    print(f"  [OK] 카드 시세 백필: {len(cid_list)}장")
     print(f"\n  다음:")
     print(f"    git add data/ index.html")
     print(f"    git commit -m 'OP-16 SNKRDUNK 백필 (박스+카드)'")

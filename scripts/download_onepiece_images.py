@@ -21,7 +21,7 @@ IMG_DIR = ROOT / "images" / "onepiece"
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 OP_SETS = ['OP01','OP02','OP03','OP04','OP05','OP06','OP07','OP08','OP09','OP10',
-           'OP11','OP12','OP13','OP14','OP15','EB01','EB02','EB03','EB04']
+           'OP11','OP12','OP13','OP14','OP15','OP16','EB01','EB02','EB03','EB04']
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")

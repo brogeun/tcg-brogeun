@@ -8787,8 +8787,12 @@ async function _initSocialLogin() {
   try {
     await SocialLogin.initialize({
       google: {
+        // Android + 공통 (필수) — Web Client ID
+        webClientId: '163173913025-2smamjb11famoenksmsoqf0b52q9qges.apps.googleusercontent.com',
+        // iOS 전용
         iOSClientId: '163173913025-ndu8nof28n3h8bemldpskr197h1luo7h.apps.googleusercontent.com',
         iOSServerClientId: '163173913025-2smamjb11famoenksmsoqf0b52q9qges.apps.googleusercontent.com',
+        mode: 'online',
       },
       apple: {
         clientId: 'kr.tcghub.app',

@@ -8730,10 +8730,11 @@ async function startGoogleLogin() {
 
     if (SocialLogin && typeof SocialLogin.login === 'function') {
       // 새 빌드 — @capgo/capacitor-social-login 사용
+      // scopes 옵션 제거 — MainActivity 수정 필요 (기본 email + profile 자동 포함)
       await _initSocialLogin();
       const result = await SocialLogin.login({
         provider: 'google',
-        options: { scopes: ['email', 'profile'] },
+        options: {},
       });
       const r = result?.result || result;
       idToken = r?.idToken;

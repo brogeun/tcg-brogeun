@@ -1,2 +1,8 @@
+# 정적 파일 — 먼저 처리 (SPA fallback 가로채기 방지)
+/sitemap.xml       /sitemap.xml       200
+/robots.txt        /robots.txt        200
+/manifest.json     /manifest.json     200
+/sw.js             /sw.js             200
+
 # SPA fallback — Functions(/api/*) 는 Cloudflare 가 자동 우선처리
 /*    /index.html   200

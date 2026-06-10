@@ -811,6 +811,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 홈 (UI 개편 — 자산 위젯 + 브랜드별 TOP 시세 + 그레이딩 배너 + 소식) -->
     <section class="page" data-page="home">
 
+      <!-- SEO h1 — 화면 안 보이지만 검색 엔진 인식 -->
+      <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap">TCG Hub - 포켓몬 · 원피스 TCG 카드 시세 · AI 그레이딩 · 아마존JP 응모</h1>
+
       <!-- 내 자산 위젯 (포트폴리오) -->
       <div class="asset-widget" id="homeAssetWidget">
         <div class="asset-main">
@@ -1059,7 +1062,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <section class="page" data-page="price">
       <!-- 새 헤더 — 라이브 dot -->
       <div class="page-head2" style="margin-bottom:20px">
-        <h1 class="page-title2">시세</h1>
+        <h1 class="page-title2">시세 <span style="font-size:13px;font-weight:400;color:var(--ink-mute);margin-left:8px">포켓몬·원피스 TCG 카드 PSA10 등급별 실시간 시세</span></h1>
         <div class="page-desc2">
           <span class="live-dot2"></span>
           SNKRDUNK 실거래가 기준 · 24시간 자동 갱신
@@ -1375,7 +1378,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <!-- 카드 정보 -->
     <section class="page" data-page="cardinfo">
       <div class="page-head">
-        <h1 class="page-title"><i data-lucide="layers" style="width:24px;height:24px"></i> 카드 정보</h1>
+        <h1 class="page-title"><i data-lucide="layers" style="width:24px;height:24px"></i> 카드 정보 <span style="font-size:13px;font-weight:400;color:var(--ink-mute);margin-left:6px">포켓몬·원피스 TCG 박스 목록 · 발매일</span></h1>
         <p class="page-sub">포켓몬 · 원피스 확장팩 목록과 공식 정보</p>
       </div>
 

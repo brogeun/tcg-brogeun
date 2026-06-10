@@ -8796,6 +8796,8 @@ async function _initSocialLogin() {
     return;
   }
   try {
+    // platform 별 분기 — Android 는 Apple 안 씀 (Apple 정책상 iOS 만 필수)
+    const platform = window.Capacitor?.getPlatform?.() || 'web';
     const initConfig = {
       google: {
         // Android + 공통 (필수) — Web Client ID
@@ -8805,18 +8807,19 @@ async function _initSocialLogin() {
         iOSServerClientId: '163173913025-2smamjb11famoenksmsoqf0b52q9qges.apps.googleusercontent.com',
         mode: 'online',
       },
-      apple: {
-        clientId: 'kr.tcghub.app',
-      },
     };
-    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin.initialize() 호출 중...');
+    // Apple — iOS 에서만 추가 (Android 는 redirectUrl 필수라 제외)
+    if (platform === 'ios') {
+      initConfig.apple = {
+        clientId: 'kr.tcghub.app',
+      };
+    }
     const result = await SocialLogin.initialize(initConfig);
     _socialLoginInitialized = true;
-    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin init OK: ' + JSON.stringify(result || {}).slice(0, 80));
   } catch (e) {
     const err = e?.message || e?.toString() || JSON.stringify(e);
     console.warn('SocialLogin.initialize error:', e);
-    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin init 실패: ' + err.slice(0, 200));
+    if (typeof showToast === 'function') showToast('SocialLogin init 실패: ' + err.slice(0, 200));
   }
 }
 

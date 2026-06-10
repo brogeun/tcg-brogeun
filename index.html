@@ -8791,9 +8791,12 @@ let _socialLoginInitialized = false;
 async function _initSocialLogin() {
   if (_socialLoginInitialized) return;
   const SocialLogin = window.Capacitor?.Plugins?.SocialLogin;
-  if (!SocialLogin || typeof SocialLogin.initialize !== 'function') return;
+  if (!SocialLogin || typeof SocialLogin.initialize !== 'function') {
+    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin plugin 없음 — 앱 업데이트 필요');
+    return;
+  }
   try {
-    await SocialLogin.initialize({
+    const initConfig = {
       google: {
         // Android + 공통 (필수) — Web Client ID
         webClientId: '163173913025-2smamjb11famoenksmsoqf0b52q9qges.apps.googleusercontent.com',
@@ -8805,10 +8808,15 @@ async function _initSocialLogin() {
       apple: {
         clientId: 'kr.tcghub.app',
       },
-    });
+    };
+    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin.initialize() 호출 중...');
+    const result = await SocialLogin.initialize(initConfig);
     _socialLoginInitialized = true;
+    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin init OK: ' + JSON.stringify(result || {}).slice(0, 80));
   } catch (e) {
-    console.warn('SocialLogin.initialize error (ignored):', e);
+    const err = e?.message || e?.toString() || JSON.stringify(e);
+    console.warn('SocialLogin.initialize error:', e);
+    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin init 실패: ' + err.slice(0, 200));
   }
 }
 

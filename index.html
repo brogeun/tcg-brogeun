@@ -4705,7 +4705,7 @@ function renderPriceGrid(products) {
           ${nameHtml}
           <div class="price-card-price">${fmtKrw(price, p.currency)}</div>
           <div class="price-card-krw">${fmtOrig(price, p.currency)}</div>
-          <div class="price-card-tag">SNKRDUNK 최저가</div>
+          <div class="price-card-tag">${p._grade === 'PSA10' ? 'PSA10 시세' : (p._grade === 'raw' ? 'A급(싱글) 시세' : 'SNKRDUNK 최저가')}</div>
         </div>
       </a>`;
   }).join('');

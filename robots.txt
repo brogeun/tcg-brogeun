@@ -1,0 +1,17 @@
+# TCG Hub robots.txt
+# 검색 엔진 크롤링 허용
+
+User-agent: *
+Allow: /
+
+# 관리자/API 차단
+Disallow: /api/
+Disallow: /admin/
+Disallow: /#admin
+Disallow: /#casing
+
+# Sitemap
+Sitemap: https://tcghub.kr/sitemap.xml
+
+# Crawl-delay (Bing 등)
+Crawl-delay: 1

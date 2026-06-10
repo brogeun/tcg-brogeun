@@ -3935,27 +3935,10 @@ async function renderGradesPanel(productId, product) {
       }
     } catch (e) { console.warn('PSA POP fetch fail:', e); }
 
-    // grid 메인 렌더 + A급 옆 4번째 박스로 직구가격 + 5번째로 POP 표시
+    // grid 메인 렌더 + 5번째로 POP 표시 (직구가격 칩 제거)
     // BGS 등급은 데이터 있는 카드만 표시 (대부분 카드에 BGS 거래 없음)
     const _hasGradeData = (g) => g && (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy);
     let html = ORDER.filter(k => !k.startsWith('bgs') || _hasGradeData(grades[k])).map(k => renderBlock(k, grades[k])).join('');
-    // 직구가격 칩 — (PSA10 KRW × 1.1) + 50,000
-    const psa10Grade = grades.psa10;
-    const psa10Val = psa10Grade ? (psa10Grade.lowest_ask ?? psa10Grade.recent_avg ?? psa10Grade.last5_avg ?? psa10Grade.avg ?? psa10Grade.avg_jpy) : null;
-    const psa10Cur = psa10Grade?.currency || (psa10Grade?.avg_jpy ? 'JPY' : 'USD');
-    if (psa10Val && psa10Val > 0) {
-      const psa10Krw = toKrw(psa10Val, psa10Cur);
-      const directKrw = Math.round(psa10Krw * 1.1 + 50000);
-      // 직구가격은 항상 그리드의 마지막 컬럼에 고정 (BGS 박스 다음 맨 오른쪽)
-      html += `
-        <div class="detail-grade-chip" style="position:relative; background:#ecfeff; border:1px solid #06b6d455; border-radius:8px; padding:12px 14px; cursor:help; grid-column:-2 / -1">
-          <div style="font-size:11px; font-weight:800; color:#0891b2; margin-bottom:6px">직구가격 <span style="font-size:9px; color:#06b6d4; background:#cffafe; padding:1px 4px; border-radius:3px; margin-left:2px">NEW</span></div>
-          <div style="font-size:15px; font-weight:800; color:#111">₩${directKrw.toLocaleString()}</div>
-          <div style="font-size:11px; color:var(--ink-sub); margin-top:2px">PSA10 × 1.1 + 50,000</div>
-          <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">예시 환산가</div>
-          <div class="dg-tip" style="position:absolute; bottom:calc(100% + 6px); right:0; background:#111; color:#fff; padding:8px 10px; border-radius:6px; font-size:11px; font-weight:500; line-height:1.45; white-space:normal; width:max-content; max-width:220px; opacity:0; pointer-events:none; transition:opacity 0.15s; z-index:10; box-shadow:0 4px 12px rgba(0,0,0,0.18)">※ PSA10 기준 부가세, 배송비 포함 예시 가격</div>
-        </div>`;
-    }
     if (popCount > 0) {
       html += `
         <div style="background:#fef3c7; border:1px solid #fbbf2455; border-radius:8px; padding:12px 14px">
@@ -4992,11 +4975,6 @@ async function renderSlidePanel(productId) {
         <div class="gc-label">A급(미개봉)</div>
         <div class="gc-val">${fmtChip(rawPrice)}</div>
       </div>
-      <div class="slide-grade-chip" data-grade="direct">
-        <div class="gc-label">직구가격</div>
-        <div class="gc-val">${fmtChip(directPrice)}</div>
-        <div class="gc-tip">※ PSA10 기준 부가세, 배송비 포함 예시 가격</div>
-      </div>
     </div>`;
   // BGS 그룹 — 데이터 1개라도 있는 카드만 표시 (조건부)
   const hasBgs = !isBox && (bgs10BlPrice || bgs10GlPrice || bgs95Price);
@@ -5060,7 +5038,6 @@ async function renderSlidePanel(productId) {
         psa10:    [psa10Price,    'PSA 10 기준'],
         psa9:     [psa9Price,     'PSA 9 기준'],
         raw:      [rawPrice,      'A급(미개봉) 기준'],
-        direct:   [directPrice,   '직구가격 (PSA10 × 1.1 + 50,000)'],
         bgs10_bl: [bgs10BlPrice,  'BGS 10 Black Label 기준 (거래 적어 참고용)'],
         bgs10_gl: [bgs10GlPrice,  'BGS 10 Gold Label 기준 (거래 적어 참고용)'],
         bgs95:    [bgs95Price,    'BGS 9.5 기준 (거래 적어 참고용)'],

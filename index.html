@@ -9286,23 +9286,43 @@ go(initialPage);
    11. PWA — Service Worker 등록 + "홈에 추가" 프롬프트
    ──────────────────────────────────── */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => {
-        console.log('[PWA] SW registered:', reg.scope);
-        // 강제 update — 옛 SW 가 있어도 새 sw.js 즉시 fetch + activate
-        try { reg.update(); } catch {}
-        // 새 SW 가 controller 됐을 때 자동 reload (옛 캐시 → 새 코드)
-        let _swReloaded = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (_swReloaded) return;
-          _swReloaded = true;
-          console.log('[PWA] SW controller changed — reloading');
-          window.location.reload();
-        });
-      })
-      .catch(err => console.warn('[PWA] SW register fail:', err));
-  });
+  const isCapacitorApp = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+  if (isCapacitorApp) {
+    // Capacitor 앱 안에서는 SW 비활성화 — server.url 로 사이트 직접 로드.
+    // 옛 SW 가 등록되어 있으면 unregister + 캐시 다 비움 (옛 코드 영구 제거).
+    // 사용자가 매번 데이터 삭제할 필요 없음.
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister().catch(() => {}));
+      if (regs.length > 0) {
+        // 옛 SW 가 있었으면 캐시 다 비우고 reload (한 번만)
+        if ('caches' in window) {
+          caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+            .then(() => {
+              if (!sessionStorage.getItem('_sw_unreg_reloaded')) {
+                sessionStorage.setItem('_sw_unreg_reloaded', '1');
+                window.location.reload();
+              }
+            });
+        }
+      }
+    }).catch(() => {});
+  } else {
+    // 일반 브라우저 — PWA SW 등록
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => {
+          console.log('[PWA] SW registered:', reg.scope);
+          try { reg.update(); } catch {}
+          let _swReloaded = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (_swReloaded) return;
+            _swReloaded = true;
+            window.location.reload();
+          });
+        })
+        .catch(err => console.warn('[PWA] SW register fail:', err));
+    });
+  }
 }
 
 // 설치 프롬프트 (Android Chrome) + 데스크톱·iOS 폴백

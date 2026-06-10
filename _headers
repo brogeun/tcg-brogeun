@@ -1,0 +1,36 @@
+# Cloudflare Pages _headers — 캐시 제어
+# 핵심 파일들은 절대 캐시 X. 사이트 코드 변경 시 모든 사용자 즉시 반영.
+
+# index.html — 절대 캐시 X (브라우저, CDN, WebView 다 매번 새 받음)
+/index.html
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+
+# 루트 / — 동일
+/
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+
+# sw.js — 절대 캐시 X (SW 갱신 즉시 적용)
+/sw.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+  Pragma: no-cache
+  Expires: 0
+
+# manifest.json — 짧은 캐시
+/manifest.json
+  Cache-Control: public, max-age=300
+
+# /data/ JSON — 5분 캐시 (시세 데이터)
+/data/*.json
+  Cache-Control: public, max-age=300
+
+# 이미지 — 1시간 캐시
+/images/*
+  Cache-Control: public, max-age=3600
+
+# 폰트 — 1주 캐시
+/fonts/*
+  Cache-Control: public, max-age=604800, immutable

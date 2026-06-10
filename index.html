@@ -4826,8 +4826,12 @@ async function renderSlidePanel(productId) {
     else if (code) pack = code;
     else if (pname) pack = pname;
   }
-  // 박스 vs 카드 — history 에 psa10_price/psa9_price 있으면 카드, 없으면 박스
-  const isBox = !history || !history.length || !history.some(h => h && (h.psa10_price != null || h.psa9_price != null));
+  // 박스 vs 카드 — productNumber 패턴 (예: OP16-022, ST30-001) 또는 history 등급 키
+  // 신상 카드는 PSA10/PSA9 감정 안 돼서 raw_price 만 있을 수 있음 → raw 도 카드 판별 포함
+  const isCardByPN = product && product.productNumber && /^[A-Za-z]+\d*[A-Za-z]?-\d+/.test(String(product.productNumber));
+  const hasCardGrade = history && history.some(h => h && (h.psa10_price != null || h.psa9_price != null || h.raw_price != null || h.bgs10_bl_price != null || h.bgs10_gl_price != null || h.bgs95_price != null));
+  const hasBoxData = history && history.some(h => h && h.box_price != null);
+  const isBox = isCardByPN ? false : (hasCardGrade ? false : (hasBoxData ? true : true));
   // 가격 — 별도 페이지와 동일 로직 (최신부터 역순으로 각 등급 첫 non-null)
   function pickLatestPrice(field) {
     if (!history || !history.length) return null;

@@ -26,6 +26,49 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 HISTORY = DATA / "history"
+CARDS_DETAIL = DATA / "cards-detail.json"
+
+
+_CD_CACHE = None
+def get_cards_detail():
+    """cards-detail.json 의 grades 정보 — lowest_ask (현재 listing 가격) 우선."""
+    global _CD_CACHE
+    if _CD_CACHE is not None:
+        return _CD_CACHE
+    try:
+        d = json.load(open(CARDS_DETAIL, encoding="utf-8"))
+        _CD_CACHE = d.get("cards", {})
+    except Exception:
+        _CD_CACHE = {}
+    return _CD_CACHE
+
+
+def get_psa10_from_cards_detail(cid):
+    """cards-detail.json 의 lowest_ask (PSA10) — (price, currency) 반환"""
+    cards = get_cards_detail()
+    c = cards.get(str(cid))
+    if not c:
+        return None, None
+    g = c.get("grades", {}).get("psa10") or {}
+    price = g.get("lowest_ask") or g.get("recent_avg") or g.get("avg")
+    cur = g.get("currency") or "USD"
+    if price and price > 0:
+        return price, cur
+    return None, None
+
+
+def get_raw_from_cards_detail(cid):
+    """cards-detail.json 의 lowest_ask (raw)"""
+    cards = get_cards_detail()
+    c = cards.get(str(cid))
+    if not c:
+        return None, None
+    g = c.get("grades", {}).get("raw") or {}
+    price = g.get("lowest_ask") or g.get("recent_avg") or g.get("avg")
+    cur = g.get("currency") or "USD"
+    if price and price > 0:
+        return price, cur
+    return None, None
 
 
 def get_latest_grade_price(cid, grade_key):
@@ -85,7 +128,16 @@ def process(path):
             p["_orig_lastPrice"] = p.get("lastPrice")
             p["_orig_currency"] = p.get("currency", "USD")
 
-        # 1) PSA10 우선
+        # 1) cards-detail.json 의 PSA10 lowest_ask 우선 (슬라이드 패널과 동일 출처)
+        psa10_price, psa10_cur = get_psa10_from_cards_detail(cid)
+        if psa10_price:
+            p["lastPrice"] = psa10_price
+            p["currency"] = psa10_cur
+            p["_grade"] = "PSA10"
+            updated_psa10 += 1
+            continue
+
+        # 2) history 의 최근 PSA10 (cards-detail 에 없으면 fallback)
         psa10 = get_latest_grade_price(cid, "psa10_price")
         if psa10:
             p["lastPrice"] = psa10
@@ -94,7 +146,16 @@ def process(path):
             updated_psa10 += 1
             continue
 
-        # 2) raw fallback
+        # 3) raw fallback — cards-detail 의 raw lowest_ask
+        raw_price, raw_cur = get_raw_from_cards_detail(cid)
+        if raw_price:
+            p["lastPrice"] = raw_price
+            p["currency"] = raw_cur
+            p["_grade"] = "raw"
+            updated_raw += 1
+            continue
+
+        # 4) history 의 최근 raw
         raw = get_latest_grade_price(cid, "raw_price")
         if raw:
             p["lastPrice"] = raw
@@ -103,7 +164,7 @@ def process(path):
             updated_raw += 1
             continue
 
-        # 3) 둘 다 없음 — 기존 minPrice 유지
+        # 5) 둘 다 없음 — 기존 minPrice 유지
         p["_grade"] = "minPrice"
         skipped += 1
 

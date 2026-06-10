@@ -1,8 +1,9 @@
-# 정적 파일 — 먼저 처리 (SPA fallback 가로채기 방지)
-/sitemap.xml       /sitemap.xml       200
-/robots.txt        /robots.txt        200
-/manifest.json     /manifest.json     200
-/sw.js             /sw.js             200
+# 명시적 SPA 라우트만 — sitemap.xml/robots.txt 같은 정적 파일 자동 처리
+# (이전 /* fallback 이 모든 URL 가로채던 거 해결)
 
-# SPA fallback — Functions(/api/*) 는 Cloudflare 가 자동 우선처리
-/*    /index.html   200
+/price/*    /index.html   200
+/cardinfo*  /index.html   200
+/info*      /index.html   200
+/mypage*    /index.html   200
+/admin*     /index.html   200
+/casing*    /index.html   200

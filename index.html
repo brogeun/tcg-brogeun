@@ -310,7 +310,7 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .brand-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .brand-name { font-weight: 800; font-size: 17px; }
-.brand-sub { font-size: 12px; color: var(--ink-sub); margin-top: 2px; }
+.brand-sub { font-size: 12px; color: var(--ink-sub); margin-top: 2px; line-height: 1.45; }
 
 .nav-section { font-size: 11px; color: var(--ink-mute); padding: 16px 12px 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 .nav-list { display: flex; flex-direction: column; gap: 2px; }
@@ -721,7 +721,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div>
         <div class="brand-name">TCG Hub</div>
-        <div class="brand-sub">Pokémon · One Piece</div>
+        <div class="brand-sub">Pokémon<br>One Piece</div>
       </div>
     </div>
     <div class="nav-section">메뉴</div>
@@ -5060,9 +5060,11 @@ async function renderSlidePanel(productId) {
   // 박스 vs 카드 — productNumber 패턴 (예: OP16-022, ST30-001) 또는 history 등급 키
   // 신상 카드는 PSA10/PSA9 감정 안 돼서 raw_price 만 있을 수 있음 → raw 도 카드 판별 포함
   const isCardByPN = product && product.productNumber && /^[A-Za-z]+\d*[A-Za-z]?-\d+/.test(String(product.productNumber));
+  // 이름의 [세트코드 번호] 패턴 — 신상 카드는 history 파일이 없어 박스로 오분류되던 버그 fix
+  const isCardByName = isCardProduct(name);
   const hasCardGrade = history && history.some(h => h && (h.psa10_price != null || h.psa9_price != null || h.raw_price != null || h.bgs10_bl_price != null || h.bgs10_gl_price != null || h.bgs95_price != null));
   const hasBoxData = history && history.some(h => h && h.box_price != null);
-  const isBox = isCardByPN ? false : (hasCardGrade ? false : (hasBoxData ? true : true));
+  const isBox = (isCardByPN || isCardByName) ? false : (hasCardGrade ? false : (hasBoxData ? true : true));
   // 가격 — 별도 페이지와 동일 로직 (최신부터 역순으로 각 등급 첫 non-null)
   function pickLatestPrice(field) {
     if (!history || !history.length) return null;
@@ -5095,10 +5097,14 @@ async function renderSlidePanel(productId) {
     if (psa10Jpy == null) psa10Jpy = pickLatestPrice('psa10_price');
     if (psa9Jpy  == null) psa9Jpy  = pickLatestPrice('psa9_price');
     if (rawJpy   == null) rawJpy   = pickLatestPrice('raw_price');
-    // 3순위 — product.lastPrice (PSA10 만)
-    if (psa10Jpy == null && product && product.lastPrice) {
-      psa10Jpy = product.lastPrice;
-      psa10Cur = product.currency || 'JPY';
+    // 3순위 — product.lastPrice (그리드에서 PSA10/A급으로 데코된 값 — 등급에 맞게 배치)
+    if (product && product.lastPrice) {
+      if (product._grade === 'raw') {
+        if (rawJpy == null) { rawJpy = product.lastPrice; rawCur = product.currency || 'JPY'; }
+      } else if (psa10Jpy == null) {
+        psa10Jpy = product.lastPrice;
+        psa10Cur = product.currency || 'JPY';
+      }
     }
   }
   // BGS 가격 — history 에서만 (SNKRDUNK 가 거래 적어 차트 불안정 → 가격만 표시)
@@ -5167,8 +5173,10 @@ async function renderSlidePanel(productId) {
         <div class="gc-val">${fmtChip(bgs95Price)}</div>
       </div>
     </div>` : '';
-  const mainPrice = isBox ? boxPrice : psa10Price;
-  const mainLabel = isBox ? '박스 상품 — 그레이딩 거래 없음' : 'PSA 10 기준';
+  const mainPrice = isBox ? boxPrice : (psa10Price ?? rawPrice);
+  const mainLabel = isBox
+    ? '박스 상품 — 그레이딩 거래 없음'
+    : (psa10Price ? 'PSA 10 기준' : (rawPrice ? 'A급(싱글) 기준 — PSA10 거래 내역 없음' : 'PSA 10 기준'));
   body.innerHTML = `
     ${gradeRowHTML}
     ${bgsRowHTML}

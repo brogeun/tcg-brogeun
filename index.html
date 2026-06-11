@@ -4356,10 +4356,13 @@ function renderPriceSearchAsGrid(results, query) {
     brand: c.brand,
   }));
   // PRICE_CAT 무관하게 카드 표시 (검색 모드 표시용 임시 override)
-  const prevCat = window.PRICE_CAT;
-  window.PRICE_CAT = 'card';
-  renderPriceGrid(products);
-  window.PRICE_CAT = prevCat;
+  // PSA10 기준 가격으로 교체 후 렌더 (없으면 A급 폴백)
+  applyGradePrices(products).then(() => {
+    const prevCat = window.PRICE_CAT;
+    window.PRICE_CAT = 'card';
+    renderPriceGrid(products);
+    window.PRICE_CAT = prevCat;
+  });
 }
 
 // 결과 렌더 — 두 위치 모두 지원
@@ -4810,6 +4813,7 @@ async function loadPriceGrid() {
       const d2 = await r2.json();
       HOME_TOP_CACHE[PRICE_BRAND] = [...(d.products || []), ...(d2?.products || [])];
     } catch { HOME_TOP_CACHE[PRICE_BRAND] = all; }
+    if (PRICE_CAT === 'card') await applyGradePrices(all);
     renderPriceGrid(all);
     if (all.length === 0) {
       status.textContent = `🔜 데이터 수집 전 — GitHub Actions 첫 실행 대기`;
@@ -4882,6 +4886,31 @@ function getBoxKoreanName(productName, brand) {
     }
   }
   return null;
+}
+
+// 카드 목록 가격을 PSA10 기준으로 교체 — 없으면 A급(raw) 폴백, 둘 다 없으면 기존 최저가 유지
+// (박스는 호출부에서 제외)
+async function applyGradePrices(products) {
+  try {
+    const data = await loadCardsDetail();
+    const cards = data?.cards || {};
+    for (const p of products) {
+      const g = cards[String(p.id)]?.grades;
+      if (!g) continue;
+      if (g.psa10?.lowest_ask > 0) {
+        p.lastPrice = g.psa10.lowest_ask;
+        p.lowestAsk = g.psa10.lowest_ask;
+        p.currency = g.psa10.currency || p.currency;
+        p._grade = 'PSA10';
+      } else if (g.raw?.lowest_ask > 0) {
+        p.lastPrice = g.raw.lowest_ask;
+        p.lowestAsk = g.raw.lowest_ask;
+        p.currency = g.raw.currency || p.currency;
+        p._grade = 'raw';
+      }
+    }
+  } catch (e) { console.warn('[grade-price] decorate fail:', e); }
+  return products;
 }
 
 function renderPriceGrid(products) {

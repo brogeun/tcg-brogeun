@@ -9434,33 +9434,58 @@ function showPwaInstallGuide() {
   const ua = navigator.userAgent || '';
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   const isAndroid = /Android/i.test(ua);
-  let body = '';
+
+  const APP_STORE_URL = 'https://apps.apple.com/kr/app/tcg-hub/id6773382755';
+  const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=kr.tcghub.app';
+
+  // PWA 설치 안내 (스토어 외 옵션)
+  let pwaGuide = '';
   if (isIOS) {
-    body = `<b>iOS Safari 에서 설치</b><br>
-    1. 하단 공유 버튼 (⬆️) 탭<br>
-    2. "홈 화면에 추가" 선택<br>
-    3. "추가" 탭`;
+    pwaGuide = `<b>또는 PWA 로 설치:</b><br>iOS Safari → 공유 (⬆️) → "홈 화면에 추가"`;
   } else if (isAndroid) {
-    body = `<b>Android 에서 설치</b><br>
-    1. 우측 상단 메뉴 (⋮) 탭<br>
-    2. "앱 설치" 또는 "홈 화면에 추가" 선택`;
+    pwaGuide = `<b>또는 PWA 로 설치:</b><br>Android Chrome → 메뉴 (⋮) → "앱 설치" 또는 "홈 화면에 추가"`;
   } else {
-    body = `<b>데스크톱 (Chrome / Edge) 에서 설치</b><br>
-    1. 주소창 우측 끝의 설치 아이콘 (⊕) 클릭<br>
-    2. "설치" 클릭<br><br>
-    <span style="color:var(--ink-sub); font-size:12px">아이콘이 안 보이면 메뉴 (⋮) → "TCG Hub 설치"</span>`;
+    pwaGuide = `<b>또는 PWA 로 설치:</b><br>Chrome/Edge → 주소창 우측 설치 아이콘 (⊕) → "설치"`;
   }
-  // 간단한 inline 모달
+
+  // 권장 스토어 (platform 따라 위로)
+  const stores = isIOS
+    ? [
+        { url: APP_STORE_URL, label: 'App Store 에서 다운로드', icon: '🍎', emoji: '', recommend: true },
+        { url: PLAY_STORE_URL, label: 'Google Play 에서 다운로드', icon: '🤖', emoji: '', recommend: false },
+      ]
+    : [
+        { url: PLAY_STORE_URL, label: 'Google Play 에서 다운로드', icon: '🤖', emoji: '', recommend: isAndroid },
+        { url: APP_STORE_URL, label: 'App Store 에서 다운로드', icon: '🍎', emoji: '', recommend: !isAndroid && isIOS },
+      ];
+
+  const storeButtonsHtml = stores.map((s, i) => {
+    const isPrimary = i === 0;
+    return `
+      <a href="${s.url}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:12px; padding:14px 16px; background:${isPrimary ? '#111' : '#fff'}; color:${isPrimary ? '#fff' : '#111'}; border:1px solid ${isPrimary ? '#111' : '#e5e7eb'}; border-radius:10px; text-decoration:none; font-weight:700; font-size:14px; transition:transform 0.15s">
+        <span style="font-size:22px">${s.icon}</span>
+        <span style="flex:1">${s.label}</span>
+        <span style="font-size:18px; opacity:0.6">→</span>
+      </a>`;
+  }).join('');
+
+  // 모달
   const old = document.getElementById('pwaInstallModal');
   if (old) old.remove();
   const wrap = document.createElement('div');
   wrap.id = 'pwaInstallModal';
   wrap.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px';
   wrap.innerHTML = `
-    <div style="background:#fff; border-radius:14px; padding:24px; max-width:380px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.18)">
-      <div style="font-size:17px; font-weight:800; color:#111; margin-bottom:14px">📱 앱으로 설치</div>
-      <div style="line-height:1.7; font-size:13px; color:#374151">${body}</div>
-      <button id="pwaInstallModalClose" style="margin-top:18px; width:100%; padding:10px; background:#111; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px">확인</button>
+    <div style="background:#fff; border-radius:14px; padding:24px; max-width:420px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,0.18)">
+      <div style="font-size:18px; font-weight:800; color:#111; margin-bottom:6px">📱 TCG Hub 앱 설치</div>
+      <div style="font-size:12px; color:var(--ink-sub); margin-bottom:18px">스토어를 선택해서 설치하세요</div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px">
+        ${storeButtonsHtml}
+      </div>
+      <div style="padding:12px 14px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; font-size:12px; color:#6b7280; line-height:1.6">
+        ${pwaGuide}
+      </div>
+      <button id="pwaInstallModalClose" style="margin-top:14px; width:100%; padding:10px; background:transparent; color:#6b7280; border:1px solid #e5e7eb; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px">닫기</button>
     </div>`;
   document.body.appendChild(wrap);
   const close = () => wrap.remove();

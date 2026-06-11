@@ -2176,6 +2176,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
    1. 라우팅 (단순! 작동 보장)
    ──────────────────────────────────── */
 function go(pageOrPath) {
+  // 일반 내비게이션 시 상세 이전/다음 탐색 컨텍스트 초기화 (goCardDetail 은 go() 안 거치고 hash 직접 변경)
+  window._DETAIL_NAV = null;
   // path 지원: "price/618442" → page=price, productId=618442
   let page = pageOrPath;
   let productId = null;
@@ -3112,7 +3114,27 @@ async function showPriceDetailPanel(productId) {
   const price = product.lastPrice ?? product.lowestAsk;
   const brandLbl = product._brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스';
 
-  panel.innerHTML = `
+  // 상단 내비 바 — ← 뒤로 + (마이페이지 진입 시) 이전/다음 카드
+  const _nav = window._DETAIL_NAV;
+  const _navList = (_nav && Array.isArray(_nav.list)) ? _nav.list : null;
+  const _navIdx = _navList ? _navList.indexOf(String(productId)) : -1;
+  const _navBtnStyle = 'cursor:pointer; padding:8px 12px; font-size:13px';
+  const navBarHtml = `
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap">
+      <button class="btn" type="button" onclick="goBackFromDetail()" style="cursor:pointer; padding:8px 16px; font-size:13px; font-weight:700">← 뒤로</button>
+      ${_navIdx >= 0 ? `
+        <div style="margin-left:auto; display:flex; align-items:center; gap:6px">
+          ${_navIdx > 0
+            ? `<button class="btn" type="button" style="${_navBtnStyle}" onclick="navDetailTo('${_navList[_navIdx - 1]}')">◀ 이전</button>`
+            : `<button class="btn" type="button" disabled style="padding:8px 12px; font-size:13px; opacity:0.35">◀ 이전</button>`}
+          <span style="font-size:12px; color:var(--ink-sub); min-width:42px; text-align:center; font-weight:600">${_navIdx + 1} / ${_navList.length}</span>
+          ${_navIdx < _navList.length - 1
+            ? `<button class="btn" type="button" style="${_navBtnStyle}" onclick="navDetailTo('${_navList[_navIdx + 1]}')">다음 ▶</button>`
+            : `<button class="btn" type="button" disabled style="padding:8px 12px; font-size:13px; opacity:0.35">다음 ▶</button>`}
+        </div>` : ''}
+    </div>`;
+
+  panel.innerHTML = navBarHtml + `
     <div class="card" style="padding:0; overflow:hidden">
       <div style="display:grid; grid-template-columns:minmax(0,260px) 1fr; gap:0; align-items:stretch">
         <!-- 이미지 -->
@@ -8406,7 +8428,7 @@ function renderHoldings() {
       }
     }
     return `
-    <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}')">
+    <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}', 'holdings')">
       <div style="width:90px; height:126px; background:#f3f4f6; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center">
         ${h.meta.image ? `<img src="${escapeHtml(h.meta.image)}" alt="" style="width:100%; height:100%; object-fit:cover" referrerpolicy="no-referrer">` : `<span style="font-size:32px; opacity:0.3">${h.grade === 'box' ? '📦' : '🃏'}</span>`}
       </div>
@@ -8438,7 +8460,7 @@ function renderWatchlist() {
     const cur = meta.latestPrices?.[w.grade] || meta.latestPrices?.psa10 || meta.latestPrices?.raw;
     const krwPrice = cur ? '₩' + Math.floor(cur * JPY_KRW).toLocaleString() : '—';
     return `
-    <div class="card" style="padding:12px; display:block; cursor:pointer" onclick="goCardDetail('${w.card_id}')">
+    <div class="card" style="padding:12px; display:block; cursor:pointer" onclick="goCardDetail('${w.card_id}', 'watchlist')">
       <div style="width:100%; aspect-ratio:5/7; background:#f3f4f6; border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center; overflow:hidden">
         ${meta.image ? `<img src="${escapeHtml(meta.image)}" alt="" style="width:100%; height:100%; object-fit:cover" referrerpolicy="no-referrer">` : `<span style="font-size:48px; opacity:0.3">🃏</span>`}
       </div>
@@ -8453,9 +8475,33 @@ function renderWatchlist() {
 }
 
 // 관심 카드 → 카드 시세 상세 페이지로 이동 + 맨 위로 스크롤
-window.goCardDetail = function(cardId) {
+// from: 'holdings' | 'watchlist' — 마이페이지에서 진입 시 이전/다음 카드 탐색 리스트 구성
+window.goCardDetail = function(cardId, from) {
+  if (from === 'holdings' && typeof HOLDINGS !== 'undefined' && HOLDINGS.length) {
+    window._DETAIL_NAV = { list: [...new Set(HOLDINGS.map(h => String(h.card_id)))], from: 'portfolio' };
+  } else if (from === 'watchlist' && typeof WATCHLIST !== 'undefined' && WATCHLIST.length) {
+    window._DETAIL_NAV = { list: [...new Set(WATCHLIST.map(w => String(w.card_id)))], from: 'portfolio' };
+  } else {
+    window._DETAIL_NAV = null;
+  }
   location.hash = `#price/${cardId}`;
   setTimeout(() => window.scrollTo({top: 0, behavior: 'smooth'}), 50);
+};
+
+// 상세 → 뒤로 (마이페이지에서 왔으면 마이페이지로, 아니면 브라우저 뒤로가기)
+window.goBackFromDetail = function() {
+  const nav = window._DETAIL_NAV;
+  window._DETAIL_NAV = null;
+  if (nav && nav.from) { go(nav.from); return; }
+  if (history.length > 1) history.back();
+  else closePriceDetail();
+};
+
+// 이전/다음 카드 — history 엔트리 쌓지 않고 교체 (뒤로가기 한 번에 마이페이지 복귀)
+window.navDetailTo = function(cardId) {
+  history.replaceState({page: 'price/' + cardId}, '', '#price/' + cardId);
+  showPriceDetailPanel(cardId);
+  window.scrollTo({top: 0, behavior: 'instant'});
 };
 
 async function removeHoldingApi(id) {

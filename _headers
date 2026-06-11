@@ -1,5 +1,11 @@
-# Cloudflare Pages _headers — 캐시 제어
+# Cloudflare Pages _headers — 캐시 제어 + 보안 헤더
 # 핵심 파일들은 절대 캐시 X. 사이트 코드 변경 시 모든 사용자 즉시 반영.
+
+# 전체 — 기본 보안 헤더
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
 
 # index.html — 절대 캐시 X (브라우저, CDN, WebView 다 매번 새 받음)
 /index.html
@@ -26,6 +32,10 @@
 # /data/ JSON — 5분 캐시 (시세 데이터)
 /data/*.json
   Cache-Control: public, max-age=300
+
+# 카드 메타 (이름/번호/이미지) — 거의 안 변함, 1일 캐시 → 재방문 시 다운로드 없음
+/data/cards-meta.json
+  Cache-Control: public, max-age=86400, stale-while-revalidate=86400
 
 # 이미지 — 1시간 캐시
 /images/*

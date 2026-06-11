@@ -26,5 +26,13 @@ Thumbs.db
 
 # Cloudflare 배포 임시 폴더 (workflow 안에서 만들어짐)
 _deploy/
-*.bak 
-node_modules/ 
+*.bak
+node_modules/
+
+# 백업·아카이브 — git/배포 모두 제외
+_archive/
+*.OLD-backup.html
+*.log
+data/_bak-*/
+data/_snkrdunk_image_cache/
+data/history.bak-*/

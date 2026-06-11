@@ -62,6 +62,9 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
+      - name: Split all-cards.json (cards-meta + cards-prices)
+        run: python scripts/split_all_cards.py || echo "split failed (non-fatal)"
+
       - name: Commit JSON updates (if any)
         if: github.event_name != 'push'
         uses: stefanzweifel/git-auto-commit-action@v5

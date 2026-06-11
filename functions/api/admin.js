@@ -51,7 +51,8 @@ export async function onRequestPost({ request, env }) {
   let auth = request.headers.get("X-Admin-Password") || "";
   // 클라이언트가 base64 인코딩 (한글/특수문자 헤더 통과용) — decode 시도, 실패 시 raw 사용
   try {
-    const decoded = decodeURIComponent(escape(atob(auth)));
+    const bytes = Uint8Array.from(atob(auth), (c) => c.charCodeAt(0));
+    const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     if (decoded) auth = decoded;
   } catch {}
   if (!env.ADMIN_PASSWORD) {

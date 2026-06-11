@@ -223,6 +223,15 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
+  // 이미지 크기 상한 — base64 8MB (≈6MB 원본). 과대 페이로드 → API 비용/타임아웃 방지
+  const MAX_IMG_CHARS = 8 * 1024 * 1024;
+  if (frontImage.length > MAX_IMG_CHARS || backImage.length > MAX_IMG_CHARS) {
+    return new Response(JSON.stringify({
+      error: 'image_too_large',
+      message: '이미지가 너무 큽니다. 8MB 이하로 줄여서 다시 시도해주세요.',
+    }), { status: 413, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+  }
+
   // ── 사용량 체크 (계정당 일 3회) ──
   const userId = await getUserId(request, env);
   if (!userId) {

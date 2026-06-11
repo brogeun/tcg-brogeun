@@ -224,6 +224,13 @@ def main():
     out_path = DATA_DIR / "all-cards.json"
     out_path.write_bytes(json.dumps(out, ensure_ascii=False, indent=2).encode("utf-8"))
 
+    # 분리 파일 (cards-meta.json + cards-prices.json) 자동 재생성 — 프론트 경량 로딩용
+    try:
+        import split_all_cards
+        split_all_cards.main()
+    except Exception as e:
+        print(f"⚠ split_all_cards 실패 (non-fatal): {e}")
+
     total_cards = len(only_card_ids)
     total_boxes = len(only_box_ids)
     print(f"\n================================================")

@@ -474,8 +474,16 @@ def parse_sold_prices(listings: list, usd_jpy: float) -> dict:
     return out
 
 
+# 최근 발매 세트 카드 자동 추적 — 신상 카드 등급별 시세 공백 해소
+# (예: M5 어비스아이 — 인기 차트에 안 떠도 발매 N일 내면 매일 수집)
+RECENT_RELEASE_DAYS = 45
+RECENT_CARDS_CAP = 400  # GitHub Actions 30분 제한 보호
+
+_CARD_NAME_RE = re.compile(r"\[[^\]]*\d+[^\]]*\]")  # [M5 117/081] 패턴 = 카드 (박스 제외)
+
+
 def collect_card_ids() -> set:
-    """이미 저장된 JSON 들에서 모든 카드 ID 추출"""
+    """이미 저장된 JSON 들에서 모든 카드 ID 추출 + 최근 발매 세트 카드 전체"""
     ids = set()
     for pattern in ("top10-*.json", "price-*.json"):
         for path in DATA_DIR.glob(pattern):
@@ -486,6 +494,40 @@ def collect_card_ids() -> set:
                         ids.add(p["id"])
             except Exception:
                 pass
+
+    # 최근 발매 카드 추가 (all-cards.json details 의 releasedAt 기준)
+    try:
+        all_cards = json.loads((DATA_DIR / "all-cards.json").read_text(encoding="utf-8"))
+        details = all_cards.get("details") or []
+        if isinstance(details, dict):
+            details = list(details.values())
+        now = datetime.now(timezone.utc)
+        recent = []
+        for c in details:
+            cid, released = c.get("id"), c.get("releasedAt")
+            if not cid or not released:
+                continue
+            if not _CARD_NAME_RE.search(c.get("name") or ""):
+                continue  # 박스/기타 상품 제외
+            try:
+                dt = datetime.fromisoformat(released.replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            age = (now - dt).days
+            if 0 <= age <= RECENT_RELEASE_DAYS:
+                recent.append((age, str(cid)))
+        recent.sort()  # 최신 발매 우선
+        added = 0
+        for _, cid in recent:
+            if cid not in ids:
+                ids.add(cid)
+                added += 1
+                if added >= RECENT_CARDS_CAP:
+                    break
+        print(f"  최근 {RECENT_RELEASE_DAYS}일 발매 카드 추가: {added}개 (cap {RECENT_CARDS_CAP})")
+    except Exception as e:
+        print(f"  ⚠ 최근 발매 카드 추가 실패 (무시): {e}")
+
     return ids
 
 

@@ -21,7 +21,7 @@ jobs:
     # bot 의 자동 commit (data 자동 갱신) 으로 인한 무한 trigger 방지
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45  # 최근 발매 카드 ~400장 추가 수집 여유분
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -98,6 +98,8 @@ jobs:
           done
           # admin
           [ -f functions/api/admin.js ] && cp functions/api/admin.js _deploy/functions/api/admin.js && echo "✓ admin"
+          # 카드 등급별 시세 라이브 폴백
+          [ -f functions/api/card-grades.js ] && cp functions/api/card-grades.js _deploy/functions/api/card-grades.js && echo "✓ card-grades"
           # auth
           for f in request.js verify.js me.js logout.js; do
             [ -f "functions/api/auth/$f" ] && cp "functions/api/auth/$f" "_deploy/functions/api/auth/$f" && echo "✓ auth/$f"

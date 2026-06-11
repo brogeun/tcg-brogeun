@@ -3935,6 +3935,24 @@ async function renderGradesPanel(productId, product) {
       }
     }
 
+    // 3순위 라이브 폴백: 정적 데이터가 모두 없으면 SNKRDUNK 실시간 조회 (신상 카드 대응)
+    // /api/card-grades 가 등급별 active 매물 최저가를 1시간 캐시로 반환
+    const stillNoPsa = !['psa10','psa9','raw'].some(k => grades[k] && Object.keys(grades[k]).length > 0);
+    if (stillNoPsa) {
+      try {
+        const liveR = await fetch(`/api/card-grades?id=${productId}`);
+        if (liveR.ok) {
+          const live = await liveR.json();
+          if (live.ok && live.grades) {
+            grades = grades || {};
+            for (const k of ['psa10','psa9','raw']) {
+              if (live.grades[k] && !grades[k]) grades[k] = live.grades[k];
+            }
+          }
+        }
+      } catch (e) { console.warn('live grades fallback fail:', e); }
+    }
+
     // BGS 보충 — cards-detail.json 에 BGS 가 없어서 history 에서 항상 보충
     const hasBgsData = ['bgs10_bl','bgs10_gl','bgs95'].some(k => grades[k] && Object.keys(grades[k]).length > 0);
     if (!hasBgsData) {

@@ -78,7 +78,7 @@ jobs:
           mkdir -p _deploy
           cp -r index.html _redirects data _deploy/ 2>/dev/null || true
           # 추가 정적 파일들 (있을 때만 복사)
-          for f in mobile.html manifest.json sw.js favicon.ico robots.txt privacy.html terms.html; do
+          for f in mobile.html manifest.json sw.js favicon.ico robots.txt privacy.html terms.html _headers ads.txt; do
             [ -f "$f" ] && cp "$f" _deploy/ || true
           done
           for d in assets images img public static ev-calculator; do
@@ -106,6 +106,11 @@ jobs:
           [ -f functions/api/portfolio/transaction.js ] && cp functions/api/portfolio/transaction.js _deploy/functions/api/portfolio/transaction.js && echo "✓ portfolio/transaction"
           [ -f functions/api/portfolio/watchlist.js ] && cp functions/api/portfolio/watchlist.js _deploy/functions/api/portfolio/watchlist.js && echo "✓ portfolio/watchlist"
           [ -f functions/api/portfolio/watchlist/[id].js ] && cp "functions/api/portfolio/watchlist/[id].js" "_deploy/functions/api/portfolio/watchlist/[id].js" && echo "✓ portfolio/watchlist/[id]"
+          # SEO 함수 — 동적 사이트맵(카드 2.4만 페이지) + 카드별 OG 메타 + robots
+          for f in sitemap.xml.js robots.txt.js events.js raffles.js _middleware.js; do
+            [ -f "functions/$f" ] && cp "functions/$f" "_deploy/functions/$f" && echo "✓ functions/$f"
+          done
+          [ -d functions/price ] && cp -r functions/price _deploy/functions/price && echo "✓ functions/price/"
           echo "=== _deploy 디렉토리 구조 ==="
           find _deploy -type f | head -30
           echo "=== data/ 파일 수 ==="

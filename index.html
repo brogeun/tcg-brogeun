@@ -3049,6 +3049,7 @@ async function showPriceDetailPanel(productId) {
           product = found;
           product._brand = brand;
           product._isTop10 = file.startsWith('top10-');
+          product._srcFile = file;
           if (file.startsWith('top10-') && !HOME_TOP_CACHE[brand]) HOME_TOP_CACHE[brand] = d.products;
           break;
         }
@@ -3877,7 +3878,7 @@ async function renderGradesPanel(productId, product) {
   const header = document.getElementById(`gradesPanelHeader-${productId}`);
   if (!grid) return;
 
-  const isCard = product ? isCardProduct(product.name) : true; // 안전 default = 카드
+  const isCard = product ? (isCardProduct(product.name) || /-card$/.test(product._srcFile || '')) : true; // 안전 default = 카드
 
   // ───────── 박스: 단일 가격 박스 한 칸만 ─────────
   if (!isCard) {
@@ -5018,7 +5019,7 @@ async function renderSlidePanel(productId) {
         if (!r.ok) continue;
         const d = await r.json();
         const found = (d.products || []).find(p => String(p.id) === String(productId));
-        if (found) { product = { ...found, _brand: brand }; break; }
+        if (found) { product = { ...found, _brand: brand, _src: file }; break; }
       } catch {}
     }
   }
@@ -5064,7 +5065,10 @@ async function renderSlidePanel(productId) {
   const isCardByName = isCardProduct(name);
   const hasCardGrade = history && history.some(h => h && (h.psa10_price != null || h.psa9_price != null || h.raw_price != null || h.bgs10_bl_price != null || h.bgs10_gl_price != null || h.bgs95_price != null));
   const hasBoxData = history && history.some(h => h && h.box_price != null);
-  const isBox = (isCardByPN || isCardByName) ? false : (hasCardGrade ? false : (hasBoxData ? true : true));
+  // 출처 파일 기반 판별 — [코드] 패턴 없는 카드(예: DON!! 카드)도 card 파일 출신이면 카드로
+  const isCardBySrc = product && product._src && /-card$/.test(product._src);
+  const isBoxBySrc = product && product._src && (/-box$/.test(product._src) || /^manual-boxes/.test(product._src));
+  const isBox = (isCardByPN || isCardByName || isCardBySrc) ? false : (isBoxBySrc ? true : (hasCardGrade ? false : (hasBoxData ? true : true)));
   // 가격 — 별도 페이지와 동일 로직 (최신부터 역순으로 각 등급 첫 non-null)
   function pickLatestPrice(field) {
     if (!history || !history.length) return null;

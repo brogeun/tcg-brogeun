@@ -8490,6 +8490,19 @@ function renderHoldings() {
         </div>`;
       }
     }
+    // BGS cert 인라인 — 박스 제외 모든 카드 (BGS 슬랩 보유 시 cert 등록 → 카드 상세에 공식 POP 표시)
+    let bgsBlock = '';
+    if (!isBoxItem) {
+      bgsBlock = `
+        <div data-bgs-row onclick="event.stopPropagation()" style="grid-column:1/-1; margin-top:6px; padding:8px 10px; background:#f9fafb; border:1px dashed #d1d5db; border-radius:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
+          <span style="font-size:11px; font-weight:700; color:var(--ink-sub)">🏷️ BGS Cert#</span>
+          <input id="bgsCertInp_h${h.id}" type="text" inputmode="numeric" placeholder="예: 0018115414"
+                 style="flex:1; min-width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:12px"
+                 onkeydown="if(event.key==='Enter'){registerBgsCert('${h.card_id}','bgsCertInp_h${h.id}')}" />
+          <button class="btn" style="padding:4px 10px; font-size:11px; cursor:pointer; background:#111; color:#fff"
+                  onclick="registerBgsCert('${h.card_id}','bgsCertInp_h${h.id}')">등록</button>
+        </div>`;
+    }
     return `
     <div class="card" style="padding:14px 16px; display:grid; grid-template-columns:90px 1fr auto; gap:14px; align-items:center; cursor:pointer" onclick="goCardDetail('${h.card_id}', 'holdings')">
       <div style="width:90px; height:126px; background:#f3f4f6; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center">
@@ -8509,6 +8522,7 @@ function renderHoldings() {
         <button class="btn" style="margin-top:6px; padding:3px 8px; font-size:11px; cursor:pointer" onclick="event.stopPropagation(); removeHoldingApi(${h.id})">🗑</button>
       </div>
       ${certBlock}
+      ${bgsBlock}
     </div>`;
   }).join('');
 }
@@ -8625,12 +8639,12 @@ window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
  * /api/bgs/cert POST → Beckett lookup + 카드 매칭 검증 → D1 캐싱
  * 성공 시 등급 패널 재렌더 → 블랙라벨10/골드라벨10 POP 칩 표시
  */
-window.registerBgsCert = async function(cardId) {
+window.registerBgsCert = async function(cardId, inpId) {
   if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
     openLoginModal('BGS Cert# 등록은 로그인이 필요합니다');
     return;
   }
-  const inp = document.getElementById(`bgsCertInp-${cardId}`);
+  const inp = document.getElementById(inpId || `bgsCertInp-${cardId}`);
   if (!inp) return;
   const cert_number = (inp.value || '').replace(/\D/g, '');
   if (!cert_number || cert_number.length < 6) {
@@ -8648,9 +8662,20 @@ window.registerBgsCert = async function(cardId) {
     const data = await r.json().catch(() => ({}));
     if (r.ok && data.ok) {
       showToast(data.message || '✅ 인증 완료', 'success');
+      // 마이페이지 인라인 행 → 성공 배지로 교체
+      const row = inp.closest('[data-bgs-row]');
+      if (row) {
+        const p = data.cert?.pop || {};
+        row.innerHTML = `<span style="font-size:11px; font-weight:700; color:#047857">🏷️ BGS Cert# ${escapeHtml(cert_number)}</span>
+          <span style="font-size:10px; color:#059669">✓ Beckett 인증완료 — 블랙라벨10: ${p.bl10 ?? '?'} · 골드라벨10: ${p.gl10 ?? '?'}</span>`;
+        row.style.background = '#ecfdf5';
+        row.style.border = '1px solid #10b98155';
+      }
+      // 카드 상세 페이지에 있으면 등급 패널 재렌더 → POP 칩 반영
       document.getElementById(`bgsCertRow-${cardId}`)?.remove();
-      // 등급 패널 재렌더 → POP 칩 반영
-      if (typeof showPriceDetailPanel === 'function') showPriceDetailPanel(cardId);
+      if (document.getElementById(`gradesGrid-${cardId}`) && typeof showPriceDetailPanel === 'function') {
+        showPriceDetailPanel(cardId);
+      }
     } else {
       const msg = data.message || `등록 실패 (${r.status})`;
       if (data.error === 'card_mismatch') alert(msg);

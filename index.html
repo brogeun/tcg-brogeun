@@ -4161,20 +4161,7 @@ async function renderGradesPanel(productId, product) {
         </div>`;
     }
     grid.innerHTML = html;
-
-    // BGS Cert# 등록 UI — 아직 POP 데이터 없는 카드만 노출 (한 명만 등록하면 모두에게 표시)
-    const _bgsCertRowId = `bgsCertRow-${productId}`;
-    document.getElementById(_bgsCertRowId)?.remove();
-    if (!bgsPop) {
-      grid.insertAdjacentHTML('afterend', `
-        <div id="${_bgsCertRowId}" style="margin-top:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap">
-          <span style="font-size:11px; font-weight:700; color:var(--ink-sub)">🏷️ BGS 슬랩 보유 시 Cert# 등록 → Beckett 공식 POP 표시</span>
-          <input id="bgsCertInp-${productId}" placeholder="BGS Cert#" inputmode="numeric"
-                 style="flex:0 1 160px; min-width:120px; padding:7px 10px; border:1px solid var(--line); border-radius:7px; font-size:12px; font-family:inherit"
-                 onkeydown="if(event.key==='Enter'){registerBgsCert('${productId}')}" />
-          <button class="btn" type="button" style="padding:7px 14px; font-size:12px; cursor:pointer" onclick="registerBgsCert('${productId}')">등록</button>
-        </div>`);
-    }
+    // (BGS Cert# 등록은 마이페이지 보유 카드에서만 — 상세 페이지엔 POP 칩 표시만)
     // 모든 칩 hover 효과 — 직구가격 + BGS 박스 (.dg-tip 보이게)
     grid.querySelectorAll('.detail-grade-chip').forEach(chip => {
       const tip = chip.querySelector('.dg-tip');
@@ -8494,7 +8481,7 @@ function renderHoldings() {
     let bgsBlock = '';
     if (!isBoxItem) {
       bgsBlock = `
-        <div data-bgs-row onclick="event.stopPropagation()" style="grid-column:1/-1; margin-top:6px; padding:8px 10px; background:#f9fafb; border:1px dashed #d1d5db; border-radius:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
+        <div data-bgs-row onclick="event.stopPropagation()" style="grid-column:1/-1; margin-top:-8px; padding:8px 10px; background:#f9fafb; border:1px dashed #d1d5db; border-radius:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
           <span style="font-size:11px; font-weight:700; color:var(--ink-sub)">🏷️ BGS Cert#</span>
           <input id="bgsCertInp_h${h.id}" type="text" inputmode="numeric" placeholder="예: 0018115414"
                  style="flex:1; min-width:120px; padding:5px 8px; border:1px solid #d1d5db; border-radius:5px; font-size:12px"

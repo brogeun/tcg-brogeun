@@ -224,6 +224,7 @@ img { max-width: 100%; height: auto; display: block; }
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
+  min-height: 100dvh; /* iOS Safari 동적 툴바 대응 (지원 브라우저만 적용) */
 }
 .sidebar {
   background: #fff;
@@ -235,7 +236,7 @@ img { max-width: 100%; height: auto; display: block; }
   flex-direction: column;
 }
 .sidebar-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
-.main { min-width: 0; padding-bottom: 20px; display: flex; flex-direction: column; min-height: 100vh; }
+.main { min-width: 0; padding-bottom: 20px; display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
 .main > footer { margin-top: auto; }
 .topbar {
   position: sticky; top: 0; z-index: 10;
@@ -1163,6 +1164,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <div class="slide-overlay" id="slideOverlay" onclick="closeSlidePanel()"></div>
     <aside class="slide-panel" id="slidePanel" aria-hidden="true">
       <div class="slide-header">
+        <button type="button" class="slide-back-btn" onclick="closeSlidePanel()" aria-label="뒤로가기">‹</button>
         <div class="slide-card-img" id="slideCardImg">🃏</div>
         <div class="slide-info">
           <span class="slide-badge" id="slideBadge">—</span>
@@ -1275,9 +1277,21 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       .slide-info-table td:first-child { color: var(--text-tertiary); width: 120px; }
       .slide-info-table td:last-child { font-weight: 500; text-align: right; color: var(--text-primary); }
 
+      /* ‹ 뒤로가기 — 모바일 풀화면에서만 표시 (토스 스타일) */
+      .slide-back-btn {
+        display: none; width: 38px; height: 38px; flex-shrink: 0;
+        border: none; background: transparent; cursor: pointer; padding: 0;
+        font-size: 30px; line-height: 1; color: var(--text-primary); font-family: inherit;
+        margin: -4px 2px 0 -8px;
+      }
+      .slide-back-btn:active { opacity: 0.5; }
+
       /* 모바일 — 풀 화면 */
       @media (max-width: 640px) {
         .slide-panel { width: 100vw; max-width: 100vw; right: -100vw; }
+        .slide-back-btn { display: flex; align-items: center; justify-content: center; }
+        /* 상단이 폰 상태바(시계/배터리)에 안 걸리게 — 노치/상태바 높이만큼 내림 */
+        .slide-header { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
       }
     </style>
     <style>
@@ -2211,6 +2225,7 @@ function go(pageOrPath) {
   if (location.hash !== newHash) {
     history.pushState({page: pageOrPath}, '', newHash);
   }
+  window._CUR_HASH = newHash;  // popstate 의 모달 닫기 복원용
   // 페이지별 초기화
   if (page === 'home' && typeof initHome2 === 'function') initHome2();
   if (page === 'price') initPrice(productId);
@@ -2262,6 +2277,21 @@ document.addEventListener('click', e => {
 
 // 브라우저 뒤로가기
 window.addEventListener('popstate', e => {
+  // ① 모달/슬라이드 열려있으면 — 뒤로가기(iOS 스와이프 포함)는 "닫기"로만 동작, 페이지 유지
+  //    (모달 위에서 스와이프하면 페이지가 통째로 바뀌어버리는 문제 방지)
+  const _sp = document.getElementById('slidePanel');
+  const _am = document.getElementById('anyModal');
+  const _ov2 = document.querySelector('.modal-overlay2.show');
+  let closed = false;
+  if (_sp && _sp.classList.contains('show')) { closeSlidePanel(); closed = true; }
+  else if (_am && _am.classList.contains('open')) { closeAnyModal(); closed = true; }
+  else if (_ov2) { _ov2.classList.remove('show'); closed = true; }
+  if (closed) {
+    const cur = window._CUR_HASH || ('#' + (document.body.dataset.page || 'home'));
+    history.pushState({page: cur.slice(1)}, '', cur);  // 원래 페이지 URL 복원
+    return;
+  }
+  // ② 일반 페이지 뒤로가기
   const path = (location.hash || '#home').replace('#', '') || 'home';
   let page = path, productId = null;
   if (path.includes('/')) {
@@ -2277,6 +2307,7 @@ window.addEventListener('popstate', e => {
   });
   if (page === 'price') initPrice(productId);
   if (page === 'portfolio') refreshPortfolio();
+  window._CUR_HASH = '#' + path;
 });
 
 /* ────────────────────────────────────
@@ -8500,6 +8531,7 @@ window.goBackFromDetail = function() {
 // 이전/다음 카드 — history 엔트리 쌓지 않고 교체 (뒤로가기 한 번에 마이페이지 복귀)
 window.navDetailTo = function(cardId) {
   history.replaceState({page: 'price/' + cardId}, '', '#price/' + cardId);
+  window._CUR_HASH = '#price/' + cardId;
   showPriceDetailPanel(cardId);
   window.scrollTo({top: 0, behavior: 'instant'});
 };

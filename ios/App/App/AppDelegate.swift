@@ -8,7 +8,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        // 좌→우 엣지 스와이프 뒤로가기 활성화 (SPA hash 내비게이션과 연동)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.enableSwipeBack()
+        }
         return true
+    }
+
+    private func enableSwipeBack() {
+        if let bridgeVC = self.window?.rootViewController as? CAPBridgeViewController {
+            bridgeVC.webView?.allowsBackForwardNavigationGestures = true
+        } else {
+            // rootViewController 가 아직 준비 안 됐으면 재시도
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                if let bridgeVC = self?.window?.rootViewController as? CAPBridgeViewController {
+                    bridgeVC.webView?.allowsBackForwardNavigationGestures = true
+                }
+            }
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {

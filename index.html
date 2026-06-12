@@ -4130,6 +4130,16 @@ async function renderGradesPanel(productId, product) {
       }
     } catch (e) { console.warn('PSA POP fetch fail:', e); }
 
+    // BGS POP — Beckett 공식 (cert 등록 시 D1 캐싱된 값: 블랙라벨10 / 골드라벨10)
+    let bgsPop = null;
+    try {
+      const bR = await fetch(`/api/bgs/pop?card_id=${productId}`);
+      if (bR.ok) {
+        const bD = await bR.json();
+        if (bD.ok && bD.pop) bgsPop = bD.pop;
+      }
+    } catch (e) { console.warn('BGS POP fetch fail:', e); }
+
     // grid 메인 렌더 + 5번째로 POP 표시 (직구가격 칩 제거)
     // BGS 등급은 데이터 있는 카드만 표시 (대부분 카드에 BGS 거래 없음)
     const _hasGradeData = (g) => g && (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy);
@@ -4142,7 +4152,29 @@ async function renderGradesPanel(productId, product) {
           <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">사용자 등록 누적</div>
         </div>`;
     }
+    if (bgsPop && (bgsPop.bl10 != null || bgsPop.gl10 != null)) {
+      html += `
+        <div style="background:#111; border:1px solid #fbbf2466; border-radius:8px; padding:12px 14px">
+          <div style="font-size:11px; font-weight:800; color:#fbbf24; margin-bottom:6px">🏆 BGS 10 POP</div>
+          <div style="font-size:13px; font-weight:800; color:#fff; line-height:1.6">블랙라벨 ${(bgsPop.bl10 ?? 0).toLocaleString()}<br>골드라벨 ${(bgsPop.gl10 ?? 0).toLocaleString()}</div>
+          <div style="font-size:10px; color:#9ca3af; margin-top:6px">Beckett 공식 · 총 ${bgsPop.total != null ? bgsPop.total.toLocaleString() + '장' : '—'}</div>
+        </div>`;
+    }
     grid.innerHTML = html;
+
+    // BGS Cert# 등록 UI — 아직 POP 데이터 없는 카드만 노출 (한 명만 등록하면 모두에게 표시)
+    const _bgsCertRowId = `bgsCertRow-${productId}`;
+    document.getElementById(_bgsCertRowId)?.remove();
+    if (!bgsPop) {
+      grid.insertAdjacentHTML('afterend', `
+        <div id="${_bgsCertRowId}" style="margin-top:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+          <span style="font-size:11px; font-weight:700; color:var(--ink-sub)">🏷️ BGS 슬랩 보유 시 Cert# 등록 → Beckett 공식 POP 표시</span>
+          <input id="bgsCertInp-${productId}" placeholder="BGS Cert#" inputmode="numeric"
+                 style="flex:0 1 160px; min-width:120px; padding:7px 10px; border:1px solid var(--line); border-radius:7px; font-size:12px; font-family:inherit"
+                 onkeydown="if(event.key==='Enter'){registerBgsCert('${productId}')}" />
+          <button class="btn" type="button" style="padding:7px 14px; font-size:12px; cursor:pointer" onclick="registerBgsCert('${productId}')">등록</button>
+        </div>`);
+    }
     // 모든 칩 hover 효과 — 직구가격 + BGS 박스 (.dg-tip 보이게)
     grid.querySelectorAll('.detail-grade-chip').forEach(chip => {
       const tip = chip.querySelector('.dg-tip');
@@ -8580,6 +8612,49 @@ window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
       } else {
         showToast(msg, 'error');
       }
+      inp.disabled = false;
+    }
+  } catch (e) {
+    showToast('등록 실패 — 네트워크 오류', 'error');
+    inp.disabled = false;
+  }
+};
+
+/**
+ * BGS Cert# 등록 — 카드 상세 등급 패널 인라인
+ * /api/bgs/cert POST → Beckett lookup + 카드 매칭 검증 → D1 캐싱
+ * 성공 시 등급 패널 재렌더 → 블랙라벨10/골드라벨10 POP 칩 표시
+ */
+window.registerBgsCert = async function(cardId) {
+  if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
+    openLoginModal('BGS Cert# 등록은 로그인이 필요합니다');
+    return;
+  }
+  const inp = document.getElementById(`bgsCertInp-${cardId}`);
+  if (!inp) return;
+  const cert_number = (inp.value || '').replace(/\D/g, '');
+  if (!cert_number || cert_number.length < 6) {
+    showToast('Cert# 를 6자리 이상 입력해주세요', 'error'); return;
+  }
+  inp.disabled = true;
+  showToast('Beckett 인증 확인 중…', 'info');
+  try {
+    const r = await fetch('/api/bgs/cert', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cert_number, card_id: cardId }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.ok) {
+      showToast(data.message || '✅ 인증 완료', 'success');
+      document.getElementById(`bgsCertRow-${cardId}`)?.remove();
+      // 등급 패널 재렌더 → POP 칩 반영
+      if (typeof showPriceDetailPanel === 'function') showPriceDetailPanel(cardId);
+    } else {
+      const msg = data.message || `등록 실패 (${r.status})`;
+      if (data.error === 'card_mismatch') alert(msg);
+      else showToast(msg, 'error');
       inp.disabled = false;
     }
   } catch (e) {

@@ -93,13 +93,20 @@ jobs:
           mkdir -p _deploy/functions/api/portfolio/watchlist
           mkdir -p _deploy/functions/_shared
           # 공유 헬퍼
-          for f in jwt.js email.js auth.js; do
+          for f in jwt.js email.js auth.js apple.js; do
             [ -f "functions/_shared/$f" ] && cp "functions/_shared/$f" "_deploy/functions/_shared/$f" && echo "✓ _shared/$f"
           done
           # admin
           [ -f functions/api/admin.js ] && cp functions/api/admin.js _deploy/functions/api/admin.js && echo "✓ admin"
           # 카드 등급별 시세 라이브 폴백
           [ -f functions/api/card-grades.js ] && cp functions/api/card-grades.js _deploy/functions/api/card-grades.js && echo "✓ card-grades"
+          # PSA cert/pop + BGS cert/pop (그레이딩 POP 기능 — 화이트리스트 누락으로 푸시마다 404 되던 것 복구)
+          [ -d functions/api/psa ] && cp -r functions/api/psa _deploy/functions/api/psa && echo "✓ api/psa/"
+          [ -d functions/api/bgs ] && cp -r functions/api/bgs _deploy/functions/api/bgs && echo "✓ api/bgs/"
+          # AI 센터링 + 케이싱 (라이브 기능)
+          for f in centering-ai.js casing-generate.js casing-proxy-image.js; do
+            [ -f "functions/api/$f" ] && cp "functions/api/$f" "_deploy/functions/api/$f" && echo "✓ api/$f"
+          done
           # auth
           for f in request.js verify.js me.js logout.js; do
             [ -f "functions/api/auth/$f" ] && cp "functions/api/auth/$f" "_deploy/functions/api/auth/$f" && echo "✓ auth/$f"

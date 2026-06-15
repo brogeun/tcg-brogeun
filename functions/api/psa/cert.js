@@ -35,7 +35,8 @@ function verifyCardMatch(psaCert, ourCard) {
   // 1) Card number 매칭 — PSA 의 CardNumber 가 우리 code 안에 포함되는지
   const psaNum = String(psaCert.CardNumber || psaCert.cardNumber || '').trim();
   if (psaNum) {
-    const ourCode = String(ourCard.code || ourCard.product_number || '');
+    // code 가 엉뚱한 슬러그(예: "pkmn-tcg-40")인 카드가 있어 name 의 번호([S10b 074/071])도 함께 대조
+    const ourCode = [ourCard.code, ourCard.product_number, ourCard.name].filter(Boolean).join(' ');
     const numStripped = psaNum.replace(/^0+/, ''); // "007" → "7"
     const codeNorm = ourCode.replace(/\s+/g, '').toLowerCase();
     const numMatch = codeNorm.includes(numStripped.toLowerCase()) ||

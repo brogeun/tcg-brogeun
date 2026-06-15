@@ -6025,6 +6025,8 @@ const CARDINFO = {
     {code:"SV2D", name:"클레이 버스트 (Clay Burst)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11570/clay-burst?setCardCountMode=anyCardVariant"},
     {code:"SV2P", name:"스노우 해저드 (Snow Hazard)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11569/snow-hazard?setCardCountMode=anyCardVariant"},
     {code:"SV1a", name:"트리플렛 비트 (Triplet Beat)", release:"2023.03.10", url:"https://www.tcgcollector.com/sets/11566/triplet-beat?setCardCountMode=anyCardVariant"},
+    {code:"SV1S", name:"스칼렛 ex (Scarlet ex)", release:"2023.01.20", boxId:"106863", url:"https://www.tcgcollector.com/sets/11505/scarlet-ex?setCardCountMode=anyCardVariant"},
+    {code:"SV1V", name:"바이올렛 ex (Violet ex)", release:"2023.01.20", boxId:"106864", url:"https://www.tcgcollector.com/sets/11506/violet-ex?setCardCountMode=anyCardVariant"},
     // ─── Sword & Shield Era (실제 파일명 케이스 일치 — 대문자 S) ───
     {code:"S12a", name:"VSTAR 유니버스 (VSTAR Universe)", release:"2022.12.02", url:"https://www.tcgcollector.com/sets/11503/vstar-universe?setCardCountMode=anyCardVariant"},
     {code:"S12", name:"패러다임 트리거 (Paradigm Trigger)", release:"2022.10.21", url:"https://www.tcgcollector.com/sets/11499/paradigm-trigger?setCardCountMode=anyCardVariant"},
@@ -6212,7 +6214,7 @@ function renderCardInfo() {
     // 박스 이미지 — 새로 받은 webp 23개는 webp 우선 + is-webp 클래스 (cover/padding 0)
     //   기존 박스 (M*, SV5M~SV11W, OP*, EB*) 는 jpg + contain (그대로)
     //   121 옛 박스 (S6a 이전, SNKRDUNK 출처) 는 images/box2/{code}.webp
-    const NEW_WEBP_CODES = new Set(['S6a','S7D','S7R','S8','S8b','S9','S9a','S10a','S10b','S11','S11a','S12','S12a','SV1a','SV2D','SV2P','SV2a','SV3','SV3a','SV4K','SV4M','SV4a','SV5K']);
+    const NEW_WEBP_CODES = new Set(['S6a','S7D','S7R','S8','S8b','S9','S9a','S10a','S10b','S11','S11a','S12','S12a','SV1S','SV1V','SV1a','SV2D','SV2P','SV2a','SV3','SV3a','SV4K','SV4M','SV4a','SV5K']);
     const LEGACY_BOX2_CODES = new Set(['S6H','S6K','S5a','S5R','S5I','S4a','S4','S3a','S3','S2a','S2','S1a','S1H','S1W','SM12a','SM12','SM11b','SM11a','SM11','SM10b','SM10a','SM10','SM9b','SM9a','SM9','SM8b','SM8a','SM8','SM7b','SM7a','SM7','SM6b','SM6a','SM6','SM5+','SM5M','SM5S','SM4+','SM4S','SM4A','SM3+','SM3H','SM3N','SM2+','SM2L','SM2K','SM1+','SM1M','SM1S','XY11-Br','XY11-Bb','XY10','XY9','XY8-Br','XY8-Bb','XY7','XY6','XY5-Bt','XY5-Bg','XY4','XY3','XY2','XY1-By','XY1-Bx','BW9','BW8-Brn','BW8-Brf','BW7','BW6-Bf','BW6-Bc','BW5-Brz','BW5-Brn','BW4','BW3-Bh','BW3-Bp','BW2','BW1-Bw','BW1-Bb','L3','L2','L1-Bss','L1-Bhg','Pt4','Pt3','Pt2','Pt1','DP6','DP5','DP4-Bd','DP4-Bm','DP3','DP2','DP1','PCG9','PCG8','PCG7','PCG6','PCG5','PCG4','PCG3','PCG2','PCG1','ADV4','ADV3','ADV2','ADV1','e5','e4','e3','e2','e1','Neo4','Neo3','Neo2','Neo1','Gym2','Gym1','CL4','CL3','CL2','CL1']);
     const isNewWebp = NEW_WEBP_CODES.has(s.code);
     const isLegacyBox2 = LEGACY_BOX2_CODES.has(s.code);

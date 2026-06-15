@@ -8706,22 +8706,35 @@ async function renderAggChart() {
   if (!HOLDINGS.length) return;
   await loadChartJs();
   // 모든 holdings 의 history 일자별 합산
-  const dateValues = {}; // date -> total value
+  // 통합 타임라인 + forward-fill — 카드마다 스크랩 날짜가 달라도 직전 가격을 이어써서
+  // 날짜별 합계 누락/급락 방지 (희소 스크랩 구간 차트 박살 수정)
+  const cutoff = new Date(Date.now() - _PF_RANGE * 86400 * 1000).toISOString().slice(0, 10);
+  const dateSet = new Set();
   for (const h of HOLDINGS) {
     const meta = _PF_PRICE_CACHE[h.card_id];
     if (!meta?.history) continue;
-    const cutoff = new Date(Date.now() - _PF_RANGE * 86400 * 1000).toISOString().slice(0, 10);
-    let lastKnown = null;
+    for (const day of meta.history) if (day.date >= cutoff) dateSet.add(day.date);
+  }
+  const dates = [...dateSet].sort();
+  const dateValues = {};
+  for (const d of dates) dateValues[d] = 0;
+  for (const h of HOLDINGS) {
+    const meta = _PF_PRICE_CACHE[h.card_id];
+    if (!meta?.history) continue;
+    const byDate = {};
+    let seed = null, seedDate = '';
     for (const day of meta.history) {
-      if (day.date < cutoff) continue;
-      const price = day[`${h.grade}_price`] || lastKnown;
-      if (price) lastKnown = price;
-      if (lastKnown) {
-        dateValues[day.date] = (dateValues[day.date] || 0) + lastKnown * h.qty;
-      }
+      const p = day[`${h.grade}_price`];
+      if (!p) continue;
+      if (day.date < cutoff) { if (day.date >= seedDate) { seed = p; seedDate = day.date; } }
+      else byDate[day.date] = p;
+    }
+    let lastKnown = seed;
+    for (const d of dates) {
+      if (byDate[d] != null) lastKnown = byDate[d];
+      if (lastKnown) dateValues[d] += lastKnown * h.qty;
     }
   }
-  const dates = Object.keys(dateValues).sort();
   // JPY 합산 → KRW 변환
   const valuesKrw = dates.map(d => Math.floor(dateValues[d] * JPY_KRW));
 

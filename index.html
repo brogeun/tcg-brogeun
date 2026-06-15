@@ -209,6 +209,11 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+/* iOS WKWebView 가로 스크롤 차단 — 오프캔버스 .slide-panel(right:-100vw) 이 만드는
+   가짜 가로 스크롤 영역 제거. 실제 콘텐츠는 잘리지 않음(빈 영역만 클립).
+   html=문서 스크롤러라 hidden 안전 / body는 sticky 헤더·사이드바 보존 위해 clip 사용. */
+html { overflow-x: hidden; }
+body { overflow-x: clip; max-width: 100%; }
 body {
   font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
   font-size: 14px; color: var(--ink); background: var(--bg);

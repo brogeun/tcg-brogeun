@@ -3212,7 +3212,7 @@ async function showPriceDetailPanel(productId) {
             <button class="btn primary" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
                     data-action="add-portfolio" data-card-id="${productId}"
                     data-card-name="${escapeHtml(product.name || '')}" data-card-image="${escapeHtml(product.image || '')}"
-                    data-price="${price || 0}" data-grade="psa10">
+                    data-price="${price || 0}" data-grade="${isCardProduct(product.name) ? 'psa10' : 'box'}">
               <i data-lucide="plus-circle" style="width:16px;height:16px"></i> 포트폴리오 추가
             </button>
             <a href="${product.url}" target="_blank" rel="noopener noreferrer"
@@ -8490,9 +8490,9 @@ function renderHoldings() {
         </div>`;
       }
     }
-    // BGS cert 인라인 — 박스 제외 모든 카드 (BGS 슬랩 보유 시 cert 등록 → 카드 상세에 공식 POP 표시)
+    // BGS cert 인라인 — PSA10 보유 카드만 (사용자 요청: PSA9·A급 제외)
     let bgsBlock = '';
-    if (!isBoxItem) {
+    if (!isBoxItem && h.grade === 'psa10') {
       bgsBlock = `
         <div data-bgs-row onclick="event.stopPropagation()" style="grid-column:1/-1; margin-top:-8px; padding:8px 10px; background:#f9fafb; border:1px dashed #d1d5db; border-radius:6px; display:flex; align-items:center; gap:6px; flex-wrap:wrap">
           <span style="font-size:11px; font-weight:700; color:var(--ink-sub)">🏷️ BGS Cert#</span>
@@ -9689,10 +9689,11 @@ window.openAddToPortfolio = function(cardId, cardName, cardImage, suggestedPrice
         <div style="display:flex; flex-direction:column; gap:12px">
           <label style="font-size:12px; font-weight:700; color:#374151">등급
             <select id="addGrade" style="width:100%; margin-top:4px; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-size:13px">
-              <option value="psa10" ${suggestedGrade === 'psa10' ? 'selected' : ''}>PSA 10</option>
+              ${suggestedGrade === 'box'
+                ? `<option value="box" selected>박스</option>`
+                : `<option value="psa10" ${suggestedGrade === 'psa10' ? 'selected' : ''}>PSA 10</option>
               <option value="psa9" ${suggestedGrade === 'psa9' ? 'selected' : ''}>PSA 9</option>
-              <option value="raw" ${suggestedGrade === 'raw' ? 'selected' : ''}>A급 (싱글)</option>
-              <option value="box" ${suggestedGrade === 'box' ? 'selected' : ''}>박스</option>
+              <option value="raw" ${suggestedGrade === 'raw' ? 'selected' : ''}>A급 (싱글)</option>`}
             </select>
           </label>
           <div style="display:grid; grid-template-columns:1fr 100px; gap:10px">

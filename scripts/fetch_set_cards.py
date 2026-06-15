@@ -94,8 +94,6 @@ POKEMON_SETS = [
     ("SV2D", "클레이 버스트", "https://www.tcgcollector.com/sets/11570/clay-burst"),
     ("SV2P", "스노우 해저드", "https://www.tcgcollector.com/sets/11569/snow-hazard"),
     ("SV1a", "트리플렛 비트", "https://www.tcgcollector.com/sets/11566/triplet-beat"),
-    ("SV1S", "스칼렛ex", "https://www.tcgcollector.com/sets/11505/scarlet-ex"),
-    ("SV1V", "바이올렛ex", "https://www.tcgcollector.com/sets/11506/violet-ex"),
     # ─── Sword & Shield Era (대문자 S — 실제 파일명 케이스 일치) ───
     ("S12a", "VSTAR 유니버스", "https://www.tcgcollector.com/sets/11503/vstar-universe"),
     ("S12", "패러다임 트리거", "https://www.tcgcollector.com/sets/11499/paradigm-trigger"),

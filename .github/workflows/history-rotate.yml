@@ -1,0 +1,43 @@
+name: History Full Rotate
+
+# 전체 카드 거래량을 매일 1/7씩 순환 → 주간 전체 1바퀴.
+# collect_card_ids() 가 인기/신상만 모으는 한계를 보완 (롱테일 ~6,600장 커버).
+on:
+  schedule:
+    - cron: '0 15 * * *'   # 00:00 KST 매일 (scrape.yml 19 UTC 와 시간 분리)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape            # scrape.yml 과 같은 그룹 → 동시 실행 방지
+  cancel-in-progress: false
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Compute batch index (day-of-year mod 7)
+        id: b
+        run: echo "n=$(( $(date +%j) % 7 ))" >> "$GITHUB_OUTPUT"
+
+      - name: Backfill 1/7 of all cards (last 40 days volume)
+        run: python scripts/backfill_card_history.py --batch ${{ steps.b.outputs.n }} --of 7 --days 40
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - name: Commit history updates
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 History rotate batch (full-catalog 거래량)"
+          file_pattern: "data/history/*.json"
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com

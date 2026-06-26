@@ -161,9 +161,15 @@ def main():
     # NEW: --resume  이미 valid JSON 인 파일 skip
     ids_file = None
     resume = "--resume" in args
+    batch_n = 0   # NEW: --batch N --of M  → 전체를 M등분, N번째 배치만 처리 (스트라이드)
+    batch_of = 0
     for i, a in enumerate(args):
         if a == "--days" and i + 1 < len(args):
             days_limit = int(args[i + 1])
+        elif a == "--batch" and i + 1 < len(args):
+            batch_n = int(args[i + 1])
+        elif a == "--of" and i + 1 < len(args):
+            batch_of = int(args[i + 1])
         elif a.startswith("--ids-file="):
             ids_file = a.split("=", 1)[1]
         elif a.isdigit():
@@ -216,6 +222,9 @@ def main():
             print(f"  [{cid}] read fail: {e}")
             continue
 
+    if batch_of > 1:
+        targets = targets[batch_n::batch_of]
+        print(f"[배치] {batch_n + 1}/{batch_of} 만 처리 (스트라이드)")
     print(f"카드 history 파일: {len(targets)} 개\n")
     success = 0
     fail = 0

@@ -1,0 +1,26 @@
+name: PSA Fetch Test
+
+# 깃헙 액션 IP가 psacard.com 에 닿는지 1회 진단 (Cloudflare 는 403 차단됨)
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch a PSA cert page
+        run: |
+          echo "=== fetch https://www.psacard.com/cert/96051504 ==="
+          curl -s -o /tmp/out.html -w "HTTP_STATUS=%{http_code}\n" \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+            -H "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+            -H "Accept-Language: en-US,en;q=0.9" \
+            "https://www.psacard.com/cert/96051504"
+          echo "=== bytes ==="
+          wc -c /tmp/out.html
+          echo "=== Brand/Title 라벨 있나 (있으면 파싱 가능 = 성공) ==="
+          grep -o "Brand/Title" /tmp/out.html | head -1 || echo "(Brand/Title 없음)"
+          echo "=== Card Number 라벨 ==="
+          grep -o "Card Number" /tmp/out.html | head -1 || echo "(Card Number 없음)"
+          echo "=== TRAFALGAR 보이나 ==="
+          grep -o "TRAFALGAR" /tmp/out.html | head -1 || echo "(TRAFALGAR 없음 = 차단/빈페이지)"

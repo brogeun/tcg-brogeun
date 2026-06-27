@@ -10,7 +10,73 @@
  */
 import { withAuth, jsonResponse, badRequest, serverError } from '../../_shared/auth.js';
 
-const PSA_API_BASE = 'https://api.psacard.com/publicapi';
+const PSA_CERT_PAGE = 'https://www.psacard.com/cert/';
+
+/** PSA 공개 cert 페이지 HTML → cert 객체 (기존 PSA API 응답과 동일 형태) */
+function parsePsaCertPage(html, certNumber) {
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/&amp;/g, '&').replace(/&#0?39;|&#x27;/gi, "'")
+    .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ');
+  const lines = text.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const after = (label) => {
+    const lab = label.toLowerCase();
+    for (let i = 0; i < lines.length - 1; i++) {
+      if (lines[i].toLowerCase() === lab) return lines[i + 1];
+    }
+    return '';
+  };
+  const grade = after('Item Grade');
+  const brand = after('Brand/Title');
+  const subject = after('Subject');
+  let cardNumber = after('Card Number');
+  const variety = after('Variety/Pedigree');
+  const year = after('Year');
+  const category = after('Category');
+  if (!cardNumber) {
+    const m = (html.replace(/<[^>]+>/g, ' ').match(/#\s*(\d{1,4})\b/) || [])[1];
+    if (m) cardNumber = m;
+  }
+  if (!grade && !brand && !cardNumber) return null; // not found / 미파싱
+  return {
+    CertNumber: certNumber,
+    CardGrade: grade, Brand: brand, Subject: subject,
+    CardNumber: cardNumber, VarietyPedigree: variety,
+    Year: year, Category: category,
+    TotalPopulation: null, PopulationHigher: null,
+  };
+}
+
+/** D1 캐시 → 미스면 공개 페이지 조회·파싱·저장 (cert 불변 → 영구 캐시) */
+async function getCertFromCacheOrPage(env, certNumber) {
+  await env.DB.prepare(
+    'CREATE TABLE IF NOT EXISTS psa_cert_cache (cert_number TEXT PRIMARY KEY, data TEXT, fetched_at INTEGER)'
+  ).run();
+  const cached = await env.DB.prepare(
+    'SELECT data FROM psa_cert_cache WHERE cert_number = ?'
+  ).bind(certNumber).first();
+  if (cached && cached.data) {
+    try { return JSON.parse(cached.data); } catch (e) { /* 손상 캐시 무시 */ }
+  }
+  const r = await fetch(`${PSA_CERT_PAGE}${certNumber}`, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+    },
+  });
+  if (!r.ok) throw new Error(`PSA page ${r.status}`);
+  const html = await r.text();
+  const cert = parsePsaCertPage(html, certNumber);
+  if (!cert) return null;
+  try {
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO psa_cert_cache (cert_number, data, fetched_at) VALUES (?, ?, ?)'
+    ).bind(certNumber, JSON.stringify(cert), Date.now()).run();
+  } catch (e) { /* 캐시 저장 실패는 무시 */ }
+  return cert;
+}
 
 // 보유 카드 grade ↔ PSA Grade 매핑
 const GRADE_MAP = { psa10: 10, psa9: 9 };
@@ -176,7 +242,6 @@ async function lookupOurCard(env, cardId, origin, debugTrail) {
 
 export const onRequestPost = withAuth(async ({ request, env, user }) => {
   if (!env.DB) return serverError('D1 not bound');
-  if (!env.PSA_API_KEY) return serverError('PSA_API_KEY 가 설정되지 않았습니다');
 
   let body;
   try { body = await request.json(); } catch { return badRequest('JSON body 가 필요합니다'); }
@@ -204,28 +269,15 @@ export const onRequestPost = withAuth(async ({ request, env, user }) => {
     }, 409);
   }
 
-  // PSA Public API 호출
-  let psaResp;
+  // PSA 공개 cert 페이지 조회 (API 1회/일 제한 우회) + D1 영구 캐시
+  let cert;
   try {
-    const r = await fetch(`${PSA_API_BASE}/cert/GetByCertNumber/${cert_number}`, {
-      headers: { 'authorization': `bearer ${env.PSA_API_KEY}` },
-    });
-    if (r.status === 404) {
-      return jsonResponse({ ok: false, error: 'not_found', message: 'PSA 에 등록되지 않은 Cert# 입니다' }, 404);
-    }
-    if (!r.ok) {
-      const txt = await r.text();
-      return serverError(`PSA API 오류 (${r.status}): ${txt.slice(0, 200)}`);
-    }
-    psaResp = await r.json();
+    cert = await getCertFromCacheOrPage(env, cert_number);
   } catch (e) {
-    return serverError(`PSA API 호출 실패: ${e.message || e}`);
+    return serverError(`PSA 조회 실패: ${e.message || e}`);
   }
-
-  // PSA API 응답 — { PSACert: { CertNumber, SpecID, Brand, Year, Subject, CardNumber, VarietyPedigree, CardGrade, ... } }
-  const cert = psaResp?.PSACert || psaResp?.psaCert || psaResp;
   if (!cert) {
-    return jsonResponse({ ok: false, error: 'invalid_response', message: 'PSA 응답이 비어있습니다' }, 502);
+    return jsonResponse({ ok: false, error: 'not_found', message: 'PSA 에 등록되지 않은 Cert# 입니다 (또는 페이지 파싱 실패)' }, 404);
   }
 
   // Grade 검증

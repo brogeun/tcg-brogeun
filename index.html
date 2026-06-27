@@ -8605,35 +8605,99 @@ window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
     showToast('Cert# 를 6자리 이상 입력해주세요', 'error'); return;
   }
   inp.disabled = true;
-  showToast('PSA 인증 확인 중…', 'info');
-  try {
-    const r = await fetch('/api/psa/cert', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cert_number, card_id: cardId, holding_id: holdingId, expected_grade: expectedGrade,
-      }),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (r.ok && data.ok) {
-      showToast(data.message || '✅ 인증 완료', 'success');
-      refreshPortfolio();
+  const payload = { cert_number, card_id: cardId, holding_id: holdingId, expected_grade: expectedGrade };
+
+  const postCert = () => fetch('/api/psa/cert', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const onSuccess = (data) => {
+    closePsaCertPopup();
+    showToast(data.message || '✅ 인증 완료', 'success');
+    refreshPortfolio();
+  };
+  const onFail = (r, data) => {
+    closePsaCertPopup();
+    const msg = data.message || `등록 실패 (${r.status})`;
+    if (data.error === 'card_mismatch' || data.error === 'grade_mismatch' || data.error === 'not_found') {
+      alert(msg);
     } else {
-      const msg = data.message || `등록 실패 (${r.status})`;
-      // 카드 불일치 / 등급 불일치는 길게 alert 으로 분명히 안내
-      if (data.error === 'card_mismatch' || data.error === 'grade_mismatch') {
-        alert(msg);
-      } else {
-        showToast(msg, 'error');
-      }
-      inp.disabled = false;
+      showToast(msg, 'error');
     }
+    inp.disabled = false;
+  };
+
+  try {
+    const r = await postCert();
+    const data = await r.json().catch(() => ({}));
+    if (r.ok && data.ok) { onSuccess(data); return; }
+    if (r.status === 202 || data.status === 'pending') {
+      // 캐시에 없음 → 대기열 등록됨. 워커가 PSA 페이지를 받아올 때까지 폴링.
+      pollPsaCert(cert_number, postCert, onSuccess, onFail, () => { inp.disabled = false; });
+      return;
+    }
+    onFail(r, data);
   } catch (e) {
     showToast('등록 실패 — 네트워크 오류', 'error');
     inp.disabled = false;
   }
 };
+
+/** 대기중 PSA 조회 폴링 — 로딩 팝업 띄우고 5초마다 재조회 (최대 ~3분) */
+function pollPsaCert(certNumber, postCert, onSuccess, onFail, onCancel) {
+  showPsaCertPopup(certNumber);
+  let tries = 0;
+  const MAX = 36; // 5초 × 36 = 3분
+  const timer = setInterval(async () => {
+    if (window.__psaPopupCancelled) {
+      clearInterval(timer); window.__psaPopupCancelled = false;
+      closePsaCertPopup(); onCancel && onCancel(); return;
+    }
+    tries++;
+    try {
+      const r = await postCert();
+      const data = await r.json().catch(() => ({}));
+      if (r.ok && data.ok) { clearInterval(timer); onSuccess(data); return; }
+      if (r.status === 202 || data.status === 'pending') {
+        if (tries >= MAX) {
+          clearInterval(timer); closePsaCertPopup();
+          showToast('PSA 정보를 받아오지 못했어요. 잠시 후 다시 시도해주세요.', 'error');
+          onCancel && onCancel();
+        }
+        return; // 계속 대기
+      }
+      clearInterval(timer); onFail(r, data); // 불일치/없음 등 확정 응답
+    } catch (e) { /* 일시 오류 — 다음 폴링에서 재시도 */ }
+  }, 5000);
+}
+
+function showPsaCertPopup(certNumber) {
+  closePsaCertPopup();
+  window.__psaPopupCancelled = false;
+  const ov = document.createElement('div');
+  ov.id = 'psaCertPopup';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:340px;width:100%;padding:26px 22px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="width:46px;height:46px;margin:0 auto 16px;border:4px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:psaSpin .9s linear infinite"></div>
+      <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:6px">PSA 인증 확인 중</div>
+      <div style="font-size:12.5px;color:#64748b;line-height:1.5">Cert# ${escapeHtml(String(certNumber))} 정보를 PSA에서<br>받아오고 있어요. 잠시만 기다려주세요…</div>
+      <button onclick="window.__psaPopupCancelled=true" style="margin-top:18px;font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;text-decoration:underline">취소</button>
+    </div>`;
+  if (!document.getElementById('psaSpinStyle')) {
+    const st = document.createElement('style');
+    st.id = 'psaSpinStyle';
+    st.textContent = '@keyframes psaSpin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(st);
+  }
+  document.body.appendChild(ov);
+}
+
+function closePsaCertPopup() {
+  document.getElementById('psaCertPopup')?.remove();
+}
 
 /**
  * BGS Cert# 등록 — 카드 상세 등급 패널 인라인

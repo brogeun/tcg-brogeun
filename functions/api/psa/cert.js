@@ -10,79 +10,32 @@
  */
 import { withAuth, jsonResponse, badRequest, serverError } from '../../_shared/auth.js';
 
-const PSA_CERT_PAGE = 'https://www.psacard.com/cert/';
-
-/** PSA 공개 cert 페이지 HTML → cert 객체 (기존 PSA API 응답과 동일 형태) */
-function parsePsaCertPage(html, certNumber) {
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, '\n')
-    .replace(/&amp;/g, '&').replace(/&#0?39;|&#x27;/gi, "'")
-    .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ');
-  const lines = text.split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
-  const after = (label) => {
-    const lab = label.toLowerCase();
-    for (let i = 0; i < lines.length - 1; i++) {
-      if (lines[i].toLowerCase() === lab) return lines[i + 1];
-    }
-    return '';
-  };
-  const grade = after('Item Grade');
-  const brand = after('Brand/Title');
-  const subject = after('Subject');
-  let cardNumber = after('Card Number');
-  const variety = after('Variety/Pedigree');
-  const year = after('Year');
-  const category = after('Category');
-  if (!cardNumber) {
-    const m = (html.replace(/<[^>]+>/g, ' ').match(/#\s*(\d{1,4})\b/) || [])[1];
-    if (m) cardNumber = m;
-  }
-  if (!grade && !brand && !cardNumber) return null; // not found / 미파싱
-  return {
-    CertNumber: certNumber,
-    CardGrade: grade, Brand: brand, Subject: subject,
-    CardNumber: cardNumber, VarietyPedigree: variety,
-    Year: year, Category: category,
-    TotalPopulation: null, PopulationHigher: null,
-  };
-}
-
-/** D1 캐시 → 미스면 공개 페이지 조회·파싱·저장 (cert 불변 → 영구 캐시) */
-async function getCertFromCacheOrPage(env, certNumber) {
+/** D1 테이블 보장 — 캐시(영구) + 대기열(pending) */
+async function ensureTables(env) {
   await env.DB.prepare(
     'CREATE TABLE IF NOT EXISTS psa_cert_cache (cert_number TEXT PRIMARY KEY, data TEXT, fetched_at INTEGER)'
   ).run();
-  const cached = await env.DB.prepare(
+  await env.DB.prepare(
+    'CREATE TABLE IF NOT EXISTS psa_cert_pending (cert_number TEXT PRIMARY KEY, card_id TEXT, requested_at INTEGER)'
+  ).run();
+}
+
+/** 캐시에서 cert 조회 (없으면 null) */
+async function getCachedCert(env, certNumber) {
+  const row = await env.DB.prepare(
     'SELECT data FROM psa_cert_cache WHERE cert_number = ?'
   ).bind(certNumber).first();
-  if (cached && cached.data) {
-    try { return JSON.parse(cached.data); } catch (e) { /* 손상 캐시 무시 */ }
+  if (row && row.data) {
+    try { return JSON.parse(row.data); } catch (e) { /* 손상 캐시 무시 */ }
   }
-  const r = await fetch(`${PSA_CERT_PAGE}${certNumber}`, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Upgrade-Insecure-Requests': '1',
-      'Referer': 'https://www.psacard.com/cert',
-    },
-  });
-  if (!r.ok) throw new Error(`PSA page ${r.status}`);
-  const html = await r.text();
-  const cert = parsePsaCertPage(html, certNumber);
-  if (!cert) return null;
-  try {
-    await env.DB.prepare(
-      'INSERT OR REPLACE INTO psa_cert_cache (cert_number, data, fetched_at) VALUES (?, ?, ?)'
-    ).bind(certNumber, JSON.stringify(cert), Date.now()).run();
-  } catch (e) { /* 캐시 저장 실패는 무시 */ }
-  return cert;
+  return null;
+}
+
+/** 대기열 등록 — 가정용 PC 워커가 PSA 페이지를 받아 캐시를 채운다 */
+async function queueCert(env, certNumber, cardId) {
+  await env.DB.prepare(
+    'INSERT OR IGNORE INTO psa_cert_pending (cert_number, card_id, requested_at) VALUES (?, ?, ?)'
+  ).bind(certNumber, cardId, Date.now()).run();
 }
 
 // 보유 카드 grade ↔ PSA Grade 매핑
@@ -276,15 +229,21 @@ export const onRequestPost = withAuth(async ({ request, env, user }) => {
     }, 409);
   }
 
-  // PSA 공개 cert 페이지 조회 (API 1회/일 제한 우회) + D1 영구 캐시
-  let cert;
-  try {
-    cert = await getCertFromCacheOrPage(env, cert_number);
-  } catch (e) {
-    return serverError(`PSA 조회 실패: ${e.message || e}`);
-  }
+  // D1 캐시 확인 → 없으면 대기열 등록 후 "조회 중"(pending) 반환.
+  // 가정용 PC 워커가 PSA 페이지를 받아 캐시를 채우면, 재요청 시 캐시 적중 → 검증 진행.
+  await ensureTables(env);
+  const cert = await getCachedCert(env, cert_number);
   if (!cert) {
-    return jsonResponse({ ok: false, error: 'not_found', message: 'PSA 에 등록되지 않은 Cert# 입니다 (또는 페이지 파싱 실패)' }, 404);
+    await queueCert(env, cert_number, card_id);
+    return jsonResponse({
+      ok: false,
+      status: 'pending',
+      message: 'PSA 정보를 받아오는 중이에요. 잠시 후 자동으로 확인됩니다.',
+    }, 202);
+  }
+
+  if (cert.notFound) {
+    return jsonResponse({ ok: false, error: 'not_found', message: 'PSA 에 등록되지 않은 Cert# 입니다' }, 404);
   }
 
   // Grade 검증

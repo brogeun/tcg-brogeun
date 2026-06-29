@@ -163,13 +163,17 @@ def main():
     resume = "--resume" in args
     batch_n = 0   # NEW: --batch N --of M  → 전체를 M등분, N번째 배치만 처리 (스트라이드)
     batch_of = 0
+    skip_next = False
     for i, a in enumerate(args):
+        if skip_next:
+            skip_next = False
+            continue  # --days/--batch/--of 의 값 → 카드 ID 로 오인 방지
         if a == "--days" and i + 1 < len(args):
-            days_limit = int(args[i + 1])
+            days_limit = int(args[i + 1]); skip_next = True
         elif a == "--batch" and i + 1 < len(args):
-            batch_n = int(args[i + 1])
+            batch_n = int(args[i + 1]); skip_next = True
         elif a == "--of" and i + 1 < len(args):
-            batch_of = int(args[i + 1])
+            batch_of = int(args[i + 1]); skip_next = True
         elif a.startswith("--ids-file="):
             ids_file = a.split("=", 1)[1]
         elif a.isdigit():

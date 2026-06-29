@@ -344,7 +344,7 @@ def fetch_grade_listings(card_id: str, condition_id: int = 22, only_on_sale: boo
                 if resp.status != 200:
                     break
                 data = json.loads(resp.read().decode("utf-8"))
-        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
+        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TimeoutError, OSError):
             break
         items = data.get("usedListings") or data.get("usedTradingCards") or []
         if not items:
@@ -614,7 +614,12 @@ def main():
         if debug_this:
             print(f"  [DEBUG] card {cid}:")
         # ⚡ active 매물만 받기 (isOnlyOnSale=true) — 사용자가 SNKRDUNK 페이지에서 보는 매물 그대로
-        all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=20)
+        # 방어: 카드 1장에서 타임아웃/네트워크 오류 나도 전체 스크랩이 죽지 않게 건너뜀
+        try:
+            all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=20)
+        except Exception as e:
+            print(f"    ! card {cid} listings 실패 — 건너뜀: {type(e).__name__}: {e}")
+            continue
         # 안전장치: client-side isSold 필터 (API 가 isOnlyOnSale 무시할 가능성 대비)
         active_only = [it for it in all_listings if not it.get("isSold")]
         if debug_this and all_listings:
@@ -899,15 +904,4 @@ def main():
             hist_path.unlink()
         except Exception:
             pass
-        hist_path.write_bytes(out.encode("utf-8"))
-        appended += 1
-
-    print(f"  → history 갱신: {appended} 카드/박스")
-    print(f"\n완료. 실패 {fail_count}/{total}")
-    if fail_count == total:
-        print("All failed -> exit 1")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+        hist_p

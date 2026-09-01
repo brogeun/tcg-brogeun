@@ -46,6 +46,8 @@ BOX_LABELS = {
     'OP13': 'OP-13 受け継がれる意志',
     'OP14': 'OP-14 蒼海の七傑',
     'OP15': 'OP-15 神の島の冒険',
+    'OP16': 'OP-16 決戦の刻',
+    'OP17': 'OP-17 世界最強の戦士',
     'EB01': 'EB-01 メモリアルコレクション',
     'EB02': 'EB-02 Anime 25th Collection',
     'EB03': 'EB-03 ONE PIECE Heroines edition',

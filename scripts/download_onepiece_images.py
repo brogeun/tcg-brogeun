@@ -7,8 +7,10 @@ images/onepiece/{CODE}-{NUM}.png 로 다운받고, JSON 의 image 필드를
 
 사용:
   python scripts/download_onepiece_images.py
+  python scripts/download_onepiece_images.py --only OP17
 """
 
+import argparse
 import json
 import time
 import urllib.request
@@ -21,7 +23,7 @@ IMG_DIR = ROOT / "images" / "onepiece"
 IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 OP_SETS = ['OP01','OP02','OP03','OP04','OP05','OP06','OP07','OP08','OP09','OP10',
-           'OP11','OP12','OP13','OP14','OP15','OP16','EB01','EB02','EB03','EB04']
+           'OP11','OP12','OP13','OP14','OP15','OP16','OP17','EB01','EB02','EB03','EB04']
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
@@ -47,13 +49,18 @@ def download(url: str, dest: Path) -> bool:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--only", help="특정 세트만 (예: OP17)")
+    args = parser.parse_args()
+
     print("=" * 60)
     print(f"원피스 카드 이미지 다운로드 → images/onepiece/")
     print("=" * 60)
 
     total_ok, total_fail, total_skip = 0, 0, 0
 
-    for code in OP_SETS:
+    targets = [args.only] if args.only else OP_SETS
+    for code in targets:
         p = JSON_DIR / f"{code}.json"
         if not p.exists():
             continue

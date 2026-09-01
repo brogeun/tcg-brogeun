@@ -5994,6 +5994,7 @@ const CARDINFO_SOURCE = {
 const CARDINFO = {
   pokemon: [
     // ─── Mega Scarlet & Violet Era ───
+    {code:"M6", name:"스톰 에메랄다 (Storm Emeralda)", release:"2026.07.31", boxId:"846048", imageVersion:"20260901", imageScale:1.1, url:"https://www.tcgcollector.com/sets/11929/storm-emeralda?setCardCountMode=anyCardVariant"},
     {code:"M5", name:"어비스아이 (Abyss Eye)", release:"2026.05.22", url:"https://www.tcgcollector.com/sets/11810/abyss-eye?setCardCountMode=anyCardVariant"},
     {code:"M4", name:"닌자 스페너 (Ninja Spinner)", release:"2026.03.13", url:"https://www.tcgcollector.com/sets/11800/ninja-spinner?setCardCountMode=anyCardVariant"},
     {code:"M3", name:"무니키스 제로 (Nullifying Zero)", release:"2026.01.23", url:"https://www.tcgcollector.com/sets/11684/nullifying-zero?setCardCountMode=anyCardVariant"},
@@ -6166,6 +6167,7 @@ const CARDINFO = {
   ],
   onepiece: [
     // ─── 발매일 내림차순 (최신 → 과거) ───
+    {code:"OP17", name:"세계 최강의 전사 (The World's Strongest Warriors)", release:"2026.08.22", boxId:"864495", imageVersion:"20260901", imageScale:1.1, url:"https://www.onepiece-cardgame.com/cardlist/?series=550117"},
     {code:"OP16", name:"결전의 각 (Time of the Decisive Battle)", release:"2026.05.30", url:"https://tcgrepublic.com/category/subcategory_page_11089.html"},
     {code:"OP15", name:"신의 섬의 모험 (Adventure of God's Island)", release:"2026.02.28", url:"https://tcgrepublic.com/category/subcategory_page_10948.html"},
     {code:"EB04", name:"에그헤드 크라이시스 (Egghead Crisis)", release:"2026.01.31", url:"https://tcgrepublic.com/category/subcategory_page_10895.html"},
@@ -6221,17 +6223,19 @@ function renderCardInfo() {
     // S 시리즈 webp 는 소문자 파일명 (s12a.webp), SV 시리즈는 대문자 그대로
     const isSwordShield = /^S[0-9]/.test(s.code) && !s.code.startsWith('SV');
     const webpName = isSwordShield ? s.code[0].toLowerCase() + s.code.slice(1) : s.code;
-    const imgSrc = isLegacyBox2
+    const imgSrcBase = isLegacyBox2
       ? `images/box2/${s.code}.webp`
       : isNewWebp ? `images/box/${webpName}.webp` : `images/sets/${s.code}.jpg`;
+    const imgSrc = s.imageVersion ? `${imgSrcBase}?v=${s.imageVersion}` : imgSrcBase;
     const imgClass = (isNewWebp || isLegacyBox2) ? 'set-tile-img is-webp' : 'set-tile-img';
+    const imgStyle = s.imageScale ? `style="transform:scale(${s.imageScale})"` : '';
     // onerror: 회색 background + 조용히 hide
     const onerrorAttr = `onerror="this.onerror=null;this.style.opacity='0'"`;
     if (isNolink) {
       return `
         <div class="set-tile" style="opacity:0.7; cursor:default" title="${safeName} (연동 준비 중)">
           <div class="${imgClass}">
-            <img src="${imgSrc}" alt="${safeName}" loading="lazy" ${onerrorAttr}>
+            <img src="${imgSrc}" alt="${safeName}" loading="lazy" ${imgStyle} ${onerrorAttr}>
           </div>
           <div class="set-tile-body">
             <div class="set-tile-code">${s.code}</div>
@@ -6243,7 +6247,7 @@ function renderCardInfo() {
     return `
       <div class="set-tile" style="cursor:pointer" data-set-code="${s.code}" data-set-name="${escapeHtml(s.name || '')}" data-external-url="${s.url || ''}" title="${safeName} 카드 보기">
         <div class="${imgClass}">
-          <img src="${imgSrc}" alt="${safeName}" loading="lazy" ${onerrorAttr}>
+          <img src="${imgSrc}" alt="${safeName}" loading="lazy" ${imgStyle} ${onerrorAttr}>
         </div>
         <div class="set-tile-body">
           <div class="set-tile-code">${s.code}</div>

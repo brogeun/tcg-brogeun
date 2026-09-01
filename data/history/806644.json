@@ -1,62 +1,512 @@
 {
   "id": "806644",
-  "updatedAt": "2026-06-27T20:13:17.645610+00:00",
-  "source": "daily (sales-history 1ea)",
+  "updatedAt": "2026-09-02T00:58:48.720755+09:00",
+  "source": "box backfill + legacy box history normalization",
   "history": [
     {
       "date": "2026-04-29",
-      "total_vol": 1,
-      "total_price": 10000
+      "box_vol": 1,
+      "box_price": 10000
     },
     {
       "date": "2026-05-14",
-      "total_vol": 1,
-      "total_price": 25000
+      "box_vol": 1,
+      "box_price": 25000
     },
     {
       "date": "2026-05-15",
-      "total_vol": 1,
-      "total_price": 100000
+      "box_vol": 1,
+      "box_price": 100000
     },
     {
       "date": "2026-05-16",
-      "total_vol": 9,
-      "total_price": 17777
+      "box_vol": 9,
+      "box_price": 17777
     },
     {
       "date": "2026-05-17",
-      "total_vol": 16,
-      "total_price": 13500
+      "box_vol": 16,
+      "box_price": 13500
     },
     {
       "date": "2026-05-18",
-      "total_vol": 70,
-      "total_price": 27949
+      "box_vol": 70,
+      "box_price": 27949
     },
     {
       "date": "2026-05-19",
-      "total_vol": 12,
-      "total_price": 13199
+      "box_vol": 12,
+      "box_price": 13199
     },
     {
       "date": "2026-05-20",
-      "total_vol": 93,
-      "total_price": 22400
+      "box_vol": 93,
+      "box_price": 22400
     },
     {
       "date": "2026-05-21",
-      "total_vol": 375,
-      "total_price": 26500
+      "box_vol": 375,
+      "box_price": 26500
     },
     {
       "date": "2026-05-22",
-      "total_vol": 448,
-      "total_price": 25999
+      "box_vol": 448,
+      "box_price": 25999
     },
     {
       "date": "2026-05-23",
-      "total_vol": 725,
-      "total_price": 14000
+      "box_vol": 725,
+      "box_price": 14000
+    },
+    {
+      "date": "2026-06-04",
+      "box_vol": 121,
+      "box_price": 14500
+    },
+    {
+      "date": "2026-06-05",
+      "box_vol": 59,
+      "box_price": 28800
+    },
+    {
+      "date": "2026-06-06",
+      "box_vol": 72,
+      "box_price": 14000
+    },
+    {
+      "date": "2026-06-07",
+      "box_vol": 87,
+      "box_price": 13350
+    },
+    {
+      "date": "2026-06-08",
+      "box_vol": 90,
+      "box_price": 27000
+    },
+    {
+      "date": "2026-06-09",
+      "box_vol": 84,
+      "box_price": 13499
+    },
+    {
+      "date": "2026-06-10",
+      "box_vol": 62,
+      "box_price": 26400
+    },
+    {
+      "date": "2026-06-11",
+      "box_vol": 83,
+      "box_price": 26300
+    },
+    {
+      "date": "2026-06-12",
+      "box_vol": 66,
+      "box_price": 12300
+    },
+    {
+      "date": "2026-06-13",
+      "box_vol": 58,
+      "box_price": 12200
+    },
+    {
+      "date": "2026-06-14",
+      "box_vol": 53,
+      "box_price": 24500
+    },
+    {
+      "date": "2026-06-15",
+      "box_vol": 56,
+      "box_price": 11800
+    },
+    {
+      "date": "2026-06-16",
+      "box_vol": 82,
+      "box_price": 35990
+    },
+    {
+      "date": "2026-06-17",
+      "box_vol": 113,
+      "box_price": 12000
+    },
+    {
+      "date": "2026-06-18",
+      "box_vol": 76,
+      "box_price": 11900
+    },
+    {
+      "date": "2026-06-19",
+      "box_vol": 53,
+      "box_price": 11600
+    },
+    {
+      "date": "2026-06-20",
+      "box_vol": 50,
+      "box_price": 11499
+    },
+    {
+      "date": "2026-06-21",
+      "box_vol": 67,
+      "box_price": 11200
+    },
+    {
+      "date": "2026-06-22",
+      "box_vol": 69,
+      "box_price": 11300
+    },
+    {
+      "date": "2026-06-23",
+      "box_vol": 77,
+      "box_price": 10600
+    },
+    {
+      "date": "2026-06-24",
+      "box_vol": 101,
+      "box_price": 21989
+    },
+    {
+      "date": "2026-06-25",
+      "box_vol": 63,
+      "box_price": 10799
+    },
+    {
+      "date": "2026-06-26",
+      "box_vol": 76,
+      "box_price": 10500
+    },
+    {
+      "date": "2026-06-27",
+      "box_vol": 85,
+      "box_price": 20000
+    },
+    {
+      "date": "2026-06-28",
+      "box_vol": 85,
+      "box_price": 19700
+    },
+    {
+      "date": "2026-06-29",
+      "box_vol": 85,
+      "box_price": 29488
+    },
+    {
+      "date": "2026-06-30",
+      "box_vol": 107,
+      "box_price": 19000
+    },
+    {
+      "date": "2026-07-01",
+      "box_vol": 75,
+      "box_price": 29488
+    },
+    {
+      "date": "2026-07-02",
+      "box_vol": 80,
+      "box_price": 19700
+    },
+    {
+      "date": "2026-07-03",
+      "box_vol": 66,
+      "box_price": 19800
+    },
+    {
+      "date": "2026-07-04",
+      "box_vol": 41,
+      "box_price": 20700
+    },
+    {
+      "date": "2026-07-05",
+      "box_vol": 55,
+      "box_price": 10000
+    },
+    {
+      "date": "2026-07-06",
+      "box_vol": 87,
+      "box_price": 10500
+    },
+    {
+      "date": "2026-07-07",
+      "box_vol": 47,
+      "box_price": 21400
+    },
+    {
+      "date": "2026-07-08",
+      "box_vol": 50,
+      "box_price": 10499
+    },
+    {
+      "date": "2026-07-09",
+      "box_vol": 68,
+      "box_price": 22000
+    },
+    {
+      "date": "2026-07-10",
+      "box_vol": 63,
+      "box_price": 34800
+    },
+    {
+      "date": "2026-07-11",
+      "box_vol": 27,
+      "box_price": 11000
+    },
+    {
+      "date": "2026-07-12",
+      "box_vol": 27,
+      "box_price": 10680
+    },
+    {
+      "date": "2026-07-13",
+      "box_vol": 64,
+      "box_price": 10999
+    },
+    {
+      "date": "2026-07-14",
+      "box_vol": 33,
+      "box_price": 11080
+    },
+    {
+      "date": "2026-07-15",
+      "box_vol": 31,
+      "box_price": 21900
+    },
+    {
+      "date": "2026-07-16",
+      "box_vol": 22,
+      "box_price": 21999
+    },
+    {
+      "date": "2026-07-17",
+      "box_vol": 18,
+      "box_price": 10500
+    },
+    {
+      "date": "2026-07-18",
+      "box_vol": 24,
+      "box_price": 10499
+    },
+    {
+      "date": "2026-07-19",
+      "box_vol": 28,
+      "box_price": 10000
+    },
+    {
+      "date": "2026-07-20",
+      "box_vol": 38,
+      "box_price": 10450
+    },
+    {
+      "date": "2026-07-21",
+      "box_vol": 26,
+      "box_price": 10499
+    },
+    {
+      "date": "2026-07-22",
+      "box_vol": 49,
+      "box_price": 10444
+    },
+    {
+      "date": "2026-07-23",
+      "box_vol": 25,
+      "box_price": 21799
+    },
+    {
+      "date": "2026-07-24",
+      "box_vol": 19,
+      "box_price": 9900
+    },
+    {
+      "date": "2026-07-25",
+      "box_vol": 26,
+      "box_price": 20000
+    },
+    {
+      "date": "2026-07-26",
+      "box_vol": 26,
+      "box_price": 9699
+    },
+    {
+      "date": "2026-07-27",
+      "box_vol": 27,
+      "box_price": 19999
+    },
+    {
+      "date": "2026-07-28",
+      "box_vol": 31,
+      "box_price": 19900
+    },
+    {
+      "date": "2026-07-29",
+      "box_vol": 52,
+      "box_price": 9380
+    },
+    {
+      "date": "2026-07-30",
+      "box_vol": 58,
+      "box_price": 9600
+    },
+    {
+      "date": "2026-07-31",
+      "box_vol": 80,
+      "box_price": 18700
+    },
+    {
+      "date": "2026-08-01",
+      "box_vol": 72,
+      "box_price": 19500
+    },
+    {
+      "date": "2026-08-02",
+      "box_vol": 51,
+      "box_price": 9199
+    },
+    {
+      "date": "2026-08-03",
+      "box_vol": 48,
+      "box_price": 9100
+    },
+    {
+      "date": "2026-08-04",
+      "box_vol": 50,
+      "box_price": 28950
+    },
+    {
+      "date": "2026-08-05",
+      "box_vol": 26,
+      "box_price": 18500
+    },
+    {
+      "date": "2026-08-06",
+      "box_vol": 27,
+      "box_price": 18299
+    },
+    {
+      "date": "2026-08-07",
+      "box_vol": 38,
+      "box_price": 9250
+    },
+    {
+      "date": "2026-08-08",
+      "box_vol": 20,
+      "box_price": 18000
+    },
+    {
+      "date": "2026-08-09",
+      "box_vol": 29,
+      "box_price": 9150
+    },
+    {
+      "date": "2026-08-10",
+      "box_vol": 29,
+      "box_price": 18200
+    },
+    {
+      "date": "2026-08-11",
+      "box_vol": 27,
+      "box_price": 18400
+    },
+    {
+      "date": "2026-08-12",
+      "box_vol": 25,
+      "box_price": 8900
+    },
+    {
+      "date": "2026-08-13",
+      "box_vol": 35,
+      "box_price": 18000
+    },
+    {
+      "date": "2026-08-14",
+      "box_vol": 29,
+      "box_price": 18000
+    },
+    {
+      "date": "2026-08-15",
+      "box_vol": 41,
+      "box_price": 9000
+    },
+    {
+      "date": "2026-08-16",
+      "box_vol": 30,
+      "box_price": 9100
+    },
+    {
+      "date": "2026-08-17",
+      "box_vol": 58,
+      "box_price": 9270
+    },
+    {
+      "date": "2026-08-18",
+      "box_vol": 31,
+      "box_price": 17999
+    },
+    {
+      "date": "2026-08-19",
+      "box_vol": 31,
+      "box_price": 18300
+    },
+    {
+      "date": "2026-08-20",
+      "box_vol": 22,
+      "box_price": 18500
+    },
+    {
+      "date": "2026-08-21",
+      "box_vol": 43,
+      "box_price": 9000
+    },
+    {
+      "date": "2026-08-22",
+      "box_vol": 29,
+      "box_price": 8899
+    },
+    {
+      "date": "2026-08-23",
+      "box_vol": 25,
+      "box_price": 18200
+    },
+    {
+      "date": "2026-08-24",
+      "box_vol": 31,
+      "box_price": 8800
+    },
+    {
+      "date": "2026-08-25",
+      "box_vol": 20,
+      "box_price": 17500
+    },
+    {
+      "date": "2026-08-26",
+      "box_vol": 26,
+      "box_price": 8300
+    },
+    {
+      "date": "2026-08-27",
+      "box_vol": 16,
+      "box_price": 18199
+    },
+    {
+      "date": "2026-08-28",
+      "box_vol": 28,
+      "box_price": 8799
+    },
+    {
+      "date": "2026-08-30",
+      "box_vol": 18,
+      "box_price": 8900
+    },
+    {
+      "date": "2026-08-31",
+      "box_vol": 17,
+      "box_price": 8400
+    },
+    {
+      "date": "2026-09-01",
+      "box_vol": 17,
+      "box_price": 24500
+    },
+    {
+      "date": "2026-09-02",
+      "box_vol": 9,
+      "box_price": 16300
     }
   ]
 }

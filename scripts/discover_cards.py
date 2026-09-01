@@ -65,6 +65,29 @@ def load_cookie_header():
 COOKIE_HEADER = load_cookie_header()
 
 
+def normalize_min_price_usd(item):
+    """지역화된 API 가격(원/엔)을 기존 데이터 스키마인 USD로 정규화."""
+    value = item.get("minPrice")
+    if value in (None, ""):
+        return value
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return value
+    display = str(item.get("minPriceFormat") or "")
+    if "₩" not in display and "¥" not in display:
+        return int(value) if value.is_integer() else value
+    usd_krw, jpy_krw = 1370.0, 9.2
+    try:
+        fx = json.loads((DATA_DIR / "fx-rates.json").read_text("utf-8")).get("rates", {})
+        usd_krw = float(fx.get("USD") or usd_krw)
+        jpy_krw = float(fx.get("JPY") or jpy_krw)
+    except Exception:
+        pass
+    usd = value / usd_krw if "₩" in display else (value * jpy_krw / usd_krw)
+    return round(usd, 2)
+
+
 def fetch_listing_page(brand, category, page, per_page=100, order="popular"):
     """SNKRDUNK listing API — 1페이지 fetch"""
     url = (f"https://snkrdunk.com/en/v1/trading-cards"
@@ -125,7 +148,7 @@ def discover_category(brand, category, per_page=100, order="popular", max_pages=
                 "productNumber": item.get("productNumber"),
                 "thumbnailUrl": item.get("thumbnailUrl"),
                 "releasedAt": item.get("releasedAt"),
-                "minPrice": item.get("minPrice"),
+                "minPrice": normalize_min_price_usd(item),
                 "currency": "USD",  # API returns USD
                 "listingCount": item.get("listingCount"),
             })
@@ -153,7 +176,7 @@ def main():
     for a in args:
         if a.startswith("--per-page="):
             try:
-                per_page = int(a.split("=", 1)[1])
+                per_page = min(100, max(1, int(a.split("=", 1)[1])))
             except Exception:
                 pass
         elif a.startswith("--order="):
@@ -187,6 +210,12 @@ def main():
             print(f"\n[{brand} / {cat_kind}] 수집 중...")
             t0 = time.time()
             cards = discover_category(brand, cat_id, per_page=per_page, order=order)
+            # 인기순 페이지는 일부 신상품 변형을 누락할 수 있어 최신순 상위도 합친다.
+            if cat_kind == "card" and order != "new":
+                recent = discover_category(brand, cat_id, per_page=100, order="new", max_pages=10)
+                merged = {str(c.get("id")): c for c in cards}
+                merged.update({str(c.get("id")): c for c in recent})
+                cards = list(merged.values())
             elapsed = time.time() - t0
             print(f"  ✓ {brand}/{cat_kind}: {len(cards)}개 ({elapsed:.1f}초)")
             by_brand[brand][cat_kind] = cards

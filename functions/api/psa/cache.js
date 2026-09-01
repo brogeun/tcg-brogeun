@@ -25,7 +25,25 @@ export async function onRequestPost({ env, request }) {
   ).run();
 
   const cert = html ? parsePsaCertPage(html, certNumber) : null;
-  const data = cert || { CertNumber: certNumber, notFound: true };
+
+  let data;
+  if (cert) {
+    data = cert;
+  } else {
+    // 파싱 실패 — '진짜 없는 cert' 페이지인지, 챌린지/오류 페이지인지 구분.
+    // 챌린지/오류를 notFound 로 영구 저장하면 멀쩡한 cert 가 오염되므로, 그런 경우는
+    // 캐시도 대기열 제거도 하지 않고 그대로 둔다 (워커가 다음 주기에 재시도).
+    const low = String(html).toLowerCase();
+    const looksNotFound = low.includes('cert') &&
+      (low.includes('not found') || low.includes('invalid') ||
+       low.includes('no certification') || low.includes("doesn't exist"));
+    if (!looksNotFound) {
+      return new Response(JSON.stringify({ ok: false, skipped: true, note: '실제 데이터 아님 — 캐시 안 함' }), {
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    data = { CertNumber: certNumber, notFound: true };
+  }
 
   await env.DB.prepare(
     'INSERT OR REPLACE INTO psa_cert_cache (cert_number, data, fetched_at) VALUES (?, ?, ?)'

@@ -50,17 +50,18 @@ def get_queue():
 
 
 def fetch_html(page, cert):
+    """실제 cert 데이터가 보일 때만 HTML 반환. 챌린지/로딩만 보이면 None
+    → 캐시 오염(멀쩡한 cert 를 '없음'으로 영구 저장) 방지. None 이면 대기열에 남겨 다음 주기 재시도."""
     page.goto(f"https://www.psacard.com/cert/{cert}",
               wait_until="domcontentloaded", timeout=60000)
-    # Cloudflare 챌린지 자동 통과 대기 — Item Grade 라벨이 뜨면 실제 페이지
-    for _ in range(30):
+    # Cloudflare 챌린지 자동 통과 대기 — Item Grade / Brand/Title 라벨이 뜨면 실제 페이지
+    for _ in range(40):
         html = page.content()
-        if "Item Grade" in html or "Brand/Title" in html:
-            return html
-        if "This cert" in html and "not" in html.lower():
-            return html  # not found 페이지
+        low = html.lower()
+        if "item grade" in low or "brand/title" in low:
+            return html  # 실제 데이터 확보 → 전송
         page.wait_for_timeout(1000)
-    return page.content()  # 타임아웃 — 그대로 반환 (서버가 파싱 실패 시 notFound 처리)
+    return None  # 40초 동안 실제 데이터 못 봄 (챌린지/없는 cert) → 전송 안 함
 
 
 def post_cache(cert, html):
@@ -88,6 +89,9 @@ def main():
                 for cert in certs:
                     try:
                         html = fetch_html(page, cert)
+                        if not html:
+                            print(f"  {cert} — 실제 데이터 못 받음(챌린지?), 건너뜀(다음 주기 재시도)")
+                            continue  # 대기열에 남김 → 캐시 오염 방지
                         res = post_cache(cert, html)
                         print(f"  {cert} -> {res}")
                     except Exception as e:

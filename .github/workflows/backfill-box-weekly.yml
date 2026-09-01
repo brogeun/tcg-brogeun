@@ -1,13 +1,27 @@
-name: Backfill Box History (Weekly)
+name: Update All Box Volume (Daily)
 
-# 매주 일요일 03:00 KST = 토요일 18:00 UTC 에 박스 history 백필
-# 1個 거래만 수집해서 data/history/{box_id}.json 갱신
-# 일일 cron 이 못 잡은 누락 기간 + 새 박스 history 보완
+# 매일 02:00 KST 전 박스 거래량 갱신.
+# 월~토: 최근 14일을 겹쳐 수집, 일요일: 최근 90일 재검증.
+# UTC 기준 일요일~금요일은 KST 월요일~토요일이다.
 
 on:
   schedule:
-    - cron: '0 18 * * 6'  # 일요일 03:00 KST 매주
-  workflow_dispatch:  # 수동 실행 가능
+    - cron: '0 17 * * 0-5'  # 월~토 02:00 KST — 최근 14일
+    - cron: '0 17 * * 6'    # 일요일 02:00 KST — 최근 90일
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '수집 범위'
+        required: true
+        default: recent
+        type: choice
+        options:
+          - recent
+          - full
+      days:
+        description: 'recent 모드 재수집 일수'
+        required: true
+        default: '14'
 
 permissions:
   contents: write
@@ -29,15 +43,47 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run backfill (1個 거래만 수집)
-        run: python scripts/backfill_box_history.py
+      - name: Update every box volume
+        shell: bash
+        run: |
+          run_four_shards() {
+            local extra_args=("$@")
+            pids=()
+            for batch in 0 1 2 3; do
+              python scripts/backfill_box_history.py --batch "$batch" --of 4 "${extra_args[@]}" &
+              pids+=("$!")
+            done
+            failed=0
+            for pid in "${pids[@]}"; do
+              wait "$pid" || failed=1
+            done
+            return "$failed"
+          }
+
+          if [[ "${{ github.event_name }}" == "schedule" && "${{ github.event.schedule }}" == "0 17 * * 6" ]]; then
+            echo "Sunday 90-day reconciliation"
+            run_four_shards --days 90 --range threeMonths
+          elif [[ "${{ inputs.mode }}" == "full" ]]; then
+            echo "Manual full reconciliation"
+            run_four_shards
+          else
+            DAYS="${{ inputs.days }}"
+            DAYS="${DAYS:-14}"
+            echo "Daily recent reconciliation: ${DAYS} days"
+            run_four_shards --days "${DAYS}" --range oneMonth
+          fi
         env:
           PYTHONUNBUFFERED: "1"
+
+      - name: Audit all box history files
+        run: python scripts/audit_box_history.py
+        env:
+          PYTHONIOENCODING: "utf-8"
 
       - name: Commit history updates
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🤖 Weekly box history backfill — 1個 거래만 수집"
+          commit_message: "🤖 Daily all-box volume update"
           file_pattern: "data/history/*.json"
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com

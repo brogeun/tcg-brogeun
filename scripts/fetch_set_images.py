@@ -10,6 +10,7 @@ fetch_set_images.py — 세트 박스 이미지 자체 호스팅
 사용:
   python scripts/fetch_set_images.py
   python scripts/fetch_set_images.py --force    # 기존 파일 덮어쓰기
+  python scripts/fetch_set_images.py --force --only M6 OP17
 """
 
 import re
@@ -30,6 +31,7 @@ UA = (
 
 # index.html 의 CARDINFO 와 동일한 세트 목록
 POKEMON_SETS = [
+    ("M6", "https://cdn.snkrdunk.com/upload_bg_removed/6828644c-01c4-44df-ab9e-a447be1cdff9.webp?size=l"),
     ("M5", None),  # M5 = 어비스아이 (URL 없음, 발매 후 업데이트)
     ("M4", "https://www.tcgcollector.com/sets/11800/ninja-spinner"),
     ("M3", "https://www.tcgcollector.com/sets/11684/nullifying-zero"),
@@ -53,6 +55,7 @@ POKEMON_SETS = [
 ]
 
 ONEPIECE_SETS = [
+    ("OP17", "https://cdn.snkrdunk.com/upload_bg_removed/067ebb9d-ffc2-49c7-9abc-3eb7eb863388.webp?size=l"),
     ("OP16", None),  # nolink
     ("OP15", "https://tcgrepublic.com/category/subcategory_page_10948.html"),
     ("EB04", "https://tcgrepublic.com/category/subcategory_page_10895.html"),
@@ -134,6 +137,42 @@ def process_set(code: str, url: str | None, force: bool) -> str:
         return f"skip (exists)"
     if not url:
         return "skip (no URL)"
+    # 신규 세트는 SNKRDUNK 상품 CDN 이미지를 직접 내려받아 외부 링크 만료를 방지한다.
+    if "cdn.snkrdunk.com/upload" in url:
+        try:
+            download_image(url, dest)
+            # CDN 원본은 투명 여백이 큰 WebP이므로 상품 영역을 잘라낸 뒤 JPEG로 저장한다.
+            # 그대로 변환하면 신규 박스만 기존 타일보다 지나치게 작게 보인다.
+            from PIL import Image, ImageChops
+            with Image.open(dest) as im:
+                rgba = im.convert("RGBA")
+                alpha = rgba.getchannel("A")
+                bbox = alpha.getbbox()
+                if not bbox:
+                    rgb_source = rgba.convert("RGB")
+                    bbox = ImageChops.difference(
+                        rgb_source, Image.new("RGB", rgb_source.size, "white")
+                    ).getbbox()
+                if bbox:
+                    left, top, right, bottom = bbox
+                    margin = max(12, int(max(right - left, bottom - top) * 0.10))
+                    bbox = (
+                        max(0, left - margin), max(0, top - margin),
+                        min(rgba.width, right + margin), min(rgba.height, bottom + margin),
+                    )
+                    rgba = rgba.crop(bbox)
+                    alpha = rgba.getchannel("A")
+                if alpha.getextrema()[0] < 255:
+                    rgb = Image.new("RGB", rgba.size, "white")
+                    rgb.paste(rgba, mask=alpha)
+                else:
+                    rgb = rgba.convert("RGB")
+                rgb.save(dest, "JPEG", quality=92, optimize=True)
+            size_kb = dest.stat().st_size // 1024
+            return f"✓ SNKRDUNK {size_kb} KB"
+        except Exception as e:
+            dest.unlink(missing_ok=True)
+            return f"FAIL SNKRDUNK image: {e}"
     try:
         html = fetch_html(url)
     except Exception as e:
@@ -151,6 +190,10 @@ def process_set(code: str, url: str | None, force: bool) -> str:
 
 def main():
     force = "--force" in sys.argv
+    only_codes = None
+    if "--only" in sys.argv:
+        idx = sys.argv.index("--only")
+        only_codes = {a for a in sys.argv[idx + 1:] if not a.startswith("--")}
     print("=" * 60)
     print(f"세트 박스 이미지 다운로드 → {IMG_DIR.relative_to(ROOT)}/")
     print(f"옵션: force={force} (--force 플래그로 기존 덮어쓰기)")
@@ -158,12 +201,16 @@ def main():
 
     print("\n━━━ 포켓몬 ━━━")
     for code, url in POKEMON_SETS:
+        if only_codes and code not in only_codes:
+            continue
         result = process_set(code, url, force)
         print(f"  {code:7s} {result}")
         time.sleep(0.5)
 
     print("\n━━━ 원피스 ━━━")
     for code, url in ONEPIECE_SETS:
+        if only_codes and code not in only_codes:
+            continue
         result = process_set(code, url, force)
         print(f"  {code:7s} {result}")
         time.sleep(0.5)

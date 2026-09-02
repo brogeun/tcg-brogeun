@@ -291,7 +291,50 @@ def filter_by_kind(products: list, kind: str) -> list:
     return [p for p in products if not is_box_product(p["name"])]
 
 
+def preserve_product_metadata(filename: str, products: list) -> list:
+    """새 스크랩이 임시 이름(Card #ID)만 주더라도 기존 상품 메타는 보존한다.
+
+    SNKRDUNK 화면의 img alt가 비어 있으면 가격/이미지는 정상인데 이름만 Card #ID가
+    된다. 이 값으로 price-*-box.json을 덮으면 카드정보의 세트→박스 이름 매칭이
+    끊기므로, 동일 ID의 기존 파일과 수동 박스 카탈로그를 보조 소스로 사용한다.
+    """
+    sources = []
+    current_path = DATA_DIR / filename
+    if current_path.exists():
+        sources.append(current_path)
+    match = re.fullmatch(r"price-(pokemon|onepiece)-box\.json", filename)
+    if match:
+        manual_path = DATA_DIR / f"manual-boxes-{match.group(1)}.json"
+        if manual_path.exists():
+            sources.append(manual_path)
+
+    known = {}
+    for path in sources:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for old in data.get("products", []):
+                product_id = str(old.get("id") or "")
+                if product_id:
+                    known[product_id] = {**known.get(product_id, {}), **old}
+        except Exception:
+            continue
+
+    for product in products:
+        old = known.get(str(product.get("id") or ""))
+        if not old:
+            continue
+        new_name = str(product.get("name") or "").strip()
+        old_name = str(old.get("name") or "").strip()
+        if (not new_name or re.fullmatch(r"Card #\d+", new_name)) and old_name and not re.fullmatch(r"Card #\d+", old_name):
+            product["name"] = old_name
+        for key in ("code", "productNumber"):
+            if not product.get(key) and old.get(key):
+                product[key] = old[key]
+    return products
+
+
 def save_payload(filename: str, label: str, products: list, fetched_at: str):
+    products = preserve_product_metadata(filename, products)
     payload = {
         "ok": True,
         "brand": label,

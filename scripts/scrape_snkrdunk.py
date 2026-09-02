@@ -838,8 +838,6 @@ def main():
             continue
 
         new_history = sorted(by_date.values(), key=lambda h: h.get("date", ""))
-        if len(new_history) > 360:
-            new_history = new_history[-360:]
         out = json.dumps({
             "id": str(cid),
             "updatedAt": fetched_at,

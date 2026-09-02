@@ -371,6 +371,51 @@ def fetch_grade_listings(card_id: str, condition_id: int = 22, only_on_sale: boo
     return all_items
 
 
+def fetch_grade_min_prices(card_id: str) -> dict:
+    """상품 페이지가 표시하는 등급별 현재 출품 최저가를 JPY로 반환한다.
+
+    used-listings API의 conditionId는 현재 무시되고, price 문자열은 실행 지역에
+    따라 USD/KRW/JPY로 현지화된다. 반면 일본 상품 페이지의 dehydrated data에는
+    각 conditionId의 usedMinPrice가 화면과 동일한 JPY로 들어 있으므로 이를
+    단일 진실 소스로 사용한다. PSA10=22, PSA9=23, A=18.
+    """
+    url = f"https://snkrdunk.com/apparels/{card_id}"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "ja-JP,ja;q=0.9",
+        "Referer": "https://snkrdunk.com/",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            html = resp.read().decode("utf-8", errors="replace")
+    except Exception:
+        return {}
+
+    grade_by_condition = {22: "psa10", 23: "psa9", 18: "raw"}
+    grades = {}
+    # chip 객체에는 중첩 객체가 없으며 conditionId 뒤에 usedMinPrice가 위치한다.
+    for obj in re.findall(r'\{[^{}]{0,1200}"conditionId":(?:18|22|23)[^{}]{0,1200}\}', html):
+        cond_match = re.search(r'"conditionId":(18|22|23)', obj)
+        price_match = re.search(r'"usedMinPrice":(\d+)', obj)
+        if not cond_match or not price_match:
+            continue
+        grade = grade_by_condition[int(cond_match.group(1))]
+        price = int(price_match.group(1))
+        if price <= 0:
+            continue
+        info = {
+            "lowest_ask": price,
+            "currency": "JPY",
+            "live_source": "snkrdunk usedMinPrice",
+        }
+        count_match = re.search(r'"listingCount":(\d+)', obj)
+        if count_match:
+            info["active_count"] = int(count_match.group(1))
+        grades[grade] = info
+    return grades
+
+
 def parse_grade(condition: str) -> str:
     """SNKRDUNK 탭과 1:1 매칭 — psa10/psa9/raw(A탭) 만 반환, 나머지 None.
        탭: All / A / B / C / D / PSA 10 / PSA 9 / PSA 8 or under / BGS 10 BL / BGS 10 GL
@@ -613,111 +658,12 @@ def main():
         debug_this = (debug_count < 3)
         if debug_this:
             print(f"  [DEBUG] card {cid}:")
-        # ⚡ active 매물만 받기 (isOnlyOnSale=true) — 사용자가 SNKRDUNK 페이지에서 보는 매물 그대로
-        # 방어: 카드 1장에서 타임아웃/네트워크 오류 나도 전체 스크랩이 죽지 않게 건너뜀
-        try:
-            all_listings = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=20)
-        except Exception as e:
-            print(f"    ! card {cid} listings 실패 — 건너뜀: {type(e).__name__}: {e}")
-            continue
-        # 안전장치: client-side isSold 필터 (API 가 isOnlyOnSale 무시할 가능성 대비)
-        active_only = [it for it in all_listings if not it.get("isSold")]
-        if debug_this and all_listings:
-            from collections import Counter
-            sample0 = all_listings[0]
-            conds_all = Counter((it.get("condition") or "").strip() for it in all_listings)
-            print(f"    [전체 응답 {len(all_listings)}건, active {len(active_only)}건]")
-            print(f"    sample[0] cond={sample0.get('condition')!r} isSold={sample0.get('isSold')} price={sample0.get('price')!r}")
-            print(f"    conditions 분포={dict(conds_all)}")
-
-        # condition 매칭 함수 (lenient)
-        def matches(cond_str, grade_key):
-            c = (cond_str or "").strip()
-            cu = c.upper().replace(" ", "")
-            if grade_key == "psa10":
-                return cu.startswith("PSA10") and not cu.startswith("PSA100")
-            if grade_key == "psa9":
-                return cu.startswith("PSA9") and not cu.startswith("PSA90") and not cu.startswith("PSA99")
-            if grade_key == "raw":
-                return c == "A" or cu == "A"
-            return False
-
-        for grade, cond_id in GRADE_CONDITION_IDS.items():
-            filtered = [it for it in active_only if matches(it.get("condition"), grade)]
-            if debug_this:
-                print(f"    {grade:>5}: '{grade}' 매칭 active listing {len(filtered)}건")
-            if not filtered:
-                continue
-            # USD 가격 추출
-            prices = []
-            for it in filtered:
-                amt, _, _ = extract_raw_price(it.get("price"))
-                if amt and amt > 0:
-                    prices.append(amt)
-            if not prices:
-                continue
-            # outlier 필터 — median 의 50% 미만은 mispriced 의심 (불량 grading, 잘못된 listing)
-            prices_sorted = sorted(prices)
-            med = prices_sorted[len(prices_sorted) // 2]
-            cleaned = [p for p in prices if p >= med * 0.5]
-            if not cleaned:
-                cleaned = prices  # 전부 outlier 면 fallback
-            cleaned_sorted = sorted(cleaned)
-            lowest = cleaned_sorted[0]
-            grades[grade] = {
-                "lowest_ask": lowest,
-                "currency": "USD",
-                "active_count": len(prices),
-                "after_filter": len(cleaned),
-                "top5": [round(p, 2) for p in cleaned_sorted[:5]],
-            }
-            if debug_this:
-                top5 = [f"${p}" for p in cleaned_sorted[:5]]
-                print(f"    {grade:>5} → lowest=${lowest}  active {len(prices)}건 (filter 후 {len(cleaned)}건)  top5=[{', '.join(top5)}]")
-
-        # ⚠ 이상 감지 — 2개 이상 등급의 lowest_ask 가 동일하면 API 필터 실패 의심
-        # 정상이라면 PSA 10 > PSA 9 > A 또는 적어도 다른 값이어야 함
-        non_empty_prices = [(g, info["lowest_ask"]) for g, info in grades.items() if info.get("lowest_ask")]
-        if len(non_empty_prices) >= 2:
-            unique_prices = set(p for _, p in non_empty_prices)
-            if len(unique_prices) == 1:
-                # 모든 등급 동일 가격 → retry 1번
-                if debug_this:
-                    print(f"  ⚠ 모든 등급 동일 가격 ${non_empty_prices[0][1]} → retry...")
-                time.sleep(1.0)
-                all_listings_retry = fetch_grade_listings(cid, condition_id=22, only_on_sale=True, max_pages=20)
-                active_retry = [it for it in all_listings_retry if not it.get("isSold")]
-                grades_retry = {}
-                for g_key in grades.keys():
-                    filtered_r = [it for it in active_retry if matches(it.get("condition"), g_key)]
-                    if not filtered_r:
-                        continue
-                    prices_r = []
-                    for it in filtered_r:
-                        amt, cur, raw_str = extract_raw_price(it.get("price"))
-                        if amt and amt > 0:
-                            prices_r.append(amt)
-                    if not prices_r:
-                        continue
-                    pr_sorted = sorted(prices_r)
-                    grades_retry[g_key] = {
-                        "lowest_ask": pr_sorted[0],
-                        "currency": "USD",
-                        "active_count": len(prices_r),
-                        "top5": [round(p, 2) for p in pr_sorted[:5]],
-                    }
-                # retry 결과가 더 다양하면 적용
-                retry_prices = set(info["lowest_ask"] for info in grades_retry.values() if info.get("lowest_ask"))
-                if len(retry_prices) > 1:
-                    grades = grades_retry
-                    if debug_this:
-                        print(f"  ✓ retry 결과 다양함 → 채택")
-                else:
-                    # 여전히 다 같으면 → 신뢰 낮음, active_count 가장 큰 1개만 남김
-                    biggest = max(non_empty_prices, key=lambda kv: grades[kv[0]].get("active_count", 0))
-                    grades = {biggest[0]: grades[biggest[0]]}
-                    if debug_this:
-                        print(f"  ⚠ retry 후도 동일 → '{biggest[0]}' 만 신뢰, 나머지 제거")
+        # 상품 페이지의 usedMinPrice는 SNKRDUNK 등급 탭에 표시되는 JPY 최저가다.
+        # 낮은 매물을 이상치로 제거하지 않고 화면 값 그대로 저장한다.
+        grades = fetch_grade_min_prices(cid)
+        if debug_this:
+            summary = {g: info.get("lowest_ask") for g, info in grades.items()}
+            print(f"    SNKRDUNK usedMinPrice(JPY): {summary}")
 
         if debug_this:
             debug_count += 1
@@ -904,4 +850,15 @@ def main():
             hist_path.unlink()
         except Exception:
             pass
-        hist_p
+        hist_path.write_bytes(out.encode("utf-8"))
+        appended += 1
+
+    print(f"  → history 갱신: {appended} 카드/박스")
+    print(f"\n완료. 실패 {fail_count}/{total}")
+    if fail_count == total:
+        print("All failed -> exit 1")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

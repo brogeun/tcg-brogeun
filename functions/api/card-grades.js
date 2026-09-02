@@ -6,7 +6,7 @@
 //       신상 카드의 등급별 시세 폴백 (프론트 renderGradesPanel 3순위)
 // 캐시: 엣지 1시간 — 같은 카드 반복 조회 시 SNKRDUNK 요청 없음
 // 스크래퍼(scrape_snkrdunk.py)의 fetch_grade_listings 로직과 동일 기준:
-//   active(isOnlyOnSale) 매물만, median 50% 미만 outlier 제거, 최저가 채택
+//   active(isOnlyOnSale) 매물만, SNKRDUNK 화면과 같은 실제 최저가 채택
 
 const API_HEADERS = {
   'User-Agent':
@@ -62,9 +62,57 @@ export async function onRequestGet({ request }) {
 
   // 1시간 엣지 캐시
   const cache = caches.default;
-  const cacheKey = new Request(`https://tcghub.kr/api/card-grades?id=${id}`);
+  // 계산 기준이 바뀔 때 이전 1시간 캐시와 섞이지 않도록 버전을 포함한다.
+  const cacheKey = new Request(`https://tcghub.kr/api/card-grades?id=${id}&v=2`);
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
+
+  // 가장 정확한 경로: 일본 상품 페이지가 렌더링에 사용하는 condition chip의
+  // usedMinPrice. SNKRDUNK 화면과 동일한 JPY 값이며 별도 환율 역산이 필요 없다.
+  try {
+    const page = await fetch(`https://snkrdunk.com/apparels/${id}`, {
+      headers: {
+        ...API_HEADERS,
+        Accept: 'text/html,application/xhtml+xml',
+        'Accept-Language': 'ja-JP,ja;q=0.9',
+      },
+    });
+    if (page.ok) {
+      const html = await page.text();
+      const conditionToGrade = { 18: 'raw', 22: 'psa10', 23: 'psa9' };
+      const exactGrades = {};
+      const objects = html.match(/\{[^{}]{0,1200}"conditionId":(?:18|22|23)[^{}]{0,1200}\}/g) || [];
+      for (const object of objects) {
+        const condition = object.match(/"conditionId":(18|22|23)/);
+        const minPrice = object.match(/"usedMinPrice":(\d+)/);
+        if (!condition || !minPrice) continue;
+        const grade = conditionToGrade[Number(condition[1])];
+        const amount = Number(minPrice[1]);
+        if (!grade || !amount) continue;
+        exactGrades[grade] = {
+          lowest_ask: amount,
+          currency: 'JPY',
+          live: true,
+          source: 'snkrdunk usedMinPrice',
+        };
+      }
+      if (Object.keys(exactGrades).length) {
+        const exactResponse = json(
+          { ok: true, id, grades: exactGrades, fetchedAt: new Date().toISOString() },
+          200,
+          { 'Cache-Control': 'public, max-age=3600' }
+        );
+        try {
+          await cache.put(cacheKey, exactResponse.clone());
+        } catch {
+          /* 캐시 실패 무시 */
+        }
+        return exactResponse;
+      }
+    }
+  } catch {
+    // 페이지 구조/일시 장애 시 아래 used-listings API로 폴백한다.
+  }
 
   // active listings 수집 (중복 제거)
   const seen = new Set();
@@ -102,7 +150,11 @@ export async function onRequestGet({ request }) {
     if (it.isSold) continue;
     const g = gradeOf(it.condition);
     if (!g) continue;
-    const [amt, cur] = parsePrice(it.price);
+    // 문자열 price 는 접속 지역에 따라 ¥/$/₩로 현지화된다. API가 함께 주는
+    // priceAmount/currency 를 우선 사용해야 숫자와 통화가 어긋나지 않는다.
+    const amount = Number(it.priceAmount || 0);
+    const itemCurrency = (it.currency || '').toUpperCase() || null;
+    const [amt, cur] = amount > 0 ? [amount, itemCurrency] : parsePrice(it.price);
     if (amt && amt > 0) byGrade[g].push([amt, cur]);
   }
 
@@ -111,18 +163,18 @@ export async function onRequestGet({ request }) {
     if (!pairs.length) continue;
     const jpy = pairs.filter(([, c]) => c === 'JPY').length;
     const usd = pairs.filter(([, c]) => c === 'USD').length;
-    const currency = jpy > usd ? 'JPY' : 'USD';
-    const prices = pairs.map(([p]) => p);
-    const sorted = [...prices].sort((a, b) => a - b);
-    const med = sorted[Math.floor(sorted.length / 2)];
-    let cleaned = prices.filter((p) => p >= med * 0.5);
-    if (!cleaned.length) cleaned = prices;
-    cleaned.sort((a, b) => a - b);
+    const krw = pairs.filter(([, c]) => c === 'KRW').length;
+    const currency = krw > jpy && krw > usd ? 'KRW' : (jpy > usd ? 'JPY' : 'USD');
+    let prices = pairs.filter(([, c]) => c === currency || !c).map(([p]) => p);
+    if (!prices.length) prices = pairs.map(([p]) => p);
+    prices.sort((a, b) => a - b);
     grades[g] = {
-      lowest_ask: cleaned[0],
+      // 현재 출품 최저가는 낮다는 이유로 이상치 제거하면 안 된다.
+      // SNKRDUNK 등급 탭의 헤드라인과 동일하게 실제 최소값을 사용한다.
+      lowest_ask: prices[0],
       currency,
       active_count: prices.length,
-      after_filter: cleaned.length,
+      after_filter: prices.length,
       live: true,
     };
   }

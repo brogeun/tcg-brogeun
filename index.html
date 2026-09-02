@@ -2405,7 +2405,7 @@ let FX_UPDATED = null;
 // 모든 가격 → KRW 단일 표시 (소수점 절사)
 const fmtKrw = (n, cur) => {
   if (n == null) return '—';
-  const rate = cur === 'USD' ? USD_KRW : JPY_KRW;
+  const rate = cur === 'USD' ? USD_KRW : (cur === 'KRW' ? 1 : JPY_KRW);
   return '₩' + Math.floor(n * rate).toLocaleString();
 };
 // 호환용 (옛날 코드가 아직 fmtYen 호출하는 곳들 — 결국 KRW 표시)
@@ -2414,12 +2414,13 @@ const fmtYen = fmtKrw;
 const fmtOrig = (n, cur) => {
   if (n == null) return '—';
   if (cur === 'USD') return '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits: 2});
+  if (cur === 'KRW') return '₩' + Math.floor(n).toLocaleString();
   return '¥' + Math.floor(n).toLocaleString();
 };
 // 환율 적용된 KRW 숫자값 (차트 등 raw 숫자 필요한 곳)
 const toKrw = (n, cur) => {
   if (n == null || isNaN(n)) return null;
-  const rate = cur === 'USD' ? USD_KRW : JPY_KRW;
+  const rate = cur === 'USD' ? USD_KRW : (cur === 'KRW' ? 1 : JPY_KRW);
   return Math.floor(n * rate);
 };
 
@@ -4053,14 +4054,29 @@ async function renderGradesPanel(productId, product) {
   grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px,1fr))';
   grid.innerHTML = ORDER.map(k => renderBlock(k, null)).join('');
   try {
-    // 1순위: cards-detail.json (TOP10 위주 — 풍부한 메타: lowest_ask, active_count 등)
+    // 정적 기준값: 일일 수집 결과. 아래 라이브 응답이 있으면 현재가를 덮어쓴다.
     const data = await loadCardsDetail();
     const card = data?.cards?.[productId];
     let grades = card?.grades || {};
 
-    // 2순위 폴백: data/history/{id}.json — 백필된 6,600+ 카드에 PSA10/9/raw 가격 있음
-    const hasPsaData = ['psa10','psa9','raw'].some(k => grades[k] && Object.keys(grades[k]).length > 0);
-    if (!hasPsaData) {
+    // 1순위: SNKRDUNK 현재 출품 최저가 (엣지에서 1시간 캐시)
+    // cards-detail.json 이 오래돼도 상세 화면은 라이브 값을 우선한다.
+    try {
+      const liveR = await fetch(`/api/card-grades?id=${productId}`);
+      if (liveR.ok) {
+        const live = await liveR.json();
+        if (live.ok && live.grades) {
+          grades = { ...grades };
+          for (const k of ['psa10','psa9','raw']) {
+            if (live.grades[k]) grades[k] = live.grades[k];
+          }
+        }
+      }
+    } catch (e) { console.warn('live grades fetch fail:', e); }
+
+    // 2순위 폴백: 라이브·정적 현재가가 없는 등급만 최근 거래가로 보충
+    const needsPsaData = ['psa10','psa9','raw'].some(k => !grades[k] || Object.keys(grades[k]).length === 0);
+    if (needsPsaData) {
       try {
         const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
         if (r.ok) {
@@ -4085,24 +4101,6 @@ async function renderGradesPanel(productId, product) {
       } catch (e) {
         console.warn('history fallback fail:', e);
       }
-    }
-
-    // 3순위 라이브 폴백: 정적 데이터가 모두 없으면 SNKRDUNK 실시간 조회 (신상 카드 대응)
-    // /api/card-grades 가 등급별 active 매물 최저가를 1시간 캐시로 반환
-    const stillNoPsa = !['psa10','psa9','raw'].some(k => grades[k] && Object.keys(grades[k]).length > 0);
-    if (stillNoPsa) {
-      try {
-        const liveR = await fetch(`/api/card-grades?id=${productId}`);
-        if (liveR.ok) {
-          const live = await liveR.json();
-          if (live.ok && live.grades) {
-            grades = grades || {};
-            for (const k of ['psa10','psa9','raw']) {
-              if (live.grades[k] && !grades[k]) grades[k] = live.grades[k];
-            }
-          }
-        }
-      } catch (e) { console.warn('live grades fallback fail:', e); }
     }
 
     // BGS 보충 — cards-detail.json 에 BGS 가 없어서 history 에서 항상 보충
@@ -5206,7 +5204,7 @@ async function renderSlidePanel(productId) {
       boxCur = product.currency || 'JPY';
     }
   } else {
-    // 1순위 — cards-detail.json (별도 페이지와 동일 소스, lowest_ask 신선)
+    // 정적 기준값 — 일일 수집 결과
     try {
       const cdData = await loadCardsDetail();
       const cdCard = cdData?.cards?.[productId];
@@ -5216,6 +5214,17 @@ async function renderSlidePanel(productId) {
       if (cdGrades.psa9)  { psa9Jpy  = pick(cdGrades.psa9);  psa9Cur  = cdGrades.psa9.currency  || 'JPY'; }
       if (cdGrades.raw)   { rawJpy   = pick(cdGrades.raw);   rawCur   = cdGrades.raw.currency   || 'JPY'; }
     } catch (e) {}
+    // 1순위 — 라이브 현재 출품 최저가로 정적 값을 덮어쓴다.
+    try {
+      const liveR = await fetch(`/api/card-grades?id=${productId}`);
+      if (liveR.ok) {
+        const live = await liveR.json();
+        const lg = live?.grades || {};
+        if (lg.psa10?.lowest_ask) { psa10Jpy = lg.psa10.lowest_ask; psa10Cur = lg.psa10.currency || 'JPY'; }
+        if (lg.psa9?.lowest_ask)  { psa9Jpy  = lg.psa9.lowest_ask;  psa9Cur  = lg.psa9.currency  || 'JPY'; }
+        if (lg.raw?.lowest_ask)   { rawJpy   = lg.raw.lowest_ask;   rawCur   = lg.raw.currency   || 'JPY'; }
+      }
+    } catch (e) { console.warn('[slide] live grades fetch fail:', e); }
     // 2순위 — history pickLatestPrice (없는 등급만 보충)
     if (psa10Jpy == null) psa10Jpy = pickLatestPrice('psa10_price');
     if (psa9Jpy  == null) psa9Jpy  = pickLatestPrice('psa9_price');
@@ -5236,6 +5245,7 @@ async function renderSlidePanel(productId) {
   const bgs95Jpy   = pickLatestPrice('bgs95_price');
   const _conv = (val, cur) => {
     if (val == null) return null;
+    if (cur === 'KRW') return Math.floor(val);
     if (cur === 'USD' && typeof USD_KRW !== 'undefined') return Math.floor(val * USD_KRW);
     const rate = (typeof JPY_KRW !== 'undefined') ? JPY_KRW : 9.5;
     return Math.floor(val * rate);
@@ -8315,6 +8325,7 @@ async function loadCardMeta(cardId) {
   const convertToJpy = (val, cur) => {
     if (val == null) return null;
     if (cur === 'USD') return Math.round((val * USD_KRW) / JPY_KRW);
+    if (cur === 'KRW') return Math.round(val / JPY_KRW);
     return val; // JPY 그대로
   };
 

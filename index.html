@@ -3046,7 +3046,8 @@ document.addEventListener('click', e => {
   if (action === 'add-portfolio') {
     const cardImage = btn.dataset.cardImage || '';
     const price = parseFloat(btn.dataset.price) || 0;
-    openAddToPortfolio(cardId, cardName, cardImage, price, grade);
+    const currency = btn.dataset.currency || 'JPY';
+    openAddToPortfolio(cardId, cardName, cardImage, price, grade, currency);
   } else if (action === 'add-watchlist') {
     openAddToWatchlist(cardId, cardName, grade);
   }
@@ -3155,6 +3156,7 @@ async function showPriceDetailPanel(productId) {
   }
 
   const price = product.lastPrice ?? product.lowestAsk;
+  const isCard = isCardProduct(product.name);
   const brandLbl = product._brand === 'pokemon' ? '⚡ 포켓몬' : '🏴‍☠️ 원피스';
 
   // 상단 내비 바 — ← 뒤로 + (마이페이지 진입 시) 이전/다음 카드
@@ -3206,14 +3208,15 @@ async function showPriceDetailPanel(productId) {
             </button>
           </div>
           <div style="margin-top:6px">
-            <div style="font-size:24px; font-weight:900; color:#111">${fmtKrw(price, product.currency)}</div>
-            <div style="font-size:13px; color:var(--ink-sub); margin-top:2px">${fmtOrig(price, product.currency)}</div>
+            <div id="detailMainPrice-${productId}" style="font-size:24px; font-weight:900; color:#111">${isCard ? '가격 불러오는 중…' : fmtKrw(price, product.currency)}</div>
+            <div id="detailOrigPrice-${productId}" style="font-size:13px; color:var(--ink-sub); margin-top:2px">${isCard ? 'PSA10 현재가 확인 중' : fmtOrig(price, product.currency)}</div>
           </div>
           <div style="display:flex; gap:8px; margin-top:auto; flex-wrap:wrap; padding-top:10px; align-items:center">
-            <button class="btn primary" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
+            <button class="btn primary" id="detailAddPortfolio-${productId}" type="button" style="cursor:pointer; padding:9px 16px; font-size:13px"
                     data-action="add-portfolio" data-card-id="${productId}"
                     data-card-name="${escapeHtml(product.name || '')}" data-card-image="${escapeHtml(product.image || '')}"
-                    data-price="${price || 0}" data-grade="${isCardProduct(product.name) ? 'psa10' : 'box'}">
+                    data-price="${isCard ? 0 : (price || 0)}" data-currency="${isCard ? 'JPY' : (product.currency || 'JPY')}"
+                    data-grade="${isCard ? 'psa10' : 'box'}" ${isCard ? 'disabled' : ''}>
               <i data-lucide="plus-circle" style="width:16px;height:16px"></i> 포트폴리오 추가
             </button>
             <a href="${product.url}" target="_blank" rel="noopener noreferrer"
@@ -4005,7 +4008,13 @@ async function renderGradesPanel(productId, product) {
   const fmtSecondary = (val, cur) => {
     if (val == null) return '—';
     if (cur === 'USD') return '$' + Number(val).toLocaleString(undefined, {maximumFractionDigits: 2});
+    if (cur === 'KRW') return '₩' + Math.floor(val).toLocaleString();
     return '¥' + Math.round(val).toLocaleString();
+  };
+  const gradeQuote = (g) => {
+    const value = Number(g?.lowest_ask ?? g?.recent_avg ?? g?.last5_avg ?? g?.avg ?? g?.avg_jpy);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return { value, currency: g?.currency || (g?.avg_jpy ? 'JPY' : 'USD') };
   };
   const renderBlock = (k, g) => {
     const info = GRADE_INFO[k];
@@ -4017,8 +4026,9 @@ async function renderGradesPanel(productId, product) {
     const cursorStyle = isBgs ? 'cursor:help' : '';
     // 신 스키마: lowest_ask (active 매물 최저가, SNKRDUNK 헤드라인)
     // 호환: recent_avg, last5_avg, avg, avg_jpy
-    const val = g ? (g.lowest_ask ?? g.recent_avg ?? g.last5_avg ?? g.avg ?? g.avg_jpy) : null;
-    const cur = g?.currency || (g?.avg_jpy ? 'JPY' : null);
+    const quote = gradeQuote(g);
+    const val = quote?.value ?? null;
+    const cur = quote?.currency ?? null;
     if (val && val > 0) {
       const activeCount = g.active_count ?? g.unsold_count;
       const afterFilter = g.after_filter;
@@ -4093,7 +4103,7 @@ async function renderGradesPanel(productId, product) {
           }
           grades = grades || {};
           for (const k of ['psa10','psa9','raw']) {
-            if (latest[k] != null && !grades[k]) {
+            if (latest[k] != null && !gradeQuote(grades[k])) {
               grades[k] = { lowest_ask: latest[k], currency: 'JPY' };
             }
           }
@@ -4127,6 +4137,32 @@ async function renderGradesPanel(productId, product) {
           }
         }
       } catch (e) { console.warn('BGS history fetch fail:', e); }
+    }
+
+    // 상세 상단 대표가격과 포트폴리오 추천가격은 반드시 동일한 등급 시세를 사용한다.
+    // 카드 목록의 등급 미지정 minPrice 는 사용하지 않는다: PSA10 우선, 없으면 A급만 폴백.
+    const psa10Quote = gradeQuote(grades.psa10);
+    const rawQuote = gradeQuote(grades.raw);
+    const primaryQuote = psa10Quote || rawQuote;
+    const primaryGrade = psa10Quote ? 'psa10' : (rawQuote ? 'raw' : null);
+    const mainPriceEl = document.getElementById(`detailMainPrice-${productId}`);
+    const origPriceEl = document.getElementById(`detailOrigPrice-${productId}`);
+    const addPortfolioBtn = document.getElementById(`detailAddPortfolio-${productId}`);
+    if (primaryQuote && primaryGrade) {
+      if (mainPriceEl) mainPriceEl.textContent = fmtKrw(primaryQuote.value, primaryQuote.currency);
+      if (origPriceEl) {
+        const gradeLabel = primaryGrade === 'psa10' ? 'PSA10' : 'A급(싱글)';
+        origPriceEl.textContent = `${gradeLabel} · ${fmtOrig(primaryQuote.value, primaryQuote.currency)}`;
+      }
+      if (addPortfolioBtn) {
+        addPortfolioBtn.dataset.price = String(primaryQuote.value);
+        addPortfolioBtn.dataset.currency = primaryQuote.currency;
+        addPortfolioBtn.dataset.grade = primaryGrade;
+        addPortfolioBtn.disabled = false;
+      }
+    } else {
+      if (mainPriceEl) mainPriceEl.textContent = '가격 정보 없음';
+      if (origPriceEl) origPriceEl.textContent = 'PSA10 및 A급 현재가 없음';
     }
 
     // PSA10 POP 카운트 — 위에서 박스는 이미 return 됐으니 여기는 카드 확정
@@ -9748,10 +9784,11 @@ async function requireLoginThen(callback, contextNote) {
   openLoginModal(contextNote);
 }
 
-window.openAddToPortfolio = function(cardId, cardName, cardImage, suggestedPrice, suggestedGrade) {
+window.openAddToPortfolio = function(cardId, cardName, cardImage, suggestedPrice, suggestedGrade, suggestedCurrency = 'JPY') {
   requireLoginThen(() => {
-    // 추천가 (JPY) → KRW 로 환산해서 placeholder 로 표시
-    const suggestedKrw = suggestedPrice ? Math.floor(suggestedPrice * JPY_KRW) : '';
+    // 추천가의 원본 통화를 함께 받아 KRW 매수가로 정확히 환산한다.
+    const suggestedRate = suggestedCurrency === 'USD' ? USD_KRW : (suggestedCurrency === 'KRW' ? 1 : JPY_KRW);
+    const suggestedKrw = suggestedPrice ? Math.floor(suggestedPrice * suggestedRate) : '';
     const cur = suggestedKrw.toString();
     openAnyModal(`
       <div class="modal-head">

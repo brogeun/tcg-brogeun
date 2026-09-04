@@ -750,6 +750,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
     <!-- 사이드바 하단 — 앱 설치 + 로그인 -->
     <div class="sidebar-footer">
+      <div class="sidebar-socials" aria-label="TCG Hub 공식 채널">
+        <a href="https://www.instagram.com/tcg._.hub/" target="_blank" rel="noopener noreferrer" aria-label="TCG Hub Instagram"><i data-lucide="instagram"></i><span>Instagram</span></a>
+        <a href="https://www.youtube.com/@TCGhub-gk/shorts" target="_blank" rel="noopener noreferrer" aria-label="TCG Hub YouTube"><i data-lucide="youtube"></i><span>YouTube</span></a>
+      </div>
       <button id="pwaInstallBtn" class="btn" style="width:100%; cursor:pointer; padding:9px; font-size:12px; display:inline-flex; align-items:center; justify-content:center; gap:6px">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         앱으로 설치
@@ -850,15 +854,25 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     </script>
 
     <!-- 홈 (UI 개편 — 자산 위젯 + 브랜드별 TOP 시세 + 그레이딩 배너 + 소식) -->
-    <section class="page" data-page="home">
+    <section class="page home-v3" data-page="home">
 
       <!-- SEO h1 — 화면 안 보이지만 검색 엔진 인식 -->
       <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(1px,1px,1px,1px);white-space:nowrap">TCG Hub - 포켓몬 · 원피스 TCG 카드 시세 · AI 그레이딩 · 아마존JP 응모</h1>
 
+      <div class="home-v3-heading">
+        <div>
+          <div class="home-v3-kicker">GOOD MORNING</div>
+          <h2>내 카드의 오늘을 확인하세요</h2>
+          <p>관심 카드와 주요 시세를 한눈에 모았습니다.</p>
+        </div>
+        <span class="home-v3-date" id="homeTodayLabel"></span>
+      </div>
+
       <!-- 내 자산 위젯 (포트폴리오) -->
       <div class="asset-widget" id="homeAssetWidget">
         <div class="asset-main">
-          <div class="asset-label">총 평가액</div>
+          <div class="home-v3-kicker light">MY PORTFOLIO</div>
+          <div class="asset-label">총 보유 가치</div>
           <div class="asset-value" id="homeAssetValue">—</div>
           <div class="asset-change" id="homeAssetChange" style="display:none"></div>
         </div>
@@ -872,15 +886,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <!-- 브랜드별 TOP 시세 -->
       <div class="section2">
         <div class="section-header2">
-          <div class="section-title2">브랜드별 TOP 시세</div>
+          <div>
+            <div class="home-v3-kicker muted">MARKET NOW</div>
+            <div class="section-title2">브랜드별 인기 시세</div>
+            <div class="section-desc2"><span class="home-data-dot"></span>운영 홈 TOP 10 JSON · 매일 04:00 KST 갱신</div>
+          </div>
           <span class="section-more2" onclick="go('price')">전체 시세 보기 →</span>
         </div>
         <div class="top-summary-grid">
           <!-- 포켓몬 -->
           <div class="brand-card">
             <div class="brand-card-header">
-              <div class="brand-badge pk"><div class="brand-badge-dot"></div>POKEMON</div>
-              <span class="brand-update">방금 업데이트</span>
+              <div><div class="brand-badge pk"><div class="brand-badge-dot"></div>포켓몬</div><h3>실시간 인기 카드</h3></div>
+              <span class="brand-update">04:00 KST 갱신</span>
             </div>
             <div id="homeTopPokemon" data-brand="pokemon"></div>
             <div class="brand-card-footer">
@@ -892,8 +910,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <!-- 원피스 -->
           <div class="brand-card">
             <div class="brand-card-header">
-              <div class="brand-badge op"><div class="brand-badge-dot"></div>ONE PIECE</div>
-              <span class="brand-update">방금 업데이트</span>
+              <div><div class="brand-badge op"><div class="brand-badge-dot"></div>원피스</div><h3>실시간 인기 카드</h3></div>
+              <span class="brand-update">04:00 KST 갱신</span>
             </div>
             <div id="homeTopOnepiece" data-brand="onepiece"></div>
             <div class="brand-card-footer">
@@ -907,38 +925,15 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
       <!-- 그레이딩 배너 (클릭 시 센터링툴 페이지로) -->
       <div class="grading-banner" onclick="go('centering')">
-        <div class="grading-icon">🏆</div>
+        <div class="grading-icon"><i data-lucide="scan-line"></i></div>
         <div class="grading-content">
-          <div class="grading-label">PSA · BGS 그레이딩</div>
-          <div class="grading-title">카드 등급 받고 가치를 높이세요</div>
-          <div class="grading-desc">앞/뒷면 사진으로 AI 자가진단 · 그레이딩 업체 안내 · 일 3회 무료</div>
+          <div class="grading-label">GRADING GUIDE</div>
+          <div class="grading-title">등급이 만드는 카드의 새로운 가치</div>
+          <div class="grading-desc">PSA·BGS 등급별 시세와 AI 센터링 진단을 확인하세요.</div>
         </div>
         <div class="grading-arrow">→</div>
       </div>
 
-      <!-- 추천 글 자동 캐러셀 -->
-      <div class="section2">
-        <div class="section-header2">
-          <div class="section-title2">추천 글</div>
-          <span class="section-more2" onclick="_gotoHubSub('etc')">전체 보기 →</span>
-        </div>
-        <div class="etc-carousel" id="homeEtcCarousel">
-          <div class="etc-slide" id="homeEtcSlide"></div>
-          <div class="etc-dots" id="homeEtcDots"></div>
-        </div>
-      </div>
-
-      <!-- 이벤트 자동 캐러셀 (종료 이벤트 제외) -->
-      <div class="section2">
-        <div class="section-header2">
-          <div class="section-title2">이벤트</div>
-          <span class="section-more2" onclick="_gotoHubSub('events')">전체 보기 →</span>
-        </div>
-        <div class="etc-carousel" id="homeEventsCarousel">
-          <div class="etc-slide" id="homeEventsSlide"></div>
-          <div class="etc-dots" id="homeEventsDots"></div>
-        </div>
-      </div>
       <style>
         .etc-carousel { position: relative; }
         .etc-slide { background: var(--bg-surface2); border: 1px solid var(--border2); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; gap: 16px; align-items: center; min-height: 140px; cursor: pointer; transition: opacity 0.35s; box-shadow: var(--shadow-sm); }
@@ -958,10 +953,29 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <!-- 소식 큐레이션 -->
       <div class="section2">
         <div class="section-header2">
-          <div class="section-title2">소식</div>
+          <div><div class="home-v3-kicker muted">LATEST UPDATE</div><div class="section-title2">새로운 TCG 소식</div><div class="section-desc2">공식 채널의 새로운 상품과 주요 소식입니다.</div></div>
           <span class="section-more2" onclick="go('hub')">전체 보기 →</span>
         </div>
         <div class="news-grid2" id="homeNewsGrid"></div>
+      </div>
+
+      <div class="section2 home-official-section">
+        <div class="section-header2"><div><div class="home-v3-kicker muted">FOLLOW TCG HUB</div><div class="section-title2">TCG Hub 공식 채널</div><div class="section-desc2">신상품 소식과 짧은 TCG 콘텐츠를 가장 빠르게 만나보세요.</div></div></div>
+        <div class="home-official-grid">
+          <a class="home-official-card instagram" href="https://www.instagram.com/tcg._.hub/" target="_blank" rel="noopener noreferrer"><span class="home-official-icon"><i data-lucide="instagram"></i></span><span class="home-official-copy"><small>OFFICIAL INSTAGRAM</small><strong>TCG Hub 인스타그램</strong><span>@tcg._.hub · 신상품·카드 소식과 주요 업데이트</span></span><span class="home-official-cta">팔로우하기 <i data-lucide="external-link"></i></span></a>
+          <a class="home-official-card youtube" href="https://www.youtube.com/@TCGhub-gk/shorts" target="_blank" rel="noopener noreferrer"><span class="home-official-icon"><i data-lucide="youtube"></i></span><span class="home-official-copy"><small>OFFICIAL YOUTUBE</small><strong>TCG Hub Shorts</strong><span>@TCGhub-gk · 짧게 보는 TCG 정보와 카드 콘텐츠</span></span><span class="home-official-cta">쇼츠 보기 <i data-lucide="external-link"></i></span></a>
+        </div>
+      </div>
+
+      <div class="section2 home-recommend-section">
+        <div class="section-header2"><div><div class="home-v3-kicker muted">CURATED FOR YOU</div><div class="section-title2">추천 글</div><div class="section-desc2">카드 수집에 도움이 되는 국내 커뮤니티와 채널을 모았습니다.</div></div><span class="section-more2" onclick="_gotoHubSub('etc')">전체 보기 →</span></div>
+        <div class="news-grid2 home-recommend-grid">
+          <a class="news-card2" href="https://cafe.naver.com/cardmvk" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-cafe"><i data-lucide="users"></i></span><span class="news-body2"><span class="home-recommend-badge">추천 카페</span><strong>포켓몬 MVC</strong><small>포켓몬 카드 커뮤니티</small></span><i data-lucide="external-link"></i></a>
+          <a class="news-card2" href="https://cafe.naver.com/onepiecetcg" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-cafe alt"><i data-lucide="users"></i></span><span class="news-body2"><span class="home-recommend-badge">추천 카페</span><strong>원피스 TCG 커뮤니티</strong><small>원피스 카드 커뮤니티</small></span><i data-lucide="external-link"></i></a>
+          <a class="news-card2" href="https://cafe.naver.com/tcgtraining" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-cafe gold"><i data-lucide="users"></i></span><span class="news-body2"><span class="home-recommend-badge">추천 카페</span><strong>금빛박물관</strong><small>TCG 정보 커뮤니티</small></span><i data-lucide="external-link"></i></a>
+          <a class="news-card2" href="https://www.youtube.com/@henreview" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-youtube"><i data-lucide="youtube"></i></span><span class="news-body2"><span class="home-recommend-badge youtube">추천 채널</span><strong>헨리뷰</strong><small>TCG 유튜브 채널</small></span><i data-lucide="external-link"></i></a>
+          <a class="news-card2" href="https://www.youtube.com/@sane_e/featured" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-youtube alt"><i data-lucide="youtube"></i></span><span class="news-body2"><span class="home-recommend-badge youtube">추천 채널</span><strong>사네</strong><small>TCG 유튜브 채널</small></span><i data-lucide="external-link"></i></a>
+        </div>
       </div>
 
       <!-- SNKRDUNK 설명 모달 -->
@@ -1098,6 +1112,92 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .modal-body2 { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
         .modal-body2 strong { color: var(--text-primary); font-weight: 600; }
         .modal-tag2 { display: inline-block; margin-top: 12px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--brand2-subtle); color: var(--brand2-text); }
+
+        /* ─── 홈 v3: 프리뷰 승인 디자인 ─── */
+        .home-v3 { max-width:1540px; width:100%; margin:0 auto; }
+        .sidebar-socials { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .sidebar-socials a { min-width:0; height:34px; display:flex; align-items:center; justify-content:center; gap:5px; color:var(--ink-sub); background:var(--bg-soft); border:1px solid var(--line); border-radius:8px; text-decoration:none; font-size:10px; font-weight:600; }
+        .sidebar-socials a:hover { color:var(--ink); background:#fff; }
+        .sidebar-socials svg { width:14px; height:14px; }
+        .home-v3-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:24px; }
+        .home-v3-heading h2 { margin:5px 0; color:var(--text-primary); font-size:clamp(24px,2vw,32px); line-height:1.2; letter-spacing:-.04em; }
+        .home-v3-heading p,.home-v3-date { margin:0; color:var(--text-secondary); font-size:13px; }
+        .home-v3-kicker { color:var(--brand2-text); font-size:10px; font-weight:800; letter-spacing:.12em; }
+        .home-v3-kicker.light { color:var(--brand2); margin-bottom:7px; }
+        .home-v3-kicker.muted { color:var(--text-tertiary); margin-bottom:5px; }
+        .home-v3 .asset-widget { min-height:190px; position:relative; flex-wrap:nowrap; gap:28px; margin-bottom:44px; padding:28px 32px 72px; overflow:hidden; border-radius:14px; box-shadow:0 18px 44px rgba(13,13,13,.13); }
+        .home-v3 .asset-widget::after { content:''; position:absolute; width:300px; height:300px; right:-100px; top:-180px; border:1px solid rgba(25,223,223,.26); border-radius:50%; box-shadow:0 0 0 68px rgba(25,223,223,.035),0 0 0 136px rgba(25,223,223,.025); pointer-events:none; }
+        .home-v3 .asset-main { position:relative; z-index:1; min-width:260px; }
+        .home-v3 .asset-label { color:rgba(255,255,255,.64); font-size:13px; }
+        .home-v3 .asset-value { margin-top:8px; font-size:30px; }
+        .home-v3 .asset-divider { position:relative; z-index:1; height:72px; }
+        .home-v3 .asset-stat { position:relative; z-index:1; min-width:110px; }
+        .home-v3 .asset-stat-val { font-size:20px; }
+        .home-v3 .asset-stat-label { margin-top:6px; font-size:11px; }
+        .home-v3 .asset-action { position:absolute; z-index:2; right:32px; bottom:18px; }
+        .home-v3 .section2 { margin-bottom:44px; }
+        .home-v3 .section-header2 { align-items:flex-end; margin-bottom:18px; }
+        .home-v3 .section-title2 { font-size:22px; letter-spacing:-.03em; }
+        .home-v3 .section-title2::before { display:none; }
+        .section-desc2 { display:flex; align-items:center; gap:7px; margin-top:4px; color:var(--text-secondary); font-size:12px; }
+        .home-data-dot { width:7px; height:7px; border-radius:50%; background:var(--price-up); box-shadow:0 0 0 3px var(--price-up-subtle); }
+        .home-v3 .top-summary-grid { gap:20px; }
+        .home-v3 .brand-card { border-radius:14px; box-shadow:0 6px 22px rgba(13,13,13,.035); }
+        .home-v3 .brand-card-header { min-height:86px; padding:15px 20px; }
+        .home-v3 .brand-card-header h3 { margin:8px 0 0; font-size:17px; }
+        .home-v3 .brand-badge { width:max-content; border-radius:6px; }
+        .home-v3 .price-row { min-height:104px; display:grid; grid-template-columns:20px 72px minmax(0,1fr) auto; gap:14px; padding:12px 18px; border-bottom:1px solid var(--border-subtle); }
+        .home-v3 .card-img-thumb { width:72px; height:80px; aspect-ratio:auto; border-radius:10px; background:linear-gradient(145deg,#fafaf8,#edece8); }
+        .home-v3 .card-img-thumb img { object-fit:contain; transform:scale(1.12); }
+        .home-v3 .price-row.kind-box .card-img-thumb img,.home-v3 .price-row.kind-deck .card-img-thumb img,.home-v3 .price-row.kind-pack .card-img-thumb img { transform:scale(1.28); }
+        .home-v3 .price-name { margin-top:4px; color:var(--text-primary); font-size:13px; font-weight:700; }
+        .home-v3 .price-pack { margin-top:4px; font-size:10px; }
+        .home-product-kind { width:max-content; display:inline-flex; padding:2px 6px; border-radius:5px; color:var(--text-secondary); background:var(--bg-muted2); font-size:9px; font-weight:700; }
+        .home-product-kind.box { color:var(--brand2-text); background:var(--brand2-subtle); }
+        .home-product-kind.deck { color:#334f96; background:#eaf0ff; }
+        .home-product-kind.pack { color:var(--pk-text); background:var(--pk-subtle); }
+        .home-v3 .price-orig { margin-top:4px; color:var(--text-tertiary); font-size:10px; }
+        .home-v3 .grading-banner { min-height:156px; padding:26px 30px; border-radius:14px; background:linear-gradient(105deg,#111 0%,#222 64%,#123c3c 100%); }
+        .home-v3 .grading-icon { width:58px; height:58px; color:var(--brand2); }
+        .home-v3 .grading-icon svg { width:28px; height:28px; }
+        .home-v3 .grading-title { font-size:20px; }
+        .home-v3 .grading-desc { font-size:13px; }
+        .home-official-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+        .home-official-card { min-height:126px; display:grid; grid-template-columns:56px minmax(0,1fr) auto; align-items:center; gap:18px; padding:22px 24px; color:inherit; background:var(--bg-surface2); border:1px solid var(--border2); border-radius:14px; box-shadow:var(--shadow-sm); text-decoration:none; transition:.18s; }
+        .home-official-card:hover { border-color:var(--line-strong); box-shadow:var(--shadow-md); transform:translateY(-2px); }
+        .home-official-icon { width:56px; height:56px; display:grid; place-items:center; border-radius:14px; }
+        .home-official-card.instagram .home-official-icon { color:#c22969; background:#fff0f6; }
+        .home-official-card.youtube .home-official-icon { color:#d71939; background:#fff0f2; }
+        .home-official-copy { min-width:0; display:flex; flex-direction:column; }
+        .home-official-copy small { color:var(--text-tertiary); font-size:10px; font-weight:700; letter-spacing:.08em; }
+        .home-official-copy strong { margin-top:6px; font-size:16px; }
+        .home-official-copy span { margin-top:4px; overflow:hidden; color:var(--text-secondary); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+        .home-official-cta { display:inline-flex; align-items:center; gap:6px; padding:9px 11px; color:var(--text-secondary); background:var(--bg-page2); border-radius:9px; font-size:11px; font-weight:700; white-space:nowrap; }
+        .home-official-cta svg { width:14px; height:14px; }
+        .home-v3 .home-recommend-grid .news-card2 { min-height:92px; align-items:center; color:inherit; text-decoration:none; }
+        .home-v3 .home-recommend-grid .news-card2:last-child { grid-column:1/-1; }
+        .home-v3 .home-recommend-grid .news-card2>svg { width:16px; color:var(--text-tertiary); }
+        .home-v3 .home-recommend-grid .news-body2 { display:flex; flex-direction:column; align-items:flex-start; }
+        .home-v3 .home-recommend-grid .news-body2 strong { margin-top:5px; font-size:13px; }
+        .home-v3 .home-recommend-grid .news-body2 small { margin-top:3px; color:var(--text-tertiary); font-size:10px; }
+        .home-recommend-badge { padding:2px 7px; color:var(--brand2-text); background:var(--brand2-subtle); border-radius:5px; font-size:9px; font-weight:700; }
+        .home-recommend-badge.youtube { color:var(--op-text); background:var(--op-subtle); }
+        .recommend-cafe { color:var(--brand2-text); background:var(--brand2-subtle); }
+        .recommend-cafe.alt { color:#334f96; background:#eaf0ff; }
+        .recommend-cafe.gold { color:var(--pk-text); background:var(--pk-subtle); }
+        .recommend-youtube { color:var(--op-text); background:var(--op-subtle); }
+        .recommend-youtube.alt { color:#7a2e75; background:#f8e8f7; }
+        @media (max-width:960px) { .home-v3 .asset-widget { gap:20px; padding-inline:24px; } .home-v3 .top-summary-grid { grid-template-columns:1fr; } }
+        @media (max-width:720px) {
+          .home-v3-heading { margin-bottom:20px; } .home-v3-date { display:none; }
+          .home-v3 .asset-widget { display:grid; grid-template-columns:repeat(2,1fr); gap:18px 0; margin-bottom:36px; padding:22px 18px 72px; }
+          .home-v3 .asset-main { grid-column:1/-1; min-width:0; } .home-v3 .asset-divider { display:none; } .home-v3 .asset-stat { min-width:0; text-align:left; } .home-v3 .asset-action { right:18px; }
+          .home-v3 .section2 { margin-bottom:36px; } .home-v3 .section-header2 { align-items:flex-start; gap:10px; } .home-v3 .section-title2 { font-size:20px; } .home-v3 .section-more2 { flex-shrink:0; font-size:11px; }
+          .home-v3 .price-row { grid-template-columns:18px 64px minmax(0,1fr) auto; gap:10px; padding-inline:10px; } .home-v3 .card-img-thumb { width:64px; height:72px; }
+          .home-v3 .grading-banner { min-height:0; padding:20px; } .home-official-grid { grid-template-columns:1fr; } .home-official-card { grid-template-columns:48px minmax(0,1fr) auto; padding:18px; } .home-official-icon { width:48px; height:48px; }
+          .home-v3 .home-recommend-grid .news-card2:last-child { grid-column:auto; }
+        }
+        @media (max-width:480px) { .home-v3 .price-row { grid-template-columns:16px 58px minmax(0,1fr) auto; gap:8px; } .home-v3 .card-img-thumb { width:58px; height:68px; } .home-v3 .price-name { font-size:12px; } .home-official-card { grid-template-columns:44px minmax(0,1fr); } .home-official-icon { width:44px; height:44px; } .home-official-cta { grid-column:1/-1; justify-content:center; } }
       </style>
     </section>
 
@@ -2567,30 +2667,40 @@ async function toggleHomeTop(brand) {
  * 새 홈 디자인 — Phase 2 데이터 연동
  * brand-card (price-row 형식) + 자산 위젯 + 소식 그리드
  * ───────────────────────────────────────────────────────────── */
+const HOME_TOP_KO_NAMES = Object.freeze({
+  '806644':'[M5] 아비스아이 확장팩 박스','724998':'스타트 덱 100 배틀 컬렉션','722239':'메가리자몽 X ex MA [M2a 223/193]','730956':'피카츄 ex SAR [M2a 234/193]','118914':'포켓몬 카드 151 강화 확장팩 박스','724996':'메가팬텀 ex SAR [M2a 240/193]','732728':'로켓단의 따라큐 미러 [M2a 079/193]','618445':'도호쿠의 피카츄 프로모 [SV-P 260]','721913':'MEGA 드림 ex 하이클래스팩 박스','704401':'메가리자몽 X ex SAR [M2 110/080]','846048':'[M6] 스톰 에메랄다 확장팩 박스','737036':'피카츄 ex SAR 사양 [MC 764/742]','776365':'메가개굴닌자 ex SAR [M4 114/083]','868612':'메가레쿠쟈 ex SAR [M6 110/076]','846050':'[M6] 스톰 에메랄다 확장팩 박스 (슈링크 없음)','881421':'포켓몬 카드게임 30주년 셀러브레이션 확장팩 박스',
+  '816932':'[OP16] 결전의 각 부스터 박스','837244':'나미 참가 기념 프로모 [P-112]','828207':'마샬 D. 티치 SEC [OP16-119]','548910':'[OP13] 계승된 의지 부스터 팩','676024':'몽키 D. 루피 SEC-P [OP13-118]','819292':'처음부터 전력이다!!! 우승 기념 카드 [OP13-040]','714615':'보아 행콕 SR-P [EB03-026]','763301':'몽키 D. 루피 리더 카드 [OP13-001]','548909':'[OP13] 계승된 의지 부스터 박스','167350':'몽키 D. 루피 점프 부록 프로모 [P-043]','854159':'롤로노아 조로 R [PRB02-006]','860463':'최강점프 2026년 5월호 응모 특전 정상의 강자 팩','864495':'[OP17] 세계 최강의 전사 부스터 박스','871051':'카이도 SR-P [OP17-062]','854158':'몽키 D. 루피 R [OP16-095]','854160':'나미 C [ST29-008]','854157':'라운드원 프로모션 팩','752859':'몽키 D. 루피 프로모 [P-055] 영문판 (개봉품)'
+});
+
+function _homeProductKind(name) {
+  const value=String(name||'');
+  if (/ボックス|BOX|\bBox\b/i.test(value)) return 'box';
+  if (/デッキ|\bDeck\b/i.test(value)) return 'deck';
+  if (/パック|\bPack\b/i.test(value)&&!/\[[^\]]+\]/.test(value)) return 'pack';
+  return 'card';
+}
+
 function _homePriceRowHTML(p, i) {
   const price = p.lastPrice ?? p.lowestAsk;
   const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
   const name = p.name || '';
-  // "Pikachu VMAX [SGG 001/019](High Class Deck \"Gengar VMAX\")" → mainName + packName 분리
-  let mainName = name;
-  let packName = '';
-  const m = name.match(/^([^[(]+?)(?:\s*\[([^\]]+)\])?\s*(?:\(([^)]+)\))?\s*$/);
-  if (m) {
-    mainName = (m[1] || '').trim();
-    packName = (m[3] || m[2] || '').trim();
-  }
+  const mainName=HOME_TOP_KO_NAMES[String(p.id)]||name;
+  const kind=_homeProductKind(name);
+  const kindLabel=kind==='box'?'박스':kind==='deck'?'덱':kind==='pack'?'팩':'카드';
   const imgHtml = p.image
     ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
     : '';
-  return `<a href="#price/${p.id}" data-price-id="${p.id}" class="price-row">
+  return `<a href="#price/${p.id}" data-price-id="${p.id}" class="price-row kind-${kind}" aria-label="${escapeHtml(mainName)} 시세 보기">
     <span class="price-rank ${rankClass}">${i+1}</span>
     <div class="card-img-thumb">${imgHtml}</div>
     <div class="price-info">
+      <span class="home-product-kind ${kind}">${kindLabel}</span>
       <div class="price-name">${escapeHtml(mainName)}</div>
-      ${packName ? `<div class="price-pack">${escapeHtml(packName)}</div>` : ''}
+      <div class="price-pack" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
     </div>
     <div class="price-right">
       <div class="price-val">${fmtKrw(price, p.currency)}</div>
+      <div class="price-orig">${fmtOrig(price, p.currency)}</div>
     </div>
   </a>`;
 }
@@ -2749,6 +2859,7 @@ window._etcCarouselGoto = function(idx) {
 
 function _etcCarouselRestart() {
   if (_ETC_CAROUSEL_TIMER) { clearInterval(_ETC_CAROUSEL_TIMER); _ETC_CAROUSEL_TIMER = null; }
+  if (!document.getElementById('homeEtcCarousel')) return;
   if (!_carouselGetItems().length) return;
   _ETC_CAROUSEL_TIMER = setInterval(() => {
     const all = _carouselGetItems();
@@ -2838,6 +2949,7 @@ window._eventsCarouselGoto = function(idx) {
 
 function _eventsCarouselRestart() {
   if (_EVENTS_CAROUSEL_TIMER) { clearInterval(_EVENTS_CAROUSEL_TIMER); _EVENTS_CAROUSEL_TIMER = null; }
+  if (!document.getElementById('homeEventsCarousel')) return;
   if (!_eventsCarouselGetItems().length) return;
   _EVENTS_CAROUSEL_TIMER = setInterval(() => {
     const all = _eventsCarouselGetItems();
@@ -2949,6 +3061,8 @@ window.openPortfolioOrLogin = function() {
 };
 
 async function initHome2() {
+  const dateEl=document.getElementById('homeTodayLabel');
+  if (dateEl) dateEl.textContent=new Intl.DateTimeFormat('ko-KR',{month:'long',day:'numeric',weekday:'short'}).format(new Date());
   // 스켈레톤 즉시 렌더 — 데이터 도착 시 섹션이 늘어나며 footer 밀리는 CLS 방지
   ['homeTopPokemon', 'homeTopOnepiece'].forEach(id => {
     const c = document.getElementById(id);
@@ -2977,11 +3091,8 @@ async function initHome2() {
     }
   }));
   renderHomeNewsGrid();
-  renderHomeEtcCarousel();
-  _etcCarouselRestart();
-  renderHomeEventsCarousel();
-  _eventsCarouselRestart();
   renderHomeAsset();
+  if (window.lucide) window.lucide.createIcons();
 }
 
 document.addEventListener('click', e => {

@@ -295,8 +295,9 @@ def preserve_product_metadata(filename: str, products: list) -> list:
     """새 스크랩이 임시 이름(Card #ID)만 주더라도 기존 상품 메타는 보존한다.
 
     SNKRDUNK 화면의 img alt가 비어 있으면 가격/이미지는 정상인데 이름만 Card #ID가
-    된다. 이 값으로 price-*-box.json을 덮으면 카드정보의 세트→박스 이름 매칭이
-    끊기므로, 동일 ID의 기존 파일과 수동 박스 카탈로그를 보조 소스로 사용한다.
+    된다. 이 값으로 price-*.json을 덮으면 카드명과 카드정보의 세트→박스 이름 매칭이
+    끊기므로, 동일 ID의 기존 파일·수동 박스 카탈로그·카드 메타 인덱스를 보조 소스로
+    사용한다.
     """
     sources = []
     current_path = DATA_DIR / filename
@@ -318,6 +319,48 @@ def preserve_product_metadata(filename: str, products: list) -> list:
                     known[product_id] = {**known.get(product_id, {}), **old}
         except Exception:
             continue
+
+    # 카드 가격 파일의 기존 이름까지 이미 Card #ID인 경우 정적 메타 인덱스로 복구한다.
+    card_match = re.fullmatch(r"price-(pokemon|onepiece)-card\.json", filename)
+    meta_index_path = DATA_DIR / "cards-meta-index.json"
+    if card_match and meta_index_path.exists():
+        try:
+            meta_index = json.loads(meta_index_path.read_text(encoding="utf-8"))
+            for product_id, meta in meta_index.items():
+                # 기존 인덱스에는 원피스 항목도 brand=pokemon으로 저장된 레코드가 있어
+                # 신뢰 가능한 고유 상품 ID를 기준으로 메타를 합친다.
+                meta_name = str(meta.get("name") or "").strip()
+                if not meta_name or re.fullmatch(r"Card #\d+", meta_name):
+                    continue
+                current = known.setdefault(str(product_id), {})
+                current_name = str(current.get("name") or "").strip()
+                if not current_name or re.fullmatch(r"Card #\d+", current_name):
+                    current["name"] = meta_name
+                if not current.get("productNumber") and meta.get("code"):
+                    current["productNumber"] = meta["code"]
+        except Exception:
+            pass
+
+    # 정적 카드 메타에 아직 없는 신규/프로모션 상품은 검증된 수동 보정값으로 보존한다.
+    override_path = DATA_DIR / "price-card-name-overrides.json"
+    if card_match and override_path.exists():
+        target_brand = card_match.group(1)
+        try:
+            overrides = json.loads(override_path.read_text(encoding="utf-8"))
+            for product_id, meta in overrides.items():
+                if meta.get("brand") and meta.get("brand") != target_brand:
+                    continue
+                meta_name = str(meta.get("name") or "").strip()
+                if not meta_name or re.fullmatch(r"Card #\d+", meta_name):
+                    continue
+                current = known.setdefault(str(product_id), {})
+                current_name = str(current.get("name") or "").strip()
+                if not current_name or re.fullmatch(r"Card #\d+", current_name):
+                    current["name"] = meta_name
+                if not current.get("productNumber") and meta.get("code"):
+                    current["productNumber"] = meta["code"]
+        except Exception:
+            pass
 
     for product in products:
         old = known.get(str(product.get("id") or ""))

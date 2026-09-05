@@ -5249,7 +5249,6 @@ function drawHistoryChart(productId, history, product) {
 async function enrichPriceProductMetadata(products, kind = PRICE_CAT) {
   const rows = Array.isArray(products) ? products : [];
   const needsMetadata = rows.some(p => /^Card #\d+$/.test(String(p?.name || '').trim()));
-  if (!needsMetadata) return rows;
 
   try {
     if (kind === 'box') {
@@ -5259,16 +5258,18 @@ async function enrichPriceProductMetadata(products, kind = PRICE_CAT) {
         _PRICE_BOX_NAME_OVERRIDES = await response.json();
       }
       rows.forEach(product => {
-        if (!/^Card #\d+$/.test(String(product?.name || '').trim())) return;
         const meta = _PRICE_BOX_NAME_OVERRIDES[String(product.id)];
-        if (!meta?.name) return;
-        product.name = meta.name;
+        if (!meta) return;
+        if (/^Card #\d+$/.test(String(product?.name || '').trim()) && meta.name) product.name = meta.name;
         product._koName = meta.koName || '';
+        product._productKind = meta.kind || '';
         if (!product.code && meta.code) product.code = meta.code;
         if (!product.productNumber && meta.code) product.productNumber = meta.code;
       });
       return rows;
     }
+
+    if (!needsMetadata) return rows;
 
     const [metaIndex, nameOverrides] = await Promise.all([
       _PRICE_CARD_META_INDEX
@@ -5293,6 +5294,7 @@ async function enrichPriceProductMetadata(products, kind = PRICE_CAT) {
         : nameOverrides[String(product.id)];
       if (!meta?.name) return;
       product.name = meta.name;
+      product._productKind = meta.kind || '';
       if (!product.code && meta.code) product.code = meta.code;
       if (!product.productNumber && meta.code) product.productNumber = meta.code;
     });
@@ -5300,6 +5302,15 @@ async function enrichPriceProductMetadata(products, kind = PRICE_CAT) {
     console.warn('[price-grid] 상품 이름 메타 보정 실패:', error);
   }
   return rows;
+}
+
+function isPriceBoxProduct(product) {
+  if (product?._productKind === 'card') return false;
+  if (product?._productKind === 'box') return true;
+  const name = String(product?.name || '').trim();
+  if (/^DON!!\s*Card\b/i.test(name)) return false;
+  if (/\[[^\]]*\d+[^\]]*\]/.test(name) && !/^(?:Pok[eé]mon|ONE PIECE) Card Game\b/i.test(name)) return false;
+  return true;
 }
 
 async function loadPriceGrid() {
@@ -5322,14 +5333,23 @@ async function loadPriceGrid() {
     if (!r.ok) throw new Error(`데이터 파일 없음 (HTTP ${r.status})`);
     const d = await r.json();
     if (!d?.ok) throw new Error(d?.error || '데이터 형식 오류');
-    const all = d.products || [];
-    await enrichPriceProductMetadata(all, PRICE_CAT);
+    const allProducts = d.products || [];
+    await enrichPriceProductMetadata(allProducts, PRICE_CAT);
+    let all = PRICE_CAT === 'box' ? allProducts.filter(isPriceBoxProduct) : [...allProducts];
     // 상세 패널 검색용 캐시 — 같은 브랜드의 box+card 합쳐서
     const otherCat = PRICE_CAT === 'box' ? 'card' : 'box';
     try {
       const r2 = await fetch(`/data/price-${PRICE_BRAND}-${otherCat}.json?t=${Math.floor(Date.now()/3600000)}`);
       const d2 = await r2.json();
-      HOME_TOP_CACHE[PRICE_BRAND] = [...(d.products || []), ...(d2?.products || [])];
+      const otherProducts = d2?.products || [];
+      await enrichPriceProductMetadata(otherProducts, otherCat);
+      // 과거 박스 파일에 잘못 저장된 단일 카드는 박스에서 빼고 카드 탭으로 이동해 표시한다.
+      if (PRICE_CAT === 'card') {
+        const movedCards = otherProducts.filter(product => !isPriceBoxProduct(product));
+        const seenIds = new Set(all.map(product => String(product.id)));
+        all = [...movedCards.filter(product => !seenIds.has(String(product.id))), ...all];
+      }
+      HOME_TOP_CACHE[PRICE_BRAND] = [...allProducts, ...otherProducts];
     } catch { HOME_TOP_CACHE[PRICE_BRAND] = all; }
     if (PRICE_CAT === 'card') await applyGradePrices(all);
     renderPriceGrid(all);

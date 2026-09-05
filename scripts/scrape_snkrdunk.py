@@ -270,9 +270,18 @@ def scrape_url(label: str, url: str, max_items: int = 10) -> list:
         driver.quit()
 
 
-def is_box_product(name: str) -> bool:
+def is_box_product(product) -> bool:
     """카드: [세트코드 번호] 대괄호 있음. 박스: 대괄호 없거나 ボックス/BOX 단어 직접 포함."""
+    if isinstance(product, dict):
+        explicit_kind = str(product.get("kind") or "").strip().lower()
+        if explicit_kind in ("box", "card"):
+            return explicit_kind == "box"
+        name = str(product.get("name") or "")
+    else:
+        name = str(product or "")
     if not name:
+        return False
+    if re.match(r"^DON!!\s*Card\b", name, re.IGNORECASE):
         return False
     # 강제 박스: 명시적 박스 키워드
     if any(kw in name for kw in HARD_BOX_KEYWORDS):
@@ -287,8 +296,8 @@ def is_box_product(name: str) -> bool:
 def filter_by_kind(products: list, kind: str) -> list:
     """kind='box' → 박스, kind='card' → 박스 아닌 것"""
     if kind == "box":
-        return [p for p in products if is_box_product(p["name"])]
-    return [p for p in products if not is_box_product(p["name"])]
+        return [p for p in products if is_box_product(p)]
+    return [p for p in products if not is_box_product(p)]
 
 
 def preserve_product_metadata(filename: str, products: list) -> list:
@@ -338,6 +347,8 @@ def preserve_product_metadata(filename: str, products: list) -> list:
                     current["name"] = meta_name
                 if not current.get("productNumber") and meta.get("code"):
                     current["productNumber"] = meta["code"]
+                if meta.get("kind") in ("box", "card"):
+                    current["kind"] = meta["kind"]
         except Exception:
             pass
 
@@ -361,6 +372,8 @@ def preserve_product_metadata(filename: str, products: list) -> list:
                     current["name"] = meta_name
                 if not current.get("productNumber") and meta.get("code"):
                     current["productNumber"] = meta["code"]
+                if meta.get("kind") in ("box", "card"):
+                    current["kind"] = meta["kind"]
         except Exception:
             pass
 
@@ -372,7 +385,7 @@ def preserve_product_metadata(filename: str, products: list) -> list:
         old_name = str(old.get("name") or "").strip()
         if (not new_name or re.fullmatch(r"Card #\d+", new_name)) and old_name and not re.fullmatch(r"Card #\d+", old_name):
             product["name"] = old_name
-        for key in ("code", "productNumber"):
+        for key in ("code", "productNumber", "kind"):
             if not product.get(key) and old.get(key):
                 product[key] = old[key]
     return products
@@ -693,10 +706,15 @@ def main():
     print("=" * 60)
     # fallback 의 경우 같은 URL 두 번 fetch 안 되도록 캐싱
     fallback_cache: dict = {}
+    spillover_cards: dict = {}
     for label, primary_url in PRICE_URLS_PRIMARY.items():
         total += 1
         try:
-            products = scrape_url(label, primary_url, max_items=30)
+            filename = f"price-{label}.json"
+            kind = PRICE_URLS_FALLBACK[label][1]
+            candidates = scrape_url(label, primary_url, max_items=60)
+            candidates = preserve_product_metadata(filename, candidates)
+            products = filter_by_kind(candidates, kind)[:30]
             if len(products) < 5:
                 # primary 가 5개 미만 → fallback 로 전환
                 fb_url, kind = PRICE_URLS_FALLBACK[label]
@@ -707,8 +725,25 @@ def main():
                 else:
                     all_products = scrape_url(f"{label}-fallback", fb_url, max_items=60)
                     fallback_cache[fb_url] = all_products
-                products = filter_by_kind(all_products, kind)[:30]
+                candidates = preserve_product_metadata(filename, all_products)
+                products = filter_by_kind(candidates, kind)[:30]
                 print(f"  → {kind} 필터링 결과: {len(products)}개")
+            brand = label.split("-", 1)[0]
+            if kind == "box":
+                # 카테고리 API가 박스 목록에 섞어 준 단일 카드를 다음 카드 파일로 넘긴다.
+                spillover_cards[brand] = filter_by_kind(candidates, "card")
+            else:
+                merged = spillover_cards.get(brand, []) + products
+                seen_ids = set()
+                products = []
+                for product in merged:
+                    product_id = str(product.get("id") or "")
+                    if not product_id or product_id in seen_ids:
+                        continue
+                    seen_ids.add(product_id)
+                    products.append(product)
+                    if len(products) >= 30:
+                        break
             if not products:
                 print(f"[{label}] ⚠ 0개 추출 - 기존 데이터 유지")
                 fail_count += 1

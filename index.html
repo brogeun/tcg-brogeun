@@ -3309,6 +3309,7 @@ let PRICE_LOADING = false;
 const PRICE_CACHE = {};
 let _PRICE_CARD_META_INDEX = null;
 let _PRICE_CARD_NAME_OVERRIDES = null;
+let _PRICE_BOX_NAME_OVERRIDES = null;
 
 function initPrice(productId) {
   // 탭 활성화 동기화
@@ -5245,12 +5246,30 @@ function drawHistoryChart(productId, history, product) {
   });
 }
 
-async function enrichPriceCardMetadata(products) {
+async function enrichPriceProductMetadata(products, kind = PRICE_CAT) {
   const rows = Array.isArray(products) ? products : [];
   const needsMetadata = rows.some(p => /^Card #\d+$/.test(String(p?.name || '').trim()));
   if (!needsMetadata) return rows;
 
   try {
+    if (kind === 'box') {
+      if (!_PRICE_BOX_NAME_OVERRIDES) {
+        const response = await fetch('/data/price-box-name-overrides.json');
+        if (!response.ok) throw new Error(`박스 이름 보정 파일 없음 (HTTP ${response.status})`);
+        _PRICE_BOX_NAME_OVERRIDES = await response.json();
+      }
+      rows.forEach(product => {
+        if (!/^Card #\d+$/.test(String(product?.name || '').trim())) return;
+        const meta = _PRICE_BOX_NAME_OVERRIDES[String(product.id)];
+        if (!meta?.name) return;
+        product.name = meta.name;
+        product._koName = meta.koName || '';
+        if (!product.code && meta.code) product.code = meta.code;
+        if (!product.productNumber && meta.code) product.productNumber = meta.code;
+      });
+      return rows;
+    }
+
     const [metaIndex, nameOverrides] = await Promise.all([
       _PRICE_CARD_META_INDEX
         ? Promise.resolve(_PRICE_CARD_META_INDEX)
@@ -5278,7 +5297,7 @@ async function enrichPriceCardMetadata(products) {
       if (!product.productNumber && meta.code) product.productNumber = meta.code;
     });
   } catch (error) {
-    console.warn('[price-grid] 카드 이름 메타 보정 실패:', error);
+    console.warn('[price-grid] 상품 이름 메타 보정 실패:', error);
   }
   return rows;
 }
@@ -5304,7 +5323,7 @@ async function loadPriceGrid() {
     const d = await r.json();
     if (!d?.ok) throw new Error(d?.error || '데이터 형식 오류');
     const all = d.products || [];
-    if (PRICE_CAT === 'card') await enrichPriceCardMetadata(all);
+    await enrichPriceProductMetadata(all, PRICE_CAT);
     // 상세 패널 검색용 캐시 — 같은 브랜드의 box+card 합쳐서
     const otherCat = PRICE_CAT === 'box' ? 'card' : 'box';
     try {
@@ -5429,7 +5448,7 @@ function renderPriceGrid(products) {
     const price = p.lastPrice ?? p.lowestAsk;
     const safeName = (p.name || '—').replace(/&quot;/g, '"');
     // 박스 카테고리만 한글 (원문) 형식
-    const ko = (PRICE_CAT === 'box') ? getBoxKoreanName(p.name, PRICE_BRAND) : null;
+    const ko = (PRICE_CAT === 'box') ? (p._koName || getBoxKoreanName(p.name, PRICE_BRAND)) : null;
     const nameHtml = ko
       ? `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}"><strong>${ko}</strong><div style="font-size:11px; color:var(--ink-sub); font-weight:400; line-height:1.3; margin-top:3px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${safeName}</div></div>`
       : `<div class="price-card-name" title="${safeName.replace(/"/g, '&quot;')}">${safeName}</div>`;
@@ -5534,7 +5553,7 @@ async function renderSlidePanel(productId) {
     } catch (e) { console.warn('[slide] card index fallback fail:', e); }
   }
   // 가격 파일에 임시 이름(Card #ID)만 있어도 실제 카드 메타로 상세명을 복원한다.
-  if (product) await enrichPriceCardMetadata([product]);
+  if (product) await enrichPriceProductMetadata([product], PRICE_CAT);
   // 2. history 받기 — 등급별 가격
   let history = null;
   try {

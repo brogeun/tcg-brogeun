@@ -342,9 +342,11 @@ def preserve_product_metadata(filename: str, products: list) -> list:
             pass
 
     # 정적 카드 메타에 아직 없는 신규/프로모션 상품은 검증된 수동 보정값으로 보존한다.
-    override_path = DATA_DIR / "price-card-name-overrides.json"
-    if card_match and override_path.exists():
-        target_brand = card_match.group(1)
+    override_match = card_match or match
+    override_filename = "price-card-name-overrides.json" if card_match else "price-box-name-overrides.json"
+    override_path = DATA_DIR / override_filename
+    if override_match and override_path.exists():
+        target_brand = override_match.group(1)
         try:
             overrides = json.loads(override_path.read_text(encoding="utf-8"))
             for product_id, meta in overrides.items():

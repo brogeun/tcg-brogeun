@@ -1136,16 +1136,25 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .home-guest-login:hover,.home-sidebar-login:hover { background:#0FB8B8 !important; }
         #authStatus .home-sidebar-login { background:#19DFDF; color:#0D0D0D; border:0; border-radius:10px; font-weight:600; }
         #pwaInstallBtn { border-radius:10px; }
-        .home-login-modal .modal-box { border-radius:20px; }
-        .home-login-modal .modal-head h3 { font-size:18px; color:#066666; }
-        .home-login-modal .modal-body button { border-radius:10px !important; }
+#anyModal.home-login-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:24px}#anyModal.home-login-modal[hidden]{display:none}#anyModal.home-login-modal .modal-box{width:420px;max-width:420px !important;max-height:calc(100dvh - 48px);overflow-y:auto;padding:24px;background:white;border-radius:16px;box-shadow:0 1px 1px #0005,0 2px 3px #0002}.login-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.login-head h3{margin:0;font-size:18px;line-height:24px;font-weight:600}.login-close{border:0;background:none;display:grid;place-items:center;width:32px;height:32px;padding:4px;color:#666560}.login-close svg{width:24px;height:24px;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.login-consent{background:#F7F6F2;border:1px solid #D9D8D3;border-radius:10px;padding:16px;margin-bottom:16px}.login-consent label{display:flex;align-items:center;gap:8px;min-height:32px;font-size:14px;line-height:20px;color:#666560;cursor:pointer}.login-consent label:first-child{font-weight:600;font-size:16px;color:#0D0D0D;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #EDECE8}.login-consent input{appearance:none;width:20px;height:20px;margin:0;flex-shrink:0;border:1px solid #D9D8D3;border-radius:4px;background:white;display:grid;place-content:center}.login-consent input:checked{background:#066666;border-color:#066666}.login-consent input:checked:after{content:"";width:9px;height:5px;border:solid white;border-width:0 0 2px 2px;transform:rotate(-45deg) translateY(-1px)}.login-consent input:indeterminate:after{content:"";width:10px;height:2px;background:#066666}.login-consent a{color:#066666;text-underline-offset:3px}
+.login-social{display:grid;gap:8px}.login-social button{height:44px;width:100%;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:12px;font-size:16px;font-weight:600;border:0}.login-social svg{width:24px;height:24px}.login-social .kakao{background:#FEE102;color:#000}.login-social .google{background:#fff;border:1px solid #E1E1E1;color:#555}.login-social .apple{background:#000;color:#fff}.login-social button:disabled{opacity:.4}.login-divider{display:flex;gap:12px;align-items:center;color:#999894;font-size:15px;line-height:20px;font-weight:500;margin:16px 0}.login-divider:before,.login-divider:after{content:"";height:1px;background:#EDECE8;flex:1}.login-email{margin:0;padding:0;border:0;min-width:0}.login-email:disabled{opacity:.4}.login-email p{font-size:14px;line-height:20px;font-weight:500;color:#888780;margin:0 0 12px}.login-email input{height:44px;width:100%;padding:12px 16px;background:#F7F6F2;border:1px solid #D9D8D3;border-radius:10px;font-size:16px;color:#0D0D0D;margin-bottom:12px}.login-email input:focus{outline:none;border-color:#19DFDF;box-shadow:0 0 0 2px #E8FAFA}.login-email button{height:44px;width:100%;border:0;border-radius:8px;background:#666560;color:#fff;font-size:18px;font-weight:500}.login-hint{font-size:14px;line-height:20px;text-align:center;color:#888780;margin:12px 0 0}#loginMsg{font-size:12px;line-height:18px;color:#066666;margin-top:8px}#loginMsg:empty{display:none}
+@media(max-width:768px){#anyModal.home-login-modal{padding:0;background:#fff}#anyModal.home-login-modal .modal-box{height:100dvh;width:100%;max-height:100dvh;max-width:none;padding:0 18px calc(24px + env(safe-area-inset-bottom));border-radius:0;box-shadow:none;animation:loginSlide .2s ease-out}.login-head{margin:0 -2px 16px;min-height:64px;padding-top:env(safe-area-inset-top)}.login-close{width:40px;height:40px}.login-consent{margin-top:0}.login-email p{line-height:22px}@keyframes loginSlide{from{transform:translateY(100%)}to{transform:translateY(0)}}}
+@media(prefers-reduced-motion:reduce){#anyModal.home-login-modal .modal-box{animation:none}}
+
+#anyModal.home-login-modal {font-family:Pretendard,-apple-system,sans-serif;color:#0D0D0D}
+.home-login-modal button,.home-login-modal input {font-family:inherit}
+.home-login-modal button {cursor:pointer}
+.home-login-modal button:disabled {cursor:default}
+.home-login-modal :is(button,input,a):focus-visible {outline:2px solid #066666;outline-offset:3px}
+.login-note {background:#E8FAFA;color:#066666;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px;line-height:20px;overflow-wrap:anywhere}
+#loginMsg {overflow-wrap:anywhere}
+@media(max-width:768px){#anyModal.home-login-modal .modal-box{max-width:100% !important;overscroll-behavior:contain}.login-head{min-height:calc(64px + env(safe-area-inset-top))}}
         @media(max-width:768px) {
           .home-guest-banner { flex-direction:column; align-items:stretch; padding:20px 16px; margin-bottom:36px; gap:20px; }
           .home-guest-copy { align-items:flex-start; gap:12px; }
           .home-guest-icon { width:40px; height:40px; border-radius:10px; }
           .home-guest-login { width:100%; }
-          #anyModal.home-login-modal { align-items:flex-end; padding:60px 0 0; }
-          #anyModal.home-login-modal .modal-box { width:100%; max-width:100% !important; max-height:calc(100dvh - 60px); overflow-y:auto; border-radius:20px 20px 0 0; padding-bottom:env(safe-area-inset-bottom); }
         }
         .sidebar-socials { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
         .sidebar-socials a { min-width:0; height:34px; display:flex; align-items:center; justify-content:center; gap:5px; color:var(--ink-sub); background:var(--bg-soft); border:1px solid var(--line); border-radius:8px; text-decoration:none; font-size:10px; font-weight:600; }
@@ -9869,6 +9878,7 @@ function openAnyModal(innerHtml, size) {
     document.body.appendChild(modal);
   }
   const maxWidth = size === 'wide' ? '720px' : '480px';
+  modal._loginOpener = null;
   modal.innerHTML = `<div class="modal-box" style="max-width:${maxWidth}">${innerHtml}</div>`;
   modal.classList.remove('home-login-modal', 'ci-panel', 'ci-expanded');
   modal.classList.add('open');
@@ -9882,6 +9892,10 @@ function closeAnyModal() {
   }
   if (modal) modal.classList.remove('open');
   document.body.style.overflow = '';
+  if (modal?.classList.contains('home-login-modal')) {
+    modal._loginOpener?.focus?.({ preventScroll: true });
+    modal._loginOpener = null;
+  }
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnyModal(); });
 
@@ -10028,129 +10042,93 @@ async function doDeleteAccount() {
 }
 
 function openLoginModal(contextNote) {
-  const noteHtml = contextNote
-    ? `<div style="background:#fef3c7; border:1px solid #fde68a; color:#92400e; padding:11px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; line-height:1.5">💡 ${escapeHtml(contextNote)}</div>`
-    : '';
-  openAnyModal(`
-    <div class="modal-head">
-      <h3>로그인하고 내 카드를 관리하세요</h3>
-      <button class="modal-close" aria-label="로그인 닫기" onclick="closeAnyModal()">✕</button>
-    </div>
-    <div class="modal-body" style="padding:24px">
-      ${noteHtml}
-
-      <!-- 1단계: 소셜 로그인 (한국 사용자 비중 큼 — 상단 노출) -->
-      <button id="loginKakaoBtn" type="button"
-              style="width:100%; padding:11px; font-size:14px; cursor:pointer; background:#FEE500; border:none; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:10px; font-weight:700; color:#191919; transition:filter 0.15s; margin-bottom:8px"
-              onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='brightness(1)'">
-        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+  const opener = document.activeElement;
+  const noteHtml = contextNote ? `<div class="login-note">${escapeHtml(contextNote)}</div>` : '';
+  openAnyModal(`<header class="login-head"><h3 id="loginTitle">로그인</h3><button class="login-close" type="button" onclick="closeAnyModal()" aria-label="로그인 닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>
+${noteHtml}
+<div class="login-consent">
+<label><input id="agreeAll" type="checkbox">전체 동의</label>
+<label><input class="agreeItem" id="agreePrivacy" type="checkbox"><span>[필수] <a href="/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a> 동의</span></label>
+<label><input class="agreeItem" id="agreeTerms" type="checkbox"><span>[필수] <a href="/terms.html" target="_blank" rel="noopener">이용약관</a> 동의</span></label>
+<label><input class="agreeItem" id="agreeAge" type="checkbox"><span>[필수] 만 14세 이상입니다</span></label></div>
+<div class="login-social"><button class="kakao" id="loginKakaoBtn" type="button" disabled><svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
           <path fill="#191919" d="M9 1.2c-4.418 0-8 2.829-8 6.318 0 2.211 1.43 4.156 3.605 5.301-.16.598-.581 2.172-.665 2.508-.103.418.153.412.323.3.133-.087 2.121-1.444 2.978-2.027.578.085 1.165.13 1.759.13 4.418 0 8-2.829 8-6.318S13.418 1.2 9 1.2z"/>
-        </svg>
-        카카오로 계속하기
-      </button>
-
-      <button id="loginGoogleBtn" type="button"
-              style="width:100%; padding:11px; font-size:14px; cursor:pointer; background:#fff; border:1px solid #dadce0; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:10px; font-weight:600; color:#3c4043; transition:background 0.15s"
-              onmouseover="this.style.background='#f8f9fa'" onmouseout="this.style.background='#fff'">
-        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+        </svg>카카오로 시작하기</button><button class="google" id="loginGoogleBtn" type="button" disabled><svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
           <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
           <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
           <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
           <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-        </svg>
-        Google로 계속하기
-      </button>
-
-      <button id="loginAppleBtn" type="button"
-              style="width:100%; padding:11px; font-size:14px; cursor:pointer; background:#000; border:1px solid #000; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:10px; font-weight:600; color:#fff; margin-top:8px; transition:filter 0.15s"
-              onmouseover="this.style.filter='brightness(0.85)'" onmouseout="this.style.filter='brightness(1)'">
-        <svg width="16" height="18" viewBox="0 0 16 18" xmlns="http://www.w3.org/2000/svg">
+        </svg>구글로 시작하기</button><button class="apple" id="loginAppleBtn" type="button" disabled><svg width="16" height="18" viewBox="0 0 16 18" xmlns="http://www.w3.org/2000/svg">
           <path fill="#fff" d="M13.18 9.555c-.02-2.045 1.673-3.034 1.75-3.082-.954-1.396-2.44-1.588-2.971-1.612-1.266-.128-2.471.745-3.115.745-.643 0-1.638-.726-2.692-.706-1.385.02-2.66.804-3.374 2.04-1.438 2.494-.367 6.182 1.034 8.207.683.991 1.498 2.104 2.567 2.064 1.03-.041 1.42-.667 2.665-.667s1.594.667 2.685.647c1.108-.02 1.81-1.012 2.49-2.006.785-1.151 1.107-2.265 1.126-2.322-.025-.011-2.165-.832-2.185-3.308zM10.94 3.553c.57-.69.952-1.65.848-2.604-.82.034-1.815.547-2.402 1.235-.526.611-.985 1.59-.86 2.524.912.07 1.844-.464 2.414-1.155z"/>
-        </svg>
-        Apple로 계속하기
-      </button>
-
-      <!-- 2단계: 약관 동의 -->
-      <div style="background:#f9fafb; border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:18px 0 12px; font-size:12px">
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:4px 0">
-          <input type="checkbox" id="agreeAll" style="width:14px; height:14px; cursor:pointer">
-          <span style="font-weight:700; color:#111">전체 동의</span>
-        </label>
-        <hr style="border:none; border-top:1px solid var(--line); margin:6px 0">
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 0">
-          <input type="checkbox" id="agreePrivacy" style="width:13px; height:13px; cursor:pointer" class="agreeItem">
-          <span style="color:#374151">[필수] <a href="/privacy.html" target="_blank" style="color:#1d4ed8; text-decoration:underline">개인정보처리방침</a> 동의</span>
-        </label>
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 0">
-          <input type="checkbox" id="agreeTerms" style="width:13px; height:13px; cursor:pointer" class="agreeItem">
-          <span style="color:#374151">[필수] <a href="/terms.html" target="_blank" style="color:#1d4ed8; text-decoration:underline">이용약관</a> 동의</span>
-        </label>
-        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:3px 0">
-          <input type="checkbox" id="agreeAge" style="width:13px; height:13px; cursor:pointer" class="agreeItem">
-          <span style="color:#374151">[필수] 만 14세 이상입니다</span>
-        </label>
-      </div>
-
-      <!-- 3단계: 이메일 로그인 (대체 옵션) -->
-      <div style="display:flex; align-items:center; gap:10px; margin:14px 0 10px">
-        <div style="flex:1; height:1px; background:#e5e7eb"></div>
-        <span style="font-size:11px; color:#9ca3af; font-weight:600">또는 이메일로</span>
-        <div style="flex:1; height:1px; background:#e5e7eb"></div>
-      </div>
-      <p style="color:var(--ink-mute); font-size:11px; line-height:1.55; margin:0 0 10px">
-        비밀번호 없음 · 회원가입 별도 X · 처음 들어와도 자동 가입
-      </p>
-      <input id="loginEmailInput" type="email" placeholder="your@email.com" autocomplete="email"
-             style="width:100%; padding:12px; border:1px solid var(--line); border-radius:8px; font-size:16px; margin-bottom:10px">
-      <button id="loginSubmit" class="btn primary" style="width:100%; padding:12px; font-size:14px; cursor:pointer">로그인 링크 받기 →</button>
-      <div id="loginMsg" style="font-size:12px; margin-top:10px; min-height:18px; line-height:1.5"></div>
-    </div>`);
-  document.getElementById('anyModal').classList.add('home-login-modal');
-  document.querySelector('#anyModal .modal-box').setAttribute('role', 'dialog');
-  document.querySelector('#anyModal .modal-box').setAttribute('aria-modal', 'true');
-  document.querySelector('#anyModal .modal-box').setAttribute('aria-label', '로그인');
-  // 전체 동의 토글 + 포커스
-  setTimeout(() => {
-    const all = document.getElementById('agreeAll');
-    if (all) {
-      all.addEventListener('change', () => {
-        document.querySelectorAll('.agreeItem').forEach(cb => cb.checked = all.checked);
-      });
+        </svg>Apple로 시작하기</button></div>
+<div class="login-divider">또는 이메일로</div><fieldset class="login-email" id="loginEmailFields" disabled><p>비밀번호 없음 · 회원가입 별도 없음 · 처음 들어와도 자동 가입</p><input id="loginEmailInput" type="email" required placeholder="your@email.com" aria-label="이메일" autocomplete="email"><button id="loginSubmit" type="button">로그인 링크 받기 →</button></fieldset>
+<p class="login-hint">입력한 이메일로 로그인 링크를 보내드려요</p><div id="loginMsg" role="status" aria-live="polite"></div>
+`);
+  const modal = document.getElementById('anyModal');
+  const box = modal.querySelector('.modal-box');
+  modal.classList.add('home-login-modal');
+  modal._loginOpener = opener;
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-labelledby', 'loginTitle');
+  box.tabIndex = -1;
+  box._loginState = { busy: false, sent: false };
+  const all = box.querySelector('#agreeAll');
+  const items = [...box.querySelectorAll('.agreeItem')];
+  box._syncLogin = () => {
+    const checked = items.filter(item => item.checked).length;
+    const agreed = checked === items.length;
+    all.checked = agreed;
+    all.indeterminate = checked > 0 && !agreed;
+    const { busy, sent } = box._loginState;
+    box.querySelectorAll('.login-social button').forEach(button => button.disabled = !agreed || busy);
+    box.querySelector('#loginEmailFields').disabled = !agreed || busy || sent;
+    box.querySelector('#loginSubmit').disabled = !agreed || busy || sent;
+    box.setAttribute('aria-busy', String(busy));
+  };
+  all.addEventListener('change', () => {
+    items.forEach(item => item.checked = all.checked);
+    box._syncLogin();
+  });
+  items.forEach(item => item.addEventListener('change', box._syncLogin));
+  box.addEventListener('keydown', event => {
+    if (event.key !== 'Tab') return;
+    const targets = [...box.querySelectorAll('button,input,a[href]')]
+      .filter(el => !el.matches(':disabled') && el.getClientRects().length);
+    const first = targets[0], last = targets[targets.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === box)) {
+      event.preventDefault(); last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first?.focus();
     }
-    document.querySelectorAll('.agreeItem').forEach(cb => cb.addEventListener('change', () => {
-      const allChecked = Array.from(document.querySelectorAll('.agreeItem')).every(c => c.checked);
-      if (all) all.checked = allChecked;
-    }));
-    // 모바일에선 input 자동 focus 비활성화 (iOS 자동 확대/키보드 강제 띄움 방지)
-    if (window.matchMedia('(min-width: 900px)').matches) {
-      document.getElementById('loginEmailInput')?.focus();
-    }
-  }, 100);
+  });
+  box._syncLogin();
+  box.querySelector('.login-close').focus({ preventScroll: true });
 }
 
 async function submitLogin() {
-  const input = document.getElementById('loginEmailInput');
-  const btn = document.getElementById('loginSubmit');
-  const msg = document.getElementById('loginMsg');
-  const email = (input?.value || '').trim().toLowerCase();
+  const modal = document.getElementById('anyModal');
+  const box = modal?.querySelector('.modal-box');
+  const state = box?._loginState;
+  if (!modal?.classList.contains('open') || !state || state.busy || state.sent) return;
+  if (!_verifyAgreements()) return;
+  const input = box.querySelector('#loginEmailInput');
+  const btn = box.querySelector('#loginSubmit');
+  const msg = box.querySelector('#loginMsg');
+  const email = input.value.trim().toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     msg.style.color = '#dc2626';
     msg.textContent = '올바른 이메일을 입력해주세요';
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
     return;
   }
-  // 약관 동의 검증
-  const agreePrivacy = document.getElementById('agreePrivacy')?.checked;
-  const agreeTerms = document.getElementById('agreeTerms')?.checked;
-  const agreeAge = document.getElementById('agreeAge')?.checked;
-  if (!agreePrivacy || !agreeTerms || !agreeAge) {
-    msg.style.color = '#dc2626';
-    msg.textContent = '필수 동의 항목 3가지를 모두 체크해주세요';
-    return;
-  }
-  btn.disabled = true;
+  input.removeAttribute('aria-invalid');
+  state.busy = true;
+  box._syncLogin();
   btn.textContent = '발송 중...';
-  msg.style.color = '#6b7280';
-  msg.textContent = '';
+  msg.style.color = '#666560';
+  msg.textContent = '로그인 링크를 보내고 있어요.';
   try {
     const r = await fetch('/api/auth/request', {
       method: 'POST',
@@ -10159,21 +10137,21 @@ async function submitLogin() {
     });
     const d = await r.json();
     if (r.ok && d.ok) {
-      msg.style.color = '#10b981';
-      msg.innerHTML = `✓ <b>${escapeHtml(email)}</b> 메일함 확인하세요. (스팸함도 같이 보세요)<br><span style="color:var(--ink-mute); font-size:11px">15분 안에 링크 클릭 → 자동 로그인</span>`;
-      btn.style.display = 'none';
-      input.disabled = true;
+      state.sent = true;
+      msg.style.color = '#066666';
+      msg.textContent = `${email} 메일함을 확인해주세요. 스팸함도 확인하고 15분 안에 링크를 눌러주세요.`;
+      btn.textContent = '로그인 링크 발송 완료';
     } else {
       msg.style.color = '#dc2626';
       msg.textContent = d.message || d.error || '발송 실패. 잠시 후 다시 시도해주세요.';
-      btn.disabled = false;
-      btn.textContent = '로그인 링크 받기 →';
     }
   } catch (e) {
     msg.style.color = '#dc2626';
-    msg.textContent = '네트워크 에러: ' + e.message;
-    btn.disabled = false;
-    btn.textContent = '로그인 링크 받기 →';
+    msg.textContent = '네트워크 오류가 발생했어요. 잠시 후 다시 시도해주세요.';
+  } finally {
+    state.busy = false;
+    if (!state.sent) btn.textContent = '로그인 링크 받기 →';
+    box._syncLogin();
   }
 }
 

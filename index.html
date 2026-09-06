@@ -2654,6 +2654,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   </nav>
 </div>
 
+<link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
+<script src="/assets/price-product-info.js?v=20260906-meta2"></script>
+<script src="/assets/price-expanded.js?v=20260906-meta2"></script>
 <script>
 "use strict";
 
@@ -2661,6 +2664,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
    1. 라우팅 (단순! 작동 보장)
    ──────────────────────────────────── */
 function go(pageOrPath) {
+  if (window.setExpandedPriceMode) window.setExpandedPriceMode(false);
   // 일반 내비게이션 시 상세 이전/다음 탐색 컨텍스트 초기화 (goCardDetail 은 go() 안 거치고 hash 직접 변경)
   window._DETAIL_NAV = null;
   // path 지원: "price/618442" → page=price, productId=618442
@@ -3605,6 +3609,7 @@ document.addEventListener('click', e => {
 
 /* ─────────── 상세 패널 닫기 → 카드 리스트로 복귀 ─────────── */
 window.closePriceDetail = function() {
+  if (window.setExpandedPriceMode) window.setExpandedPriceMode(false);
   const panel = document.getElementById('priceDetailPanel');
   if (panel) panel.style.display = 'none';
   // URL 해시에서 productId 제거 (#price/12345 → #price)
@@ -3631,6 +3636,8 @@ async function loadCardsDetail() {
 async function showPriceDetailPanel(productId) {
   const panel = document.getElementById('priceDetailPanel');
   if (!panel) return;
+  panel.dataset.productId = String(productId);
+  if (window.setExpandedPriceMode) window.setExpandedPriceMode(true);
   panel.style.display = 'block';
   panel.innerHTML = `<div class="card" style="padding:24px; text-align:center; color:var(--ink-sub)">⏳ 카드 정보 불러오는 중...</div>`;
 
@@ -3695,6 +3702,11 @@ async function showPriceDetailPanel(productId) {
     }
   }
 
+  if (panel.dataset.productId !== String(productId)) return;
+  if (window.renderExpandedPriceDetail) {
+    await window.renderExpandedPriceDetail(productId, product, panel);
+    return;
+  }
   if (!product) {
     panel.innerHTML = `
       <div class="card" style="padding:20px">
@@ -5847,6 +5859,12 @@ async function renderSlidePanel(productId) {
   const isCardBySrc = product && product._src && /-card$/.test(product._src);
   const isBoxBySrc = product && product._src && (/-box$/.test(product._src) || /^manual-boxes/.test(product._src));
   const isBox = (isCardByPN || isCardByName || isCardBySrc) ? false : (isBoxBySrc ? true : (hasCardGrade ? false : (hasBoxData ? true : true)));
+  const catalogInfo = window.PriceProductInfo ? await PriceProductInfo.get(product, brand, isBox) : {sets:[]};
+  if (String(CURRENT_SLIDE_ID) !== String(productId)) return;
+  if (catalogInfo.sets.length) pack = catalogInfo.sets.map(PriceProductInfo.label).join(' / ');
+  const releaseLabel = catalogInfo.sets.length
+    ? catalogInfo.sets.map(set => `${catalogInfo.sets.length > 1 ? set.code + ' · ' : ''}${set.release || '카드정보에 발매일 미등록'}`).join(' / ')
+    : (product && (product.release_date || product.releaseDate)) || '카드정보에 발매일 미등록';
   // 가격 — 별도 페이지와 동일 로직 (최신부터 역순으로 각 등급 첫 non-null)
   function pickLatestPrice(field) {
     if (!history || !history.length) return null;
@@ -6028,7 +6046,7 @@ async function renderSlidePanel(productId) {
       <table class="slide-info-table">
         <tr><td>타입</td><td>${isBox ? '박스' : '카드'}</td></tr>
         <tr><td>확장팩</td><td>${escapeHtml(pack || '—')}</td></tr>
-        <tr><td>발매일</td><td>${escapeHtml((product && (product.release_date || product.releaseDate)) || '—')}</td></tr>
+        <tr><td>발매일</td><td>${escapeHtml(releaseLabel)}</td></tr>
         <tr><td>데이터 출처</td><td>SNKRDUNK · 24시간 자동 갱신</td></tr>
       </table>
     </section>

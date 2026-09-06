@@ -678,6 +678,7 @@ input, select, textarea {
 input:focus, select:focus { outline: none; border-color: var(--accent); }
 .form-row { margin-bottom: 14px; }
 </style>
+<link rel="stylesheet" href="/assets/search-modal.css?v=20260906">
 </head>
 <body>
 <script>
@@ -804,54 +805,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </script>
     </header>
     <script>
-      // 모바일/데스크톱 — 돋보기 클릭 시 시세 페이지로 이동 후 검색 input 포커스
-      // (globalSearch input 자체에는 아무 핸들러도 없어서 빈 input 만 열리던 버그 fix)
-      (function bindMobileSearchToggle(){
-        const btn = document.getElementById('mobileSearchToggle');
-        const bar = document.getElementById('topSearchBar');
-        if (!btn || !bar) return;
-        btn.addEventListener('click', () => {
-          // 1) 시세 페이지로 이동
-          if (typeof go === 'function') go('price');
-          // 2) 약간 지연 후 카드 검색 input 에 포커스
-          setTimeout(() => {
-            const cardInput = document.getElementById('cardSearchInput');
-            if (cardInput) {
-              cardInput.focus();
-              // 모바일에서 스크롤 위로
-              cardInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }, 200);
-        });
-        // globalSearch input 에 직접 타이핑하는 경우도 처리 (혹시 모바일에서 열려있다면)
-        const gs = document.getElementById('globalSearch');
-        if (gs) {
-          gs.addEventListener('input', () => {
-            if (typeof go === 'function') go('price');
-            setTimeout(() => {
-              const cardInput = document.getElementById('cardSearchInput');
-              if (cardInput) {
-                cardInput.value = gs.value;
-                cardInput.dispatchEvent(new Event('input', { bubbles: true }));
-                cardInput.focus();
-              }
-            }, 100);
-          });
-          gs.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              if (typeof go === 'function') go('price');
-              setTimeout(() => {
-                const cardInput = document.getElementById('cardSearchInput');
-                if (cardInput) {
-                  cardInput.value = gs.value;
-                  cardInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-                }
-              }, 150);
-            }
-          });
-        }
-      })();
+      // Shared PC/mobile search entry points are bound by assets/search-modal.js.
 
     </script>
 
@@ -10887,5 +10841,6 @@ window.addEventListener('appinstalled', () => {
 });
 
 // </script>
+<script src="/assets/search-modal.js?v=20260906"></script>
 </body>
 </html>

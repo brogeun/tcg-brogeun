@@ -1716,6 +1716,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .hub-news-image[hidden] { display:none; }
         .hub-news-fallback { position:absolute; inset:0; display:grid; place-items:center; background:#EDECE8; }
         .hub-news-fallback[hidden] { display:none; }
+        .hub-news-fallback.is-brand { padding:24px; background:#fff; }
+        .hub-news-brand-logo { width:100%; max-width:180px; height:100%; min-height:0; object-fit:contain; }
+        .hub-news-brand-logo[hidden] { display:none; }
         .hub-news-placeholder svg { width:28px; height:28px; stroke-width:1.8; }
         .hub-news-body { height:100px; padding:16px; }
         .hub-news-tag { overflow:hidden; color:#066666; font-size:12px; font-weight:400; line-height:16px; text-overflow:ellipsis; white-space:nowrap; }
@@ -6359,9 +6362,16 @@ function renderHubNewsPage() {
       const label = escapeHtml(n.sourceLabel || n.tag || n.category || 'News');
       const date = escapeHtml(String(n.date || '').replace(/-/g, '.'));
       const imageUrl = String(n.image || '').trim();
+      const brand = n.source === 'onepiece' || String(n.sourceLabel || n.tag || '').includes('원피스') ? 'onepiece'
+        : n.source === 'pokemon' || String(n.sourceLabel || n.tag || '').includes('포켓몬') ? 'pokemon' : '';
+      const brandLogo = brand === 'onepiece' ? '/images/market/onepiece-logo.png'
+        : brand === 'pokemon' ? 'https://data1.pokemonkorea.co.kr/newdata/2026/08/2026-08-18_09-44-22-87314-1787013862.png' : '';
+      const fallback = `<span class="hub-news-fallback${brandLogo ? ' is-brand' : ''}" ${imageUrl ? 'hidden' : ''}>${brandLogo
+        ? `<img class="hub-news-brand-logo" src="${brandLogo}" alt="${brand === 'onepiece' ? 'ONE PIECE CARD GAME' : '포켓몬 카드 게임'}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>${brand === 'onepiece' ? 'ONE PIECE CARD GAME' : '포켓몬 카드 게임'}</span>`
+        : '<i data-lucide="newspaper" aria-hidden="true"></i>'}</span>`;
       const media = imageUrl
-        ? `<div class="hub-news-placeholder"><img class="hub-news-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onload="this.classList.toggle('hub-news-poster',this.naturalHeight>this.naturalWidth*1.8)" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="hub-news-fallback" hidden><i data-lucide="newspaper" aria-hidden="true"></i></span></div>`
-        : `<div class="hub-news-placeholder"><span class="hub-news-fallback"><i data-lucide="newspaper" aria-hidden="true"></i></span></div>`;
+        ? `<div class="hub-news-placeholder"><img class="hub-news-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onload="this.classList.toggle('hub-news-poster',this.naturalHeight>this.naturalWidth*1.8)" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallback}</div>`
+        : `<div class="hub-news-placeholder">${fallback}</div>`;
       return `
         <${tag} ${tagAttrs} class="hub-news-card" title="${escapeHtml(n.title || '')}">
           ${media}

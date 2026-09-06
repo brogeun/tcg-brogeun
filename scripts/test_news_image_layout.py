@@ -50,5 +50,26 @@ try:
   d.execute_script('arguments[0].click()',d.find_element(By.CSS_SELECTOR,'#newsPageButtons [aria-label="이전 페이지"]'))
   assert d.find_element(By.CSS_SELECTOR,'#newsList .hub-news-card').get_attribute('href')==first
   results.append({'width':width,'loadedImages':len(measurements),'contain':True,'pagination':True,'overflow':False})
- print(json.dumps({'ok':True,'viewports':results,'mobileLayoutPreserved':True}))
+ # Real empty-image One Piece notice receives its brand logo, not a newspaper.
+ notice=d.find_element(By.CSS_SELECTOR,'a[href*="brdno=6456"]')
+ logo=notice.find_element(By.CSS_SELECTOR,'.hub-news-brand-logo')
+ d.execute_script('arguments[0].scrollIntoView({block:"center"})',logo)
+ WebDriverWait(d,10).until(lambda _:d.execute_script('return arguments[0].naturalWidth>0',logo))
+ assert logo.get_attribute('src').endswith('/images/market/onepiece-logo.png')
+ # Empty Pokemon images and failed article images use the same safe fallback.
+ for width in [1440,390]:
+  d.execute_cdp_cmd('Emulation.setDeviceMetricsOverride',{'width':width,'height':1000,'deviceScaleFactor':1,'mobile':width<500})
+  d.execute_script('''HUB_NEWS_ITEMS=[{title:'포켓몬 이미지 없음 검사',source:'pokemon',image:''},{title:'원피스 이미지 없음 검사',source:'onepiece',image:''}];HUB_NEWS_PAGE=1;renderHubNewsPage();scrollTo(0,0)''')
+  for brand_image in d.find_elements(By.CSS_SELECTOR,'.hub-news-brand-logo'):
+   d.execute_script('arguments[0].loading="eager"',brand_image)
+   WebDriverWait(d,15).until(lambda _:d.execute_script('return arguments[0].naturalWidth>0',brand_image))
+   assert brand_image.is_displayed()
+   assert d.execute_script('return getComputedStyle(arguments[0]).objectFit',brand_image)=='contain'
+  assert d.execute_script('return document.documentElement.scrollWidth<=innerWidth')
+  if args.screenshots:d.save_screenshot(str(Path(args.screenshots)/('news-brand-fallback-'+str(width)+'.png')))
+ d.execute_script('''HUB_NEWS_ITEMS=[{title:'이미지 오류 검사',source:'onepiece',image:'/images/market/onepiece-logo.png'}];renderHubNewsPage();document.querySelector('.hub-news-image').dispatchEvent(new Event('error'))''')
+ assert d.find_element(By.CSS_SELECTOR,'.hub-news-brand-logo').is_displayed()
+ d.execute_script('document.querySelector(".hub-news-brand-logo").dispatchEvent(new Event("error"))')
+ assert 'ONE PIECE CARD GAME' in d.find_element(By.CSS_SELECTOR,'.hub-news-fallback').text
+ print(json.dumps({'ok':True,'viewports':results,'mobileLayoutPreserved':True,'brandFallbacks':True,'failedImageFallback':True}))
 finally:d.quit()

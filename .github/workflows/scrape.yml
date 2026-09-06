@@ -41,7 +41,7 @@ jobs:
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
         run: |
           python -m pip install --upgrade pip
-          pip install "selenium>=4.20.0" "webdriver-manager>=4.0.0"
+          pip install "selenium>=4.20.0" "webdriver-manager>=4.0.0" "beautifulsoup4>=4.12,<5"
 
       - name: Run scraper
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
@@ -49,12 +49,12 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
-      # 뉴스 cron 비활성화 — 관리자가 admin 페이지에서 직접 등재하는 방식으로 전환
-      # - name: Run news scraper (한국 TCG 뉴스 - 4·5월)
-      #   if: github.event_name != 'push'
-      #   run: python scripts/scrape_news.py || echo "news scrape failed (non-fatal)"
-      #   env:
-      #     PYTHONUNBUFFERED: "1"
+      - name: Run news scraper (한국 포켓몬·원피스 공식 소식)
+        if: github.event_name != 'push'
+        continue-on-error: true  # 한 사이트 장애가 가격 수집·배포 전체를 막지 않도록 경고 처리
+        run: python scripts/scrape_news.py
+        env:
+          PYTHONUNBUFFERED: "1"
 
       - name: Fetch FX rates (Naver USD/KRW, JPY/KRW)
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')

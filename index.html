@@ -87,6 +87,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.snkrdunk.com" crossorigin> <!-- 시세 카드 이미지 CDN — LCP 단축 -->
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
 :root {
   /* 새 디자인 토큰 (홈 + 점진적 적용용) */
@@ -1601,74 +1602,117 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       }
     </style>
 
-    <!-- 정보 허브 -->
-    <section class="page" data-page="hub">
-      <div class="page-head">
-        <h1 class="page-title"><i data-lucide="pin" style="width:24px;height:24px"></i> 정보 허브</h1>
-        <p class="page-sub">뉴스 · 매장 · 이벤트 · 응모 · 오리파 한 곳에서</p>
+    <!-- 소식 -->
+    <section class="page hub-redesign" data-page="hub">
+      <div class="hub-page-head">
+        <h1>소식</h1>
+        <p>뉴스 · 이벤트 · 오리파 · 매장 · 커뮤니티</p>
       </div>
-      <!-- 데스크톱: 텍스트 탭 / 모바일: 가로 스크롤 pill -->
-      <div class="tabs hub-tabs" id="hubTabs">
-        <div class="tab active" data-tab="news"><i data-lucide="newspaper"></i> 뉴스</div>
-        <div class="tab" data-tab="shops"><i data-lucide="store"></i> 공식매장</div>
-        <div class="tab" data-tab="more"><i data-lucide="package"></i> 기타</div>
+      <div class="hub-primary-tabs" id="hubTabs" role="tablist" aria-label="소식 카테고리">
+        <button type="button" class="tab active" data-tab="news" role="tab" aria-selected="true">뉴스</button>
+        <button type="button" class="tab" data-tab="shops" role="tab" aria-selected="false">공식 매장</button>
+        <button type="button" class="tab" data-tab="more" role="tab" aria-selected="false">기타</button>
       </div>
-      <!-- "기타" 하위 sub-tabs (top tab 이 more 일 때만 표시) -->
-      <div class="tabs pill" id="hubSubTabs" style="display:none; margin-bottom:14px; flex-wrap:wrap; gap:6px">
-        <div class="tab active" data-subtab="events"><i data-lucide="sparkles"></i> 이벤트</div>
-        <div class="tab" data-subtab="cardshow"><i data-lucide="store"></i> 카드쇼</div>
-        <div class="tab" data-subtab="apply"><i data-lucide="ticket"></i> 응모</div>
-        <div class="tab" data-subtab="oripa"><i data-lucide="gift"></i> 오리파</div>
-        <div class="tab" data-subtab="grading"><i data-lucide="medal"></i> 그레이딩</div>
-        <div class="tab" data-subtab="etc"><i data-lucide="package"></i> 기타</div>
+      <div class="hub-secondary-tabs" id="hubNewsSubTabs" role="tablist" aria-label="뉴스 세부 카테고리">
+        <button type="button" class="tab active" data-news-subtab="news" role="tab" aria-selected="true">뉴스</button>
+        <button type="button" class="tab" data-news-subtab="cardshow" role="tab" aria-selected="false">카드쇼</button>
+      </div>
+      <div class="hub-secondary-tabs" id="hubSubTabs" role="tablist" aria-label="기타 세부 카테고리" style="display:none">
+        <button type="button" class="tab" data-subtab="events" role="tab" aria-selected="false">이벤트</button>
+        <button type="button" class="tab active" data-subtab="apply" role="tab" aria-selected="true">응모</button>
+        <button type="button" class="tab" data-subtab="oripa" role="tab" aria-selected="false">오리파</button>
+        <button type="button" class="tab" data-subtab="grading" role="tab" aria-selected="false">그레이딩</button>
+        <button type="button" class="tab" data-subtab="etc" role="tab" aria-selected="false">기타</button>
       </div>
       <style>
-        /* 정보 허브 탭 — 모바일에서 한 줄 가로 스크롤 pill 형태 */
-        .hub-tabs {
-          flex-wrap: nowrap;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-          scrollbar-width: none;
-          padding-bottom: 4px;
+        .hub-redesign { max-width:1640px; width:100%; margin:0 auto; color:#0D0D0D; font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+        .hub-page-head { margin-bottom:24px; }
+        .hub-page-head h1 { margin:0 0 4px; font-size:22px; font-weight:700; line-height:28px; letter-spacing:-.02em; }
+        .hub-page-head p { margin:0; color:#888780; font-size:12px; font-weight:400; line-height:16px; }
+        .hub-primary-tabs { display:flex; gap:32px; margin-bottom:20px; overflow-x:auto; border-bottom:1px solid #D9D8D3; scrollbar-width:none; }
+        .hub-primary-tabs::-webkit-scrollbar,.hub-secondary-tabs::-webkit-scrollbar { display:none; }
+        .hub-primary-tabs .tab { flex:0 0 auto; appearance:none; margin:0 0 -1px; padding:12px 4px; color:#888780; background:transparent; border:0; border-bottom:2px solid transparent; border-radius:0; font:400 16px/24px Pretendard,sans-serif; white-space:nowrap; }
+        .hub-primary-tabs .tab:hover { color:#0D0D0D; }
+        .hub-primary-tabs .tab.active { color:#066666; border-bottom-color:#066666; font-weight:600; }
+        .hub-secondary-tabs { display:flex; gap:8px; margin:0 0 20px; overflow-x:auto; border:0; scrollbar-width:none; }
+        .hub-secondary-tabs .tab { flex:0 0 auto; appearance:none; min-height:32px; padding:4px 12px; color:#666560; background:#FFFFFF; border:1px solid #D9D8D3; border-radius:9999px; font:500 14px/20px Pretendard,sans-serif; white-space:nowrap; }
+        .hub-secondary-tabs .tab:hover { color:#066666; border-color:#19DFDF; }
+        .hub-secondary-tabs .tab.active { color:#FFFFFF; background:#666560; border-color:#666560; }
+        .news-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px; }
+        .hub-news-card { min-width:0; height:280px; display:block; overflow:hidden; padding:0; color:inherit; background:#FFFFFF; border:1px solid #EDECE8; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); text-align:left; text-decoration:none; transition:border-color .16s,box-shadow .16s; }
+        .hub-news-card:hover { border-color:#19DFDF; box-shadow:0 4px 12px rgba(0,0,0,.08); }
+        .hub-news-placeholder { position:relative; height:180px; display:grid; place-items:center; overflow:hidden; color:#B8B7B2; background:#EDECE8; border-bottom:1px solid #EDECE8; }
+        .hub-news-image { width:100%; height:100%; display:block; object-fit:cover; object-position:center top; }
+        .hub-news-image[hidden] { display:none; }
+        .hub-news-fallback { position:absolute; inset:0; display:grid; place-items:center; background:#EDECE8; }
+        .hub-news-fallback[hidden] { display:none; }
+        .hub-news-placeholder svg { width:28px; height:28px; stroke-width:1.8; }
+        .hub-news-body { height:100px; padding:16px; }
+        .hub-news-tag { overflow:hidden; color:#066666; font-size:12px; font-weight:400; line-height:16px; text-overflow:ellipsis; white-space:nowrap; }
+        .hub-news-title { margin-top:4px; overflow:hidden; color:#0D0D0D; font-size:16px; font-weight:600; line-height:24px; text-overflow:ellipsis; white-space:nowrap; }
+        .hub-news-date { margin-top:4px; color:#666560; font-size:14px; font-weight:400; line-height:20px; }
+        #newsList { scroll-margin-top:88px; }
+        .hub-news-pagination { margin-top:24px; padding-bottom:16px; text-align:center; scroll-margin-block:88px; }
+        .hub-news-pagination[hidden] { display:none; }
+        .hub-news-page-status { margin-bottom:12px; color:#888780; font-size:12px; }
+        .hub-news-page-buttons { display:flex; justify-content:center; gap:4px; }
+        .hub-news-page-buttons button { min-width:44px; min-height:44px; padding:8px; border:1px solid #D9D8D3; border-radius:10px; background:#fff; color:#666560; font:500 14px/20px Pretendard,sans-serif; }
+        .hub-news-page-buttons button[aria-current="page"] { background:#066666; color:#fff; border-color:#066666; }
+        .hub-news-page-buttons button:disabled { opacity:.4; cursor:default; }
+        .hub-news-page-buttons button:focus-visible { outline:2px solid #066666; outline-offset:2px; }
+        .hub-empty-state { grid-column:1/-1; min-height:280px; display:grid; place-items:center; padding:32px; color:#666560; background:#FFFFFF; border:1px solid #EDECE8; border-radius:14px; font-size:14px; text-align:center; }
+        .hub-empty-state svg { width:24px; height:24px; margin-bottom:12px; color:#888780; stroke-width:1.8; }
+        .hub-apply-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+        .hub-apply-item { min-width:0; height:145px; display:grid; grid-template-columns:145px minmax(0,1fr) 101px; overflow:hidden; background:#FFFFFF; border:1px solid #EDECE8; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); transition:border-color .16s,box-shadow .16s; }
+        .hub-apply-item:hover { border-color:#19DFDF; box-shadow:0 4px 12px rgba(0,0,0,.08); }
+        .hub-apply-thumb { width:145px; height:145px; background:#EDECE8; border-right:1px solid #EDECE8; }
+        .hub-apply-content { min-width:0; display:flex; flex-direction:column; justify-content:center; padding:16px 20px; }
+        .hub-apply-badges { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+        .hub-brand-badge,.hub-bundle-badge { display:inline-flex; align-items:center; gap:6px; min-height:20px; padding:2px 8px; border-radius:9999px; font-size:12px; font-weight:500; line-height:16px; white-space:nowrap; }
+        .hub-brand-badge.pokemon { color:#854D0E; background:#FEF9C3; }
+        .hub-brand-badge.onepiece { color:#991B1B; background:#FEE2E2; }
+        .hub-brand-dot { width:6px; height:6px; border-radius:9999px; background:#FFD700; }
+        .hub-brand-badge.onepiece .hub-brand-dot { background:#CC2244; }
+        .hub-bundle-badge { color:#666560; background:#EDECE8; border-radius:6px; }
+        .hub-apply-title { overflow:hidden; color:#0D0D0D; font-size:16px; font-weight:600; line-height:24px; text-overflow:ellipsis; white-space:nowrap; }
+        .hub-apply-desc { margin-top:4px; overflow:hidden; color:#666560; font-size:15px; font-weight:400; line-height:20px; text-overflow:ellipsis; white-space:nowrap; }
+        .hub-apply-period { margin-top:4px; color:#888780; font-size:14px; font-weight:400; line-height:20px; }
+        .hub-apply-action { align-self:center; width:101px; height:40px; margin-right:20px; color:#FFFFFF; background:#666560; border:0; border-radius:10px; font-size:14px; font-weight:600; }
+        .hub-apply-action:hover { background:#0FB8B8; }
+        .hub-brand-filter { display:inline-flex; align-items:center; gap:6px; }
+        @media (max-width:1500px) { .news-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+        @media (max-width:1180px) { .news-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .hub-apply-grid { grid-template-columns:1fr; } }
+        @media (max-width:760px) { .news-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } }
+        @media (max-width:640px) {
+          .hub-page-head { margin-bottom:20px; }
+          .hub-primary-tabs { gap:24px; margin-bottom:16px; }
+          .hub-secondary-tabs { margin-bottom:16px; }
+          .hub-news-card { height:248px; }
+          .hub-news-placeholder { height:148px; }
+          .hub-apply-grid { gap:12px; }
+          .hub-apply-item { height:auto; min-height:160px; grid-template-columns:104px minmax(0,1fr); }
+          .hub-apply-thumb { width:104px; height:100%; grid-row:1/3; }
+          .hub-apply-content { min-height:112px; padding:12px; }
+          .hub-apply-action { grid-column:2; width:auto; margin:0 12px 12px; }
         }
-        .hub-tabs::-webkit-scrollbar { display: none; }
-        @media (max-width: 900px) {
-          .hub-tabs {
-            border-bottom: none;
-            gap: 6px;
-            margin-bottom: 14px;
-            padding-bottom: 6px;
-          }
-          .hub-tabs .tab {
-            flex-shrink: 0;
-            padding: 7px 14px;
-            border: 1px solid var(--line);
-            border-radius: 999px;
-            background: #fff;
-            font-size: 13px;
-            color: var(--ink-sub);
-            white-space: nowrap;
-          }
-          .hub-tabs .tab.active {
-            background: #111;
-            color: #fff;
-            border-color: #111;
-          }
+        @media (max-width:420px) {
+          .news-grid { grid-template-columns:1fr; }
+          #hubSubTabs { gap:4px; }
+          #hubSubTabs .tab { padding-left:8px; padding-right:8px; }
         }
       </style>
-      <div data-hubpanel="news"><div id="newsList" class="news-grid"></div></div>
-      <style>
-        .news-grid { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px; }
-        @media (max-width: 1100px) { .news-grid { grid-template-columns:repeat(4, minmax(0,1fr)); } }
-        @media (max-width: 850px)  { .news-grid { grid-template-columns:repeat(3, minmax(0,1fr)); } }
-        @media (max-width: 600px)  { .news-grid { grid-template-columns:repeat(2, minmax(0,1fr)); } }
-        @media (max-width: 380px)  { .news-grid { grid-template-columns:1fr; } }
-      </style>
+      <div data-hubpanel="news">
+        <div id="newsList" class="news-grid" tabindex="-1" aria-label="뉴스 목록"></div>
+        <nav id="newsPagination" class="hub-news-pagination" aria-label="뉴스 페이지 이동" hidden>
+          <div id="newsPageStatus" class="hub-news-page-status" role="status" aria-live="polite"></div>
+          <div id="newsPageButtons" class="hub-news-page-buttons"></div>
+        </nav>
+      </div>
       <div data-hubpanel="shops" style="display:none">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px">
-          <div class="tabs pill" id="shopBrandTabs" style="margin:0">
-            <div class="tab active" data-shop-brand="pokemon">⚡ 포켓몬</div>
-            <div class="tab" data-shop-brand="onepiece">🏴‍☠️ 원피스</div>
+          <div class="hub-secondary-tabs" id="shopBrandTabs" style="margin:0">
+            <button type="button" class="tab active" data-shop-brand="pokemon"><span class="hub-brand-filter"><span class="hub-brand-dot"></span>포켓몬</span></button>
+            <button type="button" class="tab" data-shop-brand="onepiece"><span class="hub-brand-filter"><span class="hub-brand-dot" style="background:#CC2244"></span>원피스</span></button>
           </div>
           <div id="shopSrc" style="font-size:11px; color:var(--ink-sub)"></div>
         </div>
@@ -1688,13 +1732,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div id="cardshowListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
       <div data-hubpanel="apply" style="display:none">
-        <div style="display:flex; justify-content:flex-end; margin-bottom:10px">
-          <button type="button" onclick="shareCurrentPage('raffles')" style="display:flex; align-items:center; gap:6px; padding:6px 12px; background:#f3f4f6; border:1px solid var(--line); border-radius:8px; cursor:pointer; font-size:12px; color:#374151; font-weight:600">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            응모 페이지 공유
-          </button>
-        </div>
-        <div class="grid cols-2" id="applyListHub"></div>
+        <div class="hub-apply-grid" id="applyListHub"></div>
       </div>
       <div data-hubpanel="oripa" style="display:none">
         <div class="grid cols-2" id="oripaListHub"></div>
@@ -2465,7 +2503,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   <nav class="mnav">
     <div class="mnav-item" data-nav="home"><div class="ic"><i data-lucide="house"></i></div>홈</div>
     <div class="mnav-item" data-nav="price"><div class="ic"><i data-lucide="trending-up"></i></div>시세</div>
-    <div class="mnav-item" data-nav="hub"><div class="ic"><i data-lucide="pin"></i></div>정보</div>
+    <div class="mnav-item" data-nav="hub"><div class="ic"><i data-lucide="pin"></i></div>소식</div>
     <div class="mnav-item" data-nav="cardinfo"><div class="ic"><i data-lucide="layers"></i></div>카드</div>
     <div class="mnav-item" data-nav="portfolio"><div class="ic"><i data-lucide="user-round"></i></div>마이페이지</div>
   </nav>
@@ -2552,8 +2590,11 @@ document.addEventListener('click', e => {
   if (page === 'hub' && navEl.dataset.tabTarget) {
     setTimeout(() => {
       const targetTab = navEl.dataset.tabTarget;
-      // events / cardshow / apply / oripa / etc → "more" 상위 + 해당 sub 활성화
-      if (typeof HUB_MORE_PANELS !== 'undefined' && HUB_MORE_PANELS.includes(targetTab)) {
+      // 뉴스 하위(뉴스/카드쇼)와 기타 하위를 올바른 상위 탭으로 연결
+      if (typeof HUB_NEWS_PANELS !== 'undefined' && HUB_NEWS_PANELS.includes(targetTab)) {
+        HUB_NEWS_SUB = targetTab;
+        applyHubTab('news');
+      } else if (typeof HUB_MORE_PANELS !== 'undefined' && HUB_MORE_PANELS.includes(targetTab)) {
         HUB_SUB = targetTab;
         applyHubTab('more');
       } else {
@@ -6023,59 +6064,126 @@ document.addEventListener('click', e => {
 /* ────────────────────────────────────
    4. 정보 허브 — 뉴스 + 샵
    ──────────────────────────────────── */
-// 뉴스: GitHub Actions 가 매일 04:00 KST 에 한국 사이트 (pokemoncard.co.kr, onepiece-cardgame.kr)
-//       에서 4·5월 항목만 자동 수집해 data/news.json 에 저장
+// 뉴스: GitHub Actions 가 매일 04:00 KST 에 한국 공식 사이트를 수집해 data/news.json 에 저장.
+//       관리자 수동 등록 자료와 URL 기준으로 병합해 어느 한쪽도 누락하지 않는다.
+const HUB_NEWS_PAGE_SIZE = 15;
+let HUB_NEWS_ITEMS = [];
+let HUB_NEWS_PAGE = 1;
 async function loadNews() {
   const list = document.getElementById('newsList');
   if (!list) return;
-  list.innerHTML = `<div class="empty" style="grid-column:1/-1; padding:30px; min-height:300px; display:flex; flex-direction:column; align-items:center; justify-content:center"><div class="empty-icon">⏳</div><div class="empty-sub">뉴스 불러오는 중...</div></div>`;
+  document.getElementById('newsPagination').hidden = true;
+  list.innerHTML = Array.from({length: 10}, () => `
+    <div class="hub-news-card" aria-hidden="true">
+      <div class="hub-news-placeholder"></div>
+      <div class="hub-news-body"><div style="height:12px;width:48px;background:#EDECE8;border-radius:6px"></div><div style="height:16px;width:82%;margin-top:12px;background:#EDECE8;border-radius:6px"></div><div style="height:12px;width:72px;margin-top:12px;background:#EDECE8;border-radius:6px"></div></div>
+    </div>`).join('');
   try {
-    // admin KV 의 'news' 게시판 데이터 (관리자 직접 등재)
-    const r = await fetch(`/api/admin?type=news&t=${Date.now()}`);
-    if (!r.ok) throw new Error('news API 응답 실패');
-    const d = await r.json();
-    const items = (d.items || []).slice().sort((a, b) => {
+    const [adminResult, autoResult] = await Promise.allSettled([
+      fetch(`/api/admin?type=news&t=${Date.now()}`, {cache: 'no-store'}).then(async r => {
+        if (!r.ok) throw new Error('news API 응답 실패');
+        return (await r.json()).items || [];
+      }),
+      fetch(`/data/news.json?t=${Math.floor(Date.now() / 3600000)}`, {cache: 'no-store'}).then(async r => {
+        if (!r.ok) throw new Error('자동 뉴스 응답 실패');
+        return (await r.json()).items || [];
+      }),
+    ]);
+    const adminItems = adminResult.status === 'fulfilled' && Array.isArray(adminResult.value) ? adminResult.value : [];
+    const autoItems = autoResult.status === 'fulfilled' && Array.isArray(autoResult.value) ? autoResult.value : [];
+    if (!adminItems.length && !autoItems.length && adminResult.status === 'rejected' && autoResult.status === 'rejected') {
+      throw new Error('뉴스 데이터를 불러오지 못했습니다');
+    }
+    const newsKey = (item, index, prefix) => {
+      if (!item.link) return `${prefix}:${item.id || index}:${item.title || ''}:${item.date || ''}`;
+      try {
+        const url = new URL(item.link, location.origin);
+        url.hash = '';
+        url.hostname = url.hostname.replace(/^www\./i, '');
+        ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','fbclid','gclid'].forEach(key => url.searchParams.delete(key));
+        url.searchParams.sort();
+        return url.toString().replace(/\/$/, '');
+      } catch (e) {
+        return item.link;
+      }
+    };
+    const merged = new Map();
+    autoItems.forEach((item, index) => merged.set(newsKey(item, index, 'auto'), item));
+    adminItems.forEach((item, index) => {
+      const key = newsKey(item, index, 'admin');
+      const previous = merged.get(key) || {};
+      const manualValues = Object.fromEntries(Object.entries(item).filter(([, value]) => value !== '' && value != null));
+      merged.set(key, {...previous, ...manualValues});
+    });
+    let items = [...merged.values()];
+    items = items.slice().sort((a, b) => {
       // 날짜 내림차순 (최신 위로)
       const da = (a.date || '').replace(/[^\d]/g, '');
       const db = (b.date || '').replace(/[^\d]/g, '');
       return db.localeCompare(da);
     });
+    HUB_NEWS_ITEMS = items;
+    HUB_NEWS_PAGE = 1;
+    renderHubNewsPage();
+  } catch (e) {
+    list.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="circle-alert"></i><div>뉴스를 불러오지 못했습니다</div></div></div>`;
+    if (typeof _initLucide === 'function') _initLucide();
+  }
+}
+function renderHubNewsPage() {
+    const list = document.getElementById('newsList');
+    const pageCount = Math.max(1, Math.ceil(HUB_NEWS_ITEMS.length / HUB_NEWS_PAGE_SIZE));
+    HUB_NEWS_PAGE = Math.max(1, Math.min(HUB_NEWS_PAGE, pageCount));
+    const start = (HUB_NEWS_PAGE - 1) * HUB_NEWS_PAGE_SIZE;
+    const items = HUB_NEWS_ITEMS.slice(start, start + HUB_NEWS_PAGE_SIZE);
+    const pagination = document.getElementById('newsPagination');
+    pagination.hidden = pageCount <= 1;
     if (!items.length) {
-      list.innerHTML = `<div class="empty" style="grid-column:1/-1; padding:30px"><div class="empty-icon">📰</div><div class="empty-title">등록된 뉴스가 없습니다</div><div class="empty-sub">관리자가 등록한 뉴스가 여기에 표시됩니다</div></div>`;
+      list.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="newspaper"></i><div>등록된 뉴스가 없습니다</div></div></div>`;
       return;
     }
     window._NEWS_ITEMS = items;
     list.innerHTML = items.map((n, _ni) => {
-      const imgHtml = n.image
-        ? `<div style="width:100%; aspect-ratio:16/10; background:#fafafa; display:flex; align-items:center; justify-content:center; overflow:hidden">
-             <img src="${escapeHtml(n.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"
-                  style="width:100%; height:100%; object-fit:contain; display:block"
-                  onerror="this.parentElement.style.display='none'">
-           </div>`
-        : `<div style="width:100%; aspect-ratio:16/10; background:linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%); display:flex; align-items:center; justify-content:center; font-size:42px; opacity:0.3">📰</div>`;
       // 외부 링크 있으면 새 탭 이동, 없으면 본문 펼치기
       const hasLink = !!n.link;
-      const tag = hasLink ? 'a' : 'div';
+      const tag = hasLink ? 'a' : 'button';
       const tagAttrs = hasLink
         ? `href="${escapeHtml(n.link)}" target="_blank" rel="noopener"`
-        : `onclick="showNewsModal(${_ni})" style="cursor:pointer"`;  // alert() 는 메인스레드 블로킹 → INP 800ms+ 원인이라 모달로 교체
+        : `type="button" onclick="showNewsModal(${_ni})"`;
+      const label = escapeHtml(n.sourceLabel || n.tag || n.category || 'News');
+      const date = escapeHtml(String(n.date || '').replace(/-/g, '.'));
+      const imageUrl = String(n.image || '').trim();
+      const media = imageUrl
+        ? `<div class="hub-news-placeholder"><img class="hub-news-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="hub-news-fallback" hidden><i data-lucide="newspaper" aria-hidden="true"></i></span></div>`
+        : `<div class="hub-news-placeholder"><span class="hub-news-fallback"><i data-lucide="newspaper" aria-hidden="true"></i></span></div>`;
       return `
-        <${tag} ${tagAttrs} class="card" style="display:block; padding:0; overflow:hidden; text-decoration:none; color:inherit">
-          ${imgHtml}
-          <div style="padding:12px 14px">
-            <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px">
-              <span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:5px; font-size:10px; font-weight:700">📰 뉴스</span>
-              <span style="font-size:11px; color:var(--ink-sub)">${escapeHtml(n.date || '')}</span>
-            </div>
-            <div style="font-size:14px; font-weight:700; line-height:1.4; color:#111;
-                        display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden">${escapeHtml(n.title || '')}</div>
+        <${tag} ${tagAttrs} class="hub-news-card" title="${escapeHtml(n.title || '')}">
+          ${media}
+          <div class="hub-news-body">
+            <div class="hub-news-tag">${label}</div>
+            <div class="hub-news-title">${escapeHtml(n.title || '')}</div>
+            <div class="hub-news-date">${date}</div>
           </div>
         </${tag}>`;
     }).join('');
-  } catch (e) {
-    list.innerHTML = `<div class="empty" style="grid-column:1/-1; padding:30px"><div class="empty-icon">⚠</div><div class="empty-title">뉴스 데이터 로드 실패</div><div class="empty-sub">${e.message}</div></div>`;
-  }
+    if (typeof _initLucide === 'function') _initLucide();
+    document.getElementById('newsPageStatus').textContent = `${HUB_NEWS_PAGE} / ${pageCount} 페이지 · 총 ${HUB_NEWS_ITEMS.length}건`;
+    const first = Math.max(1, Math.min(HUB_NEWS_PAGE - 1, pageCount - 2));
+    const button = (page, label, disabled = false) => `<button type="button" data-news-page="${page}" ${disabled ? 'disabled' : ''} ${typeof label === 'number' && page === HUB_NEWS_PAGE ? 'aria-current="page"' : ''} aria-label="${typeof label === 'number' ? `${page}페이지` : `${label} 페이지`}">${label}</button>`;
+    const buttons = [button(HUB_NEWS_PAGE - 1, '이전', HUB_NEWS_PAGE === 1)];
+    for (let page = first; page <= Math.min(pageCount, first + 2); page++) buttons.push(button(page, page));
+    buttons.push(button(HUB_NEWS_PAGE + 1, '다음', HUB_NEWS_PAGE === pageCount));
+    document.getElementById('newsPageButtons').innerHTML = buttons.join('');
 }
+document.getElementById('newsPageButtons').addEventListener('click', event => {
+  const button = event.target.closest('button[data-news-page]');
+  if (!button || button.disabled) return;
+  HUB_NEWS_PAGE = Number(button.dataset.newsPage);
+  renderHubNewsPage();
+  const list = document.getElementById('newsList');
+  list.focus({preventScroll:true});
+  list.scrollIntoView({block:'start', behavior:'auto'});
+});
 // 링크 없는 뉴스 본문 — alert() 대신 모달로 표시 (INP 개선)
 window.showNewsModal = function(i) {
   const n = (window._NEWS_ITEMS || [])[i];
@@ -6354,7 +6462,7 @@ function renderShops() {
     srcEl.innerHTML = `<a href="${src.url}" target="_blank" rel="noopener" style="color:var(--ink-sub); text-decoration:underline">${src.label}</a>`;
   }
   if (!list.length) {
-    container.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🏪</div><div class="empty-title">${SHOP_BRAND === 'pokemon' ? '포켓몬' : '원피스'} 공식 매장 정보가 곧 추가됩니다</div></div>`;
+    container.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="store"></i><div>${SHOP_BRAND === 'pokemon' ? '포켓몬' : '원피스'} 공식 매장 정보가 곧 추가됩니다</div></div></div>`;
     return;
   }
   container.innerHTML = list.map(s => {
@@ -6404,9 +6512,12 @@ document.addEventListener('click', e => {
   renderShops();
 });
 
-// 허브 탭 — 상위 (news / shops / more) + 하위 (more 일 때 events / cardshow / apply / oripa / etc)
-const HUB_MORE_PANELS = ['events', 'cardshow', 'apply', 'oripa', 'grading', 'etc'];
-let HUB_SUB = 'events';
+// 소식 탭 — 상위 탭과 각 하위 탭 상태를 독립적으로 유지한다.
+const HUB_NEWS_PANELS = ['news', 'cardshow'];
+const HUB_MORE_PANELS = ['events', 'apply', 'oripa', 'grading', 'etc'];
+let HUB_NEWS_SUB = 'news';
+let HUB_SUB = 'apply';
+let HUB_TOP = 'news';
 
 function showHubPanel(which) {
   document.querySelectorAll('[data-hubpanel]').forEach(p => {
@@ -6415,17 +6526,35 @@ function showHubPanel(which) {
 }
 
 function applyHubTab(top) {
+  HUB_TOP = top;
   // 상위 탭 active
-  document.querySelectorAll('#hubTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === top));
+  document.querySelectorAll('#hubTabs .tab').forEach(t => {
+    const active = t.dataset.tab === top;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  const newsSubWrap = document.getElementById('hubNewsSubTabs');
   const subWrap = document.getElementById('hubSubTabs');
-  if (top === 'more') {
+  if (newsSubWrap) newsSubWrap.style.display = top === 'news' ? '' : 'none';
+  if (subWrap) subWrap.style.display = top === 'more' ? '' : 'none';
+
+  if (top === 'news') {
+    document.querySelectorAll('#hubNewsSubTabs .tab').forEach(t => {
+      const active = t.dataset.newsSubtab === HUB_NEWS_SUB;
+      t.classList.toggle('active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    showHubPanel(HUB_NEWS_SUB);
+  } else if (top === 'more') {
     // 하위 탭 노출, 활성 sub 의 패널 표시
-    if (subWrap) subWrap.style.display = '';
-    document.querySelectorAll('#hubSubTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.subtab === HUB_SUB));
+    document.querySelectorAll('#hubSubTabs .tab').forEach(t => {
+      const active = t.dataset.subtab === HUB_SUB;
+      t.classList.toggle('active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
     showHubPanel(HUB_SUB);
   } else {
-    if (subWrap) subWrap.style.display = 'none';
-    showHubPanel(top); // news / shops
+    showHubPanel(top); // shops
   }
 }
 
@@ -6436,12 +6565,18 @@ document.addEventListener('click', e => {
     applyHubTab(tab.dataset.tab);
     return;
   }
+  // 뉴스 하위 탭
+  const newsSub = e.target.closest('#hubNewsSubTabs .tab');
+  if (newsSub) {
+    HUB_NEWS_SUB = newsSub.dataset.newsSubtab;
+    applyHubTab('news');
+    return;
+  }
   // 하위 탭 (more 안)
   const sub = e.target.closest('#hubSubTabs .tab');
   if (sub) {
     HUB_SUB = sub.dataset.subtab;
-    document.querySelectorAll('#hubSubTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.subtab === HUB_SUB));
-    showHubPanel(HUB_SUB);
+    applyHubTab('more');
     // 응모/이벤트 탭은 별도 공유 URL — pathname 동기화 (브라우저 주소창에 표시)
     if (HUB_SUB === 'apply' && location.pathname !== '/raffles') {
       history.replaceState(null, '', '/raffles');
@@ -7389,33 +7524,57 @@ const _applyHtml = APPLIES.map((a, i) => {
     </div>
   </div>`;
 }).join('');
-['applyList', 'applyListHub'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.innerHTML = _applyHtml;
-});
+const applyList = document.getElementById('applyList');
+if (applyList) applyList.innerHTML = _applyHtml;
+
+const _applyHubHtml = APPLIES.map((a, i) => {
+  const brandClass = a.brand === '포켓몬' ? 'pokemon' : 'onepiece';
+  const description = [a.boxLabelKo, a.prize].filter(Boolean).join(' · ');
+  const bundleLabel = String(a.ribbon || 'Bundle').toLowerCase() === 'bundle' ? 'Bundle' : String(a.ribbon);
+  return `
+    <article class="hub-apply-item">
+      <div class="hub-apply-thumb" aria-hidden="true"></div>
+      <div class="hub-apply-content">
+        <div class="hub-apply-badges">
+          <span class="hub-brand-badge ${brandClass}"><span class="hub-brand-dot"></span>${escapeHtml(a.brand)}</span>
+          <span class="hub-bundle-badge">${escapeHtml(bundleLabel)}</span>
+        </div>
+        <div class="hub-apply-title" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</div>
+        <div class="hub-apply-desc" title="${escapeHtml(description)}">${escapeHtml(description)}</div>
+        <div class="hub-apply-period">응모 기간: ${escapeHtml(a.period || '상품별 상이')}</div>
+      </div>
+      <button type="button" class="hub-apply-action" onclick="showApplyMethod(${i})" aria-label="${escapeHtml(a.title)} 응모하기">응모하기</button>
+    </article>`;
+}).join('');
+const applyListHub = document.getElementById('applyListHub');
+if (applyListHub) applyListHub.innerHTML = _applyHubHtml;
 
 /* 응모 방법 모달 */
 function showApplyMethod(i) {
   const a = APPLIES[i];
   if (!a) return;
+  const entryLinks = Array.isArray(a.multi) && a.multi.length
+    ? `<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:16px">${a.multi.map(m => `<a class="btn" href="${escapeHtml(m.url)}" target="_blank" rel="noopener noreferrer" style="text-align:center;text-decoration:none">${escapeHtml(m.label)} 응모하기</a>`).join('')}</div>`
+    : '';
   const html = `
     <div class="modal-head">
-      <h3>${a.title}</h3>
+      <h3>${escapeHtml(a.title)}</h3>
       <button class="modal-close" onclick="closeAnyModal()">✕</button>
     </div>
     <div class="modal-body">
       <div style="font-size:12px; color:var(--ink-sub); margin-bottom:14px">
-        <b>${a.brand}</b> · ${a.platform}<br>
-        🎁 ${a.prize || ''}
+        <b>${escapeHtml(a.brand)}</b> · ${escapeHtml(a.platform)}<br>
+        ${escapeHtml(a.prize || '')}
       </div>
-      <div style="font-size:14px; font-weight:700; margin-bottom:8px">📖 응모 방법</div>
+      <div style="font-size:14px; font-weight:700; margin-bottom:8px">응모 방법</div>
       <ol style="margin:0; padding-left:20px; font-size:13px; line-height:1.7; color:#374151">
-        ${(a.method || []).map(m => `<li>${m}</li>`).join('')}
+        ${(a.method || []).map(m => `<li>${escapeHtml(m)}</li>`).join('')}
       </ol>
+      ${entryLinks}
     </div>
     <div class="modal-foot">
       <button class="btn" onclick="closeAnyModal()" style="cursor:pointer">닫기</button>
-      ${a.link ? `<a class="btn primary" href="${a.link}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; cursor:pointer; text-align:center; display:inline-flex; align-items:center; justify-content:center">응모 페이지 열기 →</a>` : ''}
+      ${a.link ? `<a class="btn primary" href="${escapeHtml(a.link)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; cursor:pointer; text-align:center; display:inline-flex; align-items:center; justify-content:center">응모 페이지 열기</a>` : ''}
     </div>`;
   openAnyModal(html);
 }
@@ -7891,7 +8050,7 @@ function toggleHubCard(id, event) {
   if (!body) return;
   const isOpen = body.style.display !== 'none';
   body.style.display = isOpen ? 'none' : 'block';
-  if (preview) preview.textContent = isOpen ? '탭해서 자세히 보기 ↓' : '탭해서 접기 ↑';
+  if (preview) preview.textContent = isOpen ? '자세히 보기' : '내용 접기';
 }
 
 function renderEvents() {
@@ -7899,7 +8058,7 @@ function renderEvents() {
   if (!targets.length) return;
   let html;
   if (!EVENTS.length) {
-    html = `<div class="empty"><div class="empty-icon">✨</div><div class="empty-title">등록된 이벤트가 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
+    html = `<div class="hub-empty-state"><div><i data-lucide="calendar-days"></i><div>등록된 이벤트가 없습니다</div></div></div>`;
   } else {
     // 그레이딩과 동일한 가로 row 형식 (썸네일 좌측 + 정보 우측)
     html = EVENTS.map(e => _hubRowCard(e, { bg:'#fef3c7', color:'#92400e', icon:'✨' }, 'event')).join('');
@@ -7914,7 +8073,7 @@ function renderEtc() {
   if (!targets.length) return;
   let html;
   if (!ETC_LIST.length) {
-    html = `<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">등록된 항목이 없습니다</div><div class="empty-sub">관리자 메뉴에서 추가하세요</div></div>`;
+    html = `<div class="hub-empty-state"><div><i data-lucide="package"></i><div>등록된 항목이 없습니다</div></div></div>`;
   } else {
     // 그레이딩/이벤트/카드쇼와 동일한 가로 row 형식 (독립 항목)
     html = ETC_LIST.map(e => _hubRowCard(e, { bg:'#f3f4f6', color:'#374151', icon:'📦' }, 'etc')).join('');
@@ -7927,7 +8086,7 @@ function renderCardshows() {
   const target = document.getElementById('cardshowListHub');
   if (!target) return;
   if (!CARDSHOWS.length) {
-    target.innerHTML = `<div class="empty"><div class="empty-icon">🎪</div><div class="empty-title">등록된 카드쇼가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
+    target.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="store"></i><div>등록된 카드쇼가 없습니다</div></div></div>`;
     return;
   }
   // 카드쇼만 — D-day 임박순 자동 정렬 (날짜 없는 항목은 뒤로)
@@ -7993,18 +8152,18 @@ function _hubRowCard(e, badge, prefix) {
     }
   }
   const dateBadge = e.date && badge
-    ? `<div style="display:inline-block; font-size:10px; padding:2px 7px; background:${badge.bg}; color:${badge.color}; border-radius:4px; font-weight:700; margin-bottom:5px${ddayBadge ? '; margin-left:5px' : ''}">${badge.icon} ${escapeHtml(e.date)}</div>`
+    ? `<div style="display:inline-block; font-size:12px; padding:2px 8px; background:${badge.bg}; color:${badge.color}; border-radius:6px; font-weight:500; margin-bottom:4px${ddayBadge ? '; margin-left:8px' : ''}">${escapeHtml(e.date)}</div>`
     : (e.date ? `<div style="font-size:10px; color:var(--ink-sub); margin-bottom:5px">${escapeHtml(e.date)}</div>` : '');
   const thumb = e.image
     ? `<img src="${escapeHtml(e.image)}" alt="" loading="lazy"
             style="width:100%; height:100%; object-fit:contain; background:#fafafa" onerror="this.onerror=null;this.style.opacity='0'">`
     : '';
-  const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:11px; color:#1d4ed8; text-decoration:underline; margin-top:8px; display:inline-block">🔗 자세히 보기 →</a>` : '';
+  const linkPart = e.link ? `<a href="${escapeHtml(e.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:12px; color:#066666; text-decoration:underline; margin-top:8px; display:inline-block">자세히 보기</a>` : '';
   const body = (e.content || e.link)
     ? `<div id="${id}-body" class="hubcard-body" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #e5e7eb">
          ${e.content ? `<div style="font-size:12px; color:#4b5563; line-height:1.65">${renderRichContent(e.content)}</div>` : ''}
          ${linkPart}
-         <button type="button" onclick="toggleHubCard('${id}')" style="display:block; margin:14px auto 0; padding:7px 18px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; font-size:11px; color:#6b7280; cursor:pointer; font-weight:600">▲ 접기</button>
+         <button type="button" onclick="toggleHubCard('${id}')" style="display:block; margin:12px auto 0; padding:8px 20px; background:#FFFFFF; border:1px solid #D9D8D3; border-radius:10px; font-size:12px; color:#666560; cursor:pointer; font-weight:500">내용 접기</button>
        </div>` : '';
   return `
     <div class="card hubcard" style="padding:0; overflow:hidden; display:block">
@@ -8015,7 +8174,7 @@ function _hubRowCard(e, badge, prefix) {
         <div style="padding:13px 16px; display:flex; flex-direction:column; justify-content:center; min-width:0">
           ${ddayBadge}${dateBadge}
           <div style="font-size:14px; font-weight:800; color:#111; line-height:1.35; margin-bottom:4px">${escapeHtml(e.title || '')}</div>
-          <div id="${id}-preview" style="font-size:11px; color:#9ca3af; cursor:pointer" onclick="toggleHubCard('${id}')">탭해서 자세히 보기 ↓</div>
+          <div id="${id}-preview" style="font-size:12px; color:#888780; cursor:pointer" onclick="toggleHubCard('${id}')">자세히 보기</div>
           ${body}
         </div>
       </div>
@@ -8030,7 +8189,7 @@ function renderGrading() {
   const target = document.getElementById('gradingListHub');
   if (!target) return;
   if (!GRADING_LIST.length) {
-    target.innerHTML = `<div class="empty"><div class="empty-icon">🏆</div><div class="empty-title">등록된 그레이딩 정보가 없습니다</div><div class="empty-sub">관리자가 추가하면 여기 표시됩니다</div></div>`;
+    target.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="medal"></i><div>등록된 그레이딩 정보가 없습니다</div></div></div>`;
     return;
   }
   target.innerHTML = GRADING_LIST.map(e => _hubRowCard(e, { bg:'#dcfce7', color:'#15803d', icon:'🏆' }, 'grading')).join('');

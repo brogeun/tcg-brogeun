@@ -769,6 +769,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
   <!-- 메인 -->
   <main class="main">
     <header class="topbar">
+      <a class="mo-home-logo" href="#home" aria-label="TCG Hub 홈"><img src="images/app-icon.png" alt="" width="40" height="40"><span><strong>TCG Hub</strong><small>Pokemon · One Piece</small></span></a>
       <div class="search" id="topSearchBar">
         <span>⌕</span>
         <input id="globalSearch" placeholder="카드 이름, 확장팩 검색 (예: 리자몽)">
@@ -880,7 +881,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="asset-widget" id="homeAssetWidget" hidden>
         <div class="asset-main">
           <div class="home-v3-kicker light">MY PORTFOLIO</div>
-          <div class="asset-label">총 보유 가치</div>
+          <div class="asset-label"><span class="mo-home-original">총 보유 가치</span><span class="mo-home-only">총 평가액</span></div>
           <div class="asset-value" id="homeAssetValue">—</div>
           <div class="asset-change" id="homeAssetChange" style="display:none"></div>
         </div>
@@ -896,7 +897,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="section-header2">
           <div>
             <div class="home-v3-kicker muted">MARKET NOW</div>
-            <div class="section-title2">브랜드별 인기 시세</div>
+            <div class="section-title2"><span class="mo-home-original">브랜드별 인기 시세</span><span class="mo-home-only">브랜드별 TOP 시세</span></div>
             <div class="section-desc2"><span class="home-data-dot"></span>운영 홈 TOP 10 JSON · 매일 04:00 KST 갱신</div>
           </div>
           <span class="section-more2" onclick="go('price')">전체 시세 보기 →</span>
@@ -935,9 +936,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="grading-banner" onclick="go('centering')">
         <div class="grading-icon"><i data-lucide="scan-line"></i></div>
         <div class="grading-content">
-          <div class="grading-label">GRADING GUIDE</div>
-          <div class="grading-title">등급이 만드는 카드의 새로운 가치</div>
-          <div class="grading-desc">PSA·BGS 등급별 시세와 AI 센터링 진단을 확인하세요.</div>
+          <div class="grading-label"><span class="mo-home-original">GRADING GUIDE</span><span class="mo-home-only">PSA · BGS 그레이딩</span></div>
+          <div class="grading-title"><span class="mo-home-original">등급이 만드는 카드의 새로운 가치</span><span class="mo-home-only">카드 등급 받고 가치를 높이세요</span></div>
+          <div class="grading-desc"><span class="mo-home-original">PSA·BGS 등급별 시세와 AI 센터링 진단을 확인하세요.</span><span class="mo-home-only">앞/뒷면 사진으로 AI 자가진단 · 그레이딩 업체 안내 · 일 3회 무료</span></div>
         </div>
         <div class="grading-arrow">→</div>
       </div>
@@ -961,10 +962,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <!-- 소식 큐레이션 -->
       <div class="section2">
         <div class="section-header2">
-          <div><div class="home-v3-kicker muted">LATEST UPDATE</div><div class="section-title2">새로운 TCG 소식</div><div class="section-desc2">공식 채널의 새로운 상품과 주요 소식입니다.</div></div>
-          <span class="section-more2" onclick="go('hub')">전체 보기 →</span>
+          <div><div class="home-v3-kicker muted">LATEST UPDATE</div><div class="section-title2"><span class="mo-home-original">새로운 TCG 소식</span><span class="mo-home-only">소식</span></div><div class="section-desc2">공식 채널의 새로운 상품과 주요 소식입니다.</div></div>
+          <span class="section-more2" onclick="go('hub')"><span class="mo-home-original">전체 보기 →</span><span class="mo-home-only">전체 소식 보기 ›</span></span>
         </div>
         <div class="news-grid2" id="homeNewsGrid"></div>
+        <div id="mobileHomeNews" class="mo-home-only" aria-live="polite"></div>
       </div>
 
       <div class="section2 home-official-section">
@@ -1231,6 +1233,93 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </style>
     </section>
 
+    <style>
+      .mo-home-only,.mo-home-logo { display:none; }
+      @media(max-width:480px) {
+        body.home-signed-in:has(.home-v3.active) { background:#F7F6F2; }
+        body.home-signed-in:has(.home-v3.active) .app { max-width:480px; margin:0 auto; }
+        body.home-signed-in:has(.home-v3.active) .topbar { height:64px; padding:8px 16px; gap:8px; background:#fff; border-bottom:1px solid #EDECE8; }
+        body.home-signed-in:has(.home-v3.active) .mo-home-logo { display:flex; align-items:center; gap:8px; min-width:0; text-decoration:none; color:#0D0D0D; }
+        .mo-home-logo img { border-radius:9px; flex-shrink:0; }
+        .mo-home-logo span { display:flex; flex-direction:column; white-space:nowrap; }
+        .mo-home-logo strong { font-size:18px; line-height:24px; font-weight:700; }
+        .mo-home-logo small { font-size:12px; line-height:16px; font-weight:500; color:#999894; }
+        body.home-signed-in:has(.home-v3.active) #topSnkrHelp,body.home-signed-in:has(.home-v3.active) #topInstallAppBtn { display:none !important; }
+        body.home-signed-in:has(.home-v3.active) .top-actions { gap:8px; align-items:center; }
+        body.home-signed-in:has(.home-v3.active) #topAvatar { width:32px; height:32px; border:1px solid #19DFDF; border-radius:16px; background:#E8FAFA; color:#066666; flex-shrink:0; }
+        body.home-signed-in:has(.home-v3.active) #mobileSearchToggle { width:36px; height:40px; border:0; background:transparent; }
+        body.home-signed-in:has(.home-v3.active) .mnav { height:calc(60px + env(safe-area-inset-bottom)); padding:4px 8px calc(4px + env(safe-area-inset-bottom)); border-top:1px solid #D9D8D3; background:#fff; }
+        body.home-signed-in:has(.home-v3.active) .mnav-item { flex:1; min-width:0; font-size:14px; font-weight:600; color:#888780; border-radius:10px; gap:4px; }
+        body.home-signed-in:has(.home-v3.active) .mnav-item.active { background:#E8FAFA; color:#066666; }
+        body.home-signed-in:has(.home-v3.active) .mnav .mo-home-original { display:none; }
+        body.home-signed-in:has(.home-v3.active) .mnav .mo-home-only { display:inline; }
+        body.home-signed-in:has(.home-v3.active) .mnav .ic svg { width:20px; height:20px; }
+        body.home-signed-in:has(.home-v3.active) .main { padding-bottom:76px; }
+        body.home-signed-in .home-v3 { padding:16px; background:#F7F6F2; font-family:Pretendard,sans-serif; }
+        body.home-signed-in .home-v3 .mo-home-original { display:none; }
+        body.home-signed-in .home-v3 .mo-home-only { display:inline; }
+        body.home-signed-in .home-v3 .home-v3-heading,body.home-signed-in .home-v3 .home-v3-kicker,body.home-signed-in .home-v3 .section-desc2,body.home-signed-in .home-v3 .brand-card-header h3 { display:none; }
+        body.home-signed-in .home-v3 .asset-widget { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:12px 8px; min-height:0; margin:0 0 24px; padding:16px; background:#fff; border:1px solid #EDECE8; border-radius:12px; box-shadow:none; }
+        body.home-signed-in .home-v3 .asset-widget[hidden] { display:none; }
+        body.home-signed-in .home-v3 .asset-widget::after,body.home-signed-in .home-v3 .asset-divider { display:none; }
+        body.home-signed-in .home-v3 .asset-main { grid-column:1/-1; min-width:0; padding-bottom:12px; border-bottom:1px solid #EDECE8; }
+        body.home-signed-in .home-v3 .asset-label { color:#888780; font-size:14px; line-height:20px; margin:0; }
+        body.home-signed-in .home-v3 .asset-value { font-size:22px !important; font-weight:700; color:#0D0D0D; margin:4px 0 0; line-height:28px; overflow-wrap:anywhere; }
+        body.home-signed-in .home-v3 .asset-change { max-width:100%; padding:2px 12px; margin-top:4px; font-size:14px; line-height:20px; border-radius:9999px; overflow-wrap:anywhere; }
+        body.home-signed-in .home-v3 .asset-change.up { background:#DCFCE7; color:#166534; }
+        body.home-signed-in .home-v3 .asset-change.down { background:#FEE2E2; color:#991B1B; }
+        body.home-signed-in .home-v3 .asset-stat { min-width:0; text-align:left; }
+        body.home-signed-in .home-v3 .asset-stat:nth-of-type(5) { border-left:1px solid #EDECE8; padding-left:8px; }
+        body.home-signed-in .home-v3 .asset-stat-val { font-size:16px; line-height:20px; color:#0D0D0D; font-weight:600; }
+        body.home-signed-in .home-v3 .asset-stat-label { font-size:12px; line-height:16px; color:#888780; margin-top:4px; }
+        body.home-signed-in .home-v3 .asset-action { position:static; align-self:center; padding:8px 12px; border-radius:8px; color:#fff; background:#666560; font-size:14px; line-height:20px; }
+        body.home-signed-in .home-v3 .section2 { margin-bottom:24px; }
+        body.home-signed-in .home-v3 .section-header2 { align-items:center; gap:8px; margin-bottom:12px; }
+        body.home-signed-in .home-v3 .section-title2 { font-size:16px; font-weight:600; line-height:24px; letter-spacing:normal; gap:8px; }
+        body.home-signed-in .home-v3 .section-title2::before { display:inline-block; width:2px; height:16px; background:#19DFDF; }
+        body.home-signed-in .home-v3 .section-more2 { font-size:15px; color:#666560; font-weight:500; }
+        body.home-signed-in .home-v3 .top-summary-grid { gap:16px; }
+        body.home-signed-in .home-v3 .brand-card { border:1px solid #EDECE8; border-radius:16px; box-shadow:none; }
+        body.home-signed-in .home-v3 .brand-card-header { min-height:0; padding:12px 20px; }
+        body.home-signed-in .home-v3 .brand-badge { font-size:12px; border-radius:9999px; padding:2px 8px; }
+        body.home-signed-in .home-v3 .brand-update { font-size:12px; color:#888780; }
+        body.home-signed-in .home-v3 #homeTopPokemon,body.home-signed-in .home-v3 #homeTopOnepiece { min-height:198px; }
+        body.home-signed-in .home-v3 .price-row { min-height:66px; grid-template-columns:16px 36px minmax(0,1fr) auto; gap:12px; padding:8px 16px; }
+        body.home-signed-in .home-v3 .price-rank { font-size:16px; font-weight:600; }
+        body.home-signed-in .home-v3 .price-rank.top1 { color:#CA8A04; }
+        body.home-signed-in .home-v3 .price-rank.top2 { color:#888780; }
+        body.home-signed-in .home-v3 .price-rank.top3 { color:#854D0E; }
+        body.home-signed-in .home-v3 .card-img-thumb { width:36px; height:50px; border-radius:4px; background:transparent; }
+        body.home-signed-in .home-v3 .card-img-thumb img { transform:none; object-fit:contain; }
+        body.home-signed-in .home-v3 .home-product-kind,body.home-signed-in .home-v3 .price-orig { display:none; }
+        body.home-signed-in .home-v3 .price-name { font-size:15px; line-height:20px; font-weight:600; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        body.home-signed-in .home-v3 .price-pack { font-size:14px; line-height:20px; color:#888780; margin-top:4px; }
+        body.home-signed-in .home-v3 .price-pack.mo-home-only { display:block; }
+        body.home-signed-in .home-v3 .price-val { font-size:14px; line-height:20px; font-weight:600; color:#0D0D0D; white-space:nowrap; }
+        body.home-signed-in .home-v3 .mo-home-change { display:block; font-size:12px; line-height:16px; color:#888780; margin-top:4px; }
+        body.home-signed-in .home-v3 .brand-card-footer { padding:0; }
+        body.home-signed-in .home-v3 .expand-btn { min-height:44px; font-size:14px; color:#888780; }
+        body.home-signed-in .home-v3 .grading-banner { gap:12px; padding:16px 20px; margin-bottom:24px; border-radius:16px; background:linear-gradient(91.4deg,rgb(50,150,237),rgb(125,73,249)); }
+        body.home-signed-in .home-v3 .grading-icon { display:none; }
+        body.home-signed-in .home-v3 .grading-label { color:#EDECE8; font-size:14px; line-height:20px; letter-spacing:normal; }
+        body.home-signed-in .home-v3 .grading-title { font-size:18px; line-height:24px; font-weight:700; margin:4px 0; color:#fff; }
+        body.home-signed-in .home-v3 .grading-desc { font-size:14px; line-height:20px; color:#EDECE8; }
+        body.home-signed-in .home-v3 .grading-arrow { color:#fff; }
+        body.home-signed-in .home-v3 #homeNewsGrid { display:none; }
+        body.home-signed-in .home-v3 #mobileHomeNews { display:grid; gap:12px; }
+        #mobileHomeNews a { display:flex; gap:12px; align-items:center; min-width:0; padding:12px 16px; background:#fff; border:1px solid #EDECE8; border-radius:16px; color:#0D0D0D; text-decoration:none; }
+        .mo-news-thumb { width:56px; height:56px; flex-shrink:0; overflow:hidden; border-radius:10px; background:#FEF9C3; }
+        .mo-news-thumb.onepiece { background:#FEE2E2; }
+        .mo-news-thumb img { width:100%; height:100%; object-fit:cover; }
+        .mo-news-copy { min-width:0; }
+        .mo-news-copy span { font-size:14px; color:#066666; }
+        .mo-news-copy strong { display:block; font-size:15px; line-height:20px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:4px 0; }
+        .mo-news-copy small { font-size:12px; color:#888780; }
+        body.home-signed-in .home-v3 .home-official-section,body.home-signed-in .home-v3 .section2:has(.home-recommend-grid) { display:none; }
+        body.home-signed-in .home-v3 svg { stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+        @media(max-width:360px) { body.home-signed-in .home-v3 .price-row { gap:8px; padding:8px 12px; } body.home-signed-in .home-v3 .section-more2 { font-size:14px; } }
+      }
+    </style>
     <!-- 카드 시세 -->
     <section class="page price-redesign" data-page="price">
       <div class="price-page-header">
@@ -2585,7 +2674,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <div class="mnav-item" data-nav="home"><div class="ic"><i data-lucide="house"></i></div>홈</div>
     <div class="mnav-item" data-nav="price"><div class="ic"><i data-lucide="trending-up"></i></div>시세</div>
     <div class="mnav-item" data-nav="hub"><div class="ic"><i data-lucide="pin"></i></div>소식</div>
-    <div class="mnav-item" data-nav="cardinfo"><div class="ic"><i data-lucide="layers"></i></div>카드</div>
+    <div class="mnav-item" data-nav="cardinfo"><div class="ic"><i data-lucide="layers"></i></div><span class="mo-home-original">카드</span><span class="mo-home-only">카드 정보</span></div>
     <div class="mnav-item" data-nav="portfolio"><div class="ic"><i data-lucide="user-round"></i></div>마이페이지</div>
   </nav>
 </div>
@@ -2986,6 +3075,9 @@ function _homePriceRowHTML(p, i) {
   const mainName=HOME_TOP_KO_NAMES[String(p.id)]||name;
   const kind=_homeProductKind(name);
   const kindLabel=kind==='box'?'박스':kind==='deck'?'덱':kind==='pack'?'팩':'카드';
+  const setInfo = [...CARDINFO.pokemon, ...CARDINFO.onepiece].find(s => String(s.boxId || '') === String(p.id)) ||
+    [...CARDINFO.pokemon, ...CARDINFO.onepiece].find(s => new RegExp(`\\b${s.code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\-]`, 'i').test(name));
+  const setLabel = setInfo ? `${setInfo.name.replace(/\s*\([^)]*\)\s*$/, '').trim()} · ${setInfo.code}` : kindLabel;
   const imgHtml = p.image
     ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
     : '';
@@ -2994,12 +3086,14 @@ function _homePriceRowHTML(p, i) {
     <div class="card-img-thumb">${imgHtml}</div>
     <div class="price-info">
       <span class="home-product-kind ${kind}">${kindLabel}</span>
-      <div class="price-name">${escapeHtml(mainName)}</div>
-      <div class="price-pack" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+      <div class="price-name" title="${escapeHtml(mainName)}">${escapeHtml(mainName)}</div>
+      <div class="price-pack mo-home-original" title="${escapeHtml(name)}">${escapeHtml(name)}</div>
+      <div class="price-pack mo-home-only" title="${escapeHtml(setLabel)}">${escapeHtml(setLabel)}</div>
     </div>
     <div class="price-right">
       <div class="price-val">${fmtKrw(price, p.currency)}</div>
       <div class="price-orig">${fmtOrig(price, p.currency)}</div>
+      <span class="mo-home-only mo-home-change" title="현재 TOP 시세 원본에 등락률이 제공되지 않습니다">변동 정보 없음</span>
     </div>
   </a>`;
 }
@@ -3260,11 +3354,39 @@ function _eventsCarouselRestart() {
 
 function syncHomeAuthView() {
   const signedIn = !!CURRENT_USER;
+  document.body.classList.toggle('home-signed-in', signedIn);
   const guest = document.getElementById('homeGuestBanner');
   const asset = document.getElementById('homeAssetWidget');
   if (guest) guest.hidden = signedIn;
   if (asset) asset.hidden = !signedIn;
+  if (signedIn && window.matchMedia('(max-width:480px)').matches) loadMobileHomeNews();
 }
+
+let MOBILE_HOME_NEWS_LOADING = null;
+function loadMobileHomeNews() {
+  if (MOBILE_HOME_NEWS_LOADING) return MOBILE_HOME_NEWS_LOADING;
+  const grid = document.getElementById('mobileHomeNews');
+  if (!grid) return;
+  grid.textContent = '소식 불러오는 중…';
+  MOBILE_HOME_NEWS_LOADING = loadNews().then(() => {
+    const items = HUB_NEWS_ITEMS.slice(0,4);
+    grid.innerHTML = items.length ? items.map(n => {
+      const link = n.link || n.url || '';
+      if (!/^https?:\/\//i.test(link)) return '';
+      const src = n.image || n.thumbnail || '';
+      const source = n.source || n.brand;
+      const label = n.tag || n.category || n.sourceLabel || (source === 'onepiece' ? '원피스' : source === 'pokemon' ? '포켓몬' : '소식');
+      return `<a href="${escapeHtml(link)}" target="_blank" rel="noopener"><span class="mo-news-thumb ${source === 'onepiece' ? 'onepiece' : ''}">${/^https?:\/\//i.test(src) ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.hidden=true">` : ''}</span><span class="mo-news-copy"><span>${escapeHtml(label)}</span><strong title="${escapeHtml(n.title || '')}">${escapeHtml(n.title || '')}</strong><small>${escapeHtml(n.date || n.publishedAt || '')}</small></span></a>`;
+    }).join('') : '소식을 불러오지 못했습니다. 전체 소식에서 다시 확인해주세요.';
+  }).catch(() => {
+    grid.textContent = '소식을 불러오지 못했습니다. 전체 소식에서 다시 확인해주세요.';
+    MOBILE_HOME_NEWS_LOADING = null;
+  });
+  return MOBILE_HOME_NEWS_LOADING;
+}
+window.matchMedia('(max-width:480px)').addEventListener('change', e => {
+  if (e.matches && CURRENT_USER) loadMobileHomeNews();
+});
 
 async function renderHomeAsset() {
   syncHomeAuthView();

@@ -1625,6 +1625,20 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <button type="button" class="tab" data-subtab="etc" role="tab" aria-selected="false">기타</button>
       </div>
       <style>
+        body:has(.ci-redesign.active) { background:#F7F6F2; }
+        .ci-redesign { background:#F7F6F2; }
+        .ci-redesign svg,.ci-panel svg { stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+        @media(min-width:961px) {
+          body:has(.ci-redesign.active) .app { grid-template-columns:219px minmax(0,1fr); }
+          body:has(.ci-redesign.active) .sidebar { top:72px; height:calc(100dvh - 72px); }
+          body:has(.ci-redesign.active) .sidebar .brand { position:fixed; left:0; top:0; width:219px; height:72px; margin:0; padding:12px 16px; border:0; border-bottom:1px solid #EDECE8; border-radius:0; background:#fff; z-index:11; }
+          body:has(.ci-redesign.active) .brand-sub { display:none; }
+          body:has(.ci-redesign.active) .brand-logo { width:40px; height:40px; }
+          body:has(.ci-redesign.active) .topbar { position:fixed; left:219px; right:0; height:72px; }
+          body:has(.ci-redesign.active) .main { padding-top:72px; }
+          body:has(.ci-redesign.active) .nav-item.active { background:#E8FAFA; color:#066666; }
+        }
+        @media(max-width:960px) { body:has(.ci-redesign.active) .topbar { min-height:52px; } }
         .hub-redesign { max-width:1640px; width:100%; margin:0 auto; color:#0D0D0D; font-family:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
         .hub-page-head { margin-bottom:24px; }
         .hub-page-head h1 { margin:0 0 4px; font-size:22px; font-weight:700; line-height:28px; letter-spacing:-.02em; }
@@ -1747,26 +1761,93 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     </section>
 
     <!-- 카드 정보 -->
-    <section class="page" data-page="cardinfo">
+    <section class="page ci-redesign" data-page="cardinfo">
+      <style>
+        .ci-redesign .page-head { margin-bottom:0; }
+        .ci-redesign .page-title { font-size:22px; font-weight:700; color:#0D0D0D; }
+        .ci-redesign .page-sub { font-size:12px; color:#888780; margin:8px 0 24px; }
+        #cardInfoSearchWrap { width:min(560px,60%); margin-left:auto; margin-top:-76px; margin-bottom:32px; }
+        .ci-search { display:flex; align-items:center; gap:8px; height:44px; padding:0 16px; border:1px solid #D9D8D3; border-radius:9999px; background:#fff; }
+        .ci-search:focus-within { outline:2px solid #066666; outline-offset:2px; }
+        .ci-search input { min-width:0; flex:1; border:0; outline:0; background:transparent; font:400 14px/20px Pretendard,sans-serif; }
+        .ci-search button { border:0; background:transparent; color:#666560; min-width:32px; min-height:32px; cursor:pointer; }
+        .ci-search svg { width:20px; height:20px; flex-shrink:0; color:#888780; }
+        #ciTabs { display:flex; gap:24px; border-bottom:1px solid #D9D8D3; margin-bottom:24px; }
+        #ciTabs .tab { border:0; border-bottom:2px solid transparent; border-radius:0; padding:12px 0; background:transparent; color:#888780; font-size:16px; font-weight:400; cursor:pointer; }
+        #ciTabs .tab.active { color:#066666; font-weight:600; border-bottom-color:#066666; }
+        #cardInfoList { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px; }
+        .ci-redesign .set-tile { min-width:0; border:1px solid #EDECE8; border-radius:12px; box-shadow:0 1px 3px #0000000f; }
+        .ci-redesign .set-tile:hover { border-color:#19DFDF; box-shadow:0 4px 12px #00000014; }
+        .ci-redesign .set-tile-img { height:260px; aspect-ratio:auto; background:#EDECE8; }
+        .ci-redesign .set-tile-body { padding:16px; border:0; }
+        .ci-redesign .set-tile-code { font:400 14px/20px Pretendard,sans-serif; color:#888780; }
+        .ci-redesign .set-tile-name { font-size:16px; font-weight:600; line-height:24px; height:48px; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+        .ci-redesign .set-tile-meta { font-size:14px; line-height:20px; color:#666560; }
+        #anyModal.ci-panel { padding:0; justify-content:flex-end; align-items:stretch; background:rgba(0,0,0,.2); }
+        #anyModal.ci-panel .modal-box { width:760px; max-width:100% !important; height:100dvh; max-height:100dvh; border-radius:0; display:flex; flex-direction:column; overflow:hidden; box-shadow:-4px 0 40px #0000001f; animation:ci-slide .2s ease-out; }
+        #anyModal.ci-panel.ci-expanded .modal-box { width:100%; }
+        .ci-panel-head { display:flex; flex-shrink:0; align-items:center; gap:8px; min-height:56px; padding:4px 16px; border-bottom:1px solid #EDECE8; }
+        .ci-panel-head button { display:flex; justify-content:center; align-items:center; gap:8px; min-width:44px; min-height:44px; padding:8px; border:0; border-radius:10px; background:#fff; color:#666560; cursor:pointer; }
+        .ci-panel-head svg { width:20px; height:20px; }
+        .ci-panel-head #setGridBoxPriceBtn { margin-left:auto; padding:8px 12px; background:#666560; color:#fff; font-size:14px; }
+        .ci-panel-info { display:flex; flex-shrink:0; align-items:center; gap:16px; padding:20px; border-bottom:1px solid #D9D8D3; }
+        .ci-panel-thumb { width:74px; height:98px; background:#EDECE8; border-radius:8px; flex-shrink:0; object-fit:contain; }
+        .ci-panel-copy { min-width:0; }
+        .ci-panel-copy h3 { font-size:16px; font-weight:600; line-height:24px; margin:4px 0; overflow-wrap:anywhere; }
+        .ci-panel-copy p { font-size:14px; color:#888780; margin:4px 0 0; }
+        .ci-brand { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:9999px; font-size:12px; background:#FEF9C3; color:#854D0E; }
+        .ci-brand::before { content:''; width:6px; height:6px; border-radius:50%; background:#FFD700; }
+        .ci-brand.onepiece { background:#FEE2E2; color:#991B1B; }
+        .ci-brand.onepiece::before { background:#CC2244; }
+        .ci-panel-scroll { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:20px 16px; }
+        .ci-panel-summary { color:#666560; font-size:14px; font-weight:600; margin-bottom:20px; }
+        .ci-panel-summary span { display:block; color:#888780; font-size:12px; font-weight:400; margin-top:4px; }
+        .ci-panel .set-card-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+        .ci-panel .set-card-item { min-width:0; border:1px solid #D9D8D3; border-radius:20px; }
+        .ci-panel .set-card-item:hover { border-color:#19DFDF; }
+        .ci-panel .set-card-img { height:285px; aspect-ratio:auto; background:#EDECE8 !important; border-radius:10px; }
+        .ci-panel .set-card-img img { object-fit:contain; }
+        .ci-panel .set-card-num { padding:16px 4px; font:400 14px/20px Pretendard,sans-serif; color:#888780; background:#fff; overflow-wrap:anywhere; }
+        .ci-panel-pages { display:flex; flex-shrink:0; align-items:center; justify-content:center; gap:4px; flex-wrap:wrap; padding:12px 8px max(12px,env(safe-area-inset-bottom)); border-top:1px solid #EDECE8; }
+        .ci-panel-pages[hidden] { display:none; }
+        .ci-panel-pages button { min-width:40px; min-height:40px; border:0; border-radius:4px; background:transparent; color:#666560; cursor:pointer; }
+        .ci-panel-pages [aria-current=page] { background:#888780; color:#fff; }
+        .ci-panel-pages button:disabled { opacity:.4; cursor:default; }
+        .ci-redesign button:focus-visible,.ci-redesign [role=button]:focus-visible,.ci-panel button:focus-visible,.ci-panel [role=button]:focus-visible { outline:2px solid #066666; outline-offset:2px; }
+        @keyframes ci-slide { from { transform:translateX(100%); } to { transform:translateX(0); } }
+        @media(max-width:1600px) { #cardInfoList { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+        @media(max-width:1200px) { #cardInfoList { grid-template-columns:repeat(3,minmax(0,1fr)); } #cardInfoSearchWrap { width:100%; margin:0 0 20px; } }
+        @media(max-width:640px) {
+          #cardInfoList { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+          .ci-redesign .set-tile-img { height:180px; }
+          .ci-redesign .set-tile-body { padding:12px; }
+          .ci-redesign .set-tile-meta { font-size:12px; }
+          .ci-panel .set-card-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+          .ci-panel .set-card-img { height:auto; aspect-ratio:5/7; }
+          .ci-panel-info { padding:16px; }
+          #anyModal.ci-panel .modal-box { width:100%; animation:ci-rise .2s ease-out; }
+          @keyframes ci-rise { from { transform:translateY(100%); } to { transform:translateY(0); } }
+        }
+        @media(prefers-reduced-motion:reduce) { #anyModal.ci-panel .modal-box { animation:none; } }
+      </style>
       <div class="page-head">
-        <h1 class="page-title"><i data-lucide="layers" style="width:24px;height:24px"></i> 카드 정보 <span style="font-size:13px;font-weight:400;color:var(--ink-mute);margin-left:6px">포켓몬·원피스 TCG 박스 목록 · 발매일</span></h1>
-        <p class="page-sub">포켓몬 · 원피스 확장팩 목록과 공식 정보</p>
+        <h1 class="page-title">카드 정보</h1>
+        <p class="page-sub">포켓몬 · 원피스 확장팩 목록, 발매일, 수록 카드 정보</p>
       </div>
 
       <!-- 박스 검색 -->
-      <div id="cardInfoSearchWrap" style="position:relative; margin-bottom:14px">
-        <div style="display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:8px 12px">
-          <span style="font-size:16px">🔍</span>
-          <input id="cardInfoSearchInput" placeholder="박스 이름 검색 (예: 어비스아이, 닌자, M5, OP15)"
-                 style="flex:1; border:none; outline:none; font-size:14px; background:transparent">
-          <button id="cardInfoSearchClear" style="display:none; border:none; background:#f3f4f6; color:#6b7280; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:12px">✕</button>
+      <div id="cardInfoSearchWrap">
+        <div class="ci-search">
+          <input id="cardInfoSearchInput" aria-label="박스 이름 검색" placeholder="박스 이름 검색 (예: 어비스아이, 닌자, M5, OP15)">
+          <button id="cardInfoSearchClear" aria-label="검색어 지우기" style="display:none"><i data-lucide="x"></i></button>
+          <i data-lucide="search"></i>
         </div>
       </div>
 
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px">
-        <div class="tabs" id="ciTabs" style="margin-bottom:0; flex-shrink:0">
-          <div class="tab active" data-ci="pokemon">⚡ 포켓몬</div>
-          <div class="tab" data-ci="onepiece">🏴‍☠️ 원피스</div>
+      <div>
+        <div class="tabs" id="ciTabs" aria-label="카드정보 브랜드">
+          <button type="button" class="tab active" data-ci="pokemon" aria-pressed="true">포켓몬</button>
+          <button type="button" class="tab" data-ci="onepiece" aria-pressed="false">원피스</button>
         </div>
         <div style="display:flex; align-items:center; gap:10px; margin-left:auto">
           <div id="cardInfoSrc" style="font-size:11px; color:var(--ink-sub)"></div>
@@ -6811,14 +6892,14 @@ function renderCardInfo() {
   const listEl = document.getElementById('cardInfoList');
   if (q && list.length === 0) {
     listEl.innerHTML = `<div class="card" style="padding:20px; text-align:center; color:var(--ink-sub); grid-column:1/-1">
-      검색 결과가 없습니다 — <b>${q.replace(/[<>]/g, '')}</b><br>
-      <span style="font-size:12px">다른 키워드로 시도하거나 탭(⚡포켓몬 / 🏴‍☠️원피스)을 전환해보세요</span>
+      검색 결과가 없습니다 — <b>${escapeHtml(q)}</b><br>
+      <span style="font-size:12px">다른 키워드로 시도하거나 포켓몬 / 원피스 탭을 전환해보세요</span>
     </div>`;
     return;
   }
   listEl.innerHTML = list.map(s => {
     const isNolink = !!s.nolink;
-    const safeName = (s.name || '').replace(/"/g, '&quot;');
+    const safeName = escapeHtml(s.name || '');
     // 박스 이미지 — 새로 받은 webp 23개는 webp 우선 + is-webp 클래스 (cover/padding 0)
     //   기존 박스 (M*, SV5M~SV11W, OP*, EB*) 는 jpg + contain (그대로)
     //   121 옛 박스 (S6a 이전, SNKRDUNK 출처) 는 images/box2/{code}.webp
@@ -6845,38 +6926,68 @@ function renderCardInfo() {
           </div>
           <div class="set-tile-body">
             <div class="set-tile-code">${s.code}</div>
-            <div class="set-tile-name">${s.name}</div>
-            <div class="set-tile-meta">${s.release} · 연동 준비 중</div>
+            <div class="set-tile-name" title="${safeName}">${safeName}</div>
+            <div class="set-tile-meta">발매일: ${escapeHtml(s.release || '미정')} · 연동 준비 중</div>
           </div>
         </div>`;
     }
     return `
-      <div class="set-tile" style="cursor:pointer" data-set-code="${s.code}" data-set-name="${escapeHtml(s.name || '')}" data-external-url="${s.url || ''}" title="${safeName} 카드 보기">
+      <div class="set-tile" role="button" tabindex="0" style="cursor:pointer" data-set-code="${s.code}" data-set-name="${safeName}" data-external-url="${escapeHtml(s.url || '')}" title="${safeName} 카드 보기">
         <div class="${imgClass}">
           <img src="${imgSrc}" alt="${safeName}" loading="lazy" ${imgStyle} ${onerrorAttr}>
         </div>
         <div class="set-tile-body">
           <div class="set-tile-code">${s.code}</div>
-          <div class="set-tile-name">${s.name}</div>
-          <div class="set-tile-meta">${s.release}</div>
+          <div class="set-tile-name" title="${safeName}">${safeName}</div>
+          <div class="set-tile-meta">발매일: ${escapeHtml(s.release || '미정')}</div>
         </div>
       </div>`;
   }).join('');
 }
 
 /* ─────────── 세트 카드 그리드 모달 ─────────── */
+let CI_PANEL_REQUEST = 0;
+const CI_CARD_PAGE_SIZE = 18;
+const ciIcon = name => `<i data-lucide="${name}"></i>`;
 window.openSetGrid = async function(setCode, setName, externalUrl) {
+  const request = ++CI_PANEL_REQUEST;
+  const brand = CARDINFO.onepiece.some(s => s.code === setCode) ? 'onepiece' : 'pokemon';
+  const set = CARDINFO[brand].find(s => s.code === setCode);
+  const sourceImage = [...document.querySelectorAll('.set-tile[data-set-code]')].find(el => el.dataset.setCode === setCode)?.querySelector('img')?.getAttribute('src');
+  const opener = document.activeElement;
   openAnyModal(`
-    <div class="modal-head" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
-      <h3 style="margin:0; flex:1; min-width:0">📦 ${escapeHtml(setName)} <span style="font-size:12px; color:var(--ink-sub); font-weight:500; margin-left:6px">${setCode}</span></h3>
-      <button id="setGridBoxPriceBtn" class="btn primary"
-              style="padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap"
-              onclick="gotoBoxPriceFromSet('${setCode}')">📊 박스 시세 보기 →</button>
-      <button class="modal-close" onclick="closeAnyModal()">✕</button>
+    <div class="ci-panel-head">
+      <button id="ciExpand" aria-label="패널 전체화면 전환" aria-pressed="false">${ciIcon('maximize-2')}</button>
+      <button id="setGridBoxPriceBtn" onclick="gotoBoxPriceFromSet('${setCode}')">${ciIcon('chart-no-axes-combined')}시세 보기</button>
+      <button id="ciShare" aria-label="박스 정보 공유">${ciIcon('share-2')}</button>
+      <button id="ciClose" aria-label="박스 정보 닫기" onclick="closeAnyModal()">${ciIcon('x')}</button>
     </div>
-    <div class="modal-body" style="padding:20px 24px; max-height:75vh; overflow-y:auto">
-      <div id="setGridContent" style="font-size:13px; color:var(--ink-sub); text-align:center; padding:40px 0">⏳ 카드 불러오는 중...</div>
-    </div>`, 'wide');
+    <div class="ci-panel-info">
+      ${sourceImage ? `<img class="ci-panel-thumb" src="${escapeHtml(sourceImage)}" alt="" onerror="this.style.visibility='hidden'">` : '<div class="ci-panel-thumb"></div>'}
+      <div class="ci-panel-copy"><span class="ci-brand ${brand}">${brand === 'pokemon' ? '포켓몬' : '원피스'}</span>
+        <p>${escapeHtml(setCode)}</p><h3 id="ciPanelTitle">${escapeHtml(setName)}</h3><p>발매일: ${escapeHtml(set?.release || '미정')}</p>
+      </div>
+    </div>
+    <div class="ci-panel-scroll"><div id="setGridContent" aria-live="polite">카드 불러오는 중...</div></div>
+    <nav id="ciPanelPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동" hidden></nav>`, 'wide');
+  const modal = document.getElementById('anyModal');
+  modal.classList.add('ci-panel');
+  modal._ciOpener = opener;
+  const panel = modal.querySelector('.modal-box');
+  panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-labelledby', 'ciPanelTitle');
+  document.getElementById('ciExpand').onclick = e => {
+    const expanded = modal.classList.toggle('ci-expanded');
+    e.currentTarget.setAttribute('aria-pressed', String(expanded));
+  };
+  document.getElementById('ciShare').onclick = async () => {
+    const url = new URL(location.href); url.hash = 'cardinfo'; url.searchParams.set('set', setCode);
+    try {
+      if (navigator.share) await navigator.share({title:setName,url:url.href});
+      else { await navigator.clipboard.writeText(url.href); showToast('박스 링크를 복사했습니다'); }
+    } catch(e) { if(e.name !== 'AbortError') showToast('링크를 복사하지 못했습니다'); }
+  };
+  if (window.lucide) lucide.createIcons();
+  document.getElementById('ciClose').focus();
 
   try {
     // case-insensitive fetch — Linux 는 case-sensitive 라 mismatch 가능성. 실패 시 대소문자 변형 시도
@@ -6904,13 +7015,13 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
       return d;
     }
     const data = await fetchSet(setCode);
+    if (request !== CI_PANEL_REQUEST || !modal.classList.contains('open') || !modal.classList.contains('ci-panel')) return;
     if (!data) {
       document.getElementById('setGridContent').innerHTML = `
         <div style="padding:40px 20px; text-align:center">
-          <div style="font-size:48px; opacity:0.3; margin-bottom:12px">📭</div>
           <div style="font-weight:700; color:#111; margin-bottom:8px">카드 데이터 준비 중</div>
           <div style="font-size:12px; color:var(--ink-sub); margin-bottom:18px">이 세트의 카드 그리드는 아직 수집되지 않았습니다.</div>
-          ${externalUrl ? `<a href="${externalUrl}" target="_blank" rel="noopener" class="btn primary" style="cursor:pointer; padding:10px 20px; font-size:13px; text-decoration:none; display:inline-block">🔗 외부 사이트 보기</a>` : ''}
+          ${externalUrl ? `<a href="${escapeHtml(externalUrl)}" target="_blank" rel="noopener" class="btn primary" style="cursor:pointer; padding:12px 20px; font-size:14px; text-decoration:none; display:inline-block">외부 사이트 보기</a>` : ''}
         </div>`;
       return;
     }
@@ -6919,10 +7030,13 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
       document.getElementById('setGridContent').innerHTML = '<div style="padding:40px; text-align:center; color:var(--ink-sub)">카드 없음</div>';
       return;
     }
+    let page = 1;
+    const pageCount = Math.ceil(cards.length / CI_CARD_PAGE_SIZE);
+    const renderPage = () => {
     document.getElementById('setGridContent').innerHTML = `
-      <div style="font-size:12px; color:var(--ink-sub); margin-bottom:14px; padding:0 4px">${cards.length} 카드 · 클릭하면 시세 페이지로</div>
+      <div class="ci-panel-summary">총 ${cards.length} 카드 수록 <span>카드를 클릭하여 시세를 확인해보세요 · ${page} / ${pageCount} 페이지</span></div>
       <div class="set-card-grid">
-        ${cards.map(c => {
+        ${cards.slice((page - 1) * CI_CARD_PAGE_SIZE, page * CI_CARD_PAGE_SIZE).map(c => {
           // baseNumber 우선 (variant 없는 base) — 매칭에 사용. 없으면 number 에서 추출
           const num = (c.number || '').split('/')[0].trim();
           const baseNum = (c.baseNumber || num.split('_')[0] || '').trim();
@@ -6955,7 +7069,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
             ? `onerror="this.onerror=function(){this.onerror=null;this.style.opacity='0';};this.src='${escapeHtml(fallbackSrc)}'"`
             : `onerror="this.onerror=null;this.style.opacity='0'"`;
           return `
-          <div class="set-card-item"
+          <div class="set-card-item" role="button" tabindex="0" aria-label="${escapeHtml(c.name || displayNum)} 시세 보기"
                data-card-name="${escapeHtml(c.name || '')}"
                data-card-search="${escapeHtml(searchKey)}"
                data-card-variant="${escapeHtml(variantSuffix)}">
@@ -6966,8 +7080,24 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
           </div>`;
         }).join('')}
       </div>`;
+      const nav = document.getElementById('ciPanelPages');
+      nav.hidden = pageCount <= 1;
+      const first = Math.max(1, Math.min(page - 2, pageCount - 4));
+      nav.innerHTML = `<button data-page="${page - 1}" aria-label="이전 페이지" ${page === 1 ? 'disabled' : ''}>‹</button>` +
+        Array.from({length:Math.min(5,pageCount)}, (_,i) => first+i).map(n => `<button data-page="${n}" aria-label="${n}페이지" ${n === page ? 'aria-current="page"' : ''}>${n}</button>`).join('') +
+        `<button data-page="${page + 1}" aria-label="다음 페이지" ${page === pageCount ? 'disabled' : ''}>›</button>`;
+    };
+    document.getElementById('ciPanelPages').onclick = e => {
+      const btn = e.target.closest('button[data-page]');
+      if (!btn || btn.disabled) return;
+      page = Math.max(1, Math.min(pageCount, Number(btn.dataset.page)));
+      renderPage();
+      modal.querySelector('.ci-panel-scroll').scrollTop = 0;
+      modal.querySelector('.set-card-item')?.focus({preventScroll:true});
+    };
+    renderPage();
   } catch (e) {
-    document.getElementById('setGridContent').innerHTML = `<div style="padding:40px; text-align:center; color:#dc2626">로드 실패: ${e.message}</div>`;
+    if (request === CI_PANEL_REQUEST && document.getElementById('setGridContent')) document.getElementById('setGridContent').innerHTML = '<div style="padding:40px; text-align:center; color:#dc2626">카드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</div>';
   }
 };
 
@@ -7062,9 +7192,9 @@ document.addEventListener('click', e => {
 
 // 모달 안 "박스 시세 보기" 버튼 핸들러 — 매핑된 박스의 시세 페이지로 이동
 window.gotoBoxPriceFromSet = async function(code) {
-  const brand = (typeof CI_TAB === 'string') ? CI_TAB : 'pokemon';
+  const brand = CARDINFO.onepiece.some(s => s.code === code) ? 'onepiece' : 'pokemon';
   const btn = document.getElementById('setGridBoxPriceBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 매핑 확인 중...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '시세 확인 중...'; }
   const boxId = await getBoxIdBySetCode(code, brand);
   if (boxId) {
     closeAnyModal();
@@ -7073,8 +7203,8 @@ window.gotoBoxPriceFromSet = async function(code) {
   } else {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '⚠️ 매핑된 박스 없음';
-      setTimeout(() => { btn.textContent = '📊 박스 시세 보기 →'; }, 2000);
+      btn.textContent = '연결된 시세 없음';
+      setTimeout(() => { btn.textContent = '시세 보기'; }, 2000);
     }
     showToast('이 박스는 SNKRDUNK 시세 데이터에 매핑된 항목이 없습니다 (미발매 등)', 'info');
   }
@@ -7188,9 +7318,8 @@ document.addEventListener('click', async e => {
   closeAnyModal();
 
   if (snkrdunkId) {
-    // SNKRDUNK 매칭 성공 — 풀 시세 페이지
-    location.hash = `#price/${snkrdunkId}`;
-    setTimeout(() => window.scrollTo({top: 0, behavior: 'smooth'}), 50);
+    // Existing price detail panel keeps its full-page expansion and data lookup.
+    openSlidePanel(snkrdunkId);
   } else {
     // 매칭 실패 — 정보만 표시 모달
     const lastSet = _LAST_OPENED_SET;
@@ -7225,8 +7354,9 @@ window.reopenLastSet = function() {
 document.addEventListener('click', e => {
   const tab = e.target.closest('#ciTabs .tab');
   if (!tab) return;
-  document.querySelectorAll('#ciTabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#ciTabs .tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-pressed', 'false'); });
   tab.classList.add('active');
+  tab.setAttribute('aria-pressed', 'true');
   CI_TAB = tab.dataset.ci;
   renderCardInfo();
 });
@@ -7251,6 +7381,32 @@ document.addEventListener('click', e => {
 })();
 
 renderCardInfo();
+
+// Shared box links preserve the existing #cardinfo route used by the apps.
+const sharedSetCode = new URLSearchParams(location.search).get('set');
+if (location.hash === '#cardinfo' && sharedSetCode) {
+  const brand = ['pokemon','onepiece'].find(b => CARDINFO[b].some(s => s.code === sharedSetCode));
+  if (brand) {
+    CI_TAB = brand;
+    document.querySelectorAll('#ciTabs .tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.ci === brand);
+      t.setAttribute('aria-pressed', String(t.dataset.ci === brand));
+    });
+    renderCardInfo();
+    const set = CARDINFO[brand].find(s => s.code === sharedSetCode);
+    setTimeout(() => openSetGrid(set.code, set.name, set.url || ''), 0);
+  }
+}
+document.addEventListener('keydown', e => {
+  const target = e.target.closest('.set-tile[role="button"], .set-card-item[role="button"]');
+  if (target && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); target.click(); }
+  const panel = document.querySelector('#anyModal.ci-panel.open');
+  if (e.key !== 'Tab' || !panel) return;
+  const focusable = [...panel.querySelectorAll('button:not(:disabled), a[href], [tabindex="0"]')].filter(el => el.getClientRects().length);
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+});
 
 /* ────────────────────────────────────
    6. 응모 / 오리파 / 이벤트 (간단 데이터)
@@ -9587,12 +9743,16 @@ function openAnyModal(innerHtml, size) {
   }
   const maxWidth = size === 'wide' ? '720px' : '480px';
   modal.innerHTML = `<div class="modal-box" style="max-width:${maxWidth}">${innerHtml}</div>`;
-  modal.classList.remove('home-login-modal');
+  modal.classList.remove('home-login-modal', 'ci-panel', 'ci-expanded');
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 function closeAnyModal() {
   const modal = document.getElementById('anyModal');
+  if (modal?.classList.contains('ci-panel')) {
+    CI_PANEL_REQUEST++;
+    modal._ciOpener?.focus?.({preventScroll:true});
+  }
   if (modal) modal.classList.remove('open');
   document.body.style.overflow = '';
 }

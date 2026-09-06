@@ -33,7 +33,8 @@ assert.deepEqual(
 assert.match(hub, /\.news-grid \{[^}]*grid-template-columns:repeat\(5,minmax\(0,1fr\)\); gap:20px;/, 'five-column news grid missing');
 assert.match(hub, /\.hub-news-card \{[^}]*height:280px;/, '280px news card missing');
 assert.match(hub, /\.hub-news-placeholder \{[^}]*height:180px;/, '180px placeholder missing');
-assert.match(hub, /\.hub-news-image \{[^}]*object-fit:cover;/, 'official news image cover style missing');
+assert.match(hub, /\.hub-news-image \{[^}]*position:absolute;[^}]*object-fit:contain;/, 'desktop images must fit inside the frame without intrinsic grid sizing or cover cropping');
+assert.doesNotMatch(hub, /\.hub-news-image \{[^}]*object-fit:cover;/, 'news images must not revert to cover cropping');
 assert.match(hub, /\.hub-news-placeholder \{ height:auto; aspect-ratio:16\/9; display:block; \}/, 'phone news requires a consistent representative-image frame');
 assert.match(hub, /\.hub-news-image\.hub-news-poster \{ height:auto; \}/, 'long announcements must show their full-width top visual');
 assert.match(html, /this\.naturalHeight>this\.naturalWidth\*1\.8/, 'long announcement classification must use actual image dimensions');

@@ -3,13 +3,14 @@
  *
  * 환경 바인딩:
  *   env.ADMIN_KV       — KV namespace (Settings > Functions > KV namespace bindings)
- *   env.ADMIN_PASSWORD — 환경 변수 (Settings > Environment variables, encrypted)
+ *   env.JWT_SECRET / env.DB — 로그인 세션 및 관리자 계정 확인
  *
  * 엔드포인트:
  *   GET  /api/admin?type=events|etc            — 데이터 조회 (공개, 누구나)
- *   POST /api/admin  Body: {type, items}       — 데이터 저장 (비번 필요)
- *      Header: X-Admin-Password: <password>
+ *   POST /api/admin  Body: {type, items}       — 관리자 로그인 세션 필요
  */
+import { getCurrentUser } from '../_shared/auth.js';
+import { isAdminUser } from '../_shared/admin.js';
 
 const ALLOWED_TYPES = new Set(["events", "etc", "cardshow", "grading", "news"]);
 const KEY_PREFIX = "admin_";
@@ -22,7 +23,7 @@ const json = (obj, status = 200) =>
       "Cache-Control": "no-store",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-Admin-Password",
+      "Access-Control-Allow-Headers": "Content-Type",
     },
   });
 
@@ -48,18 +49,17 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPost({ request, env }) {
-  let auth = request.headers.get("X-Admin-Password") || "";
-  // 클라이언트가 base64 인코딩 (한글/특수문자 헤더 통과용) — decode 시도, 실패 시 raw 사용
-  try {
-    const bytes = Uint8Array.from(atob(auth), (c) => c.charCodeAt(0));
-    const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    if (decoded) auth = decoded;
-  } catch {}
-  if (!env.ADMIN_PASSWORD) {
-    return json({ ok: false, error: "ADMIN_PASSWORD env not set" }, 500);
+  // JSON + same-origin writes prevent cookie-authenticated cross-site submissions.
+  const origin = request.headers.get('Origin');
+  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
+    return json({ ok: false, error: '다른 사이트에서는 게시할 수 없습니다.' }, 403);
   }
-  if (!auth || auth !== env.ADMIN_PASSWORD) {
-    return json({ ok: false, error: "Unauthorized — wrong password" }, 401);
+  if (!env.JWT_SECRET) return json({ ok: false, error: 'Authentication unavailable' }, 503);
+  const user = await getCurrentUser(request, env);
+  if (!user) return json({ ok: false, error: '관리자 계정으로 로그인해 주세요.' }, 401);
+  if (!await isAdminUser(user, env)) return json({ ok: false, error: '관리자 계정만 게시할 수 있습니다.' }, 403);
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) {
+    return json({ ok: false, error: 'Content-Type must be application/json' }, 415);
   }
   if (!env.ADMIN_KV) {
     return json({ ok: false, error: "KV namespace not bound" }, 500);

@@ -682,46 +682,16 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 </head>
 <body>
 <script>
-// 관리자 모드 활성화/비활성화 — URL ?admin=enable / ?admin=disable
-// 모바일 (< 900px) 에서는 활성화돼도 표시 안 됨 (CSS 차단)
+// Legacy flags never grant administrator access; wait for /api/auth/me.
 (function() {
   try {
+    localStorage.removeItem('admin_enabled');
+    sessionStorage.removeItem('admin_pwd');
     const params = new URLSearchParams(location.search);
-    if (params.get('admin') === 'enable') {
-      localStorage.setItem('admin_enabled', '1');
+    if (params.has('admin')) {
       params.delete('admin');
       const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
       history.replaceState(null, '', clean);
-    } else if (params.get('admin') === 'disable') {
-      localStorage.removeItem('admin_enabled');
-      sessionStorage.removeItem('admin_pwd');
-      params.delete('admin');
-      const clean = location.pathname + (params.toString() ? '?' + params.toString() : '') + location.hash;
-      history.replaceState(null, '', clean);
-    }
-    // 마스터 계정 (yhk3213@gmail.com) 만 admin 활성화
-    // CURRENT_USER 는 fetchAuthMe 후 set 되므로, 우선 localStorage 체크 후 사용자 확인
-    if (localStorage.getItem('admin_enabled') === '1') {
-      document.body.classList.add('admin-active');
-      // 로그인 후 마스터 아니면 admin 비활성화 (background 검증)
-      setTimeout(async () => {
-        try {
-          const r = await fetch('/api/auth/me', { credentials: 'include' });
-          if (r.ok) {
-            const d = await r.json();
-            const email = (d?.user?.email || '').toLowerCase();
-            if (email !== 'yhk3213@gmail.com') {
-              localStorage.removeItem('admin_enabled');
-              document.body.classList.remove('admin-active');
-              console.warn('[admin] master 계정 아님 — admin 비활성화');
-            }
-          } else {
-            // 비로그인 → admin 비활성화
-            localStorage.removeItem('admin_enabled');
-            document.body.classList.remove('admin-active');
-          }
-        } catch {}
-      }, 1500);
     }
   } catch (e) {}
 })();
@@ -1736,9 +1706,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .hub-empty-state { grid-column:1/-1; min-height:280px; display:grid; place-items:center; padding:32px; color:#666560; background:#FFFFFF; border:1px solid #EDECE8; border-radius:14px; font-size:14px; text-align:center; }
         .hub-empty-state svg { width:24px; height:24px; margin-bottom:12px; color:#888780; stroke-width:1.8; }
         .hub-apply-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
-        .hub-apply-item { min-width:0; height:145px; display:grid; grid-template-columns:145px minmax(0,1fr) 101px; overflow:hidden; background:#FFFFFF; border:1px solid #EDECE8; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); transition:border-color .16s,box-shadow .16s; }
+        .hub-apply-item { min-width:0; height:145px; display:grid; grid-template-columns:145px minmax(0,1fr) 121px; overflow:hidden; background:#FFFFFF; border:1px solid #EDECE8; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06); transition:border-color .16s,box-shadow .16s; }
         .hub-apply-item:hover { border-color:#19DFDF; box-shadow:0 4px 12px rgba(0,0,0,.08); }
         .hub-apply-thumb { width:145px; height:145px; background:#EDECE8; border-right:1px solid #EDECE8; }
+        .hub-apply-thumb img { width:100%; height:100%; padding:12px; object-fit:contain; background:#FFFFFF; }
         .hub-apply-content { min-width:0; display:flex; flex-direction:column; justify-content:center; padding:16px 20px; }
         .hub-apply-badges { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
         .hub-brand-badge,.hub-bundle-badge { display:inline-flex; align-items:center; gap:6px; min-height:20px; padding:2px 8px; border-radius:9999px; font-size:12px; font-weight:500; line-height:16px; white-space:nowrap; }
@@ -1976,98 +1947,49 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div id="etcList" style="display:flex; flex-direction:column; gap:12px"></div>
     </section>
 
-    <!-- 관리자 — 이벤트/기타 직접 입력 (admin-only 제거 — 페이지 라우팅이 자동으로 숨김 처리, 진입은 사이드바 nav-item.admin-only 에서만 차단) -->
-    <section class="page" data-page="admin">
-      <div class="page-head" style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap">
-        <div>
-          <h1 class="page-title"><i data-lucide="wrench" style="width:24px;height:24px"></i> 관리자</h1>
-          <p class="page-sub">이벤트 · 카드쇼 · 기타 글 작성 (KV에 저장 — 모든 방문자 공개)</p>
-        </div>
-        <button class="btn" type="button" onclick="adminExitMode()"
-                style="cursor:pointer; padding:8px 14px; font-size:13px; color:#991b1b; border:1px solid #fecaca; background:#fef2f2; border-radius:8px; flex-shrink:0">
-          🚪 관리자 모드 종료
-        </button>
+    <!-- 관리자 편집 — 기존 데이터 형식 유지, 서버 로그인 권한 검증 -->
+    <section class="page admin-editor-v2" data-page="admin">
+      <div class="ae-page-head">
+        <div><h1>콘텐츠 관리</h1><p>이벤트와 소식을 작성하고, 방문자 화면을 확인한 뒤 게시하세요.</p></div>
+        <button class="ae-button" type="button" onclick="go('hub')">소식 화면으로</button>
       </div>
-
-      <!-- 글쓰기 영역 (네이버 카페 스타일) -->
-      <div class="card" style="padding:0; overflow:hidden; margin-bottom:18px">
-        <!-- 헤더 -->
-        <div style="padding:18px 20px 14px; border-bottom:1px solid var(--line)">
-          <div style="font-size:18px; font-weight:800; color:#111" id="adminFormTitle">📝 새 글 작성</div>
-        </div>
-
-        <!-- 게시판 + 날짜 (Row 1) -->
-        <div style="padding:14px 20px; border-bottom:1px solid var(--line); display:grid; grid-template-columns:200px 1fr; gap:10px">
-          <select id="adminBoard" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff; cursor:pointer">
-            <option value="">📋 게시판을 선택해주세요</option>
-            <option value="news">📰 뉴스</option>
-            <option value="events">✨ 이벤트</option>
-            <option value="cardshow">🎪 카드쇼</option>
-            <option value="grading">🏆 그레이딩</option>
-            <option value="etc">📦 기타</option>
-          </select>
-          <input id="adminDate" placeholder="📅 날짜 (선택 — 예: 2026.05.22)" style="padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px">
-        </div>
-
-        <!-- 제목 (Row 2) -->
-        <div style="padding:0 20px; border-bottom:1px solid var(--line)">
-          <input id="adminTitle" placeholder="제목을 입력해주세요." style="width:100%; padding:14px 0; border:none; outline:none; font-size:18px; font-weight:600; color:#111; background:transparent">
-        </div>
-
-        <!-- 메인 이미지 (Row 2.5) — 카드 상단에 크게 표시될 사진 -->
-        <div style="padding:14px 20px; border-bottom:1px solid var(--line); background:#fafafa">
-          <div style="font-size:11px; font-weight:700; color:#6b7280; margin-bottom:8px">🖼 메인 이미지 (카드 상단 16:9 비율로 표시)</div>
-          <div style="display:flex; gap:10px; align-items:flex-start">
-            <div id="adminMainImagePreview" style="width:160px; aspect-ratio:16/9; background:#f3f4f6; border:1px dashed #d1d5db; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#9ca3af; flex-shrink:0; overflow:hidden">없음</div>
-            <div style="flex:1">
-              <input type="file" id="adminMainImageFile" accept="image/*,.heic,.heif,image/heic,image/heif" style="display:none">
-              <input id="adminMainImageUrl" placeholder="이미지 URL (또는 아래 파일 선택)" style="width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font-size:12px; background:#fff; margin-bottom:6px">
-              <div style="display:flex; gap:6px">
-                <button class="btn" type="button" onclick="document.getElementById('adminMainImageFile').click()" style="font-size:11px; padding:6px 12px; cursor:pointer">📁 파일 선택</button>
-                <button class="btn" type="button" onclick="adminClearMainImage()" style="font-size:11px; padding:6px 12px; cursor:pointer">✕ 제거</button>
-              </div>
-              <input type="hidden" id="adminMainImage">
-            </div>
+      <p class="ae-access-note" id="adminAccessNote">관리자 로그인 상태를 확인하고 있습니다.</p>
+      <div class="ae-layout">
+        <div class="ae-editor">
+          <header class="ae-editor-head"><h2 id="adminFormTitle">새 글 작성</h2><span id="adminDraftState">새 글</span></header>
+          <div class="ae-form-grid ae-section">
+            <label for="adminBoard">게시판 <span class="ae-required">필수</span><select id="adminBoard"><option value="news">뉴스</option><option value="events" selected>이벤트</option><option value="cardshow">카드쇼</option><option value="grading">그레이딩</option><option value="etc">기타</option></select><small id="adminBoardHint">수정 중에는 게시판이 고정됩니다.</small></label>
+            <label for="adminDate">표시 날짜 <span class="ae-optional">선택</span><input id="adminDate" placeholder="예: 2026.06.14"><small>날짜 또는 안내 기간을 입력하세요.</small></label>
           </div>
+          <div class="ae-section"><label for="adminTitle">제목 <span class="ae-required">필수</span></label><input id="adminTitle" placeholder="방문자에게 표시할 제목을 입력하세요."></div>
+          <div class="ae-section">
+            <label for="adminMainImageUrl">대표 이미지 <span class="ae-optional">선택</span></label>
+            <p class="ae-help">목록 왼쪽 썸네일입니다. 원본 비율을 유지하며 잘리지 않게 표시합니다.</p>
+            <div class="ae-image-row"><div id="adminMainImagePreview">등록된 이미지 없음</div><div class="ae-image-inputs">
+              <input type="file" id="adminMainImageFile" accept="image/*,.heic,.heif,image/heic,image/heif" hidden>
+              <input id="adminMainImageUrl" placeholder="https://… 이미지 주소" aria-describedby="adminImageHint">
+              <div class="ae-inline-actions"><button class="ae-button" type="button" onclick="document.getElementById('adminMainImageFile').click()">이미지 선택</button><button class="ae-button" type="button" onclick="adminClearMainImage()">이미지 제거</button></div>
+              <small id="adminImageHint">파일 또는 URL 중 하나를 사용하세요. 비우면 본문의 첫 이미지가 사용됩니다.</small><input type="hidden" id="adminMainImage">
+            </div></div>
+          </div>
+          <div class="ae-section ae-content-section"><label id="adminContentLabel">본문 <span class="ae-required">필수</span></label><p class="ae-help">문단·이미지·링크를 편집하세요. 상세 미리보기에서 실제 줄바꿈을 확인할 수 있습니다.</p><div id="adminEditor" aria-labelledby="adminContentLabel"></div><input type="hidden" id="adminEditId"></div>
+          <div class="ae-section"><label for="adminLink">자세히 보기 링크 <span class="ae-optional">선택</span></label><input id="adminLink" placeholder="https://…"><small>신청 폼이나 원문 주소를 입력하세요. 방문자에게 새 탭으로 열립니다.</small></div>
+          <div id="adminFormMessage" class="ae-message" role="status" aria-live="polite"></div>
+          <div class="ae-savebar"><button id="adminPublishButton" class="ae-button ae-primary" type="button" onclick="AdminEditorUI.save()">글 게시</button><button class="ae-button" type="button" onclick="AdminEditorUI.preview()">상세 미리보기</button><button class="ae-button" type="button" onclick="adminClearForm()">새 글 작성</button><span>게시 전 미리보기를 확인하세요.</span></div>
         </div>
-
-        <!-- Quill 에디터 (Row 3) -->
-        <div style="padding:0 20px">
-          <div id="adminEditor" style="height:340px; border:none"></div>
-          <input type="hidden" id="adminEditId">
-        </div>
-
-        <!-- 외부 링크 (Row 4 — 선택, 카드 외부 보기 등) -->
-        <div style="padding:14px 20px; border-top:1px solid var(--line); background:#fafafa">
-          <div style="font-size:11px; font-weight:700; color:#6b7280; margin-bottom:6px">🔗 외부 링크 (선택 — 카드 페이지에 "자세히 보기 →" 로 표시됨)</div>
-          <input id="adminLink" placeholder="https://... (없으면 비워두세요)" style="width:100%; padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13px; background:#fff">
-        </div>
-
-        <!-- 액션 (Row 5) -->
-        <div style="padding:14px 20px; border-top:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap; align-items:center">
-          <button class="btn primary" type="button" onclick="adminSaveEntry()" style="cursor:pointer; padding:10px 24px">💾 저장</button>
-          <button class="btn" type="button" onclick="adminClearForm()" style="cursor:pointer">↩ 새로 쓰기</button>
-          <button class="btn" type="button" onclick="adminMigrateNews()" style="cursor:pointer; font-size:12px; color:#0d9488; border-color:#5eead4">🔄 기존 뉴스 가져오기 (1회)</button>
-          <button class="btn" type="button" onclick="adminExportJson()" style="cursor:pointer; margin-left:auto; font-size:12px">📤 JSON 백업</button>
-        </div>
+        <aside class="ae-preview"><h2>목록 미리보기</h2><p>작성한 제목·날짜·대표 이미지가 여기에 반영됩니다.</p><div id="adminCardPreview"></div><button class="ae-button ae-preview-button" type="button" onclick="AdminEditorUI.preview()">방문자 상세 화면 보기</button><p id="adminContentCount" class="ae-help">본문 0자</p><div class="ae-preview-note">이미지가 없으면 대표 이미지를 먼저 선택하세요.<br>실제 저장은 ‘글 게시’ 버튼을 누를 때만 실행됩니다.</div></aside>
       </div>
-
-      <!-- 게시판 리스트 (탭 + 글 목록) — 가로 한 줄, 색상 dot 으로 카테고리 시각 구분 -->
-      <div class="tabs pill" id="adminTabs"
-           style="margin-bottom:12px; display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; align-items:flex-start; justify-content:flex-start; width:100%; clear:both">
-        <div class="tab active" data-admin-tab="news"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#3b82f6; display:inline-block"></span>📰 뉴스</div>
-        <div class="tab" data-admin-tab="events"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#f59e0b; display:inline-block"></span>✨ 이벤트</div>
-        <div class="tab" data-admin-tab="cardshow"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#8b5cf6; display:inline-block"></span>🎪 카드쇼</div>
-        <div class="tab" data-admin-tab="grading"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block"></span>🏆 그레이딩</div>
-        <div class="tab" data-admin-tab="etc"
-             style="flex:0 0 auto; padding:7px 14px; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:6px"><span style="width:8px; height:8px; border-radius:50%; background:#6b7280; display:inline-block"></span>📦 기타</div>
-      </div>
-      <div style="font-size:13px; font-weight:700; color:#374151; margin-bottom:8px" id="adminListLabel">📋 현재 등록된 이벤트</div>
-      <div id="adminEntryList" style="display:flex; flex-direction:column; gap:8px"></div>
+      <section class="ae-library"><div class="ae-library-head"><div><h2>게시한 글 관리</h2><p>수정·삭제·노출 순서를 관리합니다.</p></div><label class="ae-search" for="adminEntrySearch"><span>제목 검색</span><input id="adminEntrySearch" type="search" placeholder="제목으로 찾기"></label></div>
+        <div class="tabs pill" id="adminTabs" role="tablist" aria-label="관리 게시판">
+          <button type="button" class="tab" role="tab" aria-selected="false" data-admin-tab="news">뉴스</button>
+          <button type="button" class="tab active" role="tab" aria-selected="true" data-admin-tab="events">이벤트</button>
+          <button type="button" class="tab" role="tab" aria-selected="false" data-admin-tab="cardshow">카드쇼</button>
+          <button type="button" class="tab" role="tab" aria-selected="false" data-admin-tab="grading">그레이딩</button>
+          <button type="button" class="tab" role="tab" aria-selected="false" data-admin-tab="etc">기타</button>
+        </div>
+        <p id="adminListLabel"></p><div id="adminEntryList"></div>
+      </section>
+      <details class="ae-tools"><summary>백업 및 고급 도구</summary><p>기존 뉴스 가져오기는 저장된 뉴스 목록에 영향을 줍니다.</p><div class="ae-inline-actions"><button class="ae-button" type="button" onclick="adminExportJson()">JSON 백업 다운로드</button><button class="ae-button" type="button" onclick="adminMigrateNews()">기존 뉴스 가져오기</button></div></details>
 
       <!-- Quill 커스텀 스타일 -->
       <style>
@@ -2455,6 +2377,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
       <!-- 로그인 후 메인 영역 -->
       <div id="pfMain" style="display:none">
+        <button type="button" class="btn admin-account-entry" data-nav="admin" hidden>이벤트·소식 관리 →</button>
         <!-- 프로필 헤더 -->
         <div class="pf-profile">
           <div class="pf-avatar" id="pfAvatar">?</div>
@@ -2657,6 +2580,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/price-expanded.js?v=20260906-meta2"></script>
+<link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
+<script src="/assets/news-detail.js?v=20260907-news1"></script>
+<link rel="stylesheet" href="/assets/admin-editor.css?v=20260907-admin2">
+<script src="/assets/admin-editor.js?v=20260907-admin2"></script>
 <script>
 "use strict";
 
@@ -2664,6 +2591,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
    1. 라우팅 (단순! 작동 보장)
    ──────────────────────────────────── */
 function go(pageOrPath) {
+  if (document.body.dataset.page === 'admin' && pageOrPath !== 'admin' && window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
+  if (window.HubNewsDetail) HubNewsDetail.close();
   if (window.setExpandedPriceMode) window.setExpandedPriceMode(false);
   // 일반 내비게이션 시 상세 이전/다음 탐색 컨텍스트 초기화 (goCardDetail 은 go() 안 거치고 hash 직접 변경)
   window._DETAIL_NAV = null;
@@ -2675,7 +2604,12 @@ function go(pageOrPath) {
     page = parts[0];
     productId = parts[1] || null;
   }
-  // 관리자 전용 페이지 — admin 비밀번호 없으면 home 으로 리다이렉트 (일반 사용자 차단)
+  // Only a server-confirmed administrator may open either management screen.
+  if (['admin', 'casing'].includes(page) && !isAdminAccount()) {
+    if (!AUTH_READY) window._pendingAdminPage = page;
+    page = pageOrPath = 'home';
+  }
+  // Casing retains its separate generation-service password.
   const ADMIN_ONLY_PAGES = ['casing'];
   if (ADMIN_ONLY_PAGES.includes(page)) {
     if (typeof getAdminPwd === 'function' && !getAdminPwd()) {
@@ -2704,6 +2638,7 @@ function go(pageOrPath) {
   // 페이지별 초기화
   if (page === 'home' && typeof initHome2 === 'function') initHome2();
   if (page === 'price') initPrice(productId);
+  if (page === 'admin' && window.AdminEditorUI) AdminEditorUI.enter();
   if (page === 'portfolio') refreshPortfolio();
   if (page === 'centering') {
     // 센터링 진입 시 핸들러 + 카운터 셋업 (DOMContentLoaded 이미 끝난 경우 대비)
@@ -6371,8 +6306,8 @@ function renderHubNewsPage() {
     }
     window._NEWS_ITEMS = items;
     list.innerHTML = items.map((n, _ni) => {
-      // 외부 링크 있으면 새 탭 이동, 없으면 본문 펼치기
-      const hasLink = !!n.link;
+      // 공식 자동 뉴스는 원문 직행 유지. 본문 있는 자체 소식은 상세 모달.
+      const hasLink = HubNewsDetail.isDirectNews(n);
       const tag = hasLink ? 'a' : 'button';
       const tagAttrs = hasLink
         ? `href="${escapeHtml(n.link)}" target="_blank" rel="noopener"`
@@ -6422,16 +6357,7 @@ document.getElementById('newsPageButtons').addEventListener('click', event => {
 window.showNewsModal = function(i) {
   const n = (window._NEWS_ITEMS || [])[i];
   if (!n) return;
-  const body = escapeHtml((n.content || '').replace(/<[^>]+>/g, '').slice(0, 1000));
-  openAnyModal(`
-    <div class="modal-head">
-      <h3>${escapeHtml(n.title || '뉴스')}</h3>
-      <button class="modal-close" onclick="closeAnyModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div style="font-size:11px; color:var(--ink-sub); margin-bottom:10px">${escapeHtml(n.date || '')}</div>
-      <div style="font-size:13px; line-height:1.7; color:#374151; white-space:pre-line">${body}</div>
-    </div>`);
+  HubNewsDetail.open(n);
 };
 // 페이지 로드시 한 번 호출 (정보 허브 진입할 때마다 새로고침은 안 해도 됨)
 loadNews();
@@ -7722,27 +7648,25 @@ async function fetchAdminData(type) {
 }
 
 async function saveAdminData(type, items) {
-  const pwd = getAdminPwd();
-  if (!pwd) {
-    const input = prompt('관리자 비밀번호를 입력하세요:');
-    if (!input) return false;
-    setAdminPwd(input);
+  if (!isAdminAccount()) {
+    if (window.AdminEditorUI) AdminEditorUI.message('관리자 계정으로 로그인해 주세요.', 'error');
+    return false;
   }
   try {
     const r = await fetch('/api/admin', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        // base64 인코딩 — 한글/특수문자 비밀번호도 ISO-8859-1 헤더 통과
-        'X-Admin-Password': btoa(unescape(encodeURIComponent(getAdminPwd()))),
       },
       body: JSON.stringify({type, items}),
     });
     const d = await r.json();
     if (!r.ok || !d.ok) {
-      if (r.status === 401) {
-        clearAdminPwd();
-        alert('비밀번호가 틀렸습니다. 다시 시도하세요.');
+      if (r.status === 401 || r.status === 403) {
+        CURRENT_USER = r.status === 401 ? null : {...CURRENT_USER, isAdmin: false};
+        renderAuthStatus();
+        showToast('관리자 로그인 권한을 확인해 주세요. 다시 로그인 후 이용할 수 있습니다.', 'error');
       } else {
         alert('저장 실패: ' + (d.error || r.status));
       }
@@ -7843,7 +7767,7 @@ const _applyHubHtml = APPLIES.map((a, i) => {
   const bundleLabel = String(a.ribbon || 'Bundle').toLowerCase() === 'bundle' ? 'Bundle' : String(a.ribbon);
   return `
     <article class="hub-apply-item">
-      <div class="hub-apply-thumb" aria-hidden="true"></div>
+      <div class="hub-apply-thumb" aria-hidden="true"><img src="${escapeHtml(a.img)}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true"></div>
       <div class="hub-apply-content">
         <div class="hub-apply-badges">
           <span class="hub-brand-badge ${brandClass}"><span class="hub-brand-dot"></span>${escapeHtml(a.brand)}</span>
@@ -7912,7 +7836,7 @@ const _refNoticeHtml = `
 
 const _oripaHtml = ORIPAS.map((o, i) => `
   <div class="oripa-tile" style="text-align:left; padding:0; overflow:hidden">
-    <div style="background:${o.bg}; padding:36px 20px; text-align:center; position:relative; min-height:140px; display:flex; align-items:center; justify-content:center">
+    <div class="nd-oripa-trigger" role="button" tabindex="0" aria-haspopup="dialog" aria-label="${o.name} 사용법 보기" onclick="showOripaUsage(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showOripaUsage(${i})}" style="background:${o.bg}; padding:36px 20px; text-align:center; position:relative; min-height:140px; display:flex; align-items:center; justify-content:center">
       ${o.hot ? '<div style="position:absolute; top:10px; right:10px; background:#ef4444; color:#fff; font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px">🔥 HOT</div>' : ''}
       ${o.logo
         ? `<img src="${o.logo}" alt="${o.name}" style="max-width:60%; max-height:80px; height:auto; display:block; object-fit:contain" onerror="this.outerHTML='<div style=\\'font-size:28px;font-weight:900;color:#fff;letter-spacing:-0.5px\\'>${o.name}</div>'">`
@@ -7937,6 +7861,10 @@ const _oripaHtml = ORIPAS.map((o, i) => `
 function showOripaUsage(i) {
   const o = ORIPAS[i];
   if (!o) return;
+  if (window.HubNewsDetail) {
+    HubNewsDetail.open({title:`${o.name} 사용법`,content:`${o.desc}\n\n단계별 사용법\n${o.usage.map((s,index)=>`${index+1}. ${s}`).join('\n\n')}${o.tip?'\n\nTIP\n'+o.tip:''}`,link:o.link});
+    return;
+  }
   const html = `
     <div class="modal-head">
       <h3>${o.name} 사용법</h3>
@@ -8453,6 +8381,7 @@ function parseDday(dateStr) {
 // badge: { bg, color, icon, dday }  dday=true 면 D-day 배지 우선 표시 (카드쇼만)
 // prefix(id 충돌 방지): 'grading'/'event'/'cardshow'
 function _hubRowCard(e, badge, prefix) {
+  if (window.HubNewsDetail) return HubNewsDetail.card(e, badge, prefix);
   const id = (prefix || 'row') + '-' + (e.id || Math.random().toString(36).slice(2));
   // D-day 배지 — 카드쇼 전용 (badge.dday=true)
   let ddayBadge = '';
@@ -8558,6 +8487,7 @@ function _adminDateKey(s) {
 }
 
 function renderAdminList() {
+  if (window.AdminEditorUI) { AdminEditorUI.list(adminCurrentArr(), ADMIN_TAB); return; }
   const arr = adminCurrentArr();
   const list = document.getElementById('adminEntryList');
   const label = document.getElementById('adminListLabel');
@@ -8788,6 +8718,7 @@ function _hideImgToolbar() {
 async function ensureQuill() {
   if (_QUILL) return _QUILL;
   await loadQuillJs();
+  if (_QUILL) return _QUILL;
   const target = document.getElementById('adminEditor');
   if (!target) return null;
   _QUILL = new Quill(target, {
@@ -8846,7 +8777,8 @@ window.addEventListener('hashchange', () => {
 });
 if (location.hash === '#admin') ensureQuill();
 
-function adminClearForm() {
+function adminClearForm(force = false) {
+  if (!force && window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
   document.getElementById('adminEditId').value = '';
   document.getElementById('adminTitle').value = '';
   document.getElementById('adminDate').value = '';
@@ -8857,19 +8789,24 @@ function adminClearForm() {
   if (board) board.value = ADMIN_TAB || 'events';
   // Quill 비우기
   if (_QUILL) _QUILL.setContents([]);
-  document.getElementById('adminFormTitle').textContent = '📝 새 글 작성';
+  document.getElementById('adminFormTitle').textContent = '새 글 작성';
+  if (window.AdminEditorUI) AdminEditorUI.reset();
 }
 
 // 메인 이미지 — file → base64 또는 URL 입력
 function adminSetMainImage(url) {
+  if (url && window.HubNewsDetail && !HubNewsDetail.safeUrl(url, true)) { AdminEditorUI.message('사용할 수 없는 이미지 주소입니다.', 'error'); return; }
   document.getElementById('adminMainImage').value = url || '';
   document.getElementById('adminMainImageUrl').value = (url && url.startsWith('data:')) ? '' : (url || '');
   const prev = document.getElementById('adminMainImagePreview');
   if (url) {
-    prev.innerHTML = `<img src="${url}" style="width:100%; height:100%; object-fit:cover">`;
+    const img = document.createElement('img'); img.src = url; img.alt = '대표 이미지 미리보기';
+    img.onerror = () => { prev.textContent = '이미지 로드 실패'; if (window.AdminEditorUI) AdminEditorUI.message('대표 이미지를 불러오지 못했습니다. 주소나 파일을 확인해 주세요.', 'error'); };
+    prev.replaceChildren(img);
   } else {
-    prev.innerHTML = '없음';
+    prev.textContent = '등록된 이미지 없음';
   }
+  if (window.AdminEditorUI) AdminEditorUI.refresh();
 }
 function adminClearMainImage() {
   document.getElementById('adminMainImageFile').value = '';
@@ -8898,7 +8835,7 @@ function adminClearMainImage() {
       urlInput._bound = true;
       urlInput.onchange = e => {
         const v = e.target.value.trim();
-        if (v) adminSetMainImage(v);
+        adminSetMainImage(v);
       };
     }
   };
@@ -8907,16 +8844,9 @@ function adminClearMainImage() {
   window.addEventListener('hashchange', () => { if (location.hash === '#admin') setup(); });
 })();
 
-// 관리자 모드 종료 — 마스터 계정만 활성화 가능 (?admin=enable 로 재진입)
+// Compatibility for older callers: leaving the editor does not change login rights.
 function adminExitMode() {
-  if (!confirm('관리자 모드를 종료하시겠습니까?\n(다시 사용하려면 URL 끝에 ?admin=enable 을 붙여 진입)')) return;
-  try {
-    localStorage.removeItem('admin_enabled');
-    sessionStorage.removeItem('admin_pwd');
-  } catch {}
-  document.body.classList.remove('admin-active');
-  // 홈으로 이동
-  location.hash = '#home';
+  go('hub');
 }
 
 /**
@@ -8989,7 +8919,7 @@ async function adminSaveEntry() {
   // Quill HTML 추출
   const content = _QUILL ? _QUILL.root.innerHTML : '';
   // 빈 컨텐츠 감지 (Quill 은 비어도 <p><br></p> 남김)
-  const isEmpty = !content || content === '<p><br></p>' || _QUILL.getText().trim().length === 0;
+  const isEmpty = !content || (!_QUILL.getText().trim() && !_QUILL.root.querySelector('img'));
 
   if (!board) { alert('게시판을 선택해주세요 (이벤트/기타)'); return; }
   if (!title) { alert('제목을 입력해주세요'); return; }
@@ -9058,7 +8988,7 @@ async function adminSaveEntry() {
   if (!ok) return;
   SET_MAP[targetKey](targetArr);
 
-  adminClearForm();
+  adminClearForm(true);
   renderAdminList();
   // 작성한 게시판 탭으로 자동 전환 (시각적 피드백)
   if (ADMIN_TAB !== targetKey) {
@@ -9067,10 +8997,13 @@ async function adminSaveEntry() {
       t.classList.toggle('active', t.dataset.adminTab === targetKey));
     renderAdminList();
   }
-  alert('✓ 저장되었습니다');
+  if (window.AdminEditorUI) AdminEditorUI.message('게시했습니다. 방문자 화면에 반영됩니다.');
+  else alert('✓ 저장되었습니다');
+  return true;
 }
 
 async function adminEditEntry(id) {
+  if (window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
   await ensureQuill();
   const arr = adminCurrentArr();
   const e = arr.find(x => x.id === id);
@@ -9093,7 +9026,8 @@ async function adminEditEntry(id) {
       _QUILL.setContents([]);
     }
   }
-  document.getElementById('adminFormTitle').textContent = '✏ 글 수정';
+  document.getElementById('adminFormTitle').textContent = '글 수정';
+  if (window.AdminEditorUI) AdminEditorUI.reset();
   document.getElementById('adminTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
   document.getElementById('adminTitle').focus();
 }
@@ -9126,9 +9060,10 @@ function adminExportJson() {
 document.addEventListener('click', e => {
   const tab = e.target.closest('#adminTabs .tab[data-admin-tab]');
   if (!tab) return;
+  if (window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
   ADMIN_TAB = tab.dataset.adminTab;
   document.querySelectorAll('#adminTabs .tab').forEach(t => t.classList.toggle('active', t === tab));
-  adminClearForm();
+  adminClearForm(true);
   renderAdminList();
 });
 
@@ -9922,6 +9857,20 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAnyModa
    9. 인증 (Magic Link) + 포트폴리오 / 관심 추가
    ──────────────────────────────────── */
 let CURRENT_USER = null;
+let AUTH_READY = false;
+function isAdminAccount() { return CURRENT_USER?.isAdmin === true; }
+
+function syncAdminAccess() {
+  const allowed = isAdminAccount();
+  document.body.classList.toggle('admin-active', allowed);
+  document.querySelectorAll('.admin-account-entry').forEach(el => { el.hidden = !allowed; });
+  if (!allowed && ['admin', 'casing'].includes(document.body.dataset.page)) {
+    // Authentication loss must hide editing immediately, even with an unsaved draft.
+    document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+    document.body.dataset.page = 'home';
+    go('home');
+  }
+}
 
 async function fetchAuthMe() {
   try {
@@ -9933,6 +9882,8 @@ async function fetchAuthMe() {
 }
 
 function renderAuthStatus() {
+  syncAdminAccess();
+  if (window.AdminEditorUI) AdminEditorUI.access(CURRENT_USER);
   syncHomeAuthView();
   if (CURRENT_USER) renderHomeAsset();
   const box = document.getElementById('authStatus');
@@ -9963,7 +9914,11 @@ function renderAuthStatus() {
 }
 
 async function doLogout() {
-  try { await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }); } catch {}
+  if (document.body.dataset.page === 'admin' && window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
+  try {
+    const r = await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    if (!r.ok) throw new Error('logout failed');
+  } catch { showToast('로그아웃하지 못했습니다. 연결 상태를 확인해 주세요.', 'error'); return; }
   CURRENT_USER = null;
   renderAuthStatus();
   showToast('로그아웃되었습니다', 'info');
@@ -10648,9 +10603,27 @@ function showToast(message, type = 'success') {
 
 // 페이지 로드 시 인증 상태 확인
 fetchAuthMe().then(user => {
+  AUTH_READY = true;
   CURRENT_USER = user;
   renderAuthStatus();
+  if (window._pendingAdminPage) {
+    const page = window._pendingAdminPage;
+    window._pendingAdminPage = null;
+    if (isAdminAccount()) go(page);
+  }
   if (typeof applyCenteringLoginGate === 'function') applyCenteringLoginGate();
+});
+
+// Recheck when returning from another tab (logout/session expiry elsewhere).
+let _adminAuthRefresh = false;
+window.addEventListener('focus', async () => {
+  if (!AUTH_READY || _adminAuthRefresh) return;
+  _adminAuthRefresh = true;
+  try {
+    const previous = CURRENT_USER;
+    const user = await fetchAuthMe();
+    if (CURRENT_USER === previous) { CURRENT_USER = user; renderAuthStatus(); }
+  } finally { _adminAuthRefresh = false; }
 });
 
 /* ─── 포트폴리오 / 관심 추가 모달 ─── */

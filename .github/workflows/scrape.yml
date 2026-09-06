@@ -93,7 +93,7 @@ jobs:
           mkdir -p _deploy/functions/api/portfolio/watchlist
           mkdir -p _deploy/functions/_shared
           # 공유 헬퍼
-          for f in jwt.js email.js auth.js apple.js; do
+          for f in jwt.js email.js auth.js apple.js admin.js; do
             [ -f "functions/_shared/$f" ] && cp "functions/_shared/$f" "_deploy/functions/_shared/$f" && echo "✓ _shared/$f"
           done
           # admin

@@ -5,6 +5,7 @@
  * 로그인 됐으면 DB 에서 name 도 함께 조회해 반환 (카카오 닉네임 표시용)
  */
 import { getCurrentUser, jsonResponse } from '../../_shared/auth.js';
+import { isAdminUser } from '../../_shared/admin.js';
 
 export async function onRequestGet({ request, env }) {
   const user = await getCurrentUser(request, env);
@@ -32,6 +33,7 @@ export async function onRequestGet({ request, env }) {
       name,
       provider: isKakao ? 'kakao' : 'email',
       displayName,
+      isAdmin: await isAdminUser(user, env),
     },
   });
 }

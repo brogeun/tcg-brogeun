@@ -1175,6 +1175,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .home-v3 .home-recommend-grid .news-body2 { display:flex; flex-direction:column; align-items:flex-start; }
         .home-v3 .home-recommend-grid .news-body2 strong { margin-top:5px; font-size:13px; }
         .home-v3 .home-recommend-grid .news-body2 small { margin-top:3px; color:var(--text-tertiary); font-size:10px; }
+        .home-v3 .home-recommend-grid .news-thumb2.has-image { width:80px; height:56px; padding:4px; background:#fff; overflow:hidden; }
+        .home-v3 .home-recommend-grid .news-thumb2.has-image>svg { display:none; }
+        .home-v3 .home-recommend-grid .news-thumb2 img { display:block; width:100%; height:100%; object-fit:contain; }
         .home-recommend-badge { padding:2px 7px; color:var(--brand2-text); background:var(--brand2-subtle); border-radius:5px; font-size:9px; font-weight:700; }
         .home-recommend-badge.youtube { color:var(--op-text); background:var(--op-subtle); }
         .recommend-cafe { color:var(--brand2-text); background:var(--brand2-subtle); }
@@ -1835,7 +1838,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         #cardInfoList { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px; }
         .ci-redesign .set-tile { min-width:0; border:1px solid #EDECE8; border-radius:12px; box-shadow:0 1px 3px #0000000f; }
         .ci-redesign .set-tile:hover { border-color:#19DFDF; box-shadow:0 4px 12px #00000014; }
-        .ci-redesign .set-tile-img { height:260px; aspect-ratio:auto; background:#EDECE8; }
+        .ci-redesign .set-tile-img { height:260px; aspect-ratio:auto; background:#fff; }
         .ci-redesign .set-tile-body { padding:16px; border:0; }
         .ci-redesign .set-tile-code { font:400 14px/20px Pretendard,sans-serif; color:#888780; }
         .ci-redesign .set-tile-name { font-size:16px; font-weight:600; line-height:24px; height:48px; margin:8px 0; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
@@ -3027,6 +3030,37 @@ const HOME_TOP_KO_NAMES = Object.freeze({
   '806644':'[M5] 아비스아이 확장팩 박스','724998':'스타트 덱 100 배틀 컬렉션','722239':'메가리자몽 X ex MA [M2a 223/193]','730956':'피카츄 ex SAR [M2a 234/193]','118914':'포켓몬 카드 151 강화 확장팩 박스','724996':'메가팬텀 ex SAR [M2a 240/193]','732728':'로켓단의 따라큐 미러 [M2a 079/193]','618445':'도호쿠의 피카츄 프로모 [SV-P 260]','721913':'MEGA 드림 ex 하이클래스팩 박스','704401':'메가리자몽 X ex SAR [M2 110/080]','846048':'[M6] 스톰 에메랄다 확장팩 박스','737036':'피카츄 ex SAR 사양 [MC 764/742]','776365':'메가개굴닌자 ex SAR [M4 114/083]','868612':'메가레쿠쟈 ex SAR [M6 110/076]','846050':'[M6] 스톰 에메랄다 확장팩 박스 (슈링크 없음)','881421':'포켓몬 카드게임 30주년 셀러브레이션 확장팩 박스',
   '816932':'[OP16] 결전의 각 부스터 박스','837244':'나미 참가 기념 프로모 [P-112]','828207':'마샬 D. 티치 SEC [OP16-119]','548910':'[OP13] 계승된 의지 부스터 팩','676024':'몽키 D. 루피 SEC-P [OP13-118]','819292':'처음부터 전력이다!!! 우승 기념 카드 [OP13-040]','714615':'보아 행콕 SR-P [EB03-026]','763301':'몽키 D. 루피 리더 카드 [OP13-001]','548909':'[OP13] 계승된 의지 부스터 박스','167350':'몽키 D. 루피 점프 부록 프로모 [P-043]','854159':'롤로노아 조로 R [PRB02-006]','860463':'최강점프 2026년 5월호 응모 특전 정상의 강자 팩','864495':'[OP17] 세계 최강의 전사 부스터 박스','871051':'카이도 SR-P [OP17-062]','854158':'몽키 D. 루피 R [OP16-095]','854160':'나미 C [ST29-008]','854157':'라운드원 프로모션 팩','752859':'몽키 D. 루피 프로모 [P-055] 영문판 (개봉품)'
 });
+
+// Match the curated links to their existing registered artwork, not generic icons.
+function renderHomeRecommendations(items = ETC_LIST) {
+  const linkKey = value => {
+    try {
+      const url = new URL(String(value || '').trim(), location.origin);
+      return /^https?:$/.test(url.protocol) ? url.hostname.toLowerCase() + url.pathname.replace(/\/$/, '') : '';
+    } catch { return ''; }
+  };
+  const byLink = new Map((Array.isArray(items) ? items : []).map(item => [linkKey(item.link), item]));
+  document.querySelectorAll('.home-recommend-grid .news-card2').forEach(card => {
+    const thumb = card.querySelector('.news-thumb2');
+    const item = byLink.get(linkKey(card.href));
+    const source = String(item?.image || '').trim();
+    const supported = /^(?:https?:\/\/|\/(?!\/)|images\/|data:image\/(?:png|jpe?g|webp|gif);base64,)/i.test(source);
+    const previous = thumb.querySelector('img');
+    if (supported && previous?.getAttribute('src') === source) return;
+    previous?.remove();
+    thumb.classList.remove('has-image');
+    if (!supported) return;
+    const image = document.createElement('img');
+    image.alt = '';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.onerror = () => { image.remove(); thumb.classList.remove('has-image'); };
+    image.src = source;
+    thumb.prepend(image);
+    thumb.classList.add('has-image');
+  });
+}
 
 function _homeProductKind(name) {
   const value=String(name||'');
@@ -7732,6 +7766,7 @@ async function loadAllAdminData() {
   ]);
   EVENTS = events;
   ETC_LIST = etc;
+  renderHomeRecommendations();
   CARDSHOWS = cardshow;
   GRADING_LIST = grading;
   NEWS_LIST = news;
@@ -8315,6 +8350,7 @@ function renderEvents() {
 // 사용자 요청 (B 방식) — 정보허브 뉴스/카드쇼/그레이딩/기타 카드 이미지는 잘림 없이 전체 보이게 (contain)
 let _HUBCARD_OPTS = {};
 function renderEtc() {
+  renderHomeRecommendations();
   const targets = [document.getElementById('etcList'), document.getElementById('etcListHub')].filter(Boolean);
   if (!targets.length) return;
   let html;

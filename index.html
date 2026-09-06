@@ -1785,13 +1785,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .hub-brand-filter { display:inline-flex; align-items:center; gap:6px; }
         @media (max-width:1500px) { .news-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
         @media (max-width:1180px) { .news-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .hub-apply-grid { grid-template-columns:1fr; } }
-        @media (max-width:760px) { .news-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } }
+        @media (max-width:760px) {
+          .news-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        }
         @media (max-width:640px) {
           .hub-page-head { margin-bottom:20px; }
           .hub-primary-tabs { gap:24px; margin-bottom:16px; }
           .hub-secondary-tabs { margin-bottom:16px; }
-          .hub-news-card { height:248px; }
-          .hub-news-placeholder { height:148px; }
+          .news-grid { grid-template-columns:1fr; }
+          .hub-news-card { height:auto; }
+          .hub-news-placeholder { height:auto; aspect-ratio:16/9; display:block; }
+          .hub-news-image { position:absolute; inset:0; width:100%; height:100%; min-width:0; min-height:0; object-fit:contain; object-position:center top; }
+          .hub-news-image.hub-news-poster { height:auto; }
           .hub-apply-grid { gap:12px; }
           .hub-apply-item { height:auto; min-height:160px; grid-template-columns:104px minmax(0,1fr); }
           .hub-apply-thumb { width:104px; height:100%; grid-row:1/3; }
@@ -6357,7 +6362,7 @@ function renderHubNewsPage() {
       const date = escapeHtml(String(n.date || '').replace(/-/g, '.'));
       const imageUrl = String(n.image || '').trim();
       const media = imageUrl
-        ? `<div class="hub-news-placeholder"><img class="hub-news-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="hub-news-fallback" hidden><i data-lucide="newspaper" aria-hidden="true"></i></span></div>`
+        ? `<div class="hub-news-placeholder"><img class="hub-news-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onload="this.classList.toggle('hub-news-poster',this.naturalHeight>this.naturalWidth*1.8)" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="hub-news-fallback" hidden><i data-lucide="newspaper" aria-hidden="true"></i></span></div>`
         : `<div class="hub-news-placeholder"><span class="hub-news-fallback"><i data-lucide="newspaper" aria-hidden="true"></i></span></div>`;
       return `
         <${tag} ${tagAttrs} class="hub-news-card" title="${escapeHtml(n.title || '')}">

@@ -34,6 +34,9 @@ assert.match(hub, /\.news-grid \{[^}]*grid-template-columns:repeat\(5,minmax\(0,
 assert.match(hub, /\.hub-news-card \{[^}]*height:280px;/, '280px news card missing');
 assert.match(hub, /\.hub-news-placeholder \{[^}]*height:180px;/, '180px placeholder missing');
 assert.match(hub, /\.hub-news-image \{[^}]*object-fit:cover;/, 'official news image cover style missing');
+assert.match(hub, /\.hub-news-placeholder \{ height:auto; aspect-ratio:16\/9; display:block; \}/, 'phone news requires a consistent representative-image frame');
+assert.match(hub, /\.hub-news-image\.hub-news-poster \{ height:auto; \}/, 'long announcements must show their full-width top visual');
+assert.match(html, /this\.naturalHeight>this\.naturalWidth\*1\.8/, 'long announcement classification must use actual image dimensions');
 assert.match(hub, /\.hub-news-fallback\[hidden\] \{ display:none; \}/, 'broken-image fallback state missing');
 assert.match(hub, /\.hub-apply-grid \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\); gap:20px;/, 'two-column raffle grid missing');
 assert.match(hub, /\.hub-apply-item \{[^}]*height:145px;/, '145px raffle row missing');

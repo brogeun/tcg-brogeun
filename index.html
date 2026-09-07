@@ -2584,6 +2584,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/news-detail.js?v=20260907-news1"></script>
 <link rel="stylesheet" href="/assets/admin-editor.css?v=20260907-admin2">
 <script src="/assets/admin-editor.js?v=20260907-admin2"></script>
+<link rel="stylesheet" href="/assets/portfolio-screen.css?v=20260907-pf8-release">
+<script src="/assets/portfolio-screen.js?v=20260907-pf8-release"></script>
 <script>
 "use strict";
 
@@ -9098,7 +9100,7 @@ async function ensureBoxIdSet() {
   BOX_ID_SET = ids;
   return ids;
 }
-let _PF_RANGE = 180;
+let _PF_RANGE = 30;
 let _PF_AGG_CHART = null;
 let _PF_BRAND_CHART = null;
 let _PF_GRADE_CHART = null;
@@ -9121,7 +9123,7 @@ async function loadPortfolio() {
 async function loadCardMeta(cardId) {
   if (_PF_PRICE_CACHE[cardId]) return _PF_PRICE_CACHE[cardId];
   await loadCardSearchData();
-  let meta = (_ALL_CARDS_INDEX || []).find(c => c.id === cardId);
+  let meta = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(cardId));
 
   // 1순위: cards-detail.json — TOP10 인기 카드의 lowest_ask (카드 시세 페이지와 동일 데이터)
   let detailGrades = null;
@@ -9210,6 +9212,7 @@ async function loadCardMeta(cardId) {
 
   const result = {
     name: meta?.name || `Card #${cardId}`,
+    kind: meta?.kind,
     image: meta?.thumbnailUrl || '',
     brand: meta?.brand || 'unknown',
     history: points,
@@ -9220,11 +9223,23 @@ async function loadCardMeta(cardId) {
       box: boxJpy,
     },
   };
+  // Reuse the price screen's existing Korean-name and catalog-ID lookups.
+  if (window.PortfolioScreen && window.PriceProductInfo) {
+    try {
+      const product = { ...meta, ...detailProduct, id: String(cardId), name: result.name };
+      const box = meta?.kind === 'box' || BOX_ID_SET?.has(String(cardId));
+      const info = await PriceProductInfo.get(product, result.brand, box);
+      result.pack = info.sets.map(PriceProductInfo.label).join(' / ');
+      result.koName = (box && getBoxKoreanName(product,result.brand)) || HOME_TOP_KO_NAMES[String(cardId)] || product._koName || product.name_ko || '';
+    } catch {}
+  }
   _PF_PRICE_CACHE[cardId] = result;
   return result;
 }
 
+let _PF_OWNER_ID = null;
 async function refreshPortfolio() {
+  const userAtStart = CURRENT_USER;
   const gate = document.getElementById('pfLoginGate');
   const main = document.getElementById('pfMain');
   if (!CURRENT_USER) {
@@ -9234,9 +9249,15 @@ async function refreshPortfolio() {
   }
   gate.style.display = 'none';
   main.style.display = '';
-
+  if (_PF_OWNER_ID !== CURRENT_USER.id && window.PortfolioScreen) {
+    _PF_OWNER_ID = CURRENT_USER.id;
+    HOLDINGS = []; WATCHLIST = []; PSA_CERTS = [];
+    renderHoldings(); renderWatchlist(); renderAggChart(); renderDistributionCharts();
+  }
+  if (window.PortfolioScreen) PortfolioScreen.status('포트폴리오를 불러오는 중입니다.');
   const data = await loadPortfolio();
-  if (!data) return;
+  if (CURRENT_USER !== userAtStart) return;
+  if (!data) { if (window.PortfolioScreen) PortfolioScreen.status('데이터를 불러오지 못했습니다. 다시 접속해 주세요.',true); return; }
   HOLDINGS = data.holdings || [];
   WATCHLIST = data.watchlists || [];
   PSA_CERTS = data.psa_certs || [];
@@ -9250,7 +9271,8 @@ async function refreshPortfolio() {
     ...HOLDINGS.map(h => loadCardMeta(h.card_id)),
     ...WATCHLIST.map(w => loadCardMeta(w.card_id)),
   ]);
-
+  if (CURRENT_USER !== userAtStart) return;
+  if (window.PortfolioScreen) PortfolioScreen.status('');
   renderHoldings();
   renderWatchlist();
   renderAggChart();
@@ -9285,6 +9307,7 @@ function renderHoldings() {
     const badge = document.getElementById('pfPnlBadge');
     if (badge) badge.className = 'pf-hero-pnl';
     document.getElementById('pfChartWrap').style.display = 'none';
+    if (window.PortfolioScreen) PortfolioScreen.holdings();
     return;
   }
   empty.style.display = 'none';
@@ -9340,7 +9363,7 @@ function renderHoldings() {
     gmEl.innerHTML = `<span style="color:#111">${p10}%</span> · <span style="color:#374151">${p9}%</span> · <span style="color:var(--ink-sub)">${raw}%</span>`;
   }
 
-  list.innerHTML = enriched.map(h => {
+  list.innerHTML = (window.PortfolioScreen ? PortfolioScreen.pageItems(enriched) : enriched).map(h => {
     const sign = h.itemPnl >= 0 ? '#10b981' : '#ef4444';
     // PSA cert 인라인 영역 — PSA10 카드만 표시 (PSA9/raw/box 숨김)
     // (PSA9 는 POP 통계 의미 X → 사용자 요청으로 제거)
@@ -9407,9 +9430,11 @@ function renderHoldings() {
       ${bgsBlock}
     </div>`;
   }).join('');
+  if (window.PortfolioScreen) PortfolioScreen.holdings();
 }
 
 function renderWatchlist() {
+  if (window.PortfolioScreen) return PortfolioScreen.watchlist();
   const list = document.getElementById('wlList');
   const empty = document.getElementById('wlEmpty');
   if (!WATCHLIST.length) { list.innerHTML = ''; empty.style.display = ''; return; }
@@ -9649,6 +9674,7 @@ async function removeWatchlistApi(id) {
 
 // 합산 평가액 차트 — 일자별 holdings 가치 합산
 async function renderAggChart() {
+  if (window.PortfolioScreen) return PortfolioScreen.chart();
   if (!HOLDINGS.length) return;
   await loadChartJs();
   // 모든 holdings 의 history 일자별 합산
@@ -9736,6 +9762,7 @@ async function renderAggChart() {
 }
 
 async function renderDistributionCharts() {
+  if (window.PortfolioScreen) return PortfolioScreen.distributions();
   if (!HOLDINGS.length) return;
   await loadChartJs();
   // 브랜드별 / 등급별 평가액 합산

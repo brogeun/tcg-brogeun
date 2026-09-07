@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#F7F6F2"><title>푸린 만들기 · TCG Hub</title><link rel="stylesheet" href="./game.css?v=4"></head>
+<body><main>
+ <header><a href="/#home">← TCG Hub</a><span>MINI GAMES</span></header>
+ <div class="heading"><div><p class="eyebrow">POKÉMON MERGE</p><h1 id="game-title">푸린 만들기</h1><p id="game-description">푸린을 완성하는 가장 빠른 기록에 도전하세요.</p></div><div class="personal"><small id="best-label">이 기기 최단 시간</small><strong id="local-best">0</strong></div></div>
+ <div class="mode-picker" role="group" aria-label="게임 모드"><button id="mode-speed" aria-pressed="true"><strong>푸린 만들기</strong><span>완성 시간 경쟁</span></button><button id="mode-endless" aria-pressed="false"><strong>무한 만들기</strong><span>최고 점수 경쟁</span></button></div><p id="mode-rule" class="hint">첫 낙하부터 시간 측정 · 푸린을 완성하면 종료 · 완성 기록만 랭킹 등록</p><div class="layout"><section class="arena" aria-label="합성 게임">
+  <div class="scorebar"><span>점수 <strong id="score">0</strong></span><span id="mode-label">연습</span><span class="elapsed">진행 <span id="timer" aria-label="플레이한 시간">0:00</span></span></div>
+  <div class="play-area"><canvas id="board" width="960" height="1100" tabindex="0" aria-label="좌우 방향키로 위치를 고르고 Space로 떨어뜨리세요."></canvas><div class="side"><div>다음<canvas id="next" width="160" height="160"></canvas><span id="next-name"></span></div><div><span id="goal-label">최종 목표</span><img src="./sprites/jigglypuff.svg" alt="푸린"><span>푸린</span></div></div></div>
+  <div class="status" id="status" role="status">이미지를 불러오는 중…</div>
+  <div class="controls"><button id="left" aria-label="왼쪽">←</button><button id="drop" class="primary" disabled>떨어뜨리기</button><button id="right" aria-label="오른쪽">→</button><button id="pause" disabled>일시정지</button><button id="restart">새 게임</button><button id="demo">합성 예시</button></div>
+  <p class="hint">클릭·터치로 떨어뜨리기 · ← → / Space · 시간제한 없음 · 한계선을 넘으면 종료</p>
+  <div id="sequence" class="sequence" aria-label="합성 순서"></div>
+ </section><aside class="rank-panel">
+  <div class="rank-heading"><h2>회원 랭킹</h2><button id="refresh" aria-label="랭킹 새로고침">↻</button></div>
+  <p class="sub" id="rank-rule">완성 시간 TOP 20 · 빠른 순</p>
+  <p id="auth-status" class="notice">랭킹을 연결하는 중…</p><a id="login" href="/#home">허브에서 로그인하기 →</a>
+  <label class="nick-label">공개 닉네임<input id="nickname" maxlength="16" placeholder="2~16자" autocomplete="nickname" disabled></label>
+  <button id="rank-start" class="primary full" disabled>랭킹 게임 시작</button>
+  <p id="submission" class="sub" role="status"></p><div class="retry"><button id="retry" hidden>등록 재시도</button><button id="discard" hidden>기록 등록 포기</button></div>
+  <p id="my-rank" class="my-rank"></p><p id="rank-status" class="sub" role="status"></p>
+  <table><thead><tr><th>순위</th><th>닉네임</th><th id="rank-primary">시간</th><th id="rank-secondary">점수</th></tr></thead><tbody id="rank-body"></tbody></table>
+ </aside></div>
+ <footer>얼굴 그림: <a href="https://github.com/PokeAPI/sprites" target="_blank" rel="noopener">PokéAPI · Pokémon Dream World</a> · 원형 크롭 · 벡터 렌더링</footer>
+</main><script type="module" src="./game.js?v=4"></script></body></html>

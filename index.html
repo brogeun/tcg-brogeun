@@ -679,6 +679,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 .form-row { margin-bottom: 14px; }
 </style>
 <link rel="stylesheet" href="/assets/search-modal.css?v=20260906">
+<link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
 </head>
 <body>
 <script>
@@ -891,6 +892,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         </div>
         <div class="news-grid2" id="homeNewsGrid"></div>
         <div id="mobileHomeNews" class="mo-home-only" aria-live="polite"></div>
+      </div>
+
+      <div class="section2 home-play-events">
+        <section aria-labelledby="homeMinigamesTitle">
+          <div class="section-header2"><div><div class="home-v3-kicker muted">PLAY TOGETHER</div><h2 class="section-title2" id="homeMinigamesTitle">미니게임</h2></div><button type="button" class="section-more2" onclick="_gotoHubSub('minigames')">전체 보기 →</button></div>
+          <a class="minigame-card" href="/games/volleyball/">
+              <span class="minigame-copy"><strong>포켓 배구</strong><b>게임 시작 →</b></span>
+            </a>
+        </section>
+        <section aria-labelledby="homeEventsTitle">
+          <div class="section-header2"><div><div class="home-v3-kicker muted">EVENT</div><h2 class="section-title2" id="homeEventsTitle">이벤트</h2></div><button type="button" class="section-more2" onclick="_gotoHubSub('events')">전체 보기 →</button></div>
+          <div id="homeEventsCarousel" class="home-event-card"><button type="button" id="homeEventsSlide" class="etc-slide" onclick="_gotoHubSub('events')"><span class="etc-slide-thumb">🎉</span><span class="etc-slide-body"><span class="etc-slide-title">이벤트 둘러보기</span></span></button><div id="homeEventsDots" class="etc-dots" aria-label="이벤트 선택"></div></div>
+        </section>
       </div>
 
       <div class="section2 home-official-section">
@@ -1631,7 +1645,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <section class="page hub-redesign" data-page="hub">
       <div class="hub-page-head">
         <h1>소식</h1>
-        <p>뉴스 · 이벤트 · 오리파 · 매장 · 커뮤니티</p>
+        <p>뉴스 · 이벤트 · 오리파 · 매장 · 미니게임 · 커뮤니티</p>
       </div>
       <div class="hub-primary-tabs" id="hubTabs" role="tablist" aria-label="소식 카테고리">
         <button type="button" class="tab active" data-tab="news" role="tab" aria-selected="true">뉴스</button>
@@ -1647,6 +1661,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <button type="button" class="tab active" data-subtab="apply" role="tab" aria-selected="true">응모</button>
         <button type="button" class="tab" data-subtab="oripa" role="tab" aria-selected="false">오리파</button>
         <button type="button" class="tab" data-subtab="grading" role="tab" aria-selected="false">그레이딩</button>
+        <button type="button" class="tab" data-subtab="minigames" role="tab" aria-selected="false">미니게임</button>
         <button type="button" class="tab" data-subtab="etc" role="tab" aria-selected="false">기타</button>
       </div>
       <style>
@@ -1789,6 +1804,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div data-hubpanel="grading" style="display:none">
         <div id="gradingListHub" style="display:flex; flex-direction:column; gap:10px"></div>
       </div>
+      <div data-hubpanel="minigames" style="display:none" aria-label="미니게임 목록"><div class="hub-minigames"><a class="minigame-card" href="/games/volleyball/">
+              <span class="minigame-copy"><strong>포켓 배구</strong><b>게임 시작 →</b></span>
+            <span class="minigame-cast" aria-hidden="true"><img src="/games/volleyball/sprites/charmander.png" alt="" width="72" height="72" loading="lazy"><img src="/games/volleyball/sprites/pikachu.png" alt="" width="72" height="72" loading="lazy"><img src="/games/volleyball/sprites/squirtle.png" alt="" width="72" height="72" loading="lazy"></span></a></div></div>
       <div data-hubpanel="etc" style="display:none">
         <!-- 그레이딩/이벤트/카드쇼와 동일 — 독립적인 가로 row -->
         <div id="etcListHub" style="display:flex; flex-direction:column; gap:10px"></div>
@@ -3248,7 +3266,9 @@ function renderHomeEventsCarousel() {
       slide.innerHTML = `<div class="etc-slide-thumb" style="background:#f3f4f6">·</div><div class="etc-slide-body"><div style="background:#f3f4f6; height:11px; border-radius:3px; width:60px; margin-bottom:6px"></div><div style="background:#f3f4f6; height:15px; border-radius:3px; margin-bottom:6px; width:80%"></div><div style="background:#f3f4f6; height:11px; border-radius:3px; width:50px"></div></div>`;
       dots.innerHTML = '';
     } else {
-      wrap.parentElement.style.display = 'none';
+      slide.innerHTML = '<span class="etc-slide-thumb">🎉</span><span class="etc-slide-body"><span class="etc-slide-title">새 이벤트를 기다려 주세요</span><span class="etc-slide-date">이벤트 전체 보기 →</span></span>';
+      slide.onclick = () => _gotoHubSub('events');
+      dots.innerHTML = '';
     }
     return;
   }
@@ -3278,7 +3298,7 @@ function renderHomeEventsCarousel() {
     };
     slide.classList.remove('fading');
   }, 250);
-  dots.innerHTML = items.map((_, i) => `<div class="etc-dot ${i === _EVENTS_CAROUSEL_IDX ? 'active' : ''}" onclick="_eventsCarouselGoto(${i})"></div>`).join('');
+  dots.innerHTML = items.map((_, i) => `<button type="button" class="etc-dot ${i === _EVENTS_CAROUSEL_IDX ? 'active' : ''}" aria-label="이벤트 ${i + 1}" aria-pressed="${i === _EVENTS_CAROUSEL_IDX}" onclick="_eventsCarouselGoto(${i})"></button>`).join('');
 }
 
 window._eventsCarouselGoto = function(idx) {
@@ -6676,7 +6696,7 @@ document.addEventListener('click', e => {
 
 // 소식 탭 — 상위 탭과 각 하위 탭 상태를 독립적으로 유지한다.
 const HUB_NEWS_PANELS = ['news', 'cardshow'];
-const HUB_MORE_PANELS = ['events', 'apply', 'oripa', 'grading', 'etc'];
+const HUB_MORE_PANELS = ['events', 'apply', 'oripa', 'grading', 'minigames', 'etc'];
 let HUB_NEWS_SUB = 'news';
 let HUB_SUB = 'apply';
 let HUB_TOP = 'news';

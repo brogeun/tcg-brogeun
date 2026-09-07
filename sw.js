@@ -47,6 +47,12 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(req.url);
 
+  // Game modules must come from the same release, not stale-while-revalidate mixtures.
+  if (url.origin === location.origin && url.pathname.startsWith('/games/volleyball/')) {
+    event.respondWith(networkFirst(req, STATIC_CACHE));
+    return;
+  }
+
   // /api/* — 항상 네트워크 (인증/실시간 데이터)
   if (url.pathname.startsWith('/api/')) {
     return; // 기본 fetch 사용

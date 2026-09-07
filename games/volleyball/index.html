@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#102c32">
+  <title>포켓 배구 · TCG Hub</title>
+  <meta name="description" content="피카츄, 파이리, 꼬부기와 즐기는 TCG Hub 배구 미니게임. 캐릭터를 고르고 7점 선승 AI 대전에 도전하세요.">
+  <link rel="stylesheet" href="./game.css?v=5">
+  <script defer src="./boot.js?v=6"></script>
+</head>
+<body>
+  <audio id="bgm" src="./audio/we-are-all-friends-v1.mp3" preload="metadata" loop hidden></audio>
+  <header class="topbar"><a class="brand" href="../../#home">TCG <span>Hub</span></a><span class="crumb">/ 미니게임</span><a class="back" href="../../#home">← 허브로 돌아가기</a></header>
+  <main>
+    <div class="heading"><div><span class="eyebrow">TCG HUB ARCADE · 01</span><h1>포켓 배구<span class="beta">BETA</span></h1></div><p>공을 넘기고, 7점을 먼저 따내세요.</p></div>
+    <div class="game-layout">
+      <section class="arena" aria-label="배구 경기">
+        <div class="scorebar"><div><span class="player-tag">YOU</span><strong id="player-name">피카츄</strong></div><div class="score" aria-label="점수"><span id="player-score">0</span><span class="score-divider">:</span><span id="ai-score">0</span></div><div class="opponent"><strong id="ai-name">꼬부기</strong><span class="player-tag">CPU</span></div></div>
+        <div class="court-wrap">
+          <canvas id="court" width="960" height="540" tabindex="0" aria-label="배구 코트. 방향키로 이동, 위 방향키로 점프, 스페이스로 스파이크, Shift 또는 아래 방향키로 슬라이딩. P로 일시정지.">이 게임은 Canvas를 지원하는 브라우저에서 플레이할 수 있습니다.</canvas>
+          <div id="overlay" class="overlay"><div class="overlay-card"><span class="eyebrow" id="overlay-label">READY TO PLAY</span><h2 id="overlay-title">오늘의 선수는?</h2><p id="overlay-copy">캐릭터를 고른 뒤 코트에 입장하세요.</p><button id="start" class="primary" disabled>캐릭터 불러오는 중…</button></div></div>
+          <div class="orientation-hint" role="status"><span aria-hidden="true">↻</span><strong>휴대폰을 가로로 돌려 주세요</strong><p>가로 화면에서 더 크게 플레이할 수 있어요.<br>회전되지 않으면 기기의 회전 잠금을 해제해 주세요.</p></div>
+          <div id="rally-message" class="rally-message" aria-live="polite"></div>
+        </div>
+        <div class="court-footer"><span><i class="live-dot"></i> <span id="match-state" role="status">경기 준비</span></span><div class="court-actions"><label class="music-volume" for="music-volume"><span>볼륨</span><input id="music-volume" type="range" min="0" max="100" step="1" value="35" aria-valuetext="35%"><output id="music-volume-value" for="music-volume">35%</output></label><button id="sound" aria-pressed="true" title="경기 시작 시 배경음악 재생">BGM 켜짐</button><button id="pause" disabled>일시정지</button><button id="restart" disabled>다시 시작</button><button id="expand" type="button" aria-label="게임 화면 확대" aria-pressed="false" title="전체화면으로 크게 플레이"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg><span>확대</span></button></div></div>
+        <div class="touch-controls" aria-label="터치 조작"><div><button data-control="left" aria-label="왼쪽 이동">←</button><button data-control="right" aria-label="오른쪽 이동">→</button></div><div><button data-control="jump">점프</button><button data-control="slide" class="slide">슬라이딩</button><button data-control="spike" class="spike">스파이크</button></div></div>
+      </section>
+      <aside class="setup">
+        <fieldset id="characters"><legend><span class="step">01</span> 내 캐릭터</legend><div class="character-list">
+          <button class="character electric" data-character="pikachu" aria-pressed="true"><img src="./sprites/pikachu.png" alt="" width="80" height="80"><span><strong>피카츄</strong><small>전기처럼 짜릿한 한 방</small></span><span class="type">전기</span></button>
+          <button class="character fire" data-character="charmander" aria-pressed="false"><img src="./sprites/charmander.png" alt="" width="80" height="80"><span><strong>파이리</strong><small>코트를 달구는 스파이크</small></span><span class="type">불꽃</span></button>
+          <button class="character water" data-character="squirtle" aria-pressed="false"><img src="./sprites/squirtle.png" alt="" width="80" height="80"><span><strong>꼬부기</strong><small>시원하게 넘기는 한 판</small></span><span class="type">물</span></button>
+        </div><p class="fair-play">세 캐릭터의 이동·점프 능력은 같아요.</p></fieldset>
+        <div class="settings"><label for="opponent"><span class="step">02</span> 상대 캐릭터</label><select id="opponent"><option value="squirtle">꼬부기</option><option value="charmander">파이리</option><option value="pikachu">피카츄</option></select><label for="difficulty">난이도</label><select id="difficulty"><option value="easy">가볍게 · 쉬움</option><option value="normal" selected>한 판 승부 · 보통</option><option value="hard">빈틈없이 · 어려움</option></select></div>
+        <div class="rank-settings"><label for="nickname">리더보드 공개 닉네임</label><input id="nickname" maxlength="16" value="트레이너" autocomplete="nickname" aria-describedby="ranking-auth" disabled><label class="rank-toggle"><input id="ranked" type="checkbox" checked disabled> 회원 순위에 기록</label><p id="ranking-auth">회원 리더보드 연결 중…</p><a id="ranking-login" href="../../#home">허브에서 로그인하기 →</a></div>
+        <details class="instructions" open><summary>플레이 방법</summary><div><p><kbd>←</kbd> <kbd>→</kbd><span>이동 <small>A / D도 가능</small></span></p><p><kbd>↑</kbd><span>점프 <small>W도 가능</small></span></p><p><kbd>SPACE</kbd><span>스파이크 <small>점프해서 공 가까이!</small></span></p><p><kbd>SHIFT</kbd> <kbd>↓</kbd><span>슬라이딩 <small>S도 가능</small></span></p><p><kbd>P</kbd><span>일시정지</span></p><p class="rule">몸에 닿으면 자동으로 공을 받아쳐요. 공이 내 코트에 떨어지면 상대가 1점을 얻어요. 땅에서 이동 방향 + 슬라이딩으로 낮은 공을 받아내세요. 0.85초 뒤 다시 사용할 수 있어요.</p></div></details>
+      </aside>
+    </div>
+    <section class="leaderboard" aria-labelledby="ranking-title">
+      <div class="ranking-heading"><div><span class="eyebrow">MEMBER RANKING</span><h2 id="ranking-title">난이도별 리더보드</h2></div><button id="refresh-ranking" type="button">순위 새로고침</button></div>
+      <div class="ranking-tabs" role="group" aria-label="리더보드 난이도"><button data-ranking="easy" aria-pressed="false">쉬움</button><button data-ranking="normal" aria-pressed="true">보통</button><button data-ranking="hard" aria-pressed="false">어려움</button></div>
+      <p class="ranking-rule">회원별 최고 기록 · 득점 높은 순 → 실점 적은 순 → 경기 시간 짧은 순 · 중도 종료 경기는 제외</p>
+      <p id="submission-status" role="status"></p><div class="submission-actions"><button id="retry-ranking" type="button" hidden>기록 등록 재시도</button><button id="discard-ranking" type="button" hidden>이번 기록 포기</button></div>
+      <p id="my-ranking"></p>
+      <div class="ranking-scroll"><table><caption id="ranking-caption">보통 · 전체 회원 TOP 20</caption><thead><tr><th scope="col">순위</th><th scope="col">회원</th><th scope="col">캐릭터</th><th scope="col">득점 : 실점</th><th scope="col">경기 시간</th></tr></thead><tbody id="ranking-body"></tbody></table></div>
+      <p id="ranking-status" role="status">순위를 불러오는 중…</p>
+    </section>
+    <footer class="credits">TCG Hub 팬 미니게임 · Pokémon © Nintendo / Creatures / GAME FREAK. <a href="https://github.com/PokeAPI/sprites" target="_blank" rel="noopener noreferrer">기본 스프라이트: PokeAPI</a> · <a href="https://github.com/PMDCollab/SpriteCollab" target="_blank" rel="noopener noreferrer">동작 스프라이트: CHUNSOFT / SpriteCollab</a> · BGM: 우리는 모두 친구</footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,30 @@
+.home-play-events{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.home-play-events>section{min-width:0;display:grid;grid-template-rows:auto 1fr}
+.home-play-events h2{margin:0}
+.home-play-events .section-more2{border:0;background:none;cursor:pointer;font-family:inherit;padding:4px 0}
+.minigame-card{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:0;padding:20px 24px;color:var(--text-primary);text-decoration:none;background:var(--bg-surface2,#fff);border:1px solid var(--border2,#ddd);border-radius:14px;box-shadow:var(--shadow-sm);overflow:hidden}
+.minigame-card:hover{border-color:#13a89c}
+.minigame-copy{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:14px;min-width:0}
+.minigame-badge{font-size:11px;letter-spacing:.08em;font-weight:700;color:#078077}
+.minigame-copy strong{font-size:21px;line-height:1.3;letter-spacing:-.03em}
+.minigame-copy>span:not(.minigame-badge){font-size:14px;color:var(--text-secondary);line-height:1.5;word-break:keep-all}
+.minigame-copy small{font-size:12px;color:var(--text-tertiary)}
+.minigame-copy b{font-size:14px;color:#078077;margin-top:5px}
+.minigame-cast{display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:50%;background:#e8faf5;padding:8px 0}
+.minigame-cast img{width:72px;height:72px;object-fit:contain;image-rendering:pixelated;margin-left:-20px}
+.minigame-cast img:first-child{margin-left:0}
+.minigame-cast img:nth-child(2){position:relative;z-index:1;transform:translateY(-8px)}
+.hub-minigames{max-width:760px}
+.home-event-card{display:flex;flex-direction:column;justify-content:center;min-height:0;background:var(--bg-surface2,#fff);border:1px solid var(--border2,#ddd);border-radius:14px;box-shadow:var(--shadow-sm);padding:0}
+.home-event-card .etc-slide{flex:1;width:100%;min-height:0;box-shadow:none;appearance:none;border:0;border-radius:12px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:20px 24px}
+.home-event-card .etc-slide-body{display:flex;flex-direction:column;gap:4px}
+.home-event-card .etc-slide-title{font-size:16px}
+.home-event-card .etc-slide-thumb{width:56px;height:56px;flex:0 0 56px;border-radius:12px;background:#fff4db}
+.home-event-card .etc-slide-thumb img{object-fit:contain}
+.home-event-card .etc-dots:empty{display:none}
+.home-event-card .etc-dots{margin:0 16px 8px;align-items:center}
+.home-event-card .etc-dot{border:0;padding:0;height:10px;min-width:10px}
+.home-play-events a:focus-visible,.home-play-events button:focus-visible,.hub-minigames a:focus-visible{outline:3px solid #0a9e93;outline-offset:3px}
+@media(max-width:1100px){.minigame-card{padding:18px;gap:8px}.minigame-cast img{width:58px;height:64px}.home-event-card .etc-slide{padding:18px}}
+@media(max-width:700px){.home-play-events{grid-template-columns:1fr;gap:24px}.minigame-card{min-height:0}.minigame-cast img{width:64px;height:72px}.home-event-card{min-height:0}.home-event-card .etc-slide{min-height:0}}
+@media(max-width:380px){.minigame-cast img{width:52px;height:60px}.minigame-card{padding:16px}.minigame-copy>span:not(.minigame-badge){font-size:13px}}

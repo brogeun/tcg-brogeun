@@ -84,7 +84,7 @@ jobs:
           for f in mobile.html manifest.json sw.js favicon.ico robots.txt privacy.html terms.html _headers ads.txt; do
             [ -f "$f" ] && cp "$f" _deploy/ || true
           done
-          for d in assets images img public static ev-calculator; do
+          for d in assets images img public static ev-calculator games; do
             [ -d "$d" ] && cp -r "$d" _deploy/ || true
           done
           # functions 배포 — admin + auth + portfolio (명시적 화이트리스트)
@@ -107,6 +107,9 @@ jobs:
           for f in centering-ai.js casing-generate.js casing-proxy-image.js; do
             [ -f "functions/api/$f" ] && cp "functions/api/$f" "_deploy/functions/api/$f" && echo "✓ api/$f"
           done
+          # Member volleyball rankings
+          mkdir -p _deploy/functions/api/games
+          cp functions/api/games/volleyball.js _deploy/functions/api/games/volleyball.js
           # auth
           for f in request.js verify.js me.js logout.js; do
             [ -f "functions/api/auth/$f" ] && cp "functions/api/auth/$f" "_deploy/functions/api/auth/$f" && echo "✓ auth/$f"
@@ -127,6 +130,12 @@ jobs:
           find _deploy -type f | head -30
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
+
+      - name: Initialize volleyball member rankings
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: node scripts/migrate_volleyball_cloudflare.mjs
 
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}

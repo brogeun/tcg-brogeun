@@ -6,6 +6,16 @@
 
 .court-footer{flex-wrap:wrap}.court-actions{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}.music-volume{display:flex;align-items:center;gap:7px;font-size:12px;color:#c7dede;margin-right:5px}.music-volume input{width:90px;min-height:32px;accent-color:#34ddc2;cursor:pointer}.music-volume output{min-width:34px;text-align:right;font-variant-numeric:tabular-nums}.music-volume input:focus-visible{outline:3px solid #00a9a9;outline-offset:3px;border-radius:4px}@media(max-width:600px){.court-actions{width:100%;justify-content:space-between;gap:3px}.music-volume{margin-right:auto}.music-volume input{width:70px}.court-actions button{margin-left:0}}
 
+/* Compact character choices also cover narrow landscape sidebars on phones. */
+@media(max-width:1050px),(pointer:coarse){
+  .character small,.character .type,.fair-play{display:none}
+  .character-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .character{flex-direction:column;justify-content:center;min-width:0;min-height:104px;text-align:center;padding:6px!important;gap:4px}
+  .character img{width:64px;max-width:100%;height:64px}
+  .character>span:nth-child(2){flex:0 0 auto;min-width:0}
+  .character strong{font-size:14px;margin:0;white-space:nowrap}
+}
+
 #expand{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;margin-left:auto;border-color:#548e91;color:#74f2df}.orientation-hint{display:none}
 body.game-expanded{overflow:hidden;overscroll-behavior:none}
 .arena.expanded{position:fixed;inset:0;z-index:10000;width:100%;height:100vh;height:100dvh;border:0;border-radius:0;display:grid;grid-template-rows:38px minmax(0,1fr) 44px;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);box-sizing:border-box;background:#102c32}

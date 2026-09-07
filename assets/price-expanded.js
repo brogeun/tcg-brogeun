@@ -107,7 +107,7 @@
     panel.innerHTML=`<article class="px-detail" data-product-kind="${box?'box':'card'}">${head()}
       <section class="px-summary" aria-label="상품 기본 정보">
         <div class="px-art">${product.image?`<img src="${escapeHtml(product.image)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>이미지 없음</span>`:'<span>이미지 없음</span>'}</div>
-        <div class="px-summary-main"><div class="px-summary-top"><span class="px-badge ${brand==='onepiece'?'op':''}">${brand==='onepiece'?'원피스':'포켓몬'}</span><div class="px-tools"><button type="button" class="px-icon-btn" id="pxWatch" aria-label="관심 상품 추가" aria-pressed="false">${icon('star')}</button><button type="button" class="px-icon-btn" id="pxShare" aria-label="시세 링크 공유">${icon('share')}</button></div></div>
+        <div class="px-summary-main"><div class="px-summary-top"><span class="px-badge ${brand==='onepiece'?'op':''}">${brand==='onepiece'?'원피스':'포켓몬'}</span><div class="px-tools"><button type="button" class="px-icon-btn card-favorite" id="pxWatch" data-watch-id="${escapeHtml(String(id))}" data-watch-grade="${box?'box':'psa10'}" aria-label="즐겨찾기 추가" aria-pressed="false">${icon('star')}</button><button type="button" class="px-icon-btn" id="pxShare" aria-label="시세 링크 공유">${icon('share')}</button></div></div>
           <h1 class="px-title" title="${escapeHtml(name)}">${escapeHtml(name)}</h1>
           ${name!==originalName?`<p class="px-original" title="${escapeHtml(originalName)}">${escapeHtml(originalName)}</p>`:''}
           <p class="px-pack">${escapeHtml(pack || '카드정보에 확장팩 미등록')}</p>
@@ -132,10 +132,7 @@
       node.innerHTML=`<button class="px-icon-btn" type="button" aria-label="이전 상품" ${idx===0?'disabled':''}>${icon('back')}</button><span>${idx+1} / ${nav.list.length}</span><button class="px-icon-btn" type="button" aria-label="다음 상품" ${idx===nav.list.length-1?'disabled':''}><span style="transform:rotate(180deg);display:flex">${icon('back')}</span></button>`;
       node.children[0].onclick=()=>navDetailTo(nav.list[idx-1]);node.children[2].onclick=()=>navDetailTo(nav.list[idx+1]);
     }
-    const watch=panel.querySelector('#pxWatch');
-    function updateWatch(){const active=WATCHLIST.some(w=>String(w.snkrdunk_id || w.card_id)===String(id));watch.setAttribute('aria-pressed',String(active));watch.setAttribute('aria-label',active?'관심 상품 제거':'관심 상품 추가');watch.innerHTML=icon('star');}
-    updateWatch();
-    watch.onclick=async()=>{watch.disabled=true;try{await toggleCardWatch(String(id),watch);}finally{updateWatch();watch.disabled=false;}};
+    window.CardFavorites?.sync();
     panel.querySelector('#pxShare').onclick=async()=>{
       const url=`${location.origin}${location.pathname}#price/${encodeURIComponent(id)}`;
       if (navigator.share) {try {await navigator.share({title:name+' 시세 — TCG Hub',url});return;}catch(error){if(error.name==='AbortError')return;}}

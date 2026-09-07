@@ -1352,6 +1352,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>
         </button>
         <div class="slide-actions-top">
+          <button type="button" class="slide-icon-btn card-favorite" id="slideWatchBtn" aria-label="즐겨찾기 추가" aria-pressed="false"></button>
           <button type="button" class="slide-icon-btn" id="slideShareBtn" title="공유" aria-label="공유">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4"/></svg>
           </button>
@@ -2597,13 +2598,15 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
-<script src="/assets/price-expanded.js?v=20260906-meta2"></script>
+<script src="/assets/price-expanded.js?v=20260907-favorites1"></script>
+<script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260907-news1"></script>
 <link rel="stylesheet" href="/assets/admin-editor.css?v=20260907-admin2">
 <script src="/assets/admin-editor.js?v=20260907-admin2"></script>
 <link rel="stylesheet" href="/assets/portfolio-screen.css?v=20260907-pf8-release">
-<script src="/assets/portfolio-screen.js?v=20260907-pf8-release"></script>
+<script src="/assets/portfolio-screen.js?v=20260907-favorites1"></script>
+<link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
 <script>
 "use strict";
 
@@ -3380,6 +3383,7 @@ async function renderHomeAsset() {
       if (data) {
         HOLDINGS = data.holdings || [];
         WATCHLIST = data.watchlists || [];
+  window.CardFavorites?.sync();
         if (typeof PSA_CERTS !== 'undefined') PSA_CERTS = data.psa_certs || [];
       }
     } catch {}
@@ -3718,13 +3722,7 @@ async function showPriceDetailPanel(productId) {
           <!-- 카드 이름 + 우측 상단 관심 토글 (쇼핑몰 스타일) -->
           <div style="display:flex; align-items:flex-start; gap:12px">
             <div style="flex:1; font-size:16px; font-weight:800; color:#111; line-height:1.4; min-width:0">${product.name}</div>
-            <button id="watchToggleBtn" type="button" title="관심 카드 토글"
-                    style="border:none; background:transparent; cursor:pointer; padding:6px; font-size:22px; line-height:1; flex-shrink:0; transition:transform 0.15s"
-                    onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"
-                    data-watch-id="${productId}" data-watch-name="${escapeHtml(product.name || '').replace(/"/g, '&quot;')}"
-                    onclick="event.stopPropagation(); toggleCardWatch('${productId}', this)">
-              ${(typeof WATCHLIST !== 'undefined' && WATCHLIST.some(w => String(w.snkrdunk_id) === String(productId))) ? '<span style="color:#f59e0b">★</span>' : '<span style="color:#d1d5db">☆</span>'}
-            </button>
+            <button id="watchToggleBtn" type="button" class="card-favorite" data-watch-id="${productId}" aria-label="즐겨찾기 추가" aria-pressed="false"></button>
           </div>
           <div style="margin-top:6px">
             <div id="detailMainPrice-${productId}" style="font-size:24px; font-weight:900; color:#111">${isCard ? '가격 불러오는 중…' : fmtKrw(price, product.currency)}</div>
@@ -5078,65 +5076,9 @@ function renderSearchResultsTo(targetId, results, query) {
   box.style.display = 'block';
 }
 
-// 즐겨찾기 빠른 토글
-window.toggleWatchlistFromSearch = function(cardId, btn) {
-  if (!CURRENT_USER) {
-    openLoginModal('관심 카드에 추가하려면 로그인이 필요합니다');
-    return;
-  }
-  // 토글: 별표 비어있으면 추가, 채워있으면 제거
-  const isAdded = btn.textContent === '★';
-  if (isAdded) {
-    showToast('관심 목록에서 빼는 기능은 마이페이지에서', 'info');
-  } else {
-    fetch('/api/portfolio/watchlist', {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ card_id: cardId, grade: 'psa10' }),
-    }).then(r => {
-      if (r.ok) {
-        btn.textContent = '★';
-        btn.style.color = '#fbbf24';
-        showToast('관심 목록 추가 ⭐', 'success');
-      } else showToast('추가 실패', 'error');
-    });
-  }
-};
-
-// 카드 상세 페이지 우측 상단 별 토글 (쇼핑몰 스타일 — 추가/제거 둘 다)
-window.toggleCardWatch = async function(cardId, btn) {
-  if (!CURRENT_USER) {
-    openLoginModal('관심 카드에 추가하려면 로그인이 필요합니다');
-    return;
-  }
-  const existing = (typeof WATCHLIST !== 'undefined' ? WATCHLIST : []).find(w => String(w.snkrdunk_id) === String(cardId));
-  if (existing) {
-    // 제거
-    try {
-      const r = await fetch(`/api/portfolio/watchlist/${existing.id}`, { method: 'DELETE', credentials: 'include' });
-      if (r.ok) {
-        btn.innerHTML = '<span style="color:#d1d5db">☆</span>';
-        WATCHLIST = WATCHLIST.filter(w => w.id !== existing.id);
-        showToast('관심 목록에서 제거', 'info');
-      } else showToast('제거 실패', 'error');
-    } catch (e) { showToast('네트워크 오류', 'error'); }
-  } else {
-    // 추가
-    try {
-      const r = await fetch('/api/portfolio/watchlist', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ card_id: cardId, grade: 'psa10' }),
-      });
-      if (r.ok) {
-        const d = await r.json().catch(() => ({}));
-        btn.innerHTML = '<span style="color:#f59e0b">★</span>';
-        if (d.watchlist && typeof WATCHLIST !== 'undefined') WATCHLIST.push(d.watchlist);
-        showToast('관심 목록 추가 ⭐', 'success');
-      } else showToast('추가 실패', 'error');
-    } catch (e) { showToast('네트워크 오류', 'error'); }
-  }
-};
+// Shared favorite toggle across all card surfaces.
+window.toggleWatchlistFromSearch = (cardId, btn) => CardFavorites.toggle(cardId, btn);
+window.toggleCardWatch = (cardId, btn) => CardFavorites.toggle(cardId, btn);
 
 // X 버튼 → 검색 비우기 (양쪽 검색바 모두)
 document.addEventListener('click', e => {
@@ -5703,6 +5645,8 @@ let CURRENT_SLIDE_ID = null;
 
 window.openSlidePanel = async function(productId) {
   CURRENT_SLIDE_ID = String(productId);
+  document.getElementById('slideWatchBtn').dataset.watchId = String(productId);
+  CardFavorites.sync();
   const overlay = document.getElementById('slideOverlay');
   const panel = document.getElementById('slidePanel');
   if (!overlay || !panel) return;
@@ -9280,6 +9224,7 @@ async function refreshPortfolio() {
   if (!data) { if (window.PortfolioScreen) PortfolioScreen.status('데이터를 불러오지 못했습니다. 다시 접속해 주세요.',true); return; }
   HOLDINGS = data.holdings || [];
   WATCHLIST = data.watchlists || [];
+  window.CardFavorites?.sync();
   PSA_CERTS = data.psa_certs || [];
   await ensureBoxIdSet(); // 박스/카드 판별용 — PSA Cert# 입력란 차단
 
@@ -9688,7 +9633,7 @@ window.removePsaCert = async function(certId) {
 
 async function removeWatchlistApi(id) {
   const r = await fetch(`/api/portfolio/watchlist/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (r.ok) { showToast('관심에서 제거', 'info'); refreshPortfolio(); }
+  if (r.ok) { WATCHLIST = WATCHLIST.filter(w => String(w.id) !== String(id)); window.CardFavorites?.sync(); showToast('관심에서 제거', 'info'); refreshPortfolio(); }
   else showToast('제거 실패', 'error');
 }
 
@@ -9929,6 +9874,7 @@ async function fetchAuthMe() {
 }
 
 function renderAuthStatus() {
+  window.CardFavorites?.sessionChanged();
   syncAdminAccess();
   if (window.AdminEditorUI) AdminEditorUI.access(CURRENT_USER);
   syncHomeAuthView();
@@ -10771,18 +10717,7 @@ window.submitAddPortfolio = async function(cardId) {
   }
 };
 
-window.openAddToWatchlist = function(cardId, cardName, suggestedGrade) {
-  requireLoginThen(async () => {
-    const r = await fetch('/api/portfolio/watchlist', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ card_id: cardId, grade: suggestedGrade || 'psa10' }),
-    });
-    if (r.ok) showToast('관심 목록에 추가되었습니다 ⭐', 'success');
-    else showToast('추가 실패', 'error');
-  }, '관심 카드에 추가하려면 로그인이 필요합니다');
-};
+window.openAddToWatchlist = (cardId, cardName, suggestedGrade) => CardFavorites.toggle(cardId, null, suggestedGrade || 'psa10');
 
 /* ────────────────────────────────────
    10. 초기화 — 페이지 진입

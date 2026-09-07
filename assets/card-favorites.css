@@ -1,0 +1,14 @@
+/* Transparent outline -> yellow filled star, including touch hover states. */
+button.card-favorite, button.card-favorite:hover, button.card-favorite:active {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:44px; min-height:44px; flex-shrink:0; padding:10px;
+  border:0; border-radius:10px; background:transparent; color:#666560; cursor:pointer;
+}
+button.card-favorite .favorite-icon {
+  width:24px; height:24px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;
+}
+button.card-favorite[aria-pressed="true"] { color:#A17A00; background:transparent; }
+button.card-favorite[aria-pressed="true"] .favorite-icon { fill:#FFD700; }
+button.card-favorite:focus-visible { outline:2px solid #A17A00; outline-offset:2px; }
+button.card-favorite:disabled { cursor:wait; opacity:.6; }

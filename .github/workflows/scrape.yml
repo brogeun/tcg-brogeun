@@ -131,12 +131,6 @@ jobs:
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
 
-      - name: Initialize volleyball member rankings
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: node scripts/migrate_volleyball_cloudflare.mjs
-
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}
         env:

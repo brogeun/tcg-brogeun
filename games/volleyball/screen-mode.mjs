@@ -1,6 +1,6 @@
 export function initScreenMode({ arena, button, onPause }) {
   let expanded = false, busy = false, usedNative = false, transition = 0;
-  let viewportWidth = window.innerWidth, viewportHeight = window.innerHeight;
+  let viewportWidth = window.innerWidth;
   const portrait = matchMedia('(orientation: portrait)');
   const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
   function update() {
@@ -73,8 +73,10 @@ export function initScreenMode({ arena, button, onPause }) {
   document.addEventListener('webkitfullscreenchange', fullscreenChanged);
   portrait.addEventListener('change', () => { onPause(); update(); });
   window.addEventListener('resize', () => {
-    if (window.innerWidth === viewportWidth && window.innerHeight === viewportHeight) return;
-    viewportWidth = window.innerWidth; viewportHeight = window.innerHeight;
+    // Mobile browser bars change height during a gesture. Keep held controls
+    // intact; width changes and orientation changes still pause for layout.
+    if (window.innerWidth === viewportWidth) return;
+    viewportWidth = window.innerWidth;
     onPause(); update();
   });
   document.addEventListener('keydown', event => {

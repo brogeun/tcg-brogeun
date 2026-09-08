@@ -1,9 +1,9 @@
 import { Match, CHARACTERS, DIFFICULTIES, W, H, FLOOR, NET, R } from './engine.mjs?v=6';
 import { encodeInput, MAX_TICKS, MAX_CHANGES, RULES_VERSION } from './replay.mjs?v=6';
 import { initLeaderboard, lockRanking, prepareRankedMatch, submitRankedMatch } from './leaderboard.js?v=6';
-import { initScreenMode } from './screen-mode.mjs?v=2';
+import { initScreenMode } from './screen-mode.mjs?v=3';
 import { SLIDE_POSES, slideVisual } from './slide-poses.mjs?v=1';
-import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=1';
+import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=3';
 import { MatchFeedback, ResumeCountdown } from './feedback.mjs?v=1';
 
 const $ = id => document.getElementById(id);
@@ -154,12 +154,12 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 controls.bindTouchControls(document.querySelectorAll('[data-control]'), { document,
   isActive: () => ['playing', 'serve', 'point'].includes(match.phase) && !starting });
 
-const skillButtons = ['slide', 'spike'].map(name => document.querySelector(`[data-control="${name}"]`));
+const skillButtons = ['slide', 'attack'].map(name => document.querySelector(`[data-control="${name}"]`));
 function updateSkillFeedback() {
   const p = match.players[0];
   for (const button of skillButtons) {
     const slide = button.dataset.control === 'slide', cooldown = slide ? p.slideCooldown : p.cooldown;
-    const label = cooldown > .01 ? `${cooldown.toFixed(1)}초` : slide ? '준비' : p.y < FLOOR - R - 15 ? '공격!' : '점프 후';
+    const label = cooldown > .01 ? `${cooldown.toFixed(1)}초` : slide ? '준비' : p.y < FLOOR - R - 15 ? '스파이크' : '점프 + 스파이크';
     const detail = button.querySelector('small');
     if (detail.textContent !== label) detail.textContent = label;
     button.style.setProperty('--cooldown', `${Math.min(100, cooldown / (slide ? .85 : .5) * 100)}%`);

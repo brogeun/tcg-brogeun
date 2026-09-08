@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { initScreenMode } from '../games/volleyball/screen-mode.mjs';
+import { ResumeCountdown } from '../games/volleyball/feedback.mjs';
 
 function surface(extra = {}) {
   const listeners = new Map();
@@ -11,7 +12,7 @@ function surface(extra = {}) {
     async emit(name, event = {}) { await Promise.all((listeners.get(name) || []).map(callback => callback(event))); },
   };
 }
-function setup({ native = false, rejected = false } = {}) {
+function setup({ native = false, rejected = false, onPause = () => {} } = {}) {
   let pauses = 0, unlocks = 0;
   const portrait = surface({ matches: false });
   const label = { textContent: '' }, attributes = new Map();
@@ -29,7 +30,7 @@ function setup({ native = false, rejected = false } = {}) {
     document.exitFullscreen = async () => { document.fullscreenElement = null; await document.emit('fullscreenchange'); };
   }
   Object.assign(globalThis, { document, window, screen, matchMedia: () => portrait });
-  const mode = initScreenMode({ arena, button, onPause() { pauses++; } });
+  const mode = initScreenMode({ arena, button, onPause() { pauses++; onPause(); } });
   return { arena, button, document, window, screen, portrait, mode, attributes, pauses: () => pauses, unlocks: () => unlocks };
 }
 
@@ -54,10 +55,32 @@ for (const options of [{}, { native: true }, { native: true, rejected: true }]) 
   assert.equal(test.pauses(), before, 'duplicate resize notifications do not interrupt play');
   test.window.innerHeight -= 20;
   await test.window.emit('resize');
-  assert.equal(test.pauses(), before + 1, 'changed viewport dimensions pause');
+  assert.equal(test.pauses(), before, 'height-only browser chrome changes preserve active controls');
+  assert.equal(test.mode.canPlay(), true, 'height-only changes keep landscape gameplay available');
+  test.window.innerWidth -= 20;
+  await test.window.emit('resize');
+  assert.equal(test.pauses(), before + 1, 'width changes still pause gameplay and cancel resume through onPause');
   await test.button.emit('click');
   assert.equal(test.arena.classList.contains('expanded'), false, 'exit restores the page');
   assert.equal(test.attributes.get('aria-pressed'), 'false');
+}
+
+{
+  const countdown = new ResumeCountdown();
+  const test = setup({ onPause: () => countdown.cancel() });
+  await test.button.emit('click');
+  countdown.start();
+  test.window.innerHeight -= 30;
+  await test.window.emit('resize');
+  assert.equal(countdown.active, true, 'browser chrome changes do not interrupt a resume countdown');
+  test.window.innerWidth -= 30;
+  await test.window.emit('resize');
+  assert.equal(countdown.active, false, 'width changes cancel a resume countdown');
+  for (const portrait of [true, false]) {
+    countdown.start(); test.portrait.matches = portrait;
+    await test.portrait.emit('change');
+    assert.equal(countdown.active, false, 'either rotation direction cancels a resume countdown');
+  }
 }
 
 {
@@ -87,4 +110,4 @@ for (const options of [{}, { native: true }, { native: true, rejected: true }]) 
   assert.equal(test.arena.classList.contains('expanded'), false, 'close remains usable after a refused exit');
 }
 
-console.log('PASS: viewport and rotation pauses, hidden-page and transition guards, native/fallback entry, canceled requests, refused-exit recovery');
+console.log('PASS: browser chrome resize preserves gameplay, width and rotation pause, hidden-page and transition guards, native/fallback entry, canceled requests, refused-exit recovery');

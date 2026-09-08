@@ -20,13 +20,19 @@ function tap(controls, code) { controls.keyDown(code); controls.keyUp(code); }
 
 class Surface {
   listeners = new Map();
-  addEventListener(type, fn) {
+  listenerOptions = new Map();
+  addEventListener(type, fn, options) {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set());
     this.listeners.get(type).add(fn);
+    this.listenerOptions.set(type, options);
   }
   removeEventListener(type, fn) { this.listeners.get(type)?.delete(fn); }
+  contains(target) {
+    for (let node = target; node; node = node.parentElement) if (node === this) return true;
+    return false;
+  }
   fire(type, options = {}) {
-    const event = { pointerId: 1, button: 0, clientX: 10, clientY: 10, prevented: false,
+    const event = { target: this, pointerId: 1, button: 0, clientX: 10, clientY: 10, prevented: false,
       preventDefault() { this.prevented = true; }, ...options };
     for (const handler of this.listeners.get(type) || []) handler(event);
     return event;
@@ -44,13 +50,23 @@ class Button extends Surface {
   hasPointerCapture(id) { return this.captures.has(id); }
   releasePointerCapture(id) { this.captures.delete(id); this.fire('lostpointercapture', { pointerId: id }); }
 }
-function touchSetup(isActive = () => true) {
+function touchSetup(isActive = () => true, binding = {}, names = ['left', 'right', 'jump', 'slide', 'spike']) {
   const controls = new VolleyballControls(), doc = new Surface();
   doc.defaultView = new Surface();
-  const buttons = ['left', 'right', 'jump', 'slide', 'spike'].map((name, i) => new Button(name, i * 60));
-  const unbind = controls.bindTouchControls(buttons, { document: doc, isActive });
-  return { controls, doc, buttons, unbind };
+  const buttons = names.map((name, i) => new Button(name, i * 60));
+  const groups = [new Surface(), new Surface()];
+  buttons.forEach((button, i) => { button.parentElement = groups[i < 2 ? 0 : 1]; });
+  const unbind = controls.bindTouchControls(buttons, { document: doc, isActive, ...binding });
+  return { controls, doc, buttons, groups, unbind };
 }
+const nativeSetup = () => touchSetup(() => true, { touchEvents: true }, ['left', 'right', 'jump', 'slide', 'attack']);
+const touchPoint = (identifier, target, overrides = {}) => ({ identifier, target, clientX: (target.left ?? 0) + 10, clientY: 10, ...overrides });
+// Deliberately array-like rather than iterable, as TouchList is in older WebKit.
+const touchList = points => Object.assign({ length: points.length, item: index => points[index] ?? null }, points);
+const fireTouch = (target, type, changed, active = changed) => target.fire(type, {
+  cancelable: true, changedTouches: touchList(changed), touches: touchList(active),
+  targetTouches: touchList(active.filter(point => target.contains(point.target)))
+});
 
 test('captured movement finger slides left/right without lifting and can leave/re-enter', () => {
   const { controls, doc, buttons: [left, right] } = touchSetup(), match = game();
@@ -256,5 +272,251 @@ test('recorded sampled controls reproduce the same engine state without the cont
     const recorded = encodeInput(sampled);
     live.step(DT, sampled); replayed.step(DT, decodeInput(recorded));
   }
+  assert.deepEqual(live, replayed);
+});
+
+test('native Touch Events process every changed identifier and independently release contacts', () => {
+  const { controls, doc, buttons: [left, right, jump] } = nativeSetup(), match = game();
+  const moving = touchPoint(41, left), jumping = touchPoint(7, jump);
+  const start = fireTouch(left, 'touchstart', [moving, jumping]);
+  assert.equal(start.prevented, true);
+  const first = tick(controls, match);
+  assert.equal(first.left, true); assert.equal(first.jump, true);
+  fireTouch(doc, 'touchmove', [{ ...moving, clientX: 75 }], [moving, jumping]);
+  assert.equal(tick(controls, match).right, true);
+  fireTouch(doc, 'touchend', [jumping], [moving]);
+  assert.equal(tick(controls, match).right, true);
+  assert.equal(right.classes.has('pressed'), true); assert.equal(jump.classes.has('pressed'), false);
+  fireTouch(doc, 'touchend', [moving], []);
+  assert.equal(encodeInput(tick(controls, match)), 0);
+});
+
+test('native touches starting on nested button labels resolve to their own controls', () => {
+  const { controls, buttons: [left, , jump] } = nativeSetup(), match = game();
+  const label = { parentElement: jump };
+  fireTouch(left, 'touchstart', [touchPoint(1, left), touchPoint(2, label, { clientX: 130 })]);
+  const input = tick(controls, match);
+  assert.equal(input.left, true); assert.equal(input.jump, true);
+});
+
+test('native touchcancel removes only changed contacts and their pending action', () => {
+  const { controls, doc, buttons: [left, , jump] } = nativeSetup(), match = game();
+  const moving = touchPoint(1, left), jumping = touchPoint(2, jump);
+  fireTouch(left, 'touchstart', [moving, jumping]);
+  fireTouch(doc, 'touchcancel', [jumping], [moving]);
+  const input = tick(controls, match);
+  assert.equal(input.left, true); assert.equal(input.jump, false);
+  fireTouch(doc, 'touchcancel', [moving], []);
+  assert.equal(encodeInput(tick(controls, match)), 0);
+});
+
+test('native event handlers are non-passive and ignore unrelated page touches', () => {
+  const { controls, doc, groups, buttons: [left] } = nativeSetup(), match = game();
+  assert.equal(left.listenerOptions.get('touchstart').passive, false);
+  assert.equal(groups[0].listenerOptions.get('touchstart').passive, false);
+  for (const type of ['touchmove', 'touchend', 'touchcancel']) assert.equal(doc.listenerOptions.get(type).passive, false);
+  const other = touchPoint(80, new Surface());
+  assert.equal(fireTouch(left, 'touchstart', [other]).prevented, false);
+  assert.equal(fireTouch(doc, 'touchmove', [other]).prevented, false);
+  assert.equal(fireTouch(doc, 'touchend', [other], []).prevented, false);
+  assert.equal(encodeInput(tick(controls, match)), 0);
+});
+
+test('a native touch starting in a control-group gap can enter an arrow', () => {
+  const { controls, doc, groups, buttons: [left] } = nativeSetup(), match = game();
+  const gap = touchPoint(5, groups[0], { clientX: 55 });
+  assert.equal(fireTouch(groups[0], 'touchstart', [gap]).prevented, true);
+  assert.equal(encodeInput(tick(controls, match)), 0);
+  fireTouch(doc, 'touchmove', [{ ...gap, clientX: 10 }]);
+  assert.equal(tick(controls, match).left, true); assert.equal(left.classes.has('pressed'), true);
+  fireTouch(doc, 'touchend', [gap], []);
+  assert.equal(tick(controls, match).left, false);
+});
+
+test('touch-capable browsers suppress duplicate touch pointers while mouse and pen remain independent', () => {
+  const { controls, doc, buttons: [left, right, jump] } = nativeSetup(), match = game();
+  const moving = touchPoint(4, left);
+  left.fire('pointerdown', { pointerId: 4, pointerType: 'touch' });
+  fireTouch(left, 'touchstart', [moving]);
+  fireTouch(doc, 'touchend', [moving], []);
+  assert.equal(tick(controls, match).left, false, 'a duplicate pointer did not retain a released native touch');
+  jump.fire('pointerdown', { pointerId: 9, pointerType: 'touch' });
+  assert.equal(tick(controls, match).jump, false, 'only Touch Events own physical touch on this path');
+  left.fire('pointerdown', { pointerId: 4, pointerType: 'mouse' });
+  right.fire('pointerdown', { pointerId: 10, pointerType: 'pen', isPrimary: false });
+  const input = tick(controls, match);
+  assert.equal(input.left, true); assert.equal(input.right, true);
+  doc.fire('pointerup', { pointerId: 4, pointerType: 'touch' });
+  assert.equal(tick(controls, match).left, true, 'ignored touch pointers do not release a mouse with the same ID');
+  doc.fire('pointerup', { pointerId: 4, pointerType: 'mouse' });
+  assert.equal(tick(controls, match).left, false); assert.equal(tick(controls, match).right, true);
+});
+
+test('pointer fallback accepts secondary touch pointers and independent release', () => {
+  const { controls, doc, buttons: [left, , jump] } = touchSetup(() => true, { touchEvents: false }), match = game();
+  left.fire('pointerdown', { pointerId: 10, pointerType: 'touch', isPrimary: true });
+  jump.fire('pointerdown', { pointerId: 20, pointerType: 'touch', isPrimary: false });
+  const input = tick(controls, match);
+  assert.equal(input.left, true); assert.equal(input.jump, true);
+  doc.fire('pointerup', { pointerId: 20, pointerType: 'touch', isPrimary: false });
+  assert.equal(tick(controls, match).left, true);
+  doc.fire('pointercancel', { pointerId: 10, pointerType: 'touch', isPrimary: true });
+  assert.equal(tick(controls, match).left, false);
+});
+
+test('touch feature detection selects the native path when the window advertises it', () => {
+  const controls = new VolleyballControls(), doc = new Surface(), left = new Button('left', 0), match = game();
+  doc.defaultView = new Surface(); doc.defaultView.ontouchstart = null;
+  controls.bindTouchControls([left], { document: doc });
+  assert.ok(left.listeners.get('touchstart')?.size);
+  left.fire('pointerdown', { pointerType: 'touch' });
+  assert.equal(tick(controls, match).left, false);
+  fireTouch(left, 'touchstart', [touchPoint(77, left)]);
+  assert.equal(tick(controls, match).left, true);
+});
+
+test('a movement thumb plus a quick attack tap makes one jump and one high strike', () => {
+  const { controls, doc, buttons: [left, , , , attack] } = nativeSetup(), match = game();
+  const moving = touchPoint(1, left), attacking = touchPoint(2, attack);
+  fireTouch(left, 'touchstart', [moving, attacking]);
+  fireTouch(doc, 'touchend', [attacking], [moving]);
+  let jumps = 0, spikes = 0, strikeTick = 0;
+  for (let i = 0; i < 150; i++) {
+    const input = tick(controls, match);
+    assert.equal(input.left, true);
+    jumps += Number(input.jump); spikes += Number(input.spike);
+    if (input.spike) { strikeTick = i; assert.ok(ground - match.players[0].y >= 110); }
+  }
+  assert.equal(jumps, 1); assert.equal(spikes, 1);
+  assert.ok(strikeTick > 16 && strikeTick < 40, `strike tick ${strikeTick} is during the first jump's high ascent`);
+});
+
+test('holding attack never repeats a jump or strike, including after a rally reset', () => {
+  const { controls, buttons: [, , , , attack] } = nativeSetup(), match = game();
+  fireTouch(attack, 'touchstart', [touchPoint(1, attack)]);
+  let jumps = 0, spikes = 0;
+  for (let i = 0; i < 250; i++) {
+    if (i === 150) { match.resetRally(); match.timer = 10; }
+    const input = tick(controls, match);
+    jumps += Number(input.jump); spikes += Number(input.spike);
+  }
+  assert.equal(jumps, 1); assert.equal(spikes, 1);
+});
+
+test('a new airborne attack strikes immediately without queuing a landing jump', () => {
+  const { controls, doc, buttons: [, , , , attack] } = nativeSetup(), match = game();
+  match.players[0].y = ground - 60;
+  const attacking = touchPoint(1, attack);
+  fireTouch(attack, 'touchstart', [attacking]); fireTouch(doc, 'touchend', [attacking], []);
+  const first = tick(controls, match);
+  assert.equal(first.jump, false); assert.equal(first.spike, true);
+  for (let i = 0; i < 120; i++) assert.equal(tick(controls, match).jump, false);
+});
+
+test('dragging an action finger from jump to attack changes intent while movement continues', () => {
+  const { controls, doc, buttons: [left, , jump, , attack] } = nativeSetup(), match = game();
+  const moving = touchPoint(1, left), acting = touchPoint(2, jump);
+  fireTouch(left, 'touchstart', [moving, acting]);
+  assert.equal(tick(controls, match).jump, true);
+  for (let i = 0; i < 8; i++) tick(controls, match);
+  fireTouch(doc, 'touchmove', [{ ...acting, clientX: attack.left + 10 }], [moving, acting]);
+  const input = tick(controls, match);
+  assert.equal(input.left, true); assert.equal(input.spike, true); assert.equal(input.jump, false);
+  assert.equal(jump.classes.has('pressed'), false); assert.equal(attack.classes.has('pressed'), true);
+});
+
+test('attack drift through neutral space preserves one strike and re-entry never retriggers', () => {
+  const { controls, doc, buttons: [, , , , attack] } = nativeSetup(), match = game();
+  const attacking = touchPoint(2, attack);
+  fireTouch(attack, 'touchstart', [attacking]);
+  let jumps = 0, spikes = 0;
+  for (let i = 0; i < 180; i++) {
+    if (i === 2 || i === 120) fireTouch(doc, 'touchmove', [{ ...attacking, clientX: -20 }]);
+    if (i === 4 || i === 122) fireTouch(doc, 'touchmove', [attacking]);
+    const input = tick(controls, match);
+    jumps += Number(input.jump); spikes += Number(input.spike);
+  }
+  assert.equal(jumps, 1); assert.equal(spikes, 1);
+});
+
+test('neutral drift before a tick retains a pending attack but a different action replaces it', () => {
+  for (const differentAction of [false, true]) {
+    const { controls, doc, buttons: [, , , slide, attack] } = nativeSetup(), match = game();
+    const attacking = touchPoint(2, attack);
+    fireTouch(attack, 'touchstart', [attacking]);
+    fireTouch(doc, 'touchmove', [{ ...attacking, clientX: -20 }]);
+    if (differentAction) fireTouch(doc, 'touchmove', [{ ...attacking, clientX: slide.left + 10 }]);
+    const first = tick(controls, match);
+    assert.equal(first.jump, !differentAction); assert.equal(first.slide, differentAction);
+    let strikes = 0;
+    for (let i = 0; i < 140; i++) strikes += Number(tick(controls, match).spike);
+    assert.equal(strikes, differentAction ? 0 : 1);
+  }
+});
+
+test('quick attack release followed by lost pointer capture keeps its one-shot strike armed', () => {
+  for (const native of [false, true]) {
+    const { controls, doc, buttons: [, , , , attack] } = touchSetup(() => true,
+      { touchEvents: native }, ['left', 'right', 'jump', 'slide', 'attack']);
+    const match = game(), attacking = touchPoint(2, attack);
+    if (native) {
+      fireTouch(attack, 'touchstart', [attacking]); fireTouch(doc, 'touchend', [attacking], []);
+    } else {
+      attack.fire('pointerdown', { pointerId: 2, pointerType: 'touch' });
+      doc.fire('pointerup', { pointerId: 2, pointerType: 'touch' });
+    }
+    attack.fire('lostpointercapture', { pointerId: 2, pointerType: 'touch' });
+    let jumps = 0, spikes = 0;
+    for (let i = 0; i < 130; i++) {
+      const input = tick(controls, match);
+      jumps += Number(input.jump); spikes += Number(input.spike);
+    }
+    assert.equal(jumps, 1); assert.equal(spikes, 1);
+  }
+});
+
+test('native cancel/clear/blur and rally transitions cancel a pending jump-attack sequence', () => {
+  for (const ending of ['touchcancel', 'clear', 'blur', 'point', 'reset', 'over']) {
+    const { controls, doc, buttons: [left, , , , attack] } = nativeSetup(), match = game();
+    const moving = touchPoint(1, left), attacking = touchPoint(2, attack);
+    fireTouch(left, 'touchstart', [moving, attacking]);
+    assert.equal(tick(controls, match).jump, true);
+    if (ending === 'touchcancel') fireTouch(doc, 'touchcancel', [attacking], [moving]);
+    else if (ending === 'clear') controls.clear();
+    else if (ending === 'blur') doc.defaultView.fire('blur');
+    else if (ending === 'reset') { match.resetRally(); match.timer = 10; }
+    else { match.phase = ending; match.timer = DT; }
+    for (let i = 0; i < 150; i++) {
+      const input = tick(controls, match);
+      assert.equal(input.spike, false, ending); assert.equal(input.jump, false, ending);
+      if (ending === 'touchcancel') assert.equal(input.left, true, 'other thumb survives native cancellation');
+    }
+  }
+});
+
+test('attack pressed during point intermission never revives in the next serve', () => {
+  const { controls, buttons: [, , , , attack] } = nativeSetup(), match = game();
+  match.phase = 'point'; match.timer = DT;
+  fireTouch(attack, 'touchstart', [touchPoint(1, attack)]);
+  assert.equal(encodeInput(tick(controls, match)), 0);
+  for (let i = 0; i < 140; i++) assert.equal(encodeInput(tick(controls, match)), 0);
+});
+
+test('native movement and jump-attack bits replay exactly without controller assistance', () => {
+  const { controls, doc, buttons: [left, right, , , attack] } = nativeSetup(), live = game(), replayed = game();
+  const moving = touchPoint(5, right), attacking = touchPoint(8, attack);
+  const sampledChanges = [];
+  for (let i = 0; i < 260; i++) {
+    if (i === 0) fireTouch(right, 'touchstart', [moving, attacking]);
+    if (i === 1) fireTouch(doc, 'touchend', [attacking], [moving]);
+    if (i === 24) fireTouch(doc, 'touchmove', [{ ...moving, clientX: left.left + 10 }], [moving]);
+    if (i === 60) fireTouch(doc, 'touchend', [moving], []);
+    const before = JSON.stringify(live), input = controls.sample(live, DT), bits = encodeInput(input);
+    assert.equal(JSON.stringify(live), before);
+    sampledChanges.push(bits);
+    live.step(DT, input); replayed.step(DT, decodeInput(bits));
+  }
+  assert.equal(sampledChanges.filter(bits => bits & 4).length, 1);
+  assert.equal(sampledChanges.filter(bits => bits & 8).length, 1);
   assert.deepEqual(live, replayed);
 });

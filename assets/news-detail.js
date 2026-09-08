@@ -9,9 +9,18 @@
  const externalIcon=icon('<path d="M14 3h7v7m0-7L10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>');
  function decoded(s){const t=document.createElement('textarea');t.innerHTML=String(s??'');return t.value;}
  function safeUrl(value,image=false){
-  const raw=String(value||'').trim();if(!raw)return '';
+  let raw=String(value||'').trim();if(!raw)return '';
   if(image&&/^data:image\/(png|jpeg|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(raw))return raw;
+  // Admin recommendations may store t.me/channel or www.youtube.com/@channel.
+  // Resolve these as external HTTPS URLs, never as paths beneath the current page.
+  if(!image&&/^(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[/?#]|$)/i.test(raw))raw='https://'+raw;
   try {const u=new URL(raw,location.href);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}
+ }
+ function externalLink(a,url){
+  a.href=url;a.target='_blank';a.rel='noopener noreferrer';
+  // Capacitor routes external same-frame HTTPS navigation to the OS browser.
+  // Avoid relying on a second WebView/window in the installed app.
+  if(window.Capacitor?.isNativePlatform?.())a.target='_self';
  }
  function isDirectNews(item){
   const url=safeUrl(item.link);if(!url)return false;
@@ -23,7 +32,7 @@
  function appendPlain(target,text){
   const parts=decoded(text).split(/(https?:\/\/[^\s<>]+)/g);
   parts.forEach(part=>{const url=/^https?:\/\//.test(part)?safeUrl(part):'';
-   if(url){const a=document.createElement('a');a.href=url;a.textContent=part;a.target='_blank';a.rel='noopener noreferrer';target.append(a);}
+   if(url){const a=document.createElement('a');externalLink(a,url);a.textContent=part;target.append(a);}
    else target.append(document.createTextNode(part));});
  }
  function contentNode(value){
@@ -40,7 +49,7 @@
    if(allowed.has(node.tagName)){
     const name=node.tagName==='H2'?'h3':node.tagName.toLowerCase();dest=document.createElement(name);
     if(name==='a'){
-     const url=safeUrl(node.getAttribute('href'));if(url){dest.href=url;dest.target='_blank';dest.rel='noopener noreferrer';}
+     const url=safeUrl(node.getAttribute('href'));if(url)externalLink(dest,url);
     }
     if(name==='img'){
      const url=safeUrl(node.getAttribute('src'),true);if(!url)return;
@@ -82,7 +91,7 @@
   dialog.querySelector('h2').textContent=decoded(item.title||'소식');
   const body=dialog.querySelector('.nd-body');body.replaceChildren(contentNode(item.content||'등록된 본문이 없습니다.'));
   const url=safeUrl(item.link);
-  if(url){const a=document.createElement('a');a.className='nd-link';a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.innerHTML=`자세히 보기 ${externalIcon}`;body.append(a);}
+  if(url){const a=document.createElement('a');a.className='nd-link';externalLink(a,url);a.innerHTML=`자세히 보기 ${externalIcon}`;body.append(a);}
   dialog.querySelector('.nd-status').textContent='';dialog.querySelector('.nd-share-fallback').hidden=true;
   document.documentElement.classList.add('hub-detail-open');if(!dialog.open)dialog.showModal();body.scrollTop=0;
   dialog.querySelector('[data-nd-close]').focus({preventScroll:true});

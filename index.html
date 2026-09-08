@@ -283,7 +283,8 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
-  background: #14b8a6; color: #fff; font-weight: 700;
+  background: #E8FAFA; color: #066666; border: 1px solid #19DFDF; font-weight: 700;
+  flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
 .avatar[data-nav] { cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
@@ -357,25 +358,27 @@ body.admin-active .admin-only { display: flex !important; }
 /* ── 모바일 하단 네비 ── */
 .mnav {
   display: none; position: fixed; left: 0; right: 0; bottom: 0;
-  background: #fff; border-top: 1px solid var(--line);
-  padding: 4px 2px calc(6px + env(safe-area-inset-bottom));
+  background: #fff; border-top: 1px solid #D9D8D3;
+  padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+  min-height: calc(65px + env(safe-area-inset-bottom));
   z-index: 50;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 .mnav-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; min-height: 56px; /* iOS HIG / Material 권장 터치 영역 ≥48dp */
-  font-size: 10px; color: var(--ink-sub);
-  padding: 8px 4px;
+  gap: 4px; min-height: 56px; min-width: 0;
+  font-size: 14px; line-height: 20px; font-weight: 600; color: #888780;
+  padding: 6px 0; white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: rgba(17, 17, 17, 0.08);
-  border-radius: 8px;
+  border-radius: 10px;
   transition: background 0.15s;
   user-select: none;
 }
 .mnav-item:active { background: rgba(17, 17, 17, 0.06); }
-.mnav-item.active { color: #111; font-weight: 800; }
-.mnav-item .ic { font-size: 22px; line-height: 1; }
+.mnav-item.active { background: #E8FAFA; color: #066666; }
+.mnav-item .ic { width: 20px; height: 20px; line-height: 1; flex-shrink: 0; }
+.mnav-item .ic svg { width: 20px; height: 20px; }
 
 @media (max-width: 960px) {
   .app { grid-template-columns: 1fr; }
@@ -386,6 +389,12 @@ body.admin-active .admin-only { display: flex !important; }
 @media (max-width: 640px) {
   .page { padding: 18px 16px 100px; }
   .topbar { padding: 10px 14px; }
+}
+@media (max-width: 480px) {
+  #topAvatar { width: 32px; height: 32px; }
+}
+@media (max-width: 360px) {
+  .mnav-item { font-size: 12px; }
 }
 
 /* ── 공통 컴포넌트 ── */
@@ -1196,14 +1205,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .mo-home-logo small { font-size:12px; line-height:16px; font-weight:500; color:#999894; }
         body.home-signed-in:has(.home-v3.active) #topSnkrHelp,body.home-signed-in:has(.home-v3.active) #topInstallAppBtn { display:none !important; }
         body.home-signed-in:has(.home-v3.active) .top-actions { gap:8px; align-items:center; }
-        body.home-signed-in:has(.home-v3.active) #topAvatar { width:32px; height:32px; border:1px solid #19DFDF; border-radius:16px; background:#E8FAFA; color:#066666; flex-shrink:0; }
         body.home-signed-in:has(.home-v3.active) #mobileSearchToggle { width:36px; height:40px; border:0; background:transparent; }
-        body.home-signed-in:has(.home-v3.active) .mnav { height:calc(60px + env(safe-area-inset-bottom)); padding:4px 8px calc(4px + env(safe-area-inset-bottom)); border-top:1px solid #D9D8D3; background:#fff; }
-        body.home-signed-in:has(.home-v3.active) .mnav-item { flex:1; min-width:0; font-size:14px; font-weight:600; color:#888780; border-radius:10px; gap:4px; }
-        body.home-signed-in:has(.home-v3.active) .mnav-item.active { background:#E8FAFA; color:#066666; }
-        body.home-signed-in:has(.home-v3.active) .mnav .mo-home-original { display:none; }
-        body.home-signed-in:has(.home-v3.active) .mnav .mo-home-only { display:inline; }
-        body.home-signed-in:has(.home-v3.active) .mnav .ic svg { width:20px; height:20px; }
         body.home-signed-in:has(.home-v3.active) .main { padding-bottom:76px; }
         body.home-signed-in .home-v3 { padding:16px; background:#F7F6F2; font-family:Pretendard,sans-serif; }
         body.home-signed-in .home-v3 .mo-home-original { display:none; }
@@ -2591,7 +2593,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
     <div class="mnav-item" data-nav="home"><div class="ic"><i data-lucide="house"></i></div>홈</div>
     <div class="mnav-item" data-nav="price"><div class="ic"><i data-lucide="trending-up"></i></div>시세</div>
     <div class="mnav-item" data-nav="hub"><div class="ic"><i data-lucide="pin"></i></div>소식</div>
-    <div class="mnav-item" data-nav="cardinfo"><div class="ic"><i data-lucide="layers"></i></div><span class="mo-home-original">카드</span><span class="mo-home-only">카드 정보</span></div>
+    <div class="mnav-item" data-nav="cardinfo"><div class="ic"><i data-lucide="layers"></i></div>카드 정보</div>
     <div class="mnav-item" data-nav="portfolio"><div class="ic"><i data-lucide="user-round"></i></div>마이페이지</div>
   </nav>
 </div>
@@ -2601,7 +2603,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/price-expanded.js?v=20260907-favorites1"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
-<script src="/assets/news-detail.js?v=20260907-news1"></script>
+<script src="/assets/news-detail.js?v=20260908-links1"></script>
 <link rel="stylesheet" href="/assets/admin-editor.css?v=20260907-admin2">
 <script src="/assets/admin-editor.js?v=20260907-admin2"></script>
 <link rel="stylesheet" href="/assets/portfolio-screen.css?v=20260907-pf8-release">
@@ -7461,7 +7463,7 @@ const APPLIES = [
     brand: "포켓몬", platform: "아마존 JP",
     title: "아마존 JP 30주년 포켓몬 TCG 전체 응모 (다중)",
     boxLabelKo: "10개 상품 일괄 (30주년 기념)",
-    img: "images/30th.png",
+    img: "/images/30th.png?v=20260908-apply1",
     ribbon: "BUNDLE",
     prize: "에브이·블래키 세트 · 1세대~9세대 카드 (총 10종)",
     multi: [
@@ -7488,7 +7490,7 @@ const APPLIES = [
     brand: "포켓몬", platform: "아마존 JP",
     title: "아마존 JP 포켓몬 TCG 전체 응모 (다중)",
     boxLabelKo: "9개 상품 일괄",
-    img: "images/pokemon-box.webp",
+    img: "/images/pokemon-box.webp?v=20260908-apply1",
     ribbon: "BUNDLE",
     prize: "스톰 에메랄드 · 어비스아이 · 닌자 스페너 · 인페르노X · 무니키스 · 메가심포니아 · 테라크리스탈 · 메가브레이브 · 메가드림",
     multi: [
@@ -7514,7 +7516,7 @@ const APPLIES = [
     brand: "원피스", platform: "아마존 JP",
     title: "아마존 JP 원피스 TCG 전체 응모 (다중)",
     boxLabelKo: "2개 상품 일괄 (OP-16/OP-17)",
-    img: "images/onepiece-box.webp",
+    img: "/images/onepiece-box.webp?v=20260908-apply1",
     ribbon: "BUNDLE",
     prize: "원피스 카드게임 OP-17 박스 · OP-16 박스",
     multi: [
@@ -7692,6 +7694,20 @@ async function loadAllAdminData() {
   try { localStorage.setItem('home_news_cache_v1', JSON.stringify((news || []).slice(0, 8))); } catch (e) {}
 }
 
+function applyThumbFallback(img) {
+  if (!img.dataset.fallback) {
+    img.dataset.fallback = 'brand';
+    img.alt = 'TCG Hub · 응모 이미지 로딩 실패';
+    img.src = '/images/brand-logo.png';
+    return;
+  }
+  img.onerror = null;
+  const notice = document.createElement('span');
+  notice.textContent = '응모 이미지 로딩 실패';
+  notice.style.cssText = 'display:grid;place-items:center;height:100%;padding:12px;font-size:12px;text-align:center';
+  img.replaceWith(notice);
+}
+
 const _applyHtml = APPLIES.map((a, i) => {
   const isMulti = !!a.multi && a.multi.length > 0;
   const ribbon = a.ribbon ? `<div style="position:absolute; top:10px; right:10px; background:#fff; color:#111; font-size:10px; font-weight:800; padding:3px 8px; border-radius:6px; z-index:2">${a.ribbon}</div>` : '';
@@ -7701,7 +7717,7 @@ const _applyHtml = APPLIES.map((a, i) => {
   <div class="apply-card" style="position:relative">
     ${ribbon}
     <div class="apply-card-thumb">
-      <img src="${a.img}" alt="${a.title}" loading="lazy" decoding="async" width="600" height="328" onerror="this.parentElement.style.fontSize='48px'; this.parentElement.textContent='🎟'">
+      <img src="${a.img}" alt="${a.title}" loading="lazy" decoding="async" width="600" height="328" onerror="applyThumbFallback(this)">
     </div>
     <div class="apply-card-body">
       <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap">
@@ -7733,7 +7749,7 @@ const _applyHubHtml = APPLIES.map((a, i) => {
   const bundleLabel = String(a.ribbon || 'Bundle').toLowerCase() === 'bundle' ? 'Bundle' : String(a.ribbon);
   return `
     <article class="hub-apply-item">
-      <div class="hub-apply-thumb" aria-hidden="true"><img src="${escapeHtml(a.img)}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true"></div>
+      <div class="hub-apply-thumb"><img src="${escapeHtml(a.img)}" alt="${escapeHtml(a.title)}" loading="lazy" decoding="async" onerror="applyThumbFallback(this)"></div>
       <div class="hub-apply-content">
         <div class="hub-apply-badges">
           <span class="hub-brand-badge ${brandClass}"><span class="hub-brand-dot"></span>${escapeHtml(a.brand)}</span>
@@ -9888,7 +9904,7 @@ function renderAuthStatus() {
     if (box) {
       box.innerHTML = `
         <div data-nav="portfolio" title="마이페이지로 이동" style="display:flex; gap:8px; align-items:center; padding:6px 0; cursor:pointer; border-radius:8px; transition:background 0.15s" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
-          <div style="width:32px; height:32px; border-radius:50%; background:#14b8a6; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0">${initial}</div>
+          <div class="avatar" style="width:32px; height:32px; font-size:14px">${initial}</div>
           <div style="flex:1; min-width:0">
             <div style="font-size:11px; color:var(--ink-mute)">로그인됨</div>
             <div style="font-size:12px; font-weight:600; color:#111; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${escapeHtml(display)}</div>

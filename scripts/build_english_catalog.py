@@ -59,6 +59,8 @@ def main():
             if i%25==0:print(f'Built {i}/{len(catalog)} sets',flush=True)
     manifest=dict(schemaVersion=1,sets=result,cardCount=sum(x['cardCount'] for x in result))
     (args.output/'data/english-catalog.json').write_text(json.dumps(manifest,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+    from build_english_korean_names import build as build_names
+    build_names(args.output, args.output)
     print(f"Ready: {len(result)} sets / {manifest['cardCount']} cards",flush=True)
 
 if __name__=='__main__':main()

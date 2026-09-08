@@ -1,5 +1,6 @@
 import { W, H, FLOOR, NET, R, CHARACTERS } from './engine.mjs?v=7';
 import { SLIDE_POSES, slideVisual } from './slide-poses.mjs?v=1';
+import { canvasFont, refreshCanvasFont } from '../shared/fonts.mjs?v=1';
 
 const TAU = Math.PI * 2;
 const legacyBounds = { pikachu: [31, 24, 39, 46], charmander: [30, 29, 38, 42], squirtle: [29, 29, 38, 39] };
@@ -29,6 +30,7 @@ export class CourtRenderer {
   }
 
   resize() {
+    refreshCanvasFont();
     const rect = this.canvas.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     const size = Math.min(rect.width / W, rect.height / H);
@@ -108,9 +110,9 @@ export class CourtRenderer {
     this.line(20, FLOOR + 8, 940, FLOOR + 8, '#ae865446', 2);
     c.fillStyle = '#aa794427';
     for (let i = 0; i < 90; i++) c.fillRect((i * 137 + 31) % W, 377 + (i * 43) % 158, i % 3 + 1, 1);
-    c.font = '800 11px system-ui'; c.textAlign = 'center'; c.fillStyle = '#956f49a6';
+    c.font = canvasFont(11, 800); c.textAlign = 'center'; c.fillStyle = '#956f49a6';
     c.fillText('TCG HUB  /  BEACH CLUB', 480, 510);
-    c.font = '800 12px system-ui'; c.fillStyle = '#627b72b3';
+    c.font = canvasFont(12, 800); c.fillStyle = '#627b72b3';
     c.fillText('YOU', 235, 488); c.fillText('CPU', 725, 488);
 
     c.save(); c.translate(NET.x, NET.y);
@@ -216,7 +218,7 @@ export class CourtRenderer {
   }
 
   pill(text, x, y) {
-    const c = this.ctx; c.font = '800 15px system-ui'; c.textAlign = 'center';
+    const c = this.ctx; c.font = canvasFont(15, 800); c.textAlign = 'center';
     const width = c.measureText(text).width + 30;
     c.fillStyle = '#123e46cc'; c.beginPath(); c.roundRect(x - width / 2, y - 19, width, 32, 16); c.fill();
     c.fillStyle = '#fffdf0'; c.fillText(text, x, y + 2);

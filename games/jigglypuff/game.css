@@ -1,6 +1,6 @@
 :root{color-scheme:light;--paper:#F7F6F2;--ink:#0D0D0D;--muted:#666560;--line:#D9D8D3;--teal:#066666;--aqua:#19DFDF}
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:Pretendard,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--hub-font-family,"Noto Sans KR",sans-serif);-webkit-tap-highlight-color:transparent}
 main{max-width:1120px;margin:auto;padding:22px;padding-left:max(22px,env(safe-area-inset-left));padding-right:max(22px,env(safe-area-inset-right));padding-bottom:max(22px,env(safe-area-inset-bottom))}
 header,.heading,.scorebar,.score-stats,.arena-tools,.controls,.drop-controls,.utility-controls,.rank-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
 header{font-size:12px;color:#888780}header>a{display:inline-flex;align-items:center;min-height:30px}header>span{letter-spacing:2px}

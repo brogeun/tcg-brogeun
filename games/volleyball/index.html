@@ -6,12 +6,18 @@
   <meta name="theme-color" content="#102c32">
   <title>포켓 배구 · TCG Hub</title>
   <meta name="description" content="피카츄, 파이리, 꼬부기와 즐기는 TCG Hub 배구 미니게임. 캐릭터를 고르고 7점 선승 AI 대전에 도전하세요.">
-  <link rel="stylesheet" href="./game.css?v=13">
-  <script defer src="./boot.js?v=10"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+  <link rel="stylesheet" href="./game.css?v=14">
+  <script defer src="./boot.js?v=11"></script>
+  <link rel="stylesheet" href="../shared/brand.css?v=1">
 </head>
-<body>
+<body class="hub-game--volleyball">
   <audio id="bgm" src="./audio/we-are-all-friends-v1.mp3" preload="metadata" loop hidden></audio>
-  <header class="topbar"><a class="brand" href="../../#home">TCG <span>Hub</span></a><span class="crumb">/ 미니게임</span><a class="back" href="../../#home">← 허브로 돌아가기</a></header>
+  <header class="hub-game-header"><div class="hub-game-header-inner"><a class="hub-game-brand" href="../../#home" aria-label="TCG Hub 홈"><img src="../../images/app-icon.png" width="44" height="44" alt=""><span class="hub-game-brand-copy"><strong>TCG Hub</strong><small>Pokémon · One Piece</small></span></a><span class="hub-game-crumb">/ 미니게임</span><a class="hub-game-back" href="../../#home">← 허브로 돌아가기</a></div></header>
   <main>
     <div class="heading"><div><span class="eyebrow">TCG HUB ARCADE</span><h1>포켓 배구<span class="beta">BEACH CLUB</span></h1></div><p>바다 앞 코트에서 펼치는 7점 승부.</p></div>
     <div class="game-layout">

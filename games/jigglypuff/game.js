@@ -1,6 +1,7 @@
 import {MergeGame,VERSION,STEP,NAMES,RADII,FIELD} from './engine.mjs';
 import * as rankings from './leaderboard.js?v=6';
 import {createGameAudio} from './audio.js?v=6';
+import {canvasFont,refreshCanvasFont} from '../shared/fonts.mjs?v=1';
 
 const $=id=>document.getElementById(id);
 const canvas=$('board'),ctx=canvas.getContext('2d'),audio=createGameAudio();
@@ -38,6 +39,7 @@ function nextPreview(){
  face(g,80,80,71,game.next);$('next-name').textContent=NAMES[game.next];
 }
 function resize(){
+ refreshCanvasFont();
  const w=canvas.getBoundingClientRect().width;if(w<1)return;const dpr=Math.min(devicePixelRatio||1,3);
  const width=Math.round(w*dpr),height=Math.round(w*550/480*dpr);
  if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
@@ -78,9 +80,9 @@ function draw(){
  }
  for(const r of rings){ctx.save();ctx.globalAlpha=r.life/r.total*.65;ctx.strokeStyle=r.color;ctx.lineWidth=r.clear?4:2;ctx.beginPath();ctx.arc(r.x,r.y,r.r+(1-r.life/r.total)*26,0,Math.PI*2);ctx.stroke();ctx.restore();}
  for(const p of particles){ctx.globalAlpha=clamp(p.life/p.total,0,1);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;
- for(const l of labels){ctx.save();ctx.globalAlpha=Math.min(1,l.life/.3);ctx.textAlign='center';ctx.font=`700 ${l.big?23:17}px system-ui`;ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.strokeText(l.text,l.x,l.y);ctx.fillStyle=l.big?'#066666':'#147C72';ctx.fillText(l.text,l.x,l.y);ctx.restore();}
+ for(const l of labels){ctx.save();ctx.globalAlpha=Math.min(1,l.life/.3);ctx.textAlign='center';ctx.font=canvasFont(l.big?23:17,700);ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.strokeText(l.text,l.x,l.y);ctx.fillStyle=l.big?'#066666':'#147C72';ctx.fillText(l.text,l.x,l.y);ctx.restore();}
  if(paused&&!game.over){
-  ctx.fillStyle='rgba(255,255,255,.92)';ctx.beginPath();ctx.roundRect(79,205,322,92,14);ctx.fill();ctx.fillStyle='#0D0D0D';ctx.textAlign='center';ctx.font='700 24px system-ui';ctx.fillText('일시정지',240,244);ctx.font='14px system-ui';ctx.fillStyle='#666560';ctx.fillText('계속하기를 누르면 이어져요',240,272);
+  ctx.fillStyle='rgba(255,255,255,.92)';ctx.beginPath();ctx.roundRect(79,205,322,92,14);ctx.fill();ctx.fillStyle='#0D0D0D';ctx.textAlign='center';ctx.font=canvasFont(24,700);ctx.fillText('일시정지',240,244);ctx.font=canvasFont(14);ctx.fillStyle='#666560';ctx.fillText('계속하기를 누르면 이어져요',240,272);
  }
 }
 function effect(e){
@@ -240,3 +242,8 @@ Promise.all(images.map((img,i)=>new Promise((resolve,reject)=>{
  const timer=setTimeout(()=>reject(Error('이미지 로딩이 지연돼요. 새로고침해 주세요.')),12000);
  img.onload=()=>{clearTimeout(timer);resolve();};img.onerror=()=>{clearTimeout(timer);reject(Error('이미지를 불러오지 못했어요. 새 게임을 눌러 다시 불러오세요.'));};img.src=`./sprites/${files[i]}.svg`;
 }))).then(()=>{ready=true;reset();resize();}).catch(e=>{status(e.message);$('restart').textContent='다시 불러오기';});
+// Idle and paused boards stop their animation loop, so repaint after fonts arrive.
+if(document.fonts){
+ const redrawFonts=()=>{refreshCanvasFont();if(ready)draw();};
+ document.fonts.ready.then(()=>{redrawFonts();document.fonts.addEventListener('loadingdone',redrawFonts);}).catch(()=>{});
+}

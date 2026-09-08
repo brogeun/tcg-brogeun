@@ -10,10 +10,15 @@ const LEGACY_DIFFICULTIES = {
   normal: { name: '보통', speed: 290, offset: 8, jumpRange: 110, deadZone: 13 },
   hard: { name: '어려움', speed: 340, offset: 0, jumpRange: 135, deadZone: 6 }
 };
-export const DIFFICULTIES = {
+const V5_DIFFICULTIES = {
   easy: { name: '쉬움', speed: 225, reaction: .18, commitment: .22, aimError: 85, jumpRange: 90, deadZone: 22, attackChance: .18 },
   normal: { name: '보통', speed: 260, reaction: .16, commitment: .20, aimError: 62, jumpRange: 105, deadZone: 16, attackChance: .35 },
   hard: { name: '어려움', speed: 315, reaction: .065, commitment: .09, aimError: 75, jumpRange: 125, deadZone: 8, attackChance: .82 }
+};
+export const DIFFICULTIES = {
+  easy: { name: '쉬움', speed: 245, reaction: .18, commitment: .22, aimError: 80, jumpRange: 95, deadZone: 20, attackChance: .35 },
+  normal: { name: '보통', speed: 275, reaction: .14, commitment: .16, aimError: 70, jumpRange: 115, deadZone: 12, attackChance: .55 },
+  hard: { name: '어려움', speed: 290, reaction: .11, commitment: .13, aimError: 90, jumpRange: 130, deadZone: 7, attackChance: .80 }
 };
 function canRunToBall(player, ball, speed) {
   // Check grounded contact before the ball lands, using the replay's fixed tick.
@@ -35,9 +40,9 @@ function canRunToBall(player, ball, speed) {
   return false;
 }
 export class Match {
-  constructor({ player = 'pikachu', opponent = 'squirtle', difficulty = 'normal', rulesVersion = 5 } = {}) {
+  constructor({ player = 'pikachu', opponent = 'squirtle', difficulty = 'normal', rulesVersion = 6 } = {}) {
     this.characters = [player, opponent]; this.difficulty = Object.hasOwn(DIFFICULTIES, difficulty) ? difficulty : 'normal';
-    this.rulesVersion = rulesVersion === 3 || rulesVersion === 4 ? rulesVersion : 5;
+    this.rulesVersion = [3, 4, 5].includes(rulesVersion) ? rulesVersion : 6;
     this.aiRandomState = 0x9e3779b9;
     this.scores = [0, 0]; this.phase = 'ready'; this.server = 0; this.events = [];
     this.resetRally();
@@ -75,7 +80,7 @@ export class Match {
       slide: saving && p.slideCooldown <= 0 };
   }
   reactAiInput(dt) {
-    const p = this.players[1], ai = this.ai, settings = DIFFICULTIES[this.difficulty];
+    const p = this.players[1], ai = this.ai, settings = (this.rulesVersion === 5 ? V5_DIFFICULTIES : DIFFICULTIES)[this.difficulty];
     ai.time += dt;
     ai.observations.push({ time: ai.time, shot: this.shotNumber, ...this.ball });
     const observedAt = ai.time - settings.reaction;
@@ -118,6 +123,40 @@ export class Match {
         spike: this.difficulty !== 'easy' && ai.attack && p.y < FLOOR - R - 40 && Math.abs(b.x - p.x) < settings.jumpRange && b.y < p.y,
         slide: saving
       };
+      if (this.rulesVersion >= 6 && this.difficulty !== 'easy' && ai.attack && !saving) {
+        const grounded = p.y >= FLOOR - R - .1;
+        ai.controls.jump = false; ai.controls.spike = false;
+        if (b.x > 660) {
+          // Take a low, late contact from the back court: its fast rising arc
+          // crosses the net, unlike a downward strike from the baseline.
+          const contactX = clamp(b.x + b.vx * .10 + ai.error * .35, 530, 926);
+          if (b.y > 290 && b.y < 385 && b.vy > 0 && Math.abs(contactX - p.x) < settings.speed * .1 + 42) {
+            ai.target = contactX;
+            ai.controls.jump = grounded;
+            ai.controls.spike = true;
+          }
+        } else {
+          // Near the net, plan an aerial contact from the delayed trajectory.
+          // The forecast uses the player's running speed and jump arc.
+          let predicted = { ...b }, playerY = p.y, playerVy = grounded ? -735 : p.vy;
+          for (let tick = 1; tick <= 60; tick++) {
+            const t = tick / 120;
+            predicted.vy += 880 / 120; predicted.x += predicted.vx / 120; predicted.y += predicted.vy / 120;
+            playerVy += 1800 / 120; playerY += playerVy / 120;
+            if (predicted.y < BALL_R) { predicted.y = BALL_R; predicted.vy = Math.abs(predicted.vy) * .75; }
+            if (predicted.y > FLOOR - BALL_R || playerY > FLOOR - R) break;
+            const targetX = clamp(predicted.x + ai.error * .35, 520, 926);
+            const netTime = Math.max(0, predicted.x - (NET.x + NET.w + BALL_R)) / 590;
+            if (predicted.x < 503 || predicted.x > 700 || predicted.y > 235 ||
+                Math.abs(predicted.y - playerY) > 48 || Math.abs(targetX - p.x) > settings.speed * t + 24 ||
+                predicted.y + 135 * netTime + 440 * netTime * netTime >= NET.y - BALL_R - 8) continue;
+            ai.target = targetX;
+            ai.controls.jump = grounded;
+            ai.controls.spike = !grounded && t < .18;
+            break;
+          }
+        }
+      }
     }
     return { left: p.x > ai.target + settings.deadZone, right: p.x < ai.target - settings.deadZone, ...ai.controls };
   }
@@ -131,7 +170,7 @@ export class Match {
     }
     const controls = [input, this.aiInput(dt)];
     this.players.forEach((p, i) => {
-      const c = controls[i], speed = i ? (this.rulesVersion >= 5 ? DIFFICULTIES : LEGACY_DIFFICULTIES)[this.difficulty].speed : 340;
+      const c = controls[i], speed = i ? (this.rulesVersion >= 6 ? DIFFICULTIES : this.rulesVersion === 5 ? V5_DIFFICULTIES : LEGACY_DIFFICULTIES)[this.difficulty].speed : 340;
       const movement = (c.right ? 1 : 0) - (c.left ? 1 : 0);
       p.slide = Math.max(0, p.slide - dt); p.slideCooldown = Math.max(0, p.slideCooldown - dt);
       if (movement && p.slide <= 0) p.facing = movement;

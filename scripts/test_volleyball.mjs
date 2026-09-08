@@ -67,7 +67,7 @@ assert(m.events.some(e => e.type === 'dig'), 'slide reaches and saves the distan
 assert(m.ball.vy < -600 && m.ball.y < FLOOR - BALL_R, 'slide lifts ball without conceding a point');
 assert.deepEqual(m.scores, [0, 0]);
 m.resetRally(); assert.equal(m.players[0].slide, 0); assert.equal(m.players[0].slideCooldown, 0);
-assert.equal(m.rulesVersion, 5, 'new matches use the current rules');
+assert.equal(m.rulesVersion, 6, 'new matches use the current rules');
 // A slow nearby drop is an easy running return; the old early dive overshot it.
 for (const rulesVersion of [3, 4]) {
   m = active({ difficulty: 'hard', rulesVersion });
@@ -93,7 +93,7 @@ for (let tick = 0; tick < 30 && m.phase === 'playing'; tick++) {
 assert(m.events.some(e => e.type === 'dig' && e.side === 1), 'hard AI still dives when running cannot reach the falling ball');
 assert.deepEqual(m.scores, [0, 0]);
 // A close-net spike must remain blockable by the other player during hit cooldown.
-for (const rulesVersion of [3, 4, 5]) {
+for (const rulesVersion of [3, 4, 5, 6]) {
   m = active({ difficulty: 'hard', rulesVersion }); m.aiInput = () => ({});
   Object.assign(m.players[0], { x: 440, y: 240 }); Object.assign(m.players[1], { x: 520, y: 240 });
   m.ball = { x: 470, y: 208, vx: 0, vy: 0, spin: 0 };
@@ -110,7 +110,7 @@ m.resetRally(); assert.equal(m.lastHitSide, null, 'rally reset clears the last h
 // The new AI must learn about changed trajectories through its delayed observations.
 m = active({ difficulty: 'normal' }); m.aiInput(dt); const committedTarget = m.ai.target;
 m.ball = { x: 900, y: 150, vx: 0, vy: 100, spin: 0 }; m.shotNumber++;
-for (let tick = 0; tick < 18; tick++) { m.aiInput(dt); assert.equal(m.ai.target, committedTarget, 'AI cannot instantly read a new shot'); }
+for (let tick = 0; tick < 12; tick++) { m.aiInput(dt); assert.equal(m.ai.target, committedTarget, 'AI cannot instantly read a new shot'); }
 for (let tick = 0; tick < 40; tick++) m.aiInput(dt);
 assert(m.ai.target > 800, 'AI responds after observing the shot');
 const shotError = m.ai.error;
@@ -124,11 +124,30 @@ for (let tick = 0; tick < 240; tick++) {
   assert.deepEqual(leading.aiInput(dt), trailing.aiInput(dt), 'AI decisions do not depend on who is winning');
 }
 assert.equal(leading.aiRandomState, trailing.aiRandomState, 'deterministic perception state ignores scores');
-const versions = [3, 4, 5].map(rulesVersion => { const game = active({ rulesVersion }); game.phase = 'serve'; game.timer = 100; return game; });
+const versions = [3, 4, 5, 6].map(rulesVersion => { const game = active({ rulesVersion }); game.phase = 'serve'; game.timer = 100; return game; });
 for (let tick = 0; tick < 240; tick++) {
   const input = { right: tick < 45, left: tick > 120, jump: tick >= 60 && tick < 80, slide: tick >= 150 && tick < 175, spike: tick > 65 && tick < 90 };
   for (const game of versions) game.step(dt, input);
   assert.deepEqual(versions[0].players[0], versions[2].players[0], 'v5 retains original player movement, jump and slide mechanics');
   assert.deepEqual(versions[1].players[0], versions[2].players[0]);
+  assert.deepEqual(versions[2].players[0], versions[3].players[0], 'v6 retains the same player physics');
 }
 console.log('PASS: gameplay, delayed AI, score-independent perception, unchanged controls, opposing blocks, contact cooldown and legacy rules');
+
+// Intent is pinned here to isolate shot selection from random attack choice.
+function attackSituation(x, y, playerY) {
+  const game = active({ difficulty: 'hard' });
+  game.ball = { x, y, vx: 0, vy: 100, spin: 0 };
+  Object.assign(game.players[1], { x, y: playerY, vy: 0 });
+  game.ai.observations = [{ time: 0, shot: 0, ...game.ball }];
+  game.ai.shot = 0; game.ai.attack = true;
+  return game;
+}
+m = attackSituation(850, 230, 275);
+assert.equal(m.aiInput(dt).spike, false, 'back-court high ball is lifted instead of spiked into our own net');
+m = attackSituation(850, 310, FLOOR - R);
+for (let tick = 0; tick < 30 && !m.events.some(e => e.side === 1 && e.type === 'spike'); tick++) m.step(dt);
+assert(m.events.some(e => e.side === 1 && e.type === 'spike'), 'CPU times a late back-court attack');
+assert(m.ball.vx < -600 && m.ball.vy < -600, 'back-court attack is a fast upward return');
+m = attackSituation(560, 225, 275);
+assert.equal(m.aiInput(dt).spike, true, 'near-net high contact can use a downward spike');

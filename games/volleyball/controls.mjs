@@ -1,4 +1,4 @@
-import { FLOOR, R } from './engine.mjs?v=7';
+import { FLOOR, R } from './engine.mjs?v=8';
 
 export const ACTION_BUFFER_SECONDS = .12;
 const KEY_ACTIONS = Object.freeze({

@@ -1,9 +1,9 @@
-import { Match, CHARACTERS, DIFFICULTIES, FLOOR, R } from './engine.mjs?v=7';
-import { encodeInput, MAX_TICKS, MAX_CHANGES, RULES_VERSION } from './replay.mjs?v=7';
-import { initLeaderboard, lockRanking, prepareRankedMatch, submitRankedMatch } from './leaderboard.js?v=7';
+import { Match, CHARACTERS, DIFFICULTIES, FLOOR, R } from './engine.mjs?v=8';
+import { encodeInput, MAX_TICKS, MAX_CHANGES, RULES_VERSION } from './replay.mjs?v=8';
+import { initLeaderboard, lockRanking, prepareRankedMatch, submitRankedMatch } from './leaderboard.js?v=8';
 import { initScreenMode } from './screen-mode.mjs?v=3';
-import { CourtRenderer } from './renderer.mjs?v=2';
-import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=4';
+import { CourtRenderer } from './renderer.mjs?v=3';
+import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=5';
 import { MatchFeedback, ResumeCountdown } from './feedback.mjs?v=1';
 
 const $ = id => document.getElementById(id);

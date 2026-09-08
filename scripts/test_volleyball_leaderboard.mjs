@@ -35,7 +35,7 @@ assert.equal((await post({ ...start('easy'), version: 3 })).status, 400, 'new se
 assert.equal((await post({ ...start('easy'), version: 4 })).status, 400, 'new sessions cannot opt into the previous balance');
 assert.equal(encodeInput(decodeInput(31)), 31);
 // A changing-input trace (including slide and jump) must reproduce the client exactly.
-for (const rulesVersion of [3, 4, RULES_VERSION]) {
+for (const rulesVersion of [3, 4, 5, RULES_VERSION]) {
   const match = new Match({ difficulty: 'hard', rulesVersion }); match.start();
   const trace = { version: rulesVersion, ticks: 0, changes: [[0, 18], [25, 0], [70, 5], [95, 0], [150, 10], [180, 0]] };
   let cursor = 0, controls = decodeInput(0);
@@ -62,6 +62,12 @@ for (const fixture of legacyV4Fixtures) {
   assert.deepEqual(verifyReplay({ difficulty: fixture.difficulty }, fixture.replay),
     { score: fixture.score, conceded: fixture.conceded, durationMs: Math.round(fixture.ticks * 1000 / 120) }, `${fixture.difficulty}: pre-rebalance v4 match keeps its exact result`);
 }
+const legacyV5Fixtures = JSON.parse(readFileSync(new URL('./fixtures/volleyball-v5.json', import.meta.url), 'utf8'));
+for (const fixture of legacyV5Fixtures) {
+  assert.deepEqual(verifyReplay({ difficulty: fixture.difficulty }, fixture.replay),
+    { score: fixture.score, conceded: fixture.conceded, durationMs: Math.round(fixture.ticks * 1000 / 120) }, `${fixture.difficulty}: v5 keeps its exact result`);
+}
+assert.equal((await post({ ...start('easy'), version: 5 })).status, 400, 'new sessions cannot opt into v5');
 {
   const hard = new Match({ difficulty: 'hard', rulesVersion: 4 }); hard.ball = { x: 640, y: 405, vx: -100, vy: 150 };
   assert.equal(hard.aiInput().slide, true, 'hard AI attempts low-ball slide saves');
@@ -80,10 +86,11 @@ for (const difficulty of Object.keys(DIFFICULTIES)) {
   assert.equal(result.score, match.scores[0]); assert.equal(result.conceded, match.scores[1]); replays[difficulty] = replay;
   DB.prepare('UPDATE volleyball_sessions SET started_at=0 WHERE user_id=?').bind('alice').run();
   const session = await post(start(difficulty)); assert.equal(session.status, 200);
-  assert.equal(DB.prepare('SELECT rules_version FROM volleyball_sessions WHERE id=?').bind(session.data.sessionId).first().rules_version, 5, 'new sessions are bound to current rules');
+  assert.equal(DB.prepare('SELECT rules_version FROM volleyball_sessions WHERE id=?').bind(session.data.sessionId).first().rules_version, RULES_VERSION, 'new sessions are bound to current rules');
   const finish = { action: 'finish', sessionId: session.data.sessionId, replay, score: 999, userId: 'bob', difficulty: 'hard' };
   assert.equal((await post({ ...finish, replay: { ...replay, version: 3 } })).status, 400, 'current session rejects legacy mechanics');
   assert.equal((await post({ ...finish, replay: { ...replay, version: 4 } })).status, 400, 'current session rejects the previous balance');
+  assert.equal((await post({ ...finish, replay: { ...replay, version: 5 } })).status, 400, 'current session rejects v5');
   assert.equal(DB.prepare('SELECT completed_at FROM volleyball_sessions WHERE id=?').bind(session.data.sessionId).first().completed_at, null, 'version mismatch cannot complete a session');
   assert.equal((await post(finish, 'bob')).status, 409, 'session is owner-scoped');
   assert.equal((await post(start(difficulty))).status, 429, 'rapid starts are limited');
@@ -101,10 +108,10 @@ assert.throws(() => verifyReplay({}, { ...replays.easy, changes: [[0, 32]] }), /
 assert.throws(() => verifyReplay({ difficulty: 'easy' }, { ...replays.easy, ticks: replays.easy.ticks + 1 }), /종료 이후/);
 assert.throws(() => verifyReplay({}, { ...replays.easy, ticks: MAX_TICKS + 1 }), /형식/);
 assert.throws(() => verifyReplay({}, { ...replays.easy, version: 2 }), /형식/);
-assert.throws(() => verifyReplay({}, { ...replays.easy, version: 6 }), /형식/);
-// Already active v3/v4 sessions can finish after deployment, with their original replay only.
-for (const version of [3, 4]) {
-  const fixture = version === 3 ? legacyFixtures.find(item => item.difficulty === 'easy') : legacyV4Fixtures.find(item => item.difficulty === 'easy');
+assert.throws(() => verifyReplay({}, { ...replays.easy, version: RULES_VERSION + 1 }), /형식/);
+// Already active v3/v4/v5 sessions can finish after deployment, with their original replay only.
+for (const version of [3, 4, 5]) {
+  const fixture = version === 3 ? legacyFixtures.find(item => item.difficulty === 'easy') : (version === 4 ? legacyV4Fixtures : legacyV5Fixtures).find(item => item.difficulty === 'easy');
   const replay = version === 3 ? { version: 3, ticks: fixture.ticks, changes: legacyChanges } : fixture.replay;
   const expected = { score: fixture.score ?? 0, conceded: fixture.conceded ?? 7, durationMs: Math.round(fixture.ticks * 1000 / 120) };
   const sessionId = `active-v${version}-session`;
@@ -119,11 +126,11 @@ for (const version of [3, 4]) {
 }
 // Add explicit fixtures only in this isolated in-memory test database.
 const insert = DB.prepare(`INSERT INTO volleyball_records VALUES (?, 'easy', ?, 'pikachu', 7, ?, ?, ?)`);
-insert.bind('bob', '밥', 2, 50000, 10).run(); insert.bind('carol', '캐롤', 1, 90000, 20).run();
+insert.bind('bob', '밥', 2, 50000, 10).run(); insert.bind('carol', '캐롤', 1, 60000, 20).run();
 let ranking = (await get('easy', 'bob')).data;
 assert.equal(ranking.rows[0].nickname, '캐롤', 'fewer concessions outrank a faster game');
-assert.equal(ranking.mine.rank, 2); assert.equal(ranking.rows[1].is_me, 1);
-DB.prepare("UPDATE volleyball_records SET conceded=1, duration_ms=80000 WHERE user_id='bob' AND difficulty='easy'").run();
+assert.equal(ranking.mine.rank, 3, 'the preserved v5 best also outranks Bob'); assert.equal(ranking.rows[2].is_me, 1);
+DB.prepare("UPDATE volleyball_records SET conceded=1, duration_ms=55000 WHERE user_id='bob' AND difficulty='easy'").run();
 ranking = (await get('easy')).data; assert.equal(ranking.rows[0].nickname, '밥', 'time breaks equal-score ties');
 assert(!JSON.stringify(ranking).includes('@private.test')); assert(!JSON.stringify(ranking).includes('user_id'));
 const publicRanking = await get('easy', null); assert.equal(publicRanking.data.loggedIn, false); assert.equal(publicRanking.data.mine, null);

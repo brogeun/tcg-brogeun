@@ -1,4 +1,4 @@
-import { W, H, FLOOR, NET, R, CHARACTERS } from './engine.mjs?v=7';
+import { W, H, FLOOR, NET, R, CHARACTERS } from './engine.mjs?v=8';
 import { SLIDE_POSES, slideVisual } from './slide-poses.mjs?v=1';
 import { canvasFont, refreshCanvasFont } from '../shared/fonts.mjs?v=1';
 

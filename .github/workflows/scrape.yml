@@ -110,6 +110,7 @@ jobs:
           # Member volleyball rankings
           mkdir -p _deploy/functions/api/games
           cp functions/api/games/volleyball.js _deploy/functions/api/games/volleyball.js
+          cp functions/api/games/jigglypuff.js _deploy/functions/api/games/jigglypuff.js
           # auth
           for f in request.js verify.js me.js logout.js; do
             [ -f "functions/api/auth/$f" ] && cp "functions/api/auth/$f" "_deploy/functions/api/auth/$f" && echo "✓ auth/$f"

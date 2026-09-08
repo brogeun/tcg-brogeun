@@ -1,0 +1,39 @@
+/* Compact four-slot home; sources remain shared with their destination pages. */
+.home-discovery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 18px;grid-template-areas:"news games" "events recommend"}
+.home-discovery>section{min-width:0}
+.home-discovery-news{grid-area:news}.home-discovery-games{grid-area:games}.home-discovery-events{grid-area:events}.home-discovery-recommend{grid-area:recommend}
+.home-v3 .home-discovery .section-header2{margin-bottom:8px;gap:8px}
+.home-v3 .home-discovery .home-v3-kicker{display:none}
+.home-v3 .home-discovery .section-title2{margin:0;font-size:17px;line-height:24px}
+.home-discovery .section-more2{border:0;background:none;cursor:pointer;font:inherit;font-size:11px!important;color:#066666;white-space:nowrap;padding:4px 0}
+body.home-signed-in .home-v3 .home-discovery #homeNewsGrid,.home-news-carousel,.home-compact-card,.home-discovery .home-event-card{position:relative;display:block;min-width:0;width:100%;height:104px;min-height:0;overflow:hidden;background:#fff;border:1px solid #EDECE8;border-radius:12px;box-shadow:0 1px 3px #0000000f}
+#homeNewsSlide{display:flex;height:100%}
+.home-news-item,.home-compact-item,.home-discovery .home-event-card .etc-slide{display:flex;align-items:center;gap:12px;width:100%;height:100%;min-height:0;padding:12px 14px 20px;border:0;background:transparent;text-align:left;color:inherit;font:inherit;cursor:pointer;text-decoration:none;box-shadow:none}
+.home-news-visual{width:86px;flex:0 0 86px;overflow:hidden;border-radius:8px;background:#EDECE8}
+.home-news-visual .hub-news-placeholder{height:auto;aspect-ratio:16/9;border:0}
+.home-news-visual .hub-news-fallback.is-brand{padding:8px}
+.home-news-copy,.home-compact-copy{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.home-news-copy strong,.home-compact-copy strong,.home-discovery .home-event-card .etc-slide-title{margin:0;font-size:14px;font-weight:600;line-height:20px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:normal;overflow-wrap:anywhere}
+.home-news-copy small,.home-news-copy time,.home-compact-copy small,.home-discovery .home-event-card .etc-slide-date{font-size:11px;line-height:16px;color:#888780}
+.home-news-copy small{color:#066666}
+.home-compact-copy small{color:#066666}
+.home-compact-art,.home-discovery .home-event-card .etc-slide-thumb{width:56px;height:56px;flex:0 0 56px;display:grid;place-items:center;border-radius:8px;overflow:hidden;background:#fff;font-size:26px}
+.home-compact-art.game{background:#E8FAFA}
+.home-compact-art img{width:100%;height:100%;object-fit:contain}
+.home-compact-art [hidden]{display:none}
+.home-discovery .home-event-card .etc-slide-tag{display:none}
+.home-discovery .home-event-card .etc-slide-body{min-width:0;gap:3px}
+.home-discovery .home-event-card .etc-slide-thumb img{object-fit:contain}
+.home-compact-count{position:absolute;right:12px;bottom:5px;font-size:10px;line-height:12px;color:#999890;pointer-events:none}
+.home-discovery .home-event-card .etc-dots{display:none}
+.home-discovery a:focus-visible,.home-discovery button:focus-visible{outline:2px solid #066666;outline-offset:-3px}
+@media(max-width:600px){.home-discovery{grid-template-columns:1fr;grid-template-areas:"news" "games" "events" "recommend";gap:14px}.home-v3 .home-discovery .section-title2{font-size:16px}.home-news-carousel,.home-compact-card,.home-discovery .home-event-card,body.home-signed-in .home-v3 .home-discovery #homeNewsGrid{height:96px}}
+@media(prefers-reduced-motion:reduce){.home-discovery .etc-slide{transition:none}}
+.home-v3 .home-official-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.home-v3 .home-official-card{height:104px;min-height:0;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;padding:12px 14px;border-radius:12px}
+.home-v3 .home-official-icon{width:44px;height:44px;border-radius:10px}
+.home-v3 .home-official-card{transition:border-color .18s,box-shadow .18s,transform .18s}
+.home-v3 .home-official-copy strong{font-size:14px;line-height:20px;margin-top:4px;overflow-wrap:anywhere}
+.home-v3 .home-official-copy small{font-size:9px;line-height:14px;letter-spacing:.04em}
+.home-v3 .home-official-cta{grid-column:auto;font-size:10px;padding:7px 8px;gap:4px}
+@media(max-width:600px){.home-v3 .home-official-grid{grid-template-columns:1fr;gap:14px}.home-v3 .home-official-card{height:96px}}

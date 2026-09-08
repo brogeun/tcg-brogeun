@@ -689,6 +689,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 </style>
 <link rel="stylesheet" href="/assets/search-modal.css?v=20260908-search1">
 <link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
+<link rel="stylesheet" href="/assets/home-discovery.css?v=20260908-compact4">
 </head>
 <body>
 <script>
@@ -893,47 +894,37 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .etc-dot.active { background: var(--text-primary); width: 18px; border-radius: 3px; }
       </style>
 
-      <!-- 소식 큐레이션 -->
-      <div class="section2">
-        <div class="section-header2">
-          <div><div class="home-v3-kicker muted">LATEST UPDATE</div><div class="section-title2"><span class="mo-home-original">새로운 TCG 소식</span><span class="mo-home-only">소식</span></div><div class="section-desc2">공식 채널의 새로운 상품과 주요 소식입니다.</div></div>
-          <span class="section-more2" onclick="go('hub')"><span class="mo-home-original">전체 보기 →</span><span class="mo-home-only">전체 소식 보기 ›</span></span>
-        </div>
-        <div class="news-grid2" id="homeNewsGrid"></div>
-        <div id="mobileHomeNews" class="mo-home-only" aria-live="polite"></div>
-      </div>
-
-      <div class="section2 home-play-events">
-        <section aria-labelledby="homeMinigamesTitle">
-          <div class="section-header2"><div><div class="home-v3-kicker muted">PLAY TOGETHER</div><h2 class="section-title2" id="homeMinigamesTitle">미니게임</h2></div><button type="button" class="section-more2" onclick="_gotoHubSub('minigames')">전체 보기 →</button></div>
-          <a class="minigame-card" href="/games/volleyball/">
-              <span class="minigame-copy"><strong>포켓 배구</strong><b>게임 시작 →</b></span>
-            </a><a class="minigame-card" href="/games/jigglypuff/" style="margin-top:10px"><span class="minigame-copy"><strong>푸린 만들기</strong><b>시간 도전 · 무한 점수 →</b></span></a>
+      <!-- 홈 바로가기: 뉴스 / 미니게임 / 이벤트 / 추천 글 -->
+      <div class="section2 home-discovery">
+        <section class="home-discovery-news" aria-labelledby="homeNewsTitle">
+          <div class="section-header2"><div><div class="home-v3-kicker muted">LATEST UPDATE</div><h2 class="section-title2" id="homeNewsTitle">뉴스</h2></div><button type="button" class="section-more2" onclick="go('hub');applyHubTab('news')">전체 보기 →</button></div>
+          <div id="homeNewsGrid" class="home-news-carousel" aria-label="최신 뉴스" aria-roledescription="캐러셀">
+            <div id="homeNewsSlide">소식 불러오는 중…</div>
+            <span id="homeNewsCount" class="home-compact-count" aria-live="off">0 / 0</span>
+          </div>
         </section>
-        <section aria-labelledby="homeEventsTitle">
+        <section class="home-discovery-games" aria-labelledby="homeMinigamesTitle">
+          <div class="section-header2"><div><div class="home-v3-kicker muted">PLAY TOGETHER</div><h2 class="section-title2" id="homeMinigamesTitle">미니게임</h2></div><button type="button" class="section-more2" onclick="_gotoHubSub('minigames')">전체 보기 →</button></div>
+          <div class="home-compact-card" id="homeGameSlide"></div>
+        </section>
+        <section class="home-discovery-events" aria-labelledby="homeEventsTitle">
           <div class="section-header2"><div><div class="home-v3-kicker muted">EVENT</div><h2 class="section-title2" id="homeEventsTitle">이벤트</h2></div><button type="button" class="section-more2" onclick="_gotoHubSub('events')">전체 보기 →</button></div>
-          <div id="homeEventsCarousel" class="home-event-card"><button type="button" id="homeEventsSlide" class="etc-slide" onclick="_gotoHubSub('events')"><span class="etc-slide-thumb">🎉</span><span class="etc-slide-body"><span class="etc-slide-title">이벤트 둘러보기</span></span></button><div id="homeEventsDots" class="etc-dots" aria-label="이벤트 선택"></div></div>
+          <div id="homeEventsCarousel" class="home-event-card"><button type="button" id="homeEventsSlide" class="etc-slide" onclick="_gotoHubSub('events')"><span class="etc-slide-thumb">🎉</span><span class="etc-slide-body"><span class="etc-slide-title">이벤트 둘러보기</span></span></button><div id="homeEventsDots" class="home-compact-count" aria-label="이벤트 순서" aria-live="off"></div></div>
+        </section>
+        <section class="home-discovery-recommend" aria-labelledby="homeRecommendTitle">
+          <div class="section-header2"><div><div class="home-v3-kicker muted">CURATED FOR YOU</div><h2 class="section-title2" id="homeRecommendTitle">추천 글</h2></div><button type="button" class="section-more2" onclick="_gotoHubSub('etc')">전체 보기 →</button></div>
+          <div class="home-compact-card" id="homeRecommendSlide"></div>
         </section>
       </div>
 
       <div class="section2 home-official-section">
         <div class="section-header2"><div><div class="home-v3-kicker muted">FOLLOW TCG HUB</div><div class="section-title2">TCG Hub 공식 채널</div><div class="section-desc2">신상품 소식과 짧은 TCG 콘텐츠를 가장 빠르게 만나보세요.</div></div></div>
         <div class="home-official-grid">
-          <a class="home-official-card instagram" href="https://www.instagram.com/tcg._.hub/" target="_blank" rel="noopener noreferrer"><span class="home-official-icon"><i data-lucide="instagram"></i></span><span class="home-official-copy"><small>OFFICIAL INSTAGRAM</small><strong>TCG Hub 인스타그램</strong><span>@tcg._.hub · 신상품·카드 소식과 주요 업데이트</span></span><span class="home-official-cta">팔로우하기 <i data-lucide="external-link"></i></span></a>
-          <a class="home-official-card youtube" href="https://www.youtube.com/@TCGhub-gk/shorts" target="_blank" rel="noopener noreferrer"><span class="home-official-icon"><i data-lucide="youtube"></i></span><span class="home-official-copy"><small>OFFICIAL YOUTUBE</small><strong>TCG Hub Shorts</strong><span>@TCGhub-gk · 짧게 보는 TCG 정보와 카드 콘텐츠</span></span><span class="home-official-cta">쇼츠 보기 <i data-lucide="external-link"></i></span></a>
+          <a class="home-official-card instagram" href="https://www.instagram.com/tcg._.hub/" target="_blank" rel="noopener noreferrer"><span class="home-official-icon"><i data-lucide="instagram"></i></span><span class="home-official-copy"><small>OFFICIAL INSTAGRAM</small><strong>TCG Hub 인스타그램</strong></span><span class="home-official-cta">팔로우하기 <i data-lucide="external-link"></i></span></a>
+          <a class="home-official-card youtube" href="https://www.youtube.com/@TCGhub-gk/shorts" target="_blank" rel="noopener noreferrer"><span class="home-official-icon"><i data-lucide="youtube"></i></span><span class="home-official-copy"><small>OFFICIAL YOUTUBE</small><strong>TCG Hub Shorts</strong></span><span class="home-official-cta">쇼츠 보기 <i data-lucide="external-link"></i></span></a>
         </div>
       </div>
 
-      <div class="section2 home-recommend-section">
-        <div class="section-header2"><div><div class="home-v3-kicker muted">CURATED FOR YOU</div><div class="section-title2">추천 글</div><div class="section-desc2">카드 수집에 도움이 되는 국내 커뮤니티와 채널을 모았습니다.</div></div><span class="section-more2" onclick="_gotoHubSub('etc')">전체 보기 →</span></div>
-        <div class="news-grid2 home-recommend-grid">
-          <a class="news-card2" href="https://cafe.naver.com/cardmvk" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-cafe"><i data-lucide="users"></i></span><span class="news-body2"><span class="home-recommend-badge">추천 카페</span><strong>포켓몬 MVC</strong><small>포켓몬 카드 커뮤니티</small></span><i data-lucide="external-link"></i></a>
-          <a class="news-card2" href="https://cafe.naver.com/onepiecetcg" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-cafe alt"><i data-lucide="users"></i></span><span class="news-body2"><span class="home-recommend-badge">추천 카페</span><strong>원피스 TCG 커뮤니티</strong><small>원피스 카드 커뮤니티</small></span><i data-lucide="external-link"></i></a>
-          <a class="news-card2" href="https://cafe.naver.com/tcgtraining" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-cafe gold"><i data-lucide="users"></i></span><span class="news-body2"><span class="home-recommend-badge">추천 카페</span><strong>금빛박물관</strong><small>TCG 정보 커뮤니티</small></span><i data-lucide="external-link"></i></a>
-          <a class="news-card2" href="https://www.youtube.com/@henreview" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-youtube"><i data-lucide="youtube"></i></span><span class="news-body2"><span class="home-recommend-badge youtube">추천 채널</span><strong>헨리뷰</strong><small>TCG 유튜브 채널</small></span><i data-lucide="external-link"></i></a>
-          <a class="news-card2" href="https://www.youtube.com/@sane_e/featured" target="_blank" rel="noopener noreferrer"><span class="news-thumb2 recommend-youtube alt"><i data-lucide="youtube"></i></span><span class="news-body2"><span class="home-recommend-badge youtube">추천 채널</span><strong>사네</strong><small>TCG 유튜브 채널</small></span><i data-lucide="external-link"></i></a>
-        </div>
-      </div>
 
       <!-- SNKRDUNK 설명 모달 -->
       <div class="modal-overlay2" id="snkrHelpModal" onclick="if(event.target===this)this.classList.remove('show')">
@@ -1260,14 +1251,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         body.home-signed-in .home-v3 #homeNewsGrid { display:none; }
         body.home-signed-in .home-v3 #mobileHomeNews { display:grid; gap:12px; }
         #mobileHomeNews a { display:flex; gap:12px; align-items:center; min-width:0; padding:12px 16px; background:#fff; border:1px solid #EDECE8; border-radius:16px; color:#0D0D0D; text-decoration:none; }
-        .mo-news-thumb { width:56px; height:56px; flex-shrink:0; overflow:hidden; border-radius:10px; background:#FEF9C3; }
-        .mo-news-thumb.onepiece { background:#FEE2E2; }
-        .mo-news-thumb img { width:100%; height:100%; object-fit:cover; }
+        .mo-news-thumb { width:80px; height:56px; flex-shrink:0; display:grid; align-items:center; overflow:hidden; border-radius:10px; background:#EDECE8; }
+        .mo-news-thumb .hub-news-placeholder { width:100%; height:auto; aspect-ratio:16/9; border:0; }
+        .mo-news-thumb .hub-news-fallback.is-brand { padding:6px; background:#EDECE8; }
         .mo-news-copy { min-width:0; }
         .mo-news-copy span { font-size:14px; color:#066666; }
         .mo-news-copy strong { display:block; font-size:15px; line-height:20px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin:4px 0; }
         .mo-news-copy small { font-size:12px; color:#888780; }
-        body.home-signed-in .home-v3 .home-official-section,body.home-signed-in .home-v3 .section2:has(.home-recommend-grid) { display:none; }
         body.home-signed-in .home-v3 svg { stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
         @media(max-width:360px) { body.home-signed-in .home-v3 .price-row { gap:8px; padding:8px 12px; } body.home-signed-in .home-v3 .section-more2 { font-size:14px; } }
       }
@@ -3002,6 +2992,7 @@ const HOME_TOP_KO_NAMES = Object.freeze({
 
 // Match the curated links to their existing registered artwork, not generic icons.
 function renderHomeRecommendations(items = ETC_LIST) {
+  renderHomeRotatingCards(items);
   const linkKey = value => {
     try {
       const url = new URL(String(value || '').trim(), location.origin);
@@ -3101,52 +3092,69 @@ window.toggleHomeTopMore = function(brand) {
   }
 };
 
-function renderHomeNewsGrid() {
-  const grid = document.getElementById('homeNewsGrid');
-  if (!grid) return;
-  const isLoaded = (typeof NEWS_LIST !== 'undefined' && Array.isArray(NEWS_LIST));
-  const items = isLoaded ? NEWS_LIST.slice(0, 4) : [];
-  if (!items.length) {
-    if (!window._adminLoaded) {
-      // 로딩 중 — 스켈레톤 4개
-      grid.innerHTML = Array.from({length: 4}, () => `
-        <div class="news-card2" style="cursor:default; pointer-events:none">
-          <div class="news-thumb2" style="background:#f3f4f6; color:transparent">·</div>
-          <div class="news-body2">
-            <div style="background:#f3f4f6; height:10px; border-radius:3px; width:40px; margin-bottom:6px"></div>
-            <div style="background:#f3f4f6; height:14px; border-radius:3px; margin-bottom:6px"></div>
-            <div style="background:#f3f4f6; height:10px; border-radius:3px; width:60px"></div>
-          </div>
-        </div>
-      `).join('');
-    } else {
-      grid.innerHTML = '<div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--text-tertiary); font-size:12px">아직 등록된 소식이 없습니다</div>';
-    }
-    return;
-  }
-  grid.innerHTML = items.map(n => {
-    const date = n.date || n.publishedAt || '';
-    const title = n.title || '';
-    const tag = n.tag || n.category || '뉴스';
-    const tagStr = String(tag);
-    const icon = (tagStr.includes('이벤트') || tagStr.includes('응모')) ? '🎪'
-               : (tagStr.includes('발매') || tagStr.includes('출시')) ? '🎴'
-               : tagStr.includes('시세') ? '📊'
-               : tagStr.includes('오리파') ? '🎰'
-               : tagStr.includes('카드쇼') ? '🎟️'
-               : '📰';
-    const link = n.link || n.url || '#hub';
-    const isExternal = /^https?:/.test(link);
-    return `<a href="${escapeHtml(link)}" ${isExternal ? 'target="_blank" rel="noopener"' : ''} class="news-card2" style="text-decoration:none">
-      <div class="news-thumb2">${icon}</div>
-      <div class="news-body2">
-        <div class="news-tag2">${escapeHtml(tagStr)}</div>
-        <div class="news-title2">${escapeHtml(title)}</div>
-        <div class="news-meta2">${escapeHtml(date)}</div>
-      </div>
-    </a>`;
-  }).join('');
+let HOME_NEWS_INDEX = 0;
+let HOME_NEWS_TIMER = null;
+const HOME_REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)');
+function homeNewsItems() {
+  return HUB_NEWS_ITEMS.slice(0, 10);
 }
+function renderHomeNewsGrid() {
+  const slide = document.getElementById('homeNewsSlide');
+  if (!slide) return;
+  const items = homeNewsItems();
+  HOME_NEWS_INDEX = items.length ? ((HOME_NEWS_INDEX % items.length) + items.length) % items.length : 0;
+  const n = items[HOME_NEWS_INDEX];
+  if (n) {
+    const direct = HubNewsDetail.isDirectNews(n) && /^https?:\/\//i.test(n.link || '');
+    const tag = direct ? 'a' : 'button';
+    const attrs = direct ? `href="${escapeHtml(n.link)}" target="_blank" rel="noopener noreferrer"`
+      : 'type="button" onclick="openHomeNews()"';
+    slide.innerHTML = `<${tag} ${attrs} class="home-news-item" title="${escapeHtml(n.title || '')}"><span class="home-news-visual">${renderNewsMedia(n)}</span><span class="home-news-copy"><small>${escapeHtml(n.sourceLabel || n.tag || '뉴스')}</small><strong>${escapeHtml(n.title || '')}</strong><time>${escapeHtml(String(n.date || '').replace(/-/g, '.'))}</time></span></${tag}>`;
+  } else {
+    slide.innerHTML = '<button type="button" class="home-news-item" onclick="go(\'hub\');applyHubTab(\'news\')">등록된 소식이 없습니다. 뉴스 페이지 보기 →</button>';
+  }
+  document.getElementById('homeNewsCount').textContent = `${n ? HOME_NEWS_INDEX + 1 : 0} / ${items.length}`;
+  if (HOME_NEWS_TIMER) clearInterval(HOME_NEWS_TIMER);
+  HOME_NEWS_TIMER = items.length > 1 ? setInterval(() => {
+    const home = document.querySelector('.home-v3');
+    const grid = document.getElementById('homeNewsGrid');
+    if (HOME_REDUCED_MOTION.matches || document.hidden || !home?.classList.contains('active') || grid?.matches(':hover, :focus-within')) return;
+    HOME_NEWS_INDEX++;
+    renderHomeNewsGrid();
+  }, 5000) : null;
+}
+function homeNewsStep(delta) { HOME_NEWS_INDEX += delta; renderHomeNewsGrid(); }
+function openHomeNews() { const n = homeNewsItems()[HOME_NEWS_INDEX]; if (n) HubNewsDetail.open(n); }
+
+let HOME_GAME_INDEX = 0;
+let HOME_RECOMMEND_INDEX = 0;
+let HOME_ROTATING_TIMER = null;
+let HOME_RECOMMEND_ITEMS = [];
+const HOME_MINIGAMES = [
+  {title:'포켓 배구',link:'/games/volleyball/',icon:'🏐'},
+  {title:'푸린 만들기',link:'/games/jigglypuff/',icon:'🎮'},
+];
+function renderHomeRotatingCards(items = HOME_RECOMMEND_ITEMS) {
+  HOME_RECOMMEND_ITEMS = Array.isArray(items) ? items.filter(n => n && n.title) : [];
+  const games = document.getElementById('homeGameSlide');
+  const recommendations = document.getElementById('homeRecommendSlide');
+  if (!games || !recommendations) return;
+  HOME_GAME_INDEX %= HOME_MINIGAMES.length;
+  HOME_RECOMMEND_INDEX %= Math.max(1, HOME_RECOMMEND_ITEMS.length);
+  const game = HOME_MINIGAMES[HOME_GAME_INDEX];
+  games.innerHTML = `<a class="home-compact-item" href="${game.link}"><span class="home-compact-art game" aria-hidden="true">${game.icon}</span><span class="home-compact-copy"><strong>${game.title}</strong><small>게임 시작 →</small></span></a><span class="home-compact-count">${HOME_GAME_INDEX + 1} / ${HOME_MINIGAMES.length}</span>`;
+  const item = HOME_RECOMMEND_ITEMS[HOME_RECOMMEND_INDEX];
+  const src = newsImageUrl(item?.image);
+  recommendations.innerHTML = `<button type="button" class="home-compact-item" onclick="_gotoHubSub('etc')" title="${escapeHtml(item?.title || '추천 글')}"><span class="home-compact-art">${src ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden aria-hidden="true">📖</span>` : '<span aria-hidden="true">📖</span>'}</span><span class="home-compact-copy"><strong>${escapeHtml(item?.title || '수집가를 위한 추천 글')}</strong><small>추천 글 보러 가기 →</small></span></button><span class="home-compact-count">${item ? HOME_RECOMMEND_INDEX + 1 : 0} / ${HOME_RECOMMEND_ITEMS.length}</span>`;
+  if (HOME_ROTATING_TIMER) return;
+  HOME_ROTATING_TIMER = setInterval(() => {
+    if (document.hidden || HOME_REDUCED_MOTION.matches || !document.querySelector('.home-v3')?.classList.contains('active')) return;
+    if (!games.matches(':hover, :focus-within')) HOME_GAME_INDEX++;
+    if (!recommendations.matches(':hover, :focus-within')) HOME_RECOMMEND_INDEX++;
+    renderHomeRotatingCards();
+  }, 5000);
+}
+document.addEventListener('DOMContentLoaded', () => renderHomeRotatingCards());
 
 let _ETC_CAROUSEL_IDX = 0;
 let _ETC_CAROUSEL_TIMER = null;
@@ -3268,13 +3276,12 @@ function renderHomeEventsCarousel() {
   const isLoaded = (typeof EVENTS !== 'undefined');
   const items = isLoaded ? _eventsCarouselGetItems() : [];
   if (!items.length) {
+    dots.textContent = '0 / 0';
     if (!window._adminLoaded) {
       slide.innerHTML = `<div class="etc-slide-thumb" style="background:#f3f4f6">·</div><div class="etc-slide-body"><div style="background:#f3f4f6; height:11px; border-radius:3px; width:60px; margin-bottom:6px"></div><div style="background:#f3f4f6; height:15px; border-radius:3px; margin-bottom:6px; width:80%"></div><div style="background:#f3f4f6; height:11px; border-radius:3px; width:50px"></div></div>`;
-      dots.innerHTML = '';
     } else {
       slide.innerHTML = '<span class="etc-slide-thumb">🎉</span><span class="etc-slide-body"><span class="etc-slide-title">새 이벤트를 기다려 주세요</span><span class="etc-slide-date">이벤트 전체 보기 →</span></span>';
       slide.onclick = () => _gotoHubSub('events');
-      dots.innerHTML = '';
     }
     return;
   }
@@ -3293,18 +3300,10 @@ function renderHomeEventsCarousel() {
         <div class="etc-slide-title">${escapeHtml(title)}</div>
         <div class="etc-slide-date">${escapeHtml(date)}</div>
       </div>`;
-    slide.onclick = () => {
-      let lk = (e.link || '').trim();
-      if (lk) {
-        if (!/^[a-z][a-z0-9+.-]*:/i.test(lk)) lk = 'https://' + lk;
-        window.open(lk, '_blank', 'noopener');
-        return;
-      }
-      _gotoHubSub('events');
-    };
+    slide.onclick = () => _gotoHubSub('events');
     slide.classList.remove('fading');
+    dots.textContent = `${items.indexOf(e) + 1} / ${items.length}`;
   }, 250);
-  dots.innerHTML = items.map((_, i) => `<button type="button" class="etc-dot ${i === _EVENTS_CAROUSEL_IDX ? 'active' : ''}" aria-label="이벤트 ${i + 1}" aria-pressed="${i === _EVENTS_CAROUSEL_IDX}" onclick="_eventsCarouselGoto(${i})"></button>`).join('');
 }
 
 window._eventsCarouselGoto = function(idx) {
@@ -3318,6 +3317,7 @@ function _eventsCarouselRestart() {
   if (!document.getElementById('homeEventsCarousel')) return;
   if (!_eventsCarouselGetItems().length) return;
   _EVENTS_CAROUSEL_TIMER = setInterval(() => {
+    if (document.hidden || HOME_REDUCED_MOTION.matches || !document.querySelector('.home-v3')?.classList.contains('active') || document.getElementById('homeEventsCarousel')?.matches(':hover, :focus-within')) return;
     const all = _eventsCarouselGetItems();
     if (!all.length) return;
     _EVENTS_CAROUSEL_IDX = (_EVENTS_CAROUSEL_IDX + 1) % all.length;
@@ -3346,10 +3346,9 @@ function loadMobileHomeNews() {
     grid.innerHTML = items.length ? items.map(n => {
       const link = n.link || n.url || '';
       if (!/^https?:\/\//i.test(link)) return '';
-      const src = n.image || n.thumbnail || '';
       const source = n.source || n.brand;
       const label = n.tag || n.category || n.sourceLabel || (source === 'onepiece' ? '원피스' : source === 'pokemon' ? '포켓몬' : '소식');
-      return `<a href="${escapeHtml(link)}" target="_blank" rel="noopener"><span class="mo-news-thumb ${source === 'onepiece' ? 'onepiece' : ''}">${/^https?:\/\//i.test(src) ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" onerror="this.hidden=true">` : ''}</span><span class="mo-news-copy"><span>${escapeHtml(label)}</span><strong title="${escapeHtml(n.title || '')}">${escapeHtml(n.title || '')}</strong><small>${escapeHtml(n.date || n.publishedAt || '')}</small></span></a>`;
+      return `<a href="${escapeHtml(link)}" target="_blank" rel="noopener"><span class="mo-news-thumb ${source === 'onepiece' ? 'onepiece' : ''}">${renderNewsMedia(n)}</span><span class="mo-news-copy"><span>${escapeHtml(label)}</span><strong title="${escapeHtml(n.title || '')}">${escapeHtml(n.title || '')}</strong><small>${escapeHtml(String(n.date || n.publishedAt || '').replace(/-/g, '.'))}</small></span></a>`;
     }).join('') : '소식을 불러오지 못했습니다. 전체 소식에서 다시 확인해주세요.';
   }).catch(() => {
     grid.textContent = '소식을 불러오지 못했습니다. 전체 소식에서 다시 확인해주세요.';
@@ -6256,10 +6255,40 @@ async function loadNews() {
     HUB_NEWS_ITEMS = items;
     HUB_NEWS_PAGE = 1;
     renderHubNewsPage();
+    renderHomeNewsGrid();
   } catch (e) {
     list.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="circle-alert"></i><div>뉴스를 불러오지 못했습니다</div></div></div>`;
     if (typeof _initLucide === 'function') _initLucide();
   }
+}
+// Home and news use the same source, poster framing and failure fallback.
+function newsImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (/^data:image\/(?:png|jpe?g|gif|webp);base64,/i.test(raw)) return raw;
+  try {
+    const url = new URL(raw, location.origin);
+    if (!raw || !/^https?:$/.test(url.protocol)) return '';
+    if (url.origin === location.origin) return url.pathname + url.search;
+    // The official One Piece CMS also emits its internal, HTTP-only image host.
+    if (url.hostname === 'flow.xosoft.kr' && url.pathname === '/fileDownload') {
+      url.hostname = 'onepiece-cardgame.kr';
+    }
+    url.protocol = 'https:';
+    return url.href;
+  } catch { return ''; }
+}
+function renderNewsMedia(n) {
+  const imageUrl = newsImageUrl(n.image || n.thumbnail);
+  const brand = n.source === 'onepiece' || String(n.sourceLabel || n.tag || '').includes('원피스') ? 'onepiece'
+    : n.source === 'pokemon' || String(n.sourceLabel || n.tag || '').includes('포켓몬') ? 'pokemon' : '';
+  const brandLogo = brand === 'onepiece' ? '/images/market/onepiece-logo.png'
+    : brand === 'pokemon' ? 'https://data1.pokemonkorea.co.kr/newdata/2026/08/2026-08-18_09-44-22-87314-1787013862.png' : '';
+  const fallback = `<span class="hub-news-fallback${brandLogo ? ' is-brand' : ''}" ${imageUrl ? 'hidden' : ''}>${brandLogo
+    ? `<img class="hub-news-brand-logo" src="${brandLogo}" alt="${brand === 'onepiece' ? 'ONE PIECE CARD GAME' : '포켓몬 카드 게임'}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>${brand === 'onepiece' ? 'ONE PIECE CARD GAME' : '포켓몬 카드 게임'}</span>`
+    : '<i data-lucide="newspaper" aria-hidden="true"></i>'}</span>`;
+  return imageUrl
+    ? `<div class="hub-news-placeholder"><img class="hub-news-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onload="this.classList.toggle('hub-news-poster',this.naturalHeight>this.naturalWidth*1.8)" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallback}</div>`
+    : `<div class="hub-news-placeholder">${fallback}</div>`;
 }
 function renderHubNewsPage() {
     const list = document.getElementById('newsList');
@@ -6283,17 +6312,7 @@ function renderHubNewsPage() {
         : `type="button" onclick="showNewsModal(${_ni})"`;
       const label = escapeHtml(n.sourceLabel || n.tag || n.category || 'News');
       const date = escapeHtml(String(n.date || '').replace(/-/g, '.'));
-      const imageUrl = String(n.image || '').trim();
-      const brand = n.source === 'onepiece' || String(n.sourceLabel || n.tag || '').includes('원피스') ? 'onepiece'
-        : n.source === 'pokemon' || String(n.sourceLabel || n.tag || '').includes('포켓몬') ? 'pokemon' : '';
-      const brandLogo = brand === 'onepiece' ? '/images/market/onepiece-logo.png'
-        : brand === 'pokemon' ? 'https://data1.pokemonkorea.co.kr/newdata/2026/08/2026-08-18_09-44-22-87314-1787013862.png' : '';
-      const fallback = `<span class="hub-news-fallback${brandLogo ? ' is-brand' : ''}" ${imageUrl ? 'hidden' : ''}>${brandLogo
-        ? `<img class="hub-news-brand-logo" src="${brandLogo}" alt="${brand === 'onepiece' ? 'ONE PIECE CARD GAME' : '포켓몬 카드 게임'}" loading="lazy" decoding="async" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>${brand === 'onepiece' ? 'ONE PIECE CARD GAME' : '포켓몬 카드 게임'}</span>`
-        : '<i data-lucide="newspaper" aria-hidden="true"></i>'}</span>`;
-      const media = imageUrl
-        ? `<div class="hub-news-placeholder"><img class="hub-news-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" onload="this.classList.toggle('hub-news-poster',this.naturalHeight>this.naturalWidth*1.8)" onerror="this.hidden=true;this.nextElementSibling.hidden=false">${fallback}</div>`
-        : `<div class="hub-news-placeholder">${fallback}</div>`;
+      const media = renderNewsMedia(n);
       return `
         <${tag} ${tagAttrs} class="hub-news-card" title="${escapeHtml(n.title || '')}">
           ${media}

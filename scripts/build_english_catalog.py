@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from PIL import Image, ImageOps
@@ -13,6 +14,18 @@ W, H, COLS, ROWS = 320, 448, 5, 4
 def build(entry, output):
     data = json.loads((STAGE/'data/cards-by-set'/f"{entry['code']}.json").read_text(encoding='utf-8'))
     cards = data['cards']
+    # Rebuilding images must not revert a newer price import to the card-only stage.
+    existing = output/'data/english-sets'/f"{entry['code']}.json"
+    if existing.exists():
+        prior = json.loads(existing.read_text(encoding='utf-8'))
+        prices = {c['sourceId']: c.get('psa10') for c in prior['cards']}
+        for card in cards:
+            p = prices.get(card['sourceId'])
+            old = card.get('psa10')
+            if p and (not old or datetime.fromisoformat(p['fetchedAt'].replace('Z','+00:00')) >= datetime.fromisoformat(old['fetchedAt'].replace('Z','+00:00'))):
+                card['psa10'] = p
+        for key in ('priceStatus', 'priceCoverage', 'priceFetchedAt'):
+            if key in prior: data[key] = prior[key]
     for start in range(0, len(cards), COLS*ROWS):
         batch = cards[start:start+COLS*ROWS]
         digest = hashlib.sha256(('sheet-v1:'+':'.join(c['image'] for c in batch)).encode()).hexdigest()[:14]

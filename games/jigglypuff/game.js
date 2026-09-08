@@ -1,6 +1,6 @@
 import {MergeGame,VERSION,STEP,NAMES,RADII,FIELD} from './engine.mjs';
-import * as rankings from './leaderboard.js';
-import {createGameAudio} from './audio.js';
+import * as rankings from './leaderboard.js?v=6';
+import {createGameAudio} from './audio.js?v=6';
 
 const $=id=>document.getElementById(id);
 const canvas=$('board'),ctx=canvas.getContext('2d'),audio=createGameAudio();

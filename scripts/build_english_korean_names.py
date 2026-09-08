@@ -60,6 +60,8 @@ def build(output=ROOT, cards_root=ROOT):
     payload=dict(schemaVersion=1,source='data/pokemon-names-pokeapi.json (1025 species)',names=mapped)
     target=output/'data/english-card-names-ko.json';target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text(json.dumps(payload,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+    from build_english_search import build as build_search
+    build_search(output)
     count=sum(c['name'] in mapped for c in cards)
     print(f'{len(files)} sets / {count} card entries / {len(mapped)} distinct translated names; source names preserved')
 

@@ -9,6 +9,11 @@
 .gs-icon{width:32px;height:32px;flex-shrink:0;display:grid;place-items:center;padding:4px;background:none;border:0;color:#666560;border-radius:9999px;cursor:pointer}
 .gs-icon svg{width:20px;height:20px;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .gs-filters{display:flex;gap:12px}
+.gs-languages{display:flex;gap:8px;flex-shrink:0;border-bottom:1px solid #EDECE8;padding-bottom:12px}
+.gs-language{min-height:44px;flex:1;padding:8px 16px;border:1px solid #D9D8D3;border-radius:8px;background:#fff;color:#666560;font:600 15px/24px Pretendard,sans-serif;cursor:pointer}
+.gs-language[aria-pressed=true]{color:#066666;border-color:#12CECE;background:#E6FAFA}
+.gs-en-art{display:flex;align-items:center;overflow:hidden}
+.gs-en-art>.enc-art{width:36px}
 .gs-filter{padding:4px 12px;border-radius:9999px;background:white;border:1px solid #D9D8D3;color:#666560;font:500 15px/24px Pretendard,sans-serif;cursor:pointer}
 .gs-filter[aria-pressed=true]{background:#666560;border-color:#666560;color:white}
 .gs-results{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}

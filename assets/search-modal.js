@@ -2,7 +2,7 @@
 (() => {
   const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>';
   const closeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
-  let modal, input, list, count, opener, timer, version=0, category='all', visible=30, composing=false, ready;
+  let modal, input, list, count, opener, timer, version=0, category='all', language='ja', visible=30, composing=false, ready;
   const normalized=new Map();
   let pokemonNames=[];
   function cardTitle(c) {
@@ -29,6 +29,7 @@
       boxes.forEach(c=>{if(!boxMap.has(c.id))boxMap.set(c.id,c)});
       for(const raw of _ALL_CARDS_INDEX){
         const c=boxMap.get(raw.id)||raw;
+        if(c.language==='en'||String(c.setCode||c.code||'').startsWith('EN-'))continue;
         const kind=c.kind==='box' ? (isPriceBoxProduct(c)?'box':'card') : 'card';
         const sets=CARDINFO[c.brand]||[];
         const code=(c.code||c.productNumber||'').toUpperCase();
@@ -43,6 +44,15 @@
     modal=document.createElement('div');modal.id='searchDialog';modal.hidden=true;
     modal.innerHTML='<section class="gs-panel" role="dialog" aria-modal="true" aria-label="카드 및 박스 검색"><div class="gs-header"><div class="gs-field"><input id="gsInput" autocomplete="off" enterkeyhint="search" aria-label="카드 및 박스 이름 검색" placeholder="카드 및 박스 이름을 검색해주세요"><button class="gs-icon" id="gsRun" aria-label="검색 실행">'+icon+'</button></div><button class="gs-icon" id="gsClose" aria-label="검색 닫기">'+closeIcon+'</button></div><div class="gs-filters" role="group" aria-label="검색 종류"><button class="gs-filter" data-kind="all" aria-pressed="true">전체</button><button class="gs-filter" data-kind="card" aria-pressed="false">카드</button><button class="gs-filter" data-kind="box" aria-pressed="false">박스</button></div><div class="gs-results" id="gsResults"></div><div class="gs-count" id="gsCount" role="status" aria-live="polite"></div></section>';
     document.body.append(modal);input=modal.querySelector('input');list=modal.querySelector('.gs-results');count=modal.querySelector('.gs-count');
+    const languages=document.createElement('div');languages.className='gs-languages';languages.setAttribute('role','group');languages.setAttribute('aria-label','검색 언어');
+    languages.innerHTML='<button class="gs-language" data-language="ja" aria-pressed="true">일판</button><button class="gs-language" data-language="en" aria-pressed="false">영판</button>';
+    modal.querySelector('.gs-filters').before(languages);
+    languages.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+      language=btn.dataset.language;visible=30;clearTimeout(timer);
+      languages.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===btn)));
+      input.placeholder=(language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
+      render();
+    });
     modal.querySelector('#gsClose').onclick=close;
     modal.querySelector('#gsRun').onclick=()=>{clearTimeout(timer);visible=30;render()};
     modal.onclick=e=>{if(e.target===modal)close()};
@@ -76,16 +86,23 @@
     if(!keepScroll){list.replaceChildren();list.scrollTop=0;}
     count.textContent='검색 중...';
     try{
-      await ensureData();
+      const english=language==='en' ? await EnglishSearch.ensureData() : (await ensureData(),null);
       if(own!==version||modal.hidden)return;
       const unique=new Map();
+      if(english) EnglishSearch.search(english,q,category).forEach(c=>unique.set(c.id,c));
+      else {
       searchCards(q,Infinity).forEach(raw=>{const c=normalized.get(raw.id);if(c&&(category==='all'||c.kind===category))unique.set(c.id,c)});
       // ID-based Korean box names also remain searchable after metadata enrichment.
       normalized.forEach(c=>{if(c.displayName.toLowerCase().includes(q.toLowerCase())&&(category==='all'||c.kind===category))unique.set(c.id,c)});
+      }
       const results=[...unique.values()];
       count.textContent=results.length ? results.length+'개 결과 · '+Math.min(visible,results.length)+'개 표시' : '';
       list.innerHTML=results.length ? results.slice(0,visible).map(c=>{
         const safe=escapeHtml;
+        if(c.language==='en') {
+          const image=c.kind==='card' ? '<span class="gs-thumb gs-en-art">'+EnglishCatalog.art(c)+'</span>' : (/^https:\/\//.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>');
+          return '<a class="gs-row" data-id="'+safe(c.id)+'" data-language="en" data-kind="'+c.kind+'" href="'+safe(EnglishSearch.href(c))+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta">영판 · '+(c.kind==='box'?'박스 · 수록 목록':safe(c.number))+' · '+safe(c.setName)+'</div></div><span class="gs-price">'+(c.kind==='box'?'수록 카드':'상세 보기')+'</span></a>';
+        }
         const image=/^(https?:\/\/|\/)/.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>';
         const price=Number(c.minPrice)>0 ? fmtKrw(Number(c.minPrice),c.currency) : '시세 없음';
         return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="#price/'+encodeURIComponent(c.id)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+'</div></div><span class="gs-price" title="'+safe(fmtOrig(c.minPrice,c.currency))+'">'+price+'</span></a>';
@@ -96,7 +113,8 @@
     if(!modal)build();
     opener=document.activeElement?.id==='globalSearch' ? document.getElementById('mobileSearchToggle') : document.activeElement;
     composing=false;clearTimeout(timer);category='all';visible=30;
-    modal.querySelectorAll('.gs-filter').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind==='all')));
+    modal.querySelectorAll('.gs-filter[data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind==='all')));
+    input.placeholder=(language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
     if(modal.hidden){modal._previousOverflow=document.body.style.overflow;modal._previousHtmlOverflow=document.documentElement.style.overflow}
     modal.hidden=false;document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';
     input.value=query;list.replaceChildren();count.textContent='';render();

@@ -101,7 +101,7 @@
         const safe=escapeHtml;
         if(c.language==='en') {
           const image=c.kind==='card' ? '<span class="gs-thumb gs-en-art">'+EnglishCatalog.art(c)+'</span>' : (/^https:\/\//.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>');
-          return '<a class="gs-row" data-id="'+safe(c.id)+'" data-language="en" data-kind="'+c.kind+'" href="'+safe(EnglishSearch.href(c))+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta">영판 · '+(c.kind==='box'?'박스 · 수록 목록':safe(c.number))+' · '+safe(c.setName)+'</div></div><span class="gs-price">'+(c.kind==='box'?'수록 카드':'상세 보기')+'</span></a>';
+          return '<a class="gs-row" data-id="'+safe(c.id)+'" data-language="en" data-kind="'+c.kind+'" href="'+safe(EnglishSearch.href(c))+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.name)+'</div><div class="gs-meta">영판 · '+(c.kind==='box'?'박스 · 수록 목록':safe(c.number))+' · '+safe(c.setName)+'</div></div><span class="gs-price">'+(c.kind==='box'?'수록 카드':'상세 보기')+'</span></a>';
         }
         const image=/^(https?:\/\/|\/)/.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>';
         const price=Number(c.minPrice)>0 ? fmtKrw(Number(c.minPrice),c.currency) : '시세 없음';

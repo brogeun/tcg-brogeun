@@ -1,5 +1,5 @@
-import { CHARACTERS, DIFFICULTIES } from './engine.mjs?v=5';
-import { RULES_VERSION } from './replay.mjs?v=5';
+import { CHARACTERS, DIFFICULTIES } from './engine.mjs?v=6';
+import { RULES_VERSION } from './replay.mjs?v=6';
 const $ = id => document.getElementById(id);
 let selected = 'normal', requestId = 0, loggedIn = false, available = false, locked = false, pending = null, saving = false;
 async function api(body, difficulty = selected) {

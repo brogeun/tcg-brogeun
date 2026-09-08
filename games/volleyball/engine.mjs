@@ -10,9 +10,29 @@ export const DIFFICULTIES = {
   normal: { name: '보통', speed: 290, offset: 8, jumpRange: 110, deadZone: 13 },
   hard: { name: '어려움', speed: 340, offset: 0, jumpRange: 135, deadZone: 6 }
 };
+function canRunToBall(player, ball, speed) {
+  // Check grounded contact before the ball lands, using the replay's fixed tick.
+  // A slow drop can be reached on foot even when it is already below net height.
+  const dt = 1 / 120, contactRadius = R + BALL_R;
+  let { x, y, vx, vy } = ball;
+  for (let tick = 1; tick <= 60; tick++) {
+    vy += 880 * dt; x += vx * dt; y += vy * dt;
+    if (x > W - BALL_R) { x = W - BALL_R; vx = -Math.abs(vx); }
+    if (x < NET.x + NET.w + BALL_R) { x = NET.x + NET.w + BALL_R; vx = Math.abs(vx) * .82; }
+    if (y + BALL_R >= FLOOR) return false;
+    const dy = y - (FLOOR - R);
+    if (Math.abs(dy) >= contactRadius) continue;
+    const reach = Math.sqrt(contactRadius * contactRadius - dy * dy), travel = speed * tick * dt;
+    const left = Math.max(NET.x + NET.w + R, player.x - travel);
+    const right = Math.min(W - R, player.x + travel);
+    if (x > left - reach && x < right + reach) return true;
+  }
+  return false;
+}
 export class Match {
-  constructor({ player = 'pikachu', opponent = 'squirtle', difficulty = 'normal' } = {}) {
+  constructor({ player = 'pikachu', opponent = 'squirtle', difficulty = 'normal', rulesVersion = 4 } = {}) {
     this.characters = [player, opponent]; this.difficulty = Object.hasOwn(DIFFICULTIES, difficulty) ? difficulty : 'normal';
+    this.rulesVersion = rulesVersion === 3 ? 3 : 4;
     this.scores = [0, 0]; this.phase = 'ready'; this.server = 0; this.events = [];
     this.resetRally();
   }
@@ -20,7 +40,7 @@ export class Match {
     this.players = [220, 740].map((x, i) => ({ x, y: FLOOR - R, vx: 0, vy: 0, spike: 0, cooldown: 0, jumpHeld: false,
       facing: i ? -1 : 1, slide: 0, slideCooldown: 0, slideHeld: false, slideDirection: i ? -1 : 1 }));
     this.ball = { x: this.server ? 735 : 225, y: 200, vx: 0, vy: 0, spin: 0 };
-    this.timer = 1.15; this.hitLock = 0;
+    this.timer = 1.15; this.hitLock = 0; this.lastHitSide = null;
   }
   start() { this.phase = 'serve'; }
   pause() { if (['playing', 'serve', 'point'].includes(this.phase)) { this.beforePause = this.phase; this.phase = 'paused'; } }
@@ -36,7 +56,8 @@ export class Match {
       if (target > W - BALL_R) target = 2 * (W - BALL_R) - target;
       target = clamp(target + settings.offset, 530, 910);
     }
-    const saving = hard && b.x > 510 && b.y > 365 && b.vy > 0 && Math.abs(b.x - p.x) > 55 && Math.abs(b.x - p.x) < 190;
+    let saving = hard && b.x > 510 && b.y > 365 && b.vy > 0 && Math.abs(b.x - p.x) > 55 && Math.abs(b.x - p.x) < 190;
+    if (saving && this.rulesVersion >= 4) saving = p.y >= FLOOR - R - .1 && !canRunToBall(p, b, settings.speed);
     if (saving) target = b.x;
     return { left: p.x > target + settings.deadZone, right: p.x < target - settings.deadZone,
       jump: !saving && b.x > 490 && Math.abs(b.x - p.x) < settings.jumpRange && b.y > (hard ? 160 : 190) && b.y < 338 && b.vy > -100,
@@ -94,7 +115,7 @@ export class Match {
       const bodyX = sliding ? clamp(b.x, p.x - 25, p.x + 25) : p.x;
       const bodyY = sliding ? FLOOR - 22 : p.y;
       const dx = b.x - bodyX, dy = b.y - bodyY, dist = Math.hypot(dx, dy);
-      if (dist >= radius + BALL_R || this.hitLock > 0) return;
+      if (dist >= radius + BALL_R || (this.hitLock > 0 && (this.rulesVersion === 3 || this.lastHitSide === i))) return;
       const nx = dist ? dx / dist : 0, ny = dist ? dy / dist : -1;
       b.x = bodyX + nx * (radius + BALL_R + 1); b.y = bodyY + ny * (radius + BALL_R + 1);
       if (sliding) b.y = Math.min(b.y, FLOOR - BALL_R - 1);
@@ -102,7 +123,7 @@ export class Match {
       const spike = p.spike > 0 && p.y < FLOOR - R - 15;
       b.vx = sliding ? direction * 390 : direction * (spike ? 720 : 360) + p.vx * .22 + dx * 1.3;
       b.vy = sliding ? -700 : spike && b.y < NET.y - 48 ? 135 : (spike ? -660 : -640);
-      this.hitLock = .12; p.spike = 0;
+      this.hitLock = .12; this.lastHitSide = i; p.spike = 0;
       this.events.push({ type: sliding ? 'dig' : spike ? 'spike' : 'hit', x: b.x, y: b.y, side: i });
     });
     if (b.y + BALL_R >= FLOOR) this.point(b.x < W / 2 ? 1 : 0);

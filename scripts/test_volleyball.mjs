@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Match, FLOOR, R, NET, BALL_R } from '../games/volleyball/engine.mjs';
 const dt = 1 / 120;
-const active = () => { const m = new Match(); m.start(); m.phase = 'playing'; return m; };
+const active = (options = {}) => { const m = new Match(options); m.start(); m.phase = 'playing'; return m; };
 let m = active();
 for (let i = 0; i < 240; i++) m.step(dt, { left: true });
 assert(m.players[0].x >= R, 'player must stay within left wall');
@@ -67,4 +67,44 @@ assert(m.events.some(e => e.type === 'dig'), 'slide reaches and saves the distan
 assert(m.ball.vy < -600 && m.ball.y < FLOOR - BALL_R, 'slide lifts ball without conceding a point');
 assert.deepEqual(m.scores, [0, 0]);
 m.resetRally(); assert.equal(m.players[0].slide, 0); assert.equal(m.players[0].slideCooldown, 0);
-console.log('PASS: existing gameplay and AI matches; slide speed, direction, grounding, pause, cooldown, rearming, boundaries, low-ball save and reset');
+assert.equal(m.rulesVersion, 4, 'new matches use the current rules');
+// A slow nearby drop is an easy running return; the old early dive overshot it.
+for (const rulesVersion of [3, 4]) {
+  m = active({ difficulty: 'hard', rulesVersion });
+  m.ball = { x: 800, y: 366, vx: 0, vy: 20, spin: 0 };
+  for (let tick = 0; tick < 60 && m.phase === 'playing'; tick++) {
+    m.step(dt);
+    if (m.events.some(e => ['hit', 'dig', 'spike'].includes(e.type))) break;
+  }
+  if (rulesVersion === 3) {
+    assert.deepEqual(m.scores, [1, 0], 'legacy early dive keeps its original result');
+    assert(m.events.some(e => e.type === 'slide'), 'legacy replay still uses the original AI');
+  } else {
+    assert(m.events.some(e => e.type === 'hit' && e.side === 1), 'hard AI runs to the slow drop');
+    assert(!m.events.some(e => e.type === 'slide'), 'reachable drop does not waste a dive');
+    assert.deepEqual(m.scores, [0, 0]);
+  }
+}
+m = active({ difficulty: 'hard' }); m.ball = { x: 640, y: 405, vx: -100, vy: 150, spin: 0 };
+for (let tick = 0; tick < 30 && m.phase === 'playing'; tick++) {
+  m.step(dt);
+  if (m.events.some(e => e.type === 'dig')) break;
+}
+assert(m.events.some(e => e.type === 'dig' && e.side === 1), 'hard AI still dives when running cannot reach the falling ball');
+assert.deepEqual(m.scores, [0, 0]);
+// A close-net spike must remain blockable by the other player during hit cooldown.
+for (const rulesVersion of [3, 4]) {
+  m = active({ difficulty: 'hard', rulesVersion }); m.aiInput = () => ({});
+  Object.assign(m.players[0], { x: 440, y: 240 }); Object.assign(m.players[1], { x: 520, y: 240 });
+  m.ball = { x: 470, y: 208, vx: 0, vy: 0, spin: 0 };
+  m.step(dt, { spike: true });
+  assert.equal(m.events[0]?.type, 'spike'); assert.equal(m.events[0]?.side, 0);
+  for (let tick = 1; tick < 15; tick++) m.step(dt);
+  assert.equal(m.events.some(e => e.side === 1), rulesVersion === 4, 'opponent can block only under the new collision rules');
+}
+m = active(); m.ball = { x: 220, y: 377, vx: 0, vy: 100, spin: 0 };
+m.step(dt); assert.equal(m.lastHitSide, 0);
+m.ball = { x: 220, y: 377, vx: 0, vy: 100, spin: 0 }; m.step(dt);
+assert.equal(m.events.filter(e => e.type === 'hit').length, 1, 'same player cannot repeatedly hit during cooldown');
+m.resetRally(); assert.equal(m.lastHitSide, null, 'rally reset clears the last hitter');
+console.log('PASS: gameplay, AI matches, slide behavior, running and diving saves, opposing blocks, contact cooldown and legacy rules');

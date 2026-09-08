@@ -31,18 +31,30 @@ assert.equal((await post(start('easy'), 'alice', { Origin: 'https://other.test' 
 assert.equal((await post({ ...start('easy'), nickname: '<script>' })).status, 400);
 assert.equal((await post({ ...start('easy'), difficulty: '__proto__' })).status, 400);
 assert.equal((await post({ ...start('easy'), version: 0 })).status, 400);
+assert.equal((await post({ ...start('easy'), version: 3 })).status, 400, 'new sessions cannot opt into legacy mechanics');
 assert.equal(encodeInput(decodeInput(31)), 31);
 // A changing-input trace (including slide and jump) must reproduce the client exactly.
-{
-  const match = new Match({ difficulty: 'hard' }); match.start();
-  const trace = { version: RULES_VERSION, ticks: 0, changes: [[0, 18], [25, 0], [70, 5], [95, 0], [150, 10], [180, 0]] };
+for (const rulesVersion of [3, RULES_VERSION]) {
+  const match = new Match({ difficulty: 'hard', rulesVersion }); match.start();
+  const trace = { version: rulesVersion, ticks: 0, changes: [[0, 18], [25, 0], [70, 5], [95, 0], [150, 10], [180, 0]] };
   let cursor = 0, controls = decodeInput(0);
   while (match.phase !== 'over' && trace.ticks < MAX_TICKS) {
     if (trace.changes[cursor]?.[0] === trace.ticks) controls = decodeInput(trace.changes[cursor++][1]);
     match.step(1 / 120, controls); match.events.length = 0; trace.ticks++;
   }
   const result = verifyReplay({ difficulty: 'hard' }, trace);
-  assert.deepEqual([result.score, result.conceded], match.scores, 'nontrivial input replay matches client simulation');
+  assert.deepEqual(result, { score: match.scores[0], conceded: match.scores[1], durationMs: Math.round(trace.ticks * 1000 / 120) }, `v${rulesVersion} input replay matches client simulation`);
+}
+// Captured before the v4 engine changes; these fixtures must retain exact v3 results.
+const legacyChanges = [[0, 18], [25, 0], [70, 5], [95, 0], [150, 10], [180, 0]];
+const legacyFixtures = [
+  { difficulty: 'easy', ticks: 4135, durationMs: 34458 },
+  { difficulty: 'normal', ticks: 7021, durationMs: 58508 },
+  { difficulty: 'hard', ticks: 3877, durationMs: 32308 }
+];
+for (const fixture of legacyFixtures) {
+  assert.deepEqual(verifyReplay({ difficulty: fixture.difficulty, rulesVersion: 4 }, { version: 3, ticks: fixture.ticks, changes: legacyChanges }),
+    { score: 0, conceded: 7, durationMs: fixture.durationMs }, `${fixture.difficulty} v3 fixture chooses legacy mechanics from the replay`);
 }
 {
   const hard = new Match({ difficulty: 'hard' }); hard.ball = { x: 640, y: 405, vx: -100, vy: 150 };
@@ -62,7 +74,10 @@ for (const difficulty of Object.keys(DIFFICULTIES)) {
   assert.equal(result.score, match.scores[0]); assert.equal(result.conceded, match.scores[1]); replays[difficulty] = replay;
   DB.prepare('UPDATE volleyball_sessions SET started_at=0 WHERE user_id=?').bind('alice').run();
   const session = await post(start(difficulty)); assert.equal(session.status, 200);
+  assert.equal(DB.prepare('SELECT rules_version FROM volleyball_sessions WHERE id=?').bind(session.data.sessionId).first().rules_version, 4, 'new sessions are bound to current rules');
   const finish = { action: 'finish', sessionId: session.data.sessionId, replay, score: 999, userId: 'bob', difficulty: 'hard' };
+  assert.equal((await post({ ...finish, replay: { ...replay, version: 3 } })).status, 400, 'current session rejects legacy mechanics');
+  assert.equal(DB.prepare('SELECT completed_at FROM volleyball_sessions WHERE id=?').bind(session.data.sessionId).first().completed_at, null, 'version mismatch cannot complete a session');
   assert.equal((await post(finish, 'bob')).status, 409, 'session is owner-scoped');
   assert.equal((await post(start(difficulty))).status, 429, 'rapid starts are limited');
   assert.equal((await post(finish)).status, 400, 'cannot submit simulated time faster than wall clock');
@@ -78,6 +93,22 @@ assert.throws(() => verifyReplay({}, { ...replays.easy, changes: [[0, 0], [0, 1]
 assert.throws(() => verifyReplay({}, { ...replays.easy, changes: [[0, 32]] }), /조작/);
 assert.throws(() => verifyReplay({ difficulty: 'easy' }, { ...replays.easy, ticks: replays.easy.ticks + 1 }), /종료 이후/);
 assert.throws(() => verifyReplay({}, { ...replays.easy, ticks: MAX_TICKS + 1 }), /형식/);
+assert.throws(() => verifyReplay({}, { ...replays.easy, version: 2 }), /형식/);
+assert.throws(() => verifyReplay({}, { ...replays.easy, version: 5 }), /형식/);
+// An already active v3 session can finish after deployment, with its original replay only.
+{
+  const fixture = legacyFixtures.find(item => item.difficulty === 'easy');
+  const replay = { version: 3, ticks: fixture.ticks, changes: legacyChanges };
+  const sessionId = 'active-v3-session';
+  DB.prepare(`UPDATE volleyball_sessions SET id=?, rules_version=3, difficulty='easy', started_at=?, completed_at=NULL,
+    score=NULL, conceded=NULL, duration_ms=NULL WHERE user_id='alice'`).bind(sessionId, Date.now() - fixture.durationMs - 100).run();
+  assert.equal((await post({ action: 'finish', sessionId, replay: replays.easy })).status, 400, 'legacy session rejects current-version replay');
+  const saved = await post({ action: 'finish', sessionId, replay });
+  assert.equal(saved.status, 200, 'active legacy session remains finishable');
+  assert.deepEqual(saved.data, { ok: true, score: 0, conceded: 7, durationMs: fixture.durationMs });
+  assert.equal((await post({ action: 'finish', sessionId, replay })).data.alreadySaved, true, 'legacy finish stays idempotent');
+  assert.equal(DB.prepare('SELECT COUNT(*) AS n FROM volleyball_records').first().n, 3, 'legacy completion preserves existing leaderboard records');
+}
 // Add explicit fixtures only in this isolated in-memory test database.
 const insert = DB.prepare(`INSERT INTO volleyball_records VALUES (?, 'easy', ?, 'pikachu', 7, ?, ?, ?)`);
 insert.bind('bob', '밥', 2, 50000, 10).run(); insert.bind('carol', '캐롤', 1, 90000, 20).run();
@@ -97,4 +128,4 @@ const plan = DB.prepare('EXPLAIN QUERY PLAN SELECT * FROM volleyball_records WHE
 assert(plan.results.some(row => row.detail.includes('idx_volleyball_records_ranking')), 'ranking uses its index');
 DB.prepare("DELETE FROM users WHERE id='bob'").run(); assert.equal(DB.prepare("SELECT COUNT(*) AS n FROM volleyball_records WHERE user_id='bob'").first().n, 0, 'account deletion removes rankings');
 DB.sqlite.close();
-console.log('PASS: migration, three modes, authenticated sessions, replay validation, ownership, timing, idempotency, public privacy, personal bests, sorting, indexed queries, account deletion');
+console.log('PASS: migration, three modes, current and legacy replays, session version binding, ownership, timing, idempotency, public privacy, personal bests, sorting, indexed queries, account deletion');

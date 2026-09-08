@@ -1,6 +1,6 @@
 import { getCurrentUser, jsonResponse } from '../../_shared/auth.js';
 import { CHARACTERS, DIFFICULTIES } from '../../../games/volleyball/engine.mjs';
-import { RULES_VERSION, verifyReplay } from '../../../games/volleyball/replay.mjs';
+import { RULES_VERSION, SUPPORTED_RULES_VERSIONS, verifyReplay } from '../../../games/volleyball/replay.mjs';
 
 const unavailable = () => jsonResponse({ ok: false, message: '회원 리더보드를 준비 중입니다. 연습 경기는 이용할 수 있어요.' }, 503);
 const fail = (message, status = 400) => jsonResponse({ ok: false, message }, status);
@@ -61,8 +61,10 @@ export async function onRequestPost({ request, env }) {
     if (data.action !== 'finish' || typeof data.sessionId !== 'string') return fail('요청을 확인해 주세요.');
     const session = await env.DB.prepare('SELECT * FROM volleyball_sessions WHERE id = ? AND user_id = ?').bind(data.sessionId, user.id).first();
     if (!session) return fail('경기 세션이 만료됐어요. 새 경기를 시작해 주세요.', 409);
+    if (!SUPPORTED_RULES_VERSIONS.includes(session.rules_version)) return fail('경기 규칙이 변경됐어요. 새 경기를 시작해 주세요.', 409);
+    if (data.replay?.version !== session.rules_version) return fail('경기 규칙 버전이 일치하지 않습니다. 새 경기를 시작해 주세요.');
     if (session.completed_at) return jsonResponse({ ok: true, alreadySaved: true, score: session.score, conceded: session.conceded });
-    if (session.rules_version !== RULES_VERSION || now - session.started_at > 60 * 60 * 1000) return fail('경기 기록의 유효시간이 지났어요.', 409);
+    if (now - session.started_at > 60 * 60 * 1000) return fail('경기 기록의 유효시간이 지났어요.', 409);
     let result;
     try { result = verifyReplay({ player: session.player, opponent: session.opponent, difficulty: session.difficulty }, data.replay); }
     catch (error) { return fail(error.message); }

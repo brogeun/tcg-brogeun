@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "generator": "Built-in image_gen.imagegen",
+  "characters": {
+    "charmander": {
+      "file": "charmander-atlas-v1.png",
+      "width": 1254,
+      "height": 1254,
+      "alpha": true,
+      "poses": {
+        "idle": [
+          99,
+          150,
+          409,
+          443
+        ],
+        "attack": [
+          727,
+          47,
+          434,
+          579
+        ],
+        "slide": [
+          63,
+          775,
+          604,
+          333
+        ],
+        "victory": [
+          776,
+          684,
+          419,
+          504
+        ]
+      },
+      "anchors": {
+        "idle": [
+          261,
+          437
+        ],
+        "attack": [
+          274,
+          573
+        ],
+        "slide": [
+          299,
+          327
+        ],
+        "victory": [
+          271,
+          498
+        ]
+      },
+      "anchorUnits": "Pixels relative to pose crop; approximate body center on baseline.",
+      "notes": "Use pose crops rather than an exact quadrant split. All figures face right. Alpha bounds use a 32/255 threshold plus 6px padding."
+    },
+    "pikachu": {
+      "file": "pikachu-ready-v1.svg",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "poses": {
+        "idle": [
+          60,
+          10,
+          391,
+          491
+        ]
+      },
+      "source": "../../jigglypuff/sprites/pikachu.svg",
+      "sourceArtwork": "Pokémon Dream World artwork distributed by PokeAPI/sprites",
+      "sourcePathCount": 54,
+      "mirroredForRightFacing": true,
+      "notes": "Existing vector path data is unchanged. Removed circular portrait crop/background and reframed full body. Only the ready pose is available; use the legacy PMD slide for sliding."
+    },
+    "squirtle": {
+      "file": "squirtle-ready-v1.svg",
+      "width": 512,
+      "height": 512,
+      "alpha": true,
+      "poses": {
+        "idle": [
+          9,
+          21,
+          494,
+          469
+        ]
+      },
+      "source": "../../jigglypuff/sprites/squirtle.svg",
+      "sourceArtwork": "Pokémon Dream World artwork distributed by PokeAPI/sprites",
+      "sourcePathCount": 60,
+      "mirroredForRightFacing": false,
+      "notes": "Existing vector path data is unchanged. Removed circular portrait crop/background and reframed full body. Only the ready pose is available; use the legacy PMD slide for sliding."
+    }
+  },
+  "background": {
+    "file": "coastal-court-v1.png",
+    "width": 1672,
+    "height": 941
+  },
+  "unavailable": {
+    "pikachu": "Built-in image generator rejected output with safety-system category 'other'.",
+    "squirtle": "Built-in image generator rejected output with safety-system category 'other'."
+  }
+}

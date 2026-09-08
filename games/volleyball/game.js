@@ -1,16 +1,13 @@
-import { Match, CHARACTERS, DIFFICULTIES, W, H, FLOOR, NET, R } from './engine.mjs?v=6';
-import { encodeInput, MAX_TICKS, MAX_CHANGES, RULES_VERSION } from './replay.mjs?v=6';
-import { initLeaderboard, lockRanking, prepareRankedMatch, submitRankedMatch } from './leaderboard.js?v=6';
+import { Match, CHARACTERS, DIFFICULTIES, FLOOR, R } from './engine.mjs?v=7';
+import { encodeInput, MAX_TICKS, MAX_CHANGES, RULES_VERSION } from './replay.mjs?v=7';
+import { initLeaderboard, lockRanking, prepareRankedMatch, submitRankedMatch } from './leaderboard.js?v=7';
 import { initScreenMode } from './screen-mode.mjs?v=3';
-import { SLIDE_POSES, slideVisual } from './slide-poses.mjs?v=1';
-import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=3';
+import { CourtRenderer } from './renderer.mjs?v=1';
+import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=4';
 import { MatchFeedback, ResumeCountdown } from './feedback.mjs?v=1';
 
 const $ = id => document.getElementById(id);
-const canvas = $('court'), ctx = canvas.getContext('2d');
-if (!ctx) throw new Error('Canvas rendering is unavailable');
-const spriteBounds = { pikachu: [31, 24, 39, 46], charmander: [30, 29, 38, 42], squirtle: [29, 29, 38, 39] };
-const sprites = {}, controls = new VolleyballControls();
+const canvas = $('court'), controls = new VolleyballControls();
 const countdown = new ResumeCountdown();
 let feedback = new MatchFeedback();
 const particles = [], trail = [];
@@ -36,6 +33,7 @@ $('music-volume').addEventListener('input', event => {
 });
 let musicRequest = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const renderer = new CourtRenderer(canvas, { reducedMotion });
 let rankedSession = null, replay = null, lastBits = 0, starting = false;
 const screenMode = initScreenMode({ arena: document.querySelector('.arena'), button: $('expand'), onPause: pause });
 
@@ -179,79 +177,9 @@ new MutationObserver(syncResultRanking).observe(document.querySelector('.leaderb
 $('result-retry').addEventListener('click', () => $('retry-ranking').click());
 $('result-discard').addEventListener('click', () => $('discard-ranking').click());
 
-function circle(x, y, radius, color) { ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); }
-function line(x1, y1, x2, y2, color, width = 1) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke(); }
-function drawCourt() {
-  const sky = ctx.createLinearGradient(0, 0, 0, FLOOR); sky.addColorStop(0, '#9dd9de'); sky.addColorStop(1, '#e2f2df');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-  // Court seating, boundary markings and net use game geometry.
-  ctx.fillStyle = '#689f9e'; ctx.fillRect(0, 229, W, 12);
-  for (let row = 0; row < 3; row++) {
-    ctx.fillStyle = ['#7eb8b5', '#8fc8c0', '#a7d6c9'][row]; ctx.fillRect(0, 242 + row * 25, W, 24);
-    for (let x = 15; x < W; x += 48) { ctx.fillStyle = '#ffffff24'; ctx.fillRect(x, 249 + row * 25, 28, 7); }
-  }
-  ctx.fillStyle = '#2a6469'; ctx.fillRect(0, 317, W, 34);
-  ctx.font = '700 12px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#a8d9d5';
-  for (let x = 105; x < W; x += 250) ctx.fillText('TCG HUB  /  POCKET VOLLEY', x, 339);
-  ctx.fillStyle = '#d9eacf'; ctx.fillRect(0, 351, W, 24);
-  ctx.fillStyle = '#e3cb91'; ctx.fillRect(0, 375, W, H - 375);
-  ctx.fillStyle = '#eedcb0'; ctx.fillRect(22, 389, W - 44, 104);
-  ctx.strokeStyle = '#fff5d9'; ctx.lineWidth = 3; ctx.strokeRect(37, 398, W - 74, 84);
-  line(480, 397, 480, 482, '#fff5d9', 3);
-  line(22, FLOOR + 2, W - 22, FLOOR + 2, '#c5aa75', 2);
-  ctx.font = '800 17px system-ui'; ctx.fillStyle = '#9b865b88'; ctx.fillText('YOU', 235, 513); ctx.fillText('CPU', 725, 513);
-  ctx.fillStyle = '#164b5350'; ctx.fillRect(NET.x + 8, NET.y + 10, 9, FLOOR - NET.y);
-  ctx.fillStyle = '#ecf9f1'; ctx.fillRect(NET.x, NET.y, NET.w, FLOOR - NET.y);
-  for (let y = NET.y + 10; y < FLOOR; y += 12) line(NET.x, y, NET.x + NET.w, y, '#648f8f', 2);
-  line(NET.x + 6, NET.y, NET.x + 6, FLOOR, '#648f8f', 1);
-  ctx.fillStyle = '#235a62'; ctx.fillRect(NET.x - 3, NET.y - 4, NET.w + 6, 7);
-}
-function drawPlayer(p, index) {
-  const id = match.characters[index], color = CHARACTERS[id].color;
-  const jump = FLOOR - R - p.y;
-  ctx.save(); ctx.globalAlpha = .18; ctx.fillStyle = '#173f45'; ctx.beginPath(); ctx.ellipse(p.x, FLOOR + 5, Math.max(17, 31 - jump / 12), 7, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  const sliding = p.slide > 0;
-  const sprite = sprites[sliding ? `${id}-slide` : id];
-  if (!sprite) return;
-  const bob = !sliding && !reducedMotion && p.vx && p.y >= FLOOR - R ? Math.sin(visualTime * 21) * 3 : 0;
-  const slide = sliding ? slideVisual(id, reducedMotion ? .16 : p.slide) : null;
-  const bounds = slide ? slide.bounds : spriteBounds[id];
-  const height = slide ? slide.height : id === 'pikachu' ? 87 : 76;
-  const width = slide ? slide.width : height * bounds[2] / bounds[3];
-  ctx.save(); ctx.translate(p.x, p.y + R + bob); ctx.scale(sliding ? p.slideDirection : index === 0 ? -1 : 1, 1);
-  if (!reducedMotion && p.spike > 0) ctx.rotate(index ? -.14 : .14);
-  ctx.imageSmoothingEnabled = false; ctx.drawImage(sprite, ...bounds, -width / 2, -height, width, height); ctx.restore();
-  if (p.spike > 0) { ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, 48, Math.PI, Math.PI * 2); ctx.stroke(); }
-  if (sliding && !reducedMotion) {
-    for (let n = 0; n < 3; n++) line(p.x - p.slideDirection * (48 + n * 9), FLOOR - 8 - n * 8, p.x - p.slideDirection * (65 + n * 9), FLOOR - 8 - n * 8, '#b49a66', 3);
-  }
-  circle(p.x, sliding ? FLOOR - height - 12 : p.y - 67, 4, index ? '#285b67' : '#0d9d85');
-}
-function draw() {
-  ctx.clearRect(0, 0, W, H); drawCourt();
-  if (!reducedMotion) trail.forEach((p, i) => { ctx.globalAlpha = i / trail.length * .22; circle(p.x, p.y, 11 * i / trail.length, '#fff'); });
-  ctx.globalAlpha = 1;
-  match.players.forEach(drawPlayer);
-  const b = match.ball;
-  ctx.save(); ctx.globalAlpha = .14; ctx.fillStyle = '#173f45'; ctx.beginPath(); ctx.ellipse(b.x, FLOOR + 5, 14, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.spin);
-  circle(0, 0, 17, '#fffdf1'); ctx.save(); ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.clip();
-  ctx.fillStyle = '#f0b743'; ctx.fillRect(-17, -17, 34, 12); ctx.fillStyle = '#2d9494'; ctx.fillRect(-17, 5, 34, 12);
-  line(-17, -5, 17, -5, '#254b58', 1.5); line(-17, 5, 17, 5, '#254b58', 1.5); ctx.restore();
-  ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI * 2); ctx.strokeStyle = '#254b58'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-  particles.forEach(p => { ctx.globalAlpha = Math.max(0, p.life * 2); circle(p.x, p.y, p.size, p.color); }); ctx.globalAlpha = 1;
-  if (match.phase === 'serve') {
-    ctx.textAlign = 'center'; ctx.fillStyle = '#255762'; ctx.font = '800 24px system-ui';
-    ctx.fillText(`${match.server ? 'CPU 서브' : '내 서브'} · ${Math.max(1, Math.ceil(match.timer / .4))}`, 480, 112);
-  }
-  if (feedback.rally >= 3 && match.phase === 'playing') {
-    ctx.textAlign = 'center'; ctx.font = '700 16px system-ui'; ctx.fillStyle = '#255762';
-    ctx.fillText(`${feedback.rally}회 랠리`, 480, 50);
-  }
-}
 function events() {
   for (const e of match.events.splice(0)) {
-    feedback.event(e);
+    feedback.event(e); renderer.event(e);
     if (e.type === 'slide') {
       if (!reducedMotion) for (let i = 0; i < 8; i++) particles.push({ x: e.x, y: e.y, vx: (Math.random() - .5) * 160, vy: -Math.random() * 80, life: .3, size: 3, color: '#bca16b' });
     } else if (e.type === 'hit' || e.type === 'spike' || e.type === 'dig') {
@@ -302,19 +230,12 @@ function frame(time) {
     for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; if (p.life <= 0) particles.splice(i, 1); }
     if (match.phase === 'playing') { trail.push({ x: match.ball.x, y: match.ball.y }); if (trail.length > 10) trail.shift(); }
   }
-  updateSkillFeedback(); draw(); requestAnimationFrame(frame);
+  updateSkillFeedback(); renderer.draw(match, { time: visualTime, dt, trail, particles, feedback }); requestAnimationFrame(frame);
 }
 async function loadSprites() {
-  $('start').disabled = true; $('start').textContent = '캐릭터 불러오는 중…';
+  $('start').disabled = true; $('start').textContent = '코트 준비 중…';
   try {
-    const assets = Object.keys(CHARACTERS).flatMap(id => [[id, `${id}.png`], [`${id}-slide`, SLIDE_POSES[id].file]]);
-    await Promise.all(assets.map(([id, file]) => new Promise((resolve, reject) => {
-      const img = new Image();
-      const timeout = setTimeout(() => { img.onload = null; img.onerror = null; reject(new Error(`Sprite timeout: ${id}`)); }, 10000);
-      img.onload = () => { clearTimeout(timeout); sprites[id] = img; resolve(); };
-      img.onerror = () => { clearTimeout(timeout); reject(new Error(`Sprite unavailable: ${id}`)); };
-      img.src = `./sprites/${file}`;
-    })));
+    await renderer.load();
     loaded = true; $('start').onclick = null;
     overlay('READY TO PLAY', '오늘의 선수는?', '캐릭터를 고른 뒤 코트에 입장하세요.', '경기 시작'); $('start').disabled = false;
   } catch {

@@ -5,10 +5,15 @@ export const CHARACTERS = {
   squirtle: { name: '꼬부기', color: '#52b8dc' }
 };
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-export const DIFFICULTIES = {
+const LEGACY_DIFFICULTIES = {
   easy: { name: '쉬움', speed: 225, offset: 30, jumpRange: 65, deadZone: 18 },
   normal: { name: '보통', speed: 290, offset: 8, jumpRange: 110, deadZone: 13 },
   hard: { name: '어려움', speed: 340, offset: 0, jumpRange: 135, deadZone: 6 }
+};
+export const DIFFICULTIES = {
+  easy: { name: '쉬움', speed: 225, reaction: .18, commitment: .22, aimError: 85, jumpRange: 90, deadZone: 22, attackChance: .18 },
+  normal: { name: '보통', speed: 260, reaction: .16, commitment: .20, aimError: 62, jumpRange: 105, deadZone: 16, attackChance: .35 },
+  hard: { name: '어려움', speed: 315, reaction: .065, commitment: .09, aimError: 75, jumpRange: 125, deadZone: 8, attackChance: .82 }
 };
 function canRunToBall(player, ball, speed) {
   // Check grounded contact before the ball lands, using the replay's fixed tick.
@@ -30,9 +35,10 @@ function canRunToBall(player, ball, speed) {
   return false;
 }
 export class Match {
-  constructor({ player = 'pikachu', opponent = 'squirtle', difficulty = 'normal', rulesVersion = 4 } = {}) {
+  constructor({ player = 'pikachu', opponent = 'squirtle', difficulty = 'normal', rulesVersion = 5 } = {}) {
     this.characters = [player, opponent]; this.difficulty = Object.hasOwn(DIFFICULTIES, difficulty) ? difficulty : 'normal';
-    this.rulesVersion = rulesVersion === 3 ? 3 : 4;
+    this.rulesVersion = rulesVersion === 3 || rulesVersion === 4 ? rulesVersion : 5;
+    this.aiRandomState = 0x9e3779b9;
     this.scores = [0, 0]; this.phase = 'ready'; this.server = 0; this.events = [];
     this.resetRally();
   }
@@ -41,13 +47,17 @@ export class Match {
       facing: i ? -1 : 1, slide: 0, slideCooldown: 0, slideHeld: false, slideDirection: i ? -1 : 1 }));
     this.ball = { x: this.server ? 735 : 225, y: 200, vx: 0, vy: 0, spin: 0 };
     this.timer = 1.15; this.hitLock = 0; this.lastHitSide = null;
+    this.shotNumber = 0;
+    this.ai = { time: 0, decideAt: 0, target: 737, shot: -1, error: 0, attack: false, controls: {},
+      observations: [{ time: 0, shot: 0, ...this.ball }] };
   }
   start() { this.phase = 'serve'; }
   pause() { if (['playing', 'serve', 'point'].includes(this.phase)) { this.beforePause = this.phase; this.phase = 'paused'; } }
   resume() { if (this.phase === 'paused') this.phase = this.beforePause; }
-  aiInput() {
+  aiInput(dt = 1 / 120) {
+    if (this.rulesVersion >= 5) return this.reactAiInput(dt);
     const p = this.players[1], b = this.ball, easy = this.difficulty === 'easy', hard = this.difficulty === 'hard';
-    const settings = DIFFICULTIES[this.difficulty];
+    const settings = LEGACY_DIFFICULTIES[this.difficulty];
     let target = 737;
     if (b.x > 465 || b.vx > 0) {
       const t = clamp((-b.vy + Math.sqrt(Math.max(0, b.vy * b.vy + 1760 * (370 - b.y)))) / 880, 0, .9);
@@ -64,6 +74,53 @@ export class Match {
       spike: !easy && p.y < FLOOR - R - 40 && Math.abs(b.x - p.x) < (hard ? 115 : 90) && b.y < p.y,
       slide: saving && p.slideCooldown <= 0 };
   }
+  reactAiInput(dt) {
+    const p = this.players[1], ai = this.ai, settings = DIFFICULTIES[this.difficulty];
+    ai.time += dt;
+    ai.observations.push({ time: ai.time, shot: this.shotNumber, ...this.ball });
+    const observedAt = ai.time - settings.reaction;
+    while (ai.observations.length > 1 && ai.observations[1].time <= observedAt) ai.observations.shift();
+    if (ai.time >= ai.decideAt) {
+      const observation = ai.observations[0], age = ai.time - observation.time;
+      // Estimate the visible trajectory between observations; a new hit or net
+      // bounce still has to reach the delayed observation before we can react.
+      const b = { ...observation, x: observation.x + observation.vx * age,
+        y: observation.y + observation.vy * age + 440 * age * age, vy: observation.vy + 880 * age };
+      if (b.x > W - BALL_R) { b.x = 2 * (W - BALL_R) - b.x; b.vx = -Math.abs(b.vx); }
+      if (b.y < BALL_R) { b.y = BALL_R; b.vy = Math.abs(b.vy) * .75; }
+      // Deterministic perception errors stay with a shot, so later samples do not
+      // average them away. Neither decisions nor errors depend on the score.
+      const random = () => {
+        this.aiRandomState = (Math.imul(this.aiRandomState, 1664525) + 1013904223) >>> 0;
+        return this.aiRandomState / 4294967296;
+      };
+      if (ai.shot !== b.shot) {
+        ai.shot = b.shot; ai.error = (random() * 2 - 1) * settings.aimError;
+        ai.attack = random() < settings.attackChance;
+      }
+      ai.decideAt = ai.time + settings.commitment;
+      let target = 737;
+      if (b.x > 465 || b.vx > 0) {
+        const t = clamp((-b.vy + Math.sqrt(Math.max(0, b.vy * b.vy + 1760 * (370 - b.y)))) / 880, 0, .9);
+        target = b.x + b.vx * t;
+        if (target > W - BALL_R) target = 2 * (W - BALL_R) - target;
+        const uncertainty = clamp((Math.abs(b.vx) - 180) / 320, .2, 1);
+        target = clamp(target + ai.error * uncertainty, 530, 910);
+      }
+      const saving = this.difficulty === 'hard' && p.y >= FLOOR - R - .1 && p.slideCooldown <= 0 &&
+        b.x > 510 && b.y > 365 && b.vy > 0 && Math.abs(b.x - p.x) > 55 && Math.abs(b.x - p.x) < 190 && !canRunToBall(p, b, settings.speed);
+      if (saving) target = b.x;
+      ai.target = target;
+      const liftNearNet = b.x < 600 && p.x < 620;
+      const jumpHeight = (this.difficulty === 'hard' ? 155 : 175) - Math.max(0, b.vy) * settings.commitment * .65;
+      ai.controls = {
+        jump: !saving && (ai.attack || liftNearNet) && b.x > 490 && Math.abs(b.x - p.x) < settings.jumpRange && b.y > jumpHeight && b.y < 320 && b.vy > -60,
+        spike: this.difficulty !== 'easy' && ai.attack && p.y < FLOOR - R - 40 && Math.abs(b.x - p.x) < settings.jumpRange && b.y < p.y,
+        slide: saving
+      };
+    }
+    return { left: p.x > ai.target + settings.deadZone, right: p.x < ai.target - settings.deadZone, ...ai.controls };
+  }
   step(dt, input = {}) {
     if (!['playing', 'serve', 'point'].includes(this.phase)) return;
     dt = Math.min(dt, 1 / 60);
@@ -72,9 +129,9 @@ export class Match {
       if (this.timer <= 0) { this.resetRally(); this.phase = 'serve'; }
       return;
     }
-    const controls = [input, this.aiInput()];
+    const controls = [input, this.aiInput(dt)];
     this.players.forEach((p, i) => {
-      const c = controls[i], speed = i ? DIFFICULTIES[this.difficulty].speed : 340;
+      const c = controls[i], speed = i ? (this.rulesVersion >= 5 ? DIFFICULTIES : LEGACY_DIFFICULTIES)[this.difficulty].speed : 340;
       const movement = (c.right ? 1 : 0) - (c.left ? 1 : 0);
       p.slide = Math.max(0, p.slide - dt); p.slideCooldown = Math.max(0, p.slideCooldown - dt);
       if (movement && p.slide <= 0) p.facing = movement;
@@ -95,7 +152,7 @@ export class Match {
     });
     if (this.phase === 'serve') {
       this.timer -= dt;
-      if (this.timer <= 0) { this.phase = 'playing'; this.ball.vx = this.server ? -210 : 210; this.ball.vy = -330; this.events.push({ type: 'serve' }); }
+      if (this.timer <= 0) { this.phase = 'playing'; this.ball.vx = this.server ? -210 : 210; this.ball.vy = -330; this.shotNumber++; this.events.push({ type: 'serve' }); }
       return;
     }
     const b = this.ball, previous = { x: b.x, y: b.y };
@@ -123,7 +180,7 @@ export class Match {
       const spike = p.spike > 0 && p.y < FLOOR - R - 15;
       b.vx = sliding ? direction * 390 : direction * (spike ? 720 : 360) + p.vx * .22 + dx * 1.3;
       b.vy = sliding ? -700 : spike && b.y < NET.y - 48 ? 135 : (spike ? -660 : -640);
-      this.hitLock = .12; this.lastHitSide = i; p.spike = 0;
+      this.hitLock = .12; this.lastHitSide = i; this.shotNumber++; p.spike = 0;
       this.events.push({ type: sliding ? 'dig' : spike ? 'spike' : 'hit', x: b.x, y: b.y, side: i });
     });
     if (b.y + BALL_R >= FLOOR) this.point(b.x < W / 2 ? 1 : 0);

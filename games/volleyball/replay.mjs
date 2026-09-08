@@ -1,6 +1,6 @@
-import { Match } from './engine.mjs?v=6';
-export const RULES_VERSION = 4;
-export const SUPPORTED_RULES_VERSIONS = Object.freeze([3, 4]);
+import { Match } from './engine.mjs?v=7';
+export const RULES_VERSION = 5;
+export const SUPPORTED_RULES_VERSIONS = Object.freeze([3, 4, 5]);
 export const MAX_TICKS = 120 * 1200;
 export const MAX_CHANGES = 24000;
 export function encodeInput(input) {

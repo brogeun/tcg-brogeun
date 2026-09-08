@@ -51,3 +51,36 @@ body.game-expanded{overflow:hidden;overscroll-behavior:none}
   .arena:not(.expanded) [data-control=attack] small{font-size:10px;letter-spacing:normal}
 }
 @media(max-width:380px){.topbar{gap:10px}.brand,.back,.scorebar strong{white-space:nowrap}.brand{flex-shrink:0}.crumb,.player-tag{display:none}.back{font-size:11px}.arena:not(.expanded) .overlay-card{padding:12px;max-width:96%}.arena:not(.expanded) .overlay-card h2{font-size:20px;margin:6px 0}.arena:not(.expanded) .overlay-card p{font-size:12px;margin:0 0 10px}.arena:not(.expanded) .primary{padding:10px 18px}}
+/* Beach club presentation. Court geometry and touch hit areas stay stable. */
+:root{background:#f2f6f4;color:#18383f}
+body{background:radial-gradient(ellipse at 6% 0,#e0f4ee 0,transparent 43%),radial-gradient(ellipse at 100% 30%,#fff3dc 0,transparent 32%)}
+.topbar{background:#ffffffd9;border-bottom-color:#dce8e2}
+.heading{margin-bottom:22px}.heading .eyebrow{font-size:10px;letter-spacing:2.4px}.heading h1{font-weight:900}.beta{font-size:9px;letter-spacing:1.1px;padding:7px 8px;background:#e6f2e7;color:#437656;border:1px solid #d0e5d0}
+.arena{border:1px solid #274e51;box-shadow:0 18px 45px #17484319,0 2px 4px #193c4210;border-radius:20px}
+.scorebar{background:linear-gradient(110deg,#174851,#12313c 70%);padding-block:16px;position:relative;border-bottom:2px solid #8edbcc66}
+.scorebar .score{background:#09263169;border:1px solid #81bbc326;border-radius:10px;padding:7px 16px;font-size:29px;min-width:115px;justify-content:center}
+.scorebar .score-divider{font-size:17px;color:#8bb5bb}.scorebar strong{letter-spacing:-.3px}.scorebar .player-tag{font-size:9px;letter-spacing:1px;border:0;background:#5ad3bd26;color:#a2efdc}
+.overlay{background:#143d4421;backdrop-filter:blur(1px)}
+.overlay-card{border-radius:20px;border:1px solid #fffffff5;background:#fffffff0;box-shadow:0 20px 60px #1039432e;padding:27px 32px}
+.overlay-card .eyebrow{font-size:10px;color:#31867c;letter-spacing:2.4px}.overlay-card h2{font-weight:900}.overlay-card p{line-height:1.5}
+.primary{background:linear-gradient(140deg,#118f81,#09666c);border:1px solid #ffffff38;box-shadow:0 4px 0 #064d54,0 8px 18px #17776924;border-radius:11px;min-height:44px;transition:background .15s}
+.primary:hover{background:#097c76}.primary:active{box-shadow:0 2px 0 #064d54}
+.court-footer{background:#12313c}.rally-message:not(:empty){padding:6px 17px;border-radius:20px;background:#ffffffe8;color:#167467;box-shadow:0 3px 15px #1c50451c;font-size:19px;text-shadow:none;border:1px solid #fff}
+.setup{background:#ffffffb8;border:1px solid #dce7e0;border-radius:18px;padding:18px;gap:19px;box-shadow:0 5px 20px #21433a05}
+.character{position:relative;overflow:hidden;border-color:#dce7e2;min-height:87px;padding:4px 9px 4px 2px;background:linear-gradient(130deg,#fff,#fafcf9)}
+.character[aria-pressed=true]{border-color:#26958b;background:linear-gradient(120deg,#effaf3,#e5f6f3);box-shadow:0 0 0 2px #20968a0c}
+.character[aria-pressed=true]::after{content:'✓';position:absolute;top:6px;right:6px;width:16px;height:16px;display:grid;place-items:center;border-radius:50%;background:#238d81;color:#fff;font-size:10px;font-weight:900}
+.character:disabled{opacity:.7}.character[aria-pressed=true]:disabled{opacity:1}
+.character-portrait{width:76px;height:76px;aspect-ratio:1;max-height:none;flex-shrink:0;touch-action:auto;filter:drop-shadow(0 3px 1px #3e594818)}
+.character strong{font-size:15px}.character small{font-size:11px;line-height:1.4}.type{display:none}.fair-play{font-size:11px;line-height:1.5}
+.settings select,.rank-settings>input{border-radius:9px;border-color:#d7e4df;min-height:40px}.settings{gap:11px}.settings label{font-size:13px}
+.touch-controls button{box-shadow:0 3px 0 #071e2b;border-bottom-width:3px}.touch-controls .spike{background:linear-gradient(135deg,#6ce4ca,#22b9ad);border-color:#8aecdd;color:#123c40}
+.touch-controls button.pressed{box-shadow:inset 0 0 0 2px #b9fff0;background:#33646e}
+.leaderboard{border-color:#dce7e0;box-shadow:0 5px 20px #21433a05}.ranking-tabs button{border-radius:18px;padding:8px 19px}.ranking-tabs button[aria-pressed=true]{background:#16796f;border-color:#16796f}
+@media(max-width:1050px),(pointer:coarse){.setup{padding:13px}.character-portrait{width:64px;height:64px;max-width:100%}.character{min-height:102px}.character strong{font-size:13px}}
+@media(max-width:800px){main{padding-top:20px}.heading{margin-bottom:16px}.heading h1{font-size:29px}.setup{padding:16px}.scorebar{padding:10px 12px}.scorebar .score{font-size:23px;min-width:96px;padding:5px 10px;gap:13px}.scorebar strong{font-size:13px}.character-portrait{width:74px;height:74px}.character{min-height:110px}.character strong{font-size:14px}.rally-message:not(:empty){font-size:14px;padding:5px 12px}.overlay-card{padding:19px 22px}.overlay-card h2{font-size:24px}.arena{border-radius:16px}.settings label{font-size:12px}}
+.arena.expanded .scorebar .score{border:0;padding:0;background:none;min-width:100px}.arena.expanded .rally-message:not(:empty){font-size:17px}.arena.expanded .overlay-card{max-height:94%}
+@media(max-height:520px) and (orientation:landscape){.setup{padding:10px}.character-portrait{width:49px;height:58px}.character{min-height:88px}.character strong{font-size:12px}.arena.expanded .scorebar{border-bottom-width:1px}}
+@media(max-width:380px){.heading h1{font-size:27px}.beta{font-size:8px}.scorebar .score{min-width:83px;padding-inline:8px;font-size:22px}.setup{padding:12px}.character-portrait{width:65px;height:65px}}
+.character{color:#18383f}.character:disabled strong{color:#49625f}.character[aria-pressed=true]:disabled strong{color:#187769}
+@media(max-width:600px){.arena:not(.expanded) .overlay-card{padding:11px 16px}.arena:not(.expanded) .overlay-card h2{font-size:22px;margin:5px 0}.arena:not(.expanded) .overlay-card p{font-size:12px;margin:0 0 10px;line-height:1.4}.arena:not(.expanded) .overlay-card .eyebrow{font-size:9px}.arena:not(.expanded) .primary{min-height:40px;padding:9px 22px}.arena:not(.expanded) .overlay.is-result .overlay-card{padding:8px}.arena:not(.expanded) .overlay.is-result h2{font-size:20px;margin:0}.arena:not(.expanded) .overlay.is-result p{margin:0}}

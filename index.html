@@ -1869,6 +1869,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .ci-panel-pages button { min-width:40px; min-height:40px; border:0; border-radius:4px; background:transparent; color:#666560; cursor:pointer; }
         .ci-panel-pages [aria-current=page] { background:#888780; color:#fff; }
         .ci-panel-pages button:disabled { opacity:.4; cursor:default; }
+        @media(max-width:420px){.ci-panel-pages{gap:2px;flex-wrap:nowrap}.ci-panel-pages button{min-width:28px;min-height:44px;padding:0 4px;flex:1;max-width:40px}}
         .ci-redesign button:focus-visible,.ci-redesign [role=button]:focus-visible,.ci-panel button:focus-visible,.ci-panel [role=button]:focus-visible { outline:2px solid #066666; outline-offset:2px; }
         @keyframes ci-slide { from { transform:translateX(100%); } to { transform:translateX(0); } }
         @media(max-width:1600px) { #cardInfoList { grid-template-columns:repeat(4,minmax(0,1fr)); } }
@@ -7130,9 +7131,9 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
       const nav = document.getElementById('ciPanelPages');
       nav.hidden = pageCount <= 1;
       const first = Math.max(1, Math.min(page - 2, pageCount - 4));
-      nav.innerHTML = `<button data-page="${page - 1}" aria-label="이전 페이지" ${page === 1 ? 'disabled' : ''}>‹</button>` +
+      nav.innerHTML = `<button data-page="1" aria-label="맨 처음 페이지" ${page === 1 ? 'disabled' : ''}>«</button><button data-page="${page - 1}" aria-label="이전 페이지" ${page === 1 ? 'disabled' : ''}>‹</button>` +
         Array.from({length:Math.min(5,pageCount)}, (_,i) => first+i).map(n => `<button data-page="${n}" aria-label="${n}페이지" ${n === page ? 'aria-current="page"' : ''}>${n}</button>`).join('') +
-        `<button data-page="${page + 1}" aria-label="다음 페이지" ${page === pageCount ? 'disabled' : ''}>›</button>`;
+        `<button data-page="${page + 1}" aria-label="다음 페이지" ${page === pageCount ? 'disabled' : ''}>›</button><button data-page="${pageCount}" aria-label="맨 마지막 페이지" ${page === pageCount ? 'disabled' : ''}>»</button>`;
     };
     document.getElementById('ciPanelPages').onclick = e => {
       const btn = e.target.closest('button[data-page]');
@@ -10880,6 +10881,6 @@ window.addEventListener('appinstalled', () => {
 <script src="/assets/english-search.js?v=20260908-search1"></script>
 <script src="/assets/search-modal.js?v=20260908-search2"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en4">
-<script src="/assets/english-catalog.js?v=20260908-en4"></script>
+<script src="/assets/english-catalog.js?v=20260908-en5"></script>
 </body>
 </html>

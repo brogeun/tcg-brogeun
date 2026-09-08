@@ -18,7 +18,7 @@
   }
   function pages(current,total,attr){
     const first=Math.max(1,Math.min(current-2,total-4));
-    return `<button type="button" ${attr}="${current-1}" aria-label="이전 페이지" ${current<=1?'disabled':''}>‹</button>`+Array.from({length:Math.min(5,total)},(_,i)=>first+i).map(n=>`<button type="button" ${attr}="${n}" aria-label="${n}페이지" ${current===n?'aria-current="page"':''}>${n}</button>`).join('')+`<button type="button" ${attr}="${current+1}" aria-label="다음 페이지" ${current>=total?'disabled':''}>›</button>`;
+    return `<button type="button" ${attr}="1" aria-label="맨 처음 페이지" ${current<=1?'disabled':''}>«</button><button type="button" ${attr}="${current-1}" aria-label="이전 페이지" ${current<=1?'disabled':''}>‹</button>`+Array.from({length:Math.min(5,total)},(_,i)=>first+i).map(n=>`<button type="button" ${attr}="${n}" aria-label="${n}페이지" ${current===n?'aria-current="page"':''}>${n}</button>`).join('')+`<button type="button" ${attr}="${current+1}" aria-label="다음 페이지" ${current>=total?'disabled':''}>›</button><button type="button" ${attr}="${total}" aria-label="맨 마지막 페이지" ${current>=total?'disabled':''}>»</button>`;
   }
   function ensureLanguages(){
     document.getElementById('ciLanguageTabs')?.remove();const list=document.getElementById('cardInfoList');if(!list)return;

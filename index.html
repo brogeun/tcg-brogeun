@@ -1856,6 +1856,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .ci-panel .set-card-num { padding:16px 4px; font:400 14px/20px Pretendard,sans-serif; color:#888780; background:#fff; overflow-wrap:anywhere; }
         .ci-panel-pages { display:flex; flex-shrink:0; align-items:center; justify-content:center; gap:4px; flex-wrap:wrap; padding:12px 8px max(12px,env(safe-area-inset-bottom)); border-top:1px solid #EDECE8; }
         .ci-panel-pages[hidden] { display:none; }
+        /* Keep native status/navigation bars outside the card panel controls. */
+        .ci-panel-head { padding-top:max(4px,var(--app-safe-top,env(safe-area-inset-top,0px))); }
+        html[data-app-platform="android"] .ci-panel-pages { padding-bottom:max(12px,env(safe-area-inset-bottom,0px),48px); }
         .ci-panel-pages button { min-width:40px; min-height:40px; border:0; border-radius:4px; background:transparent; color:#666560; cursor:pointer; }
         .ci-panel-pages [aria-current=page] { background:#888780; color:#fff; }
         .ci-panel-pages button:disabled { opacity:.4; cursor:default; }
@@ -2756,6 +2759,12 @@ window.addEventListener('popstate', e => {
       // 1) 모달/오버레이 열려있으면 닫기 우선
       const openModal = document.querySelector('.modal[style*="display: flex"], .modal.open, [data-modal-open="1"]');
       if (openModal) {
+        // Use the same teardown as the close button: cancel pending card loads,
+        // restore focus/scroll, and never leave an inline display:none behind.
+        if (openModal.id === 'anyModal') {
+          closeAnyModal();
+          return;
+        }
         openModal.style.display = 'none';
         openModal.classList.remove('open');
         openModal.removeAttribute('data-modal-open');
@@ -9863,6 +9872,9 @@ function openAnyModal(innerHtml, size) {
   modal._loginOpener = null;
   modal.innerHTML = `<div class="modal-box" style="max-width:${maxWidth}">${innerHtml}</div>`;
   modal.classList.remove('home-login-modal', 'ci-panel', 'ci-expanded');
+  // Recover modal instances hidden by older native-back handlers as well.
+  modal.style.removeProperty('display');
+  modal.removeAttribute('hidden');
   modal.classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -10489,6 +10501,7 @@ async function startKakaoLogin() {
       return;
     }
     const platform = window.Capacitor.getPlatform?.() || '';
+    document.documentElement.dataset.appPlatform = platform;
 
     // 사이트 측 안전망 — body 에 상단/하단 패딩 강제 적용 (CSS env + 최소값)
     // 안드로이드: 상태바 보통 24~28dp, 하단 제스처 바 보통 0~16dp

@@ -1,14 +1,32 @@
 /* Match the home page's desktop and mobile typography and app identity. */
 :root {
+  --game-safe-top: env(safe-area-inset-top, 0px);
+  --game-safe-bottom: env(safe-area-inset-bottom, 0px);
   --hub-font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
   --hub-content-width: 1368px;
   --hub-page-gutter: 24px;
   font-family: var(--hub-font-family);
 }
 body {
+  padding-top: var(--game-safe-top);
+  padding-bottom: var(--game-safe-bottom);
   font-family: var(--hub-font-family);
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
+}
+/* Android edge-to-edge WebViews can report zero CSS insets. Keep native-only
+   fallbacks; ordinary browser pages retain their original spacing. */
+html[data-game-platform="android"] {
+  --game-safe-top: max(env(safe-area-inset-top, 0px), 28px);
+  --game-safe-bottom: max(env(safe-area-inset-bottom, 0px), 48px);
+}
+.hub-game--volleyball .arena.expanded {
+  padding-top: var(--game-safe-top);
+  padding-bottom: var(--game-safe-bottom);
+}
+.hub-game--merge.game-focus .arena {
+  padding-top: max(12px, var(--game-safe-top));
+  padding-bottom: max(12px, var(--game-safe-bottom));
 }
 button, input, select, textarea, kbd { font-family: inherit; }
 .hub-game--merge { --hub-content-width: 1120px; --hub-page-gutter: 22px; }

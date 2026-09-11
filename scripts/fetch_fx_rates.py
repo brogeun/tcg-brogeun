@@ -1,146 +1,115 @@
+"""Collect the previous KST day's final Hana/Naver daily FX quotes.
+Weekends/holidays use the most recent published trading date. Never mix dates
+or replace a complete snapshot with partial/live data. JPY is quoted per 100.
 """
-fetch_fx_rates.py — Naver 금융에서 USD/KRW, JPY/KRW 환율 수집
-
-출처:
-  - https://m.stock.naver.com/marketindex/exchange/FX_USDKRW
-  - https://m.stock.naver.com/marketindex/exchange/FX_JPYKRW
-
-출력: data/fx-rates.json
-포맷:
-{
-  "updated": "2026-05-05T04:00:00+09:00",
-  "rates": {
-    "USD": 1370.50,    # 1 USD = 1370.50 KRW
-    "JPY": 9.12,       # 1 JPY = 9.12 KRW (Naver 는 100엔당으로 표시 → /100)
-    "JPY_PER_100": 912.45  # 100 JPY 기준
-  },
-  "source": "naver-finance"
-}
-
-매일 cron 으로 실행 권장 (04:00 KST scrape.yml 에 통합).
-"""
+import argparse
 import json
-import re
+import math
+import os
+import tempfile
 import urllib.request
-import urllib.error
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT / "data"
-OUT_FILE = DATA_DIR / "fx-rates.json"
-
-UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-)
-
-# Naver 모바일 금융 페이지 — 환율
-URLS = {
-    "USD": "https://m.stock.naver.com/marketindex/exchange/FX_USDKRW",
-    "JPY": "https://m.stock.naver.com/marketindex/exchange/FX_JPYKRW",
-}
-
-# Naver API (JSON) — 더 안정적
+OUT_FILE = ROOT / "data" / "fx-rates.json"
+KST = timezone(timedelta(hours=9))
+UA = "Mozilla/5.0"
 API_URLS = {
-    "USD": "https://api.stock.naver.com/marketindex/exchange/FX_USDKRW",
-    "JPY": "https://api.stock.naver.com/marketindex/exchange/FX_JPYKRW",
+    currency: f"https://api.stock.naver.com/marketindex/exchange/FX_{currency}KRW/prices?page=1&pageSize=60"
+    for currency in ("USD", "JPY")
 }
 
 
-def fetch_rate(currency):
-    """Naver API 에서 환율 fetch"""
-    api_url = API_URLS[currency]
-    req = urllib.request.Request(api_url, headers={
-        "User-Agent": UA,
-        "Accept": "application/json",
+def fetch_daily(currency):
+    req = urllib.request.Request(API_URLS[currency], headers={
+        "User-Agent": UA, "Accept": "application/json",
         "Referer": "https://m.stock.naver.com/",
     })
-    with urllib.request.urlopen(req, timeout=15) as r:
-        data = json.loads(r.read().decode("utf-8"))
-
-    # API 응답 구조 (예상): { "calcPrice": "1370.50", ... }
-    # 또는 { "closePrice": "1,370.50" }
-    candidates = ["calcPrice", "closePrice", "price", "currentPrice", "tradePrice"]
-    for key in candidates:
-        if key in data:
-            v = data[key]
-            if isinstance(v, str):
-                v = v.replace(",", "")
-            return float(v)
-
-    # 한 번 더 — nested
-    if "exchange" in data and isinstance(data["exchange"], dict):
-        for key in candidates:
-            v = data["exchange"].get(key)
-            if v is not None:
-                if isinstance(v, str):
-                    v = v.replace(",", "")
-                return float(v)
-    return None
+    with urllib.request.urlopen(req, timeout=20) as response:
+        rows = json.loads(response.read().decode("utf-8"))
+    if not isinstance(rows, list):
+        raise ValueError(f"{currency}: unexpected daily history response")
+    return rows
 
 
-def fetch_rate_html_fallback(currency):
-    """API 실패 시 HTML 페이지 파싱"""
-    url = URLS[currency]
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        html = r.read().decode("utf-8")
-    # 정규식으로 환율 추출 (페이지 구조 변경에 약함)
-    m = re.search(r'"calcPrice"\s*:\s*"?([\d,]+\.?\d*)"?', html)
-    if m:
-        return float(m.group(1).replace(",", ""))
-    m = re.search(r'(\d{1,4},?\d{3}\.\d{2})\s*원', html)
-    if m:
-        return float(m.group(1).replace(",", ""))
-    return None
-
-
-def main():
-    DATA_DIR.mkdir(exist_ok=True)
-    rates = {}
-    for currency in ("USD", "JPY"):
-        v = None
-        try:
-            v = fetch_rate(currency)
-        except Exception as e:
-            print(f"  [{currency}] API 실패: {e}, HTML fallback 시도")
-        if v is None:
-            try:
-                v = fetch_rate_html_fallback(currency)
-            except Exception as e:
-                print(f"  [{currency}] HTML 도 실패: {e}")
-        if v is None:
-            print(f"  ⚠ [{currency}] 환율 fetch 실패")
+def previous_close(rows, target):
+    eligible = []
+    for row in rows:
+        if not isinstance(row, dict):
             continue
-        # JPY 는 Naver 가 보통 "100엔당" 으로 표시 (예: 912.45 = 100엔당 912원)
-        # 즉 1 JPY = 9.1245 원
-        if currency == "JPY":
-            rates["JPY"] = round(v / 100, 4)
-            rates["JPY_PER_100"] = round(v, 2)
-        else:
-            rates["USD"] = round(v, 2)
-        print(f"  ✓ [{currency}] {v}")
+        try:
+            traded = date.fromisoformat(str(row.get("localTradedAt", ""))[:10])
+        except ValueError:
+            continue
+        if traded <= target:
+            eligible.append((traded, row))
+    if not eligible:
+        raise ValueError("No published close on or before the target date")
+    traded, row = max(eligible, key=lambda item: item[0])
+    # Do not quietly fall back to an older row when the latest close is corrupt.
+    value = float(str(row.get("closePrice", "")).replace(",", ""))
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError("Invalid daily close")
+    if (target - traded).days > 14:
+        raise ValueError("Daily history is stale by more than 14 days")
+    return traded, value
 
-    if not rates:
-        print("⚠ 환율 fetch 실패 — 기존 파일 유지")
-        return
 
-    # KST 기준 시간
-    kst = timezone(timedelta(hours=9))
-    out = {
-        "updated": datetime.now(kst).isoformat(),
-        "rates": rates,
+def build_snapshot(now=None, fetcher=fetch_daily):
+    now = now or datetime.now(KST)
+    if now.tzinfo is None:
+        raise ValueError("Collection time must include a timezone")
+    now = now.astimezone(KST)
+    target = now.date() - timedelta(days=1)
+    quotes = {c: previous_close(fetcher(c), target) for c in ("USD", "JPY")}
+    if quotes["USD"][0] != quotes["JPY"][0]:
+        raise ValueError("USD and JPY daily close dates differ; keep the previous snapshot")
+    return {
+        "updated": now.isoformat(),
+        "asOf": quotes["USD"][0].isoformat(),
+        "targetDate": target.isoformat(),
+        "basis": "previous-business-day-close",
+        "timezone": "Asia/Seoul",
+        "rates": {
+            "USD": round(quotes["USD"][1], 2),
+            "JPY": round(quotes["JPY"][1] / 100, 4),
+            "JPY_PER_100": round(quotes["JPY"][1], 2),
+        },
         "source": "naver-finance",
+        "sourceDetail": "hana-bank-daily-close",
     }
-    OUT_FILE.write_text(
-        json.dumps(out, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
-    print(f"\n✓ 저장: {OUT_FILE}")
-    print(f"  USD/KRW: {rates.get('USD')}")
-    print(f"  JPY/KRW: {rates.get('JPY')} (100엔당 {rates.get('JPY_PER_100')})")
+
+
+def main(argv=None, now=None, fetcher=fetch_daily, out_file=OUT_FILE):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true", help="Validate/print without changing files")
+    args = parser.parse_args(argv)
+    try:
+        out = build_snapshot(now=now, fetcher=fetcher)
+    except Exception as exc:
+        print(f"FX collection failed; previous file kept: {exc}")
+        return 1
+    serialized = json.dumps(out, ensure_ascii=False, indent=2) + "\n"
+    if args.dry_run:
+        print(serialized)
+        return 0
+    out_file = Path(out_file)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    # Replace both currencies together, including when the process is interrupted.
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=out_file.parent,
+                                         prefix=".fx-rates-", suffix=".tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(serialized)
+        os.replace(temporary, out_file)
+    finally:
+        if temporary and temporary.exists():
+            temporary.unlink()
+    print(f"Saved FX close for {out['asOf']} (requested {out['targetDate']}): {out['rates']}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

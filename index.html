@@ -2816,18 +2816,17 @@ let FX_UPDATED = null;
     const r = await fetch('/data/fx-rates.json?t=' + Math.floor(Date.now() / 3600000));
     if (r.ok) {
       const d = await r.json();
-      if (d.rates?.JPY) JPY_KRW = d.rates.JPY;
-      if (d.rates?.USD) USD_KRW = d.rates.USD;
+      if (![d.rates?.JPY, d.rates?.USD].every(v => typeof v === 'number' && Number.isFinite(v) && v > 0)) {
+        throw new Error('Incomplete FX snapshot');
+      }
+      JPY_KRW = d.rates.JPY;
+      USD_KRW = d.rates.USD;
       FX_UPDATED = d.updated;
       console.log('[fx] loaded — USD:', USD_KRW, 'JPY:', JPY_KRW, 'updated:', FX_UPDATED);
     }
   } catch (e) {
-    // fallback — exchangerate-api.com (외부)
-    try {
-      const r = await fetch('https://api.exchangerate-api.com/v4/latest/JPY');
-      const d = await r.json();
-      if (d?.rates?.KRW) JPY_KRW = d.rates.KRW;
-    } catch {}
+    // Never mix the daily USD snapshot with a different provider's live JPY quote.
+    console.warn('[fx] Daily snapshot unavailable; keeping existing rates:', e);
   }
 })();
 // 모든 가격 → KRW 단일 표시 (소수점 절사)

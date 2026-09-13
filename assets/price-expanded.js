@@ -100,9 +100,11 @@
       const value=latest(history,key+'_price');
       if (!values[key] && positive(value)) values[key]={value:Number(value),currency:'JPY',source:'최근 거래가'};
     }
-    if (box && !values.box && positive(product.lastPrice ?? product.lowestAsk)) values.box={value:Number(product.lastPrice ?? product.lowestAsk),currency:product.currency||'JPY',source:'상품 시세'};
+    const listing = HomeMarket.quote(product);
+    if (box && listing) values.box = listing;
+    if (!box && product._isTop10 && listing) values.raw = listing;
     // A general ungraded product price must never be labelled PSA 10.
-    const state={grade:box?'box':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
+    const state={grade:box?'box':product._isTop10 && listing?'raw':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
     const extURL=(()=>{try{const u=new URL(product.url || `https://snkrdunk.com/apparels/${id}`);return u.protocol==='https:' && /(^|\.)snkrdunk\.com$/.test(u.hostname)?u.href:`https://snkrdunk.com/apparels/${id}`;}catch{return `https://snkrdunk.com/apparels/${id}`;}})();
     panel.innerHTML=`<article class="px-detail" data-product-kind="${box?'box':'card'}">${head()}
       <section class="px-summary" aria-label="상품 기본 정보">
@@ -162,7 +164,7 @@
     if (!box) {
       const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}`);
       if (!current() || !live?.ok) return;
-      for (const [key] of keys) {const q=quote(live.grades?.[key]);if(q)values[key]=q;}
+      for (const [key] of keys) {if(key==='raw' && product._isTop10 && listing)continue;const q=quote(live.grades?.[key]);if(q)values[key]=q;}
       update();
     }
   };

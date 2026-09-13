@@ -2595,7 +2595,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
-<script src="/assets/price-expanded.js?v=20260907-favorites1"></script>
+<script src="/assets/home-market.js?v=20260913-1"></script>
+<script src="/assets/price-expanded.js?v=20260913-quotes1"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -2811,7 +2812,7 @@ window.addEventListener('popstate', e => {
 let JPY_KRW = 9.5;     // 기본값 (1 JPY = 9.5 KRW)
 let USD_KRW = 1370;    // 기본값 (1 USD = 1370 KRW)
 let FX_UPDATED = null;
-(async () => {
+const FX_READY = (async () => {
   try {
     const r = await fetch('/data/fx-rates.json?t=' + Math.floor(Date.now() / 3600000));
     if (r.ok) {
@@ -3040,7 +3041,10 @@ function _homeProductKind(name) {
 }
 
 function _homePriceRowHTML(p, i) {
-  const price = p.lastPrice ?? p.lowestAsk;
+  const price = HomeMarket.quote(p)?.value;
+  const change = HOME_TRADE_CHANGES[String(p.id)];
+  const changeText = change ? `거래가 ${Math.abs(change.percent)<.05?'변동 없음':`${change.percent>0?'▲ +':'▼ '}${change.percent.toFixed(1)}%`}` : change === undefined ? '거래 변동 확인 중…' : '비교할 거래 이력 없음';
+  const changeTitle = change ? `${change.from} → ${change.to} · 직전 거래일 대비 (출품가 변동률 아님)` : '같은 등급의 거래일이 2개 이상 있어야 계산할 수 있습니다';
   const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
   const name = p.name || '';
   const mainName=HOME_TOP_KO_NAMES[String(p.id)]||name;
@@ -3064,11 +3068,19 @@ function _homePriceRowHTML(p, i) {
     <div class="price-right">
       <div class="price-val">${fmtKrw(price, p.currency)}</div>
       <div class="price-orig">${fmtOrig(price, p.currency)}</div>
-      <span class="mo-home-only mo-home-change" title="현재 TOP 시세 원본에 등락률이 제공되지 않습니다">변동 정보 없음</span>
+      <span class="mo-home-change" title="${escapeHtml(changeTitle)}">${changeText}</span>
     </div>
   </a>`;
 }
 
+const HOME_TRADE_CHANGES = {};
+async function loadHomeTradeChanges(products) {
+  await Promise.all(products.map(async product => {
+    const rows = await HomeMarket.history(product.id);
+    const kind = _homeProductKind(product.name);
+    HOME_TRADE_CHANGES[String(product.id)] = HomeMarket.tradeChange(rows, kind === 'card' ? 'raw_price' : 'box_price');
+  }));
+}
 function renderHomeTopRow(brand) {
   const containerId = brand === 'pokemon' ? 'homeTopPokemon' : 'homeTopOnepiece';
   const container = document.getElementById(containerId);
@@ -3080,11 +3092,13 @@ function renderHomeTopRow(brand) {
   }
   const top3 = products.slice(0, 3);
   const rest = products.slice(3, 10);
+  const expanded = document.getElementById(`${brand}-more-list`)?.classList.contains('show');
   container.innerHTML =
     top3.map((p, i) => _homePriceRowHTML(p, i)).join('') +
     `<div class="price-list-hidden" id="${brand}-more-list">` +
     rest.map((p, i) => _homePriceRowHTML(p, i + 3)).join('') +
     `</div>`;
+  if (expanded) document.getElementById(`${brand}-more-list`)?.classList.add('show');
 }
 
 window.toggleHomeTopMore = function(brand) {
@@ -3493,8 +3507,10 @@ async function initHome2() {
   // 두 브랜드 TOP10 캐시 로드 + 새 디자인 렌더 (병렬 — 순차 로드 시 두 번째 섹션이 늦게 떠서 CLS 추가 발생)
   await Promise.all(['pokemon', 'onepiece'].map(async brand => {
     try {
-      await loadHomeTop(brand);
+      const products = await loadHomeTop(brand);
+      await FX_READY;
       renderHomeTopRow(brand);
+      void loadHomeTradeChanges(products).then(() => renderHomeTopRow(brand));
     } catch (e) {
       console.warn(`[home2] ${brand} load fail:`, e.message);
       const containerId = brand === 'pokemon' ? 'homeTopPokemon' : 'homeTopOnepiece';
@@ -3606,6 +3622,7 @@ async function loadCardsDetail() {
 
 /* ─────────── 상품 상세 패널 (Phase 2 + 3) ─────────── */
 async function showPriceDetailPanel(productId) {
+  await FX_READY;
   const panel = document.getElementById('priceDetailPanel');
   if (!panel) return;
   panel.dataset.productId = String(productId);
@@ -5690,6 +5707,7 @@ window.closeSlidePanel = function() {
 };
 
 async function renderSlidePanel(productId) {
+  await FX_READY;
   // 1. product 메타 — 기존 showPriceDetailPanel 과 동일한 fallback chain
   let product = null;
   // HOME_TOP_CACHE 우선
@@ -5697,7 +5715,7 @@ async function renderSlidePanel(productId) {
     const list = HOME_TOP_CACHE[brand];
     if (list) {
       const found = list.find(p => String(p.id) === String(productId));
-      if (found) { product = { ...found, _brand: brand }; break; }
+      if (found) { product = { ...found, _brand: brand, _isTop10:true }; break; }
     }
   }
   // 정적 파일 fallback
@@ -5716,7 +5734,7 @@ async function renderSlidePanel(productId) {
         if (!r.ok) continue;
         const d = await r.json();
         const found = (d.products || []).find(p => String(p.id) === String(productId));
-        if (found) { product = { ...found, _brand: brand, _src: file }; break; }
+        if (found) { product = { ...found, _brand: brand, _src: file, _isTop10:file.startsWith('top10-') }; break; }
       } catch {}
     }
   }
@@ -5789,11 +5807,9 @@ async function renderSlidePanel(productId) {
   let psa10Jpy = null, psa9Jpy = null, rawJpy = null, boxJpy = null;
   let psa10Cur = 'JPY', psa9Cur = 'JPY', rawCur = 'JPY', boxCur = 'JPY';
   if (isBox) {
-    boxJpy = pickLatestPrice('box_price');
-    if (boxJpy == null && product && product.lastPrice) {
-      boxJpy = product.lastPrice;
-      boxCur = product.currency || 'JPY';
-    }
+    const listing = HomeMarket.quote(product);
+    boxJpy = listing?.value ?? pickLatestPrice('box_price');
+    boxCur = listing?.currency || 'JPY';
   } else {
     // 정적 기준값 — 일일 수집 결과
     try {
@@ -5824,12 +5840,15 @@ async function renderSlidePanel(productId) {
     if (product && product.lastPrice) {
       if (product._grade === 'raw') {
         if (rawJpy == null) { rawJpy = product.lastPrice; rawCur = product.currency || 'JPY'; }
-      } else if (psa10Jpy == null) {
+      } else if (!product._isTop10 && psa10Jpy == null) {
         psa10Jpy = product.lastPrice;
         psa10Cur = product.currency || 'JPY';
       }
     }
   }
+  const topListing = product?._isTop10 ? HomeMarket.quote(product) : null;
+  const preferTopRaw = !isBox && !!topListing;
+  if (preferTopRaw) { rawJpy = topListing.value; rawCur = topListing.currency; }
   // BGS 가격 — history 에서만 (SNKRDUNK 가 거래 적어 차트 불안정 → 가격만 표시)
   const bgs10BlJpy = pickLatestPrice('bgs10_bl_price');
   const bgs10GlJpy = pickLatestPrice('bgs10_gl_price');
@@ -5897,7 +5916,7 @@ async function renderSlidePanel(productId) {
         <div class="gc-val">${fmtChip(bgs95Price)}</div>
       </button>
     </div>` : '';
-  const mainPrice = isBox ? boxPrice : (psa10Price ?? rawPrice);
+  const mainPrice = isBox ? boxPrice : preferTopRaw ? rawPrice : (psa10Price ?? rawPrice);
   const mainLabel = isBox
     ? '박스 상품 — 그레이딩 거래 없음'
     : (psa10Price ? 'PSA 10 기준' : (rawPrice ? 'A급(싱글) 기준 — PSA10 거래 내역 없음' : 'PSA 10 기준'));
@@ -5928,9 +5947,9 @@ async function renderSlidePanel(productId) {
     </div>
 
     <div class="slide-price-box">
-      <div class="slide-price-label">${isBox ? '박스' : (psa10Price ? 'PSA 10' : 'A급')} 기준</div>
+      <div class="slide-price-label">${isBox ? '박스' : (preferTopRaw ? 'A급' : psa10Price ? 'PSA 10' : 'A급')} 기준</div>
       <div class="slide-price-val" id="slidePriceVal">${fmtChip(mainPrice)}</div>
-      <div class="slide-price-sub" id="slidePriceSub">SNKRDUNK 최저 실거래가 · ${mainLabel}</div>
+      <div class="slide-price-sub" id="slidePriceSub">${isBox && HomeMarket.quote(product) || preferTopRaw ? 'SNKRDUNK · 수집 시점 출품가' : mainLabel}</div>
       ${gradeRowHTML}
       ${bgsRowHTML}
     </div>
@@ -5981,9 +6000,11 @@ async function renderSlidePanel(productId) {
       const [val, label] = map[g] || [null, ''];
       document.getElementById('slidePriceVal').textContent = fmtChip(val);
       document.getElementById('slidePriceSub').textContent = label;
+      if (history && history.length >= 2) drawSlideChart(history, isBox, g);
     });
   });
 
+  if (preferTopRaw) body.querySelectorAll('.slide-grade-chip').forEach(chip => chip.classList.toggle('active', chip.dataset.grade === 'raw'));
   // 액션 버튼
   document.getElementById('slideAddPortfolio').onclick = () => {
     if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
@@ -6000,7 +6021,7 @@ async function renderSlidePanel(productId) {
 
   // 차트 — 박스는 box_price, 카드는 psa10_price 기준
   if (history && history.length >= 2) {
-    drawSlideChart(history, isBox);
+    drawSlideChart(history, isBox, preferTopRaw ? 'raw' : 'psa10');
   }
   // 정보 테이블 타입 표시 — isBox 기반
   const typeCell = body.querySelector('.slide-info-table tr:first-child td:last-child');
@@ -6013,7 +6034,7 @@ function _krw(jpy) {
   return Math.floor(jpy * rate);
 }
 
-function drawSlideChart(history, isBox) {
+function drawSlideChart(history, isBox, grade = 'psa10') {
   const canvas = document.getElementById('slideChart');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -6026,7 +6047,7 @@ function drawSlideChart(history, isBox) {
   const W = rect.width;
   const padding = { top: 14, right: 12, bottom: 32, left: 48 };
   // 박스면 box_price/box_vol, 카드면 psa10_price/total_vol
-  const priceKey = isBox ? 'box_price' : 'psa10_price';
+  const priceKey = isBox ? 'box_price' : grade + '_price';
   const volKey = isBox ? 'box_vol' : 'total_vol';
   // 데이터 — KRW 환산 + outlier 자동 제거 (이웃 median 대비 2배 spike 제거)
   const rowsRaw = (history || []).map(r => ({ date: r.date, price: _krw(r[priceKey]), vol: r[volKey] || (isBox ? 0 : r.psa10_vol) || 0 }));

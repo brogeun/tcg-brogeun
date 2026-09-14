@@ -44,3 +44,8 @@
 # 폰트 — 1주 캐시
 /fonts/*
   Cache-Control: public, max-age=604800, immutable
+
+# KANTO 151 entry/modules revalidate together after a release.
+/games/kanto151/*
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Robots-Tag: noindex, nofollow

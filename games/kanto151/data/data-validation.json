@@ -1,0 +1,5986 @@
+{
+  "passed": true,
+  "scope": "Data structure and static progression reachability, not runtime playtest or asset rendering.",
+  "assumptions": [
+    "Successful captures are eventually achieved through repeatable attempts.",
+    "Free camps and renewable battles/caches permit repeatable training, healing and evolution-item purchases.",
+    "Each encountered family can be caught repeatedly; evolved ancestors remain registered.",
+    "Time advances in the field; resting changes weather and advances six hours.",
+    "Mew additionally requires the attainable west-north-east memory-stone interaction sequence."
+  ],
+  "speciesCount": 151,
+  "moveCount": 325,
+  "evolutionEdges": 72,
+  "biomeCount": 14,
+  "restWeatherWitness": [
+    {
+      "hour": 15,
+      "weather": "mist"
+    },
+    {
+      "hour": 21,
+      "weather": "clear"
+    },
+    {
+      "hour": 3,
+      "weather": "clear"
+    },
+    {
+      "hour": 9,
+      "weather": "rain"
+    }
+  ],
+  "starters": [
+    {
+      "starterId": 1,
+      "caughtCount": 151,
+      "unlockedBiomes": [
+        "camp",
+        "cave",
+        "coast",
+        "forest",
+        "frozen",
+        "grassland",
+        "laboratory",
+        "lake",
+        "mountain",
+        "powerplant",
+        "ruins",
+        "safari",
+        "volcano",
+        "wetland"
+      ],
+      "defeatedBosses": [
+        144,
+        145,
+        146,
+        150,
+        151
+      ],
+      "biomeUnlocks": [
+        {
+          "biomeId": "camp",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": null
+        },
+        {
+          "biomeId": "grassland",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "camp"
+        },
+        {
+          "biomeId": "forest",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "lake",
+          "requiredCaughtCount": 3,
+          "atCaughtCount": 39,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "coast",
+          "requiredCaughtCount": 8,
+          "atCaughtCount": 39,
+          "from": "lake"
+        },
+        {
+          "biomeId": "mountain",
+          "requiredCaughtCount": 15,
+          "atCaughtCount": 39,
+          "from": "forest"
+        },
+        {
+          "biomeId": "cave",
+          "requiredCaughtCount": 12,
+          "atCaughtCount": 39,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "wetland",
+          "requiredCaughtCount": 20,
+          "atCaughtCount": 39,
+          "from": "lake"
+        },
+        {
+          "biomeId": "powerplant",
+          "requiredCaughtCount": 28,
+          "atCaughtCount": 39,
+          "from": "wetland"
+        },
+        {
+          "biomeId": "ruins",
+          "requiredCaughtCount": 36,
+          "atCaughtCount": 39,
+          "from": "cave"
+        },
+        {
+          "biomeId": "safari",
+          "requiredCaughtCount": 45,
+          "atCaughtCount": 127,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "volcano",
+          "requiredCaughtCount": 60,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "frozen",
+          "requiredCaughtCount": 75,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "laboratory",
+          "requiredCaughtCount": 100,
+          "atCaughtCount": 127,
+          "from": "powerplant"
+        }
+      ],
+      "missing": [],
+      "route": [
+        {
+          "step": 1,
+          "speciesId": 2,
+          "name": "Ivysaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 1,
+          "caughtCount": 2
+        },
+        {
+          "step": 2,
+          "speciesId": 3,
+          "name": "Venusaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 2,
+          "caughtCount": 3
+        },
+        {
+          "step": 3,
+          "speciesId": 10,
+          "name": "Caterpie",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 4
+        },
+        {
+          "step": 4,
+          "speciesId": 11,
+          "name": "Metapod",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 10,
+          "caughtCount": 5
+        },
+        {
+          "step": 5,
+          "speciesId": 12,
+          "name": "Butterfree",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 11,
+          "caughtCount": 6
+        },
+        {
+          "step": 6,
+          "speciesId": 13,
+          "name": "Weedle",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 7
+        },
+        {
+          "step": 7,
+          "speciesId": 14,
+          "name": "Kakuna",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 13,
+          "caughtCount": 8
+        },
+        {
+          "step": 8,
+          "speciesId": 15,
+          "name": "Beedrill",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 14,
+          "caughtCount": 9
+        },
+        {
+          "step": 9,
+          "speciesId": 16,
+          "name": "Pidgey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 10
+        },
+        {
+          "step": 10,
+          "speciesId": 17,
+          "name": "Pidgeotto",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 16,
+          "caughtCount": 11
+        },
+        {
+          "step": 11,
+          "speciesId": 18,
+          "name": "Pidgeot",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 17,
+          "caughtCount": 12
+        },
+        {
+          "step": 12,
+          "speciesId": 19,
+          "name": "Rattata",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 13
+        },
+        {
+          "step": 13,
+          "speciesId": 20,
+          "name": "Raticate",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 19,
+          "caughtCount": 14
+        },
+        {
+          "step": 14,
+          "speciesId": 21,
+          "name": "Spearow",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 15
+        },
+        {
+          "step": 15,
+          "speciesId": 22,
+          "name": "Fearow",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 21,
+          "caughtCount": 16
+        },
+        {
+          "step": 16,
+          "speciesId": 25,
+          "name": "Pikachu",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 17
+        },
+        {
+          "step": 17,
+          "speciesId": 29,
+          "name": "Nidoran\u2640",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 18
+        },
+        {
+          "step": 18,
+          "speciesId": 30,
+          "name": "Nidorina",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 29,
+          "caughtCount": 19
+        },
+        {
+          "step": 19,
+          "speciesId": 32,
+          "name": "Nidoran\u2642",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 20
+        },
+        {
+          "step": 20,
+          "speciesId": 33,
+          "name": "Nidorino",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 32,
+          "caughtCount": 21
+        },
+        {
+          "step": 21,
+          "speciesId": 39,
+          "name": "Jigglypuff",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 22
+        },
+        {
+          "step": 22,
+          "speciesId": 43,
+          "name": "Oddish",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 23
+        },
+        {
+          "step": 23,
+          "speciesId": 44,
+          "name": "Gloom",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 43,
+          "caughtCount": 24
+        },
+        {
+          "step": 24,
+          "speciesId": 46,
+          "name": "Paras",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 25
+        },
+        {
+          "step": 25,
+          "speciesId": 47,
+          "name": "Parasect",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 46,
+          "caughtCount": 26
+        },
+        {
+          "step": 26,
+          "speciesId": 48,
+          "name": "Venonat",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 27
+        },
+        {
+          "step": 27,
+          "speciesId": 49,
+          "name": "Venomoth",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 48,
+          "caughtCount": 28
+        },
+        {
+          "step": 28,
+          "speciesId": 52,
+          "name": "Meowth",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 29
+        },
+        {
+          "step": 29,
+          "speciesId": 53,
+          "name": "Persian",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 52,
+          "caughtCount": 30
+        },
+        {
+          "step": 30,
+          "speciesId": 56,
+          "name": "Mankey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 31
+        },
+        {
+          "step": 31,
+          "speciesId": 57,
+          "name": "Primeape",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 56,
+          "caughtCount": 32
+        },
+        {
+          "step": 32,
+          "speciesId": 69,
+          "name": "Bellsprout",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 33
+        },
+        {
+          "step": 33,
+          "speciesId": 70,
+          "name": "Weepinbell",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 69,
+          "caughtCount": 34
+        },
+        {
+          "step": 34,
+          "speciesId": 84,
+          "name": "Doduo",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 35
+        },
+        {
+          "step": 35,
+          "speciesId": 85,
+          "name": "Dodrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 84,
+          "caughtCount": 36
+        },
+        {
+          "step": 36,
+          "speciesId": 102,
+          "name": "Exeggcute",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 37
+        },
+        {
+          "step": 37,
+          "speciesId": 133,
+          "name": "Eevee",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 38
+        },
+        {
+          "step": 38,
+          "speciesId": 143,
+          "name": "Snorlax",
+          "kind": "quest",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 39
+        },
+        {
+          "step": 39,
+          "speciesId": 4,
+          "name": "Charmander",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 40
+        },
+        {
+          "step": 40,
+          "speciesId": 5,
+          "name": "Charmeleon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 4,
+          "caughtCount": 41
+        },
+        {
+          "step": 41,
+          "speciesId": 6,
+          "name": "Charizard",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 5,
+          "caughtCount": 42
+        },
+        {
+          "step": 42,
+          "speciesId": 7,
+          "name": "Squirtle",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 43
+        },
+        {
+          "step": 43,
+          "speciesId": 8,
+          "name": "Wartortle",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 7,
+          "caughtCount": 44
+        },
+        {
+          "step": 44,
+          "speciesId": 9,
+          "name": "Blastoise",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 8,
+          "caughtCount": 45
+        },
+        {
+          "step": 45,
+          "speciesId": 23,
+          "name": "Ekans",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 46
+        },
+        {
+          "step": 46,
+          "speciesId": 24,
+          "name": "Arbok",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 47
+        },
+        {
+          "step": 47,
+          "speciesId": 26,
+          "name": "Raichu",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 25,
+          "caughtCount": 48
+        },
+        {
+          "step": 48,
+          "speciesId": 27,
+          "name": "Sandshrew",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 49
+        },
+        {
+          "step": 49,
+          "speciesId": 28,
+          "name": "Sandslash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 27,
+          "caughtCount": 50
+        },
+        {
+          "step": 50,
+          "speciesId": 31,
+          "name": "Nidoqueen",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 30,
+          "caughtCount": 51
+        },
+        {
+          "step": 51,
+          "speciesId": 34,
+          "name": "Nidoking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 33,
+          "caughtCount": 52
+        },
+        {
+          "step": 52,
+          "speciesId": 35,
+          "name": "Clefairy",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 53
+        },
+        {
+          "step": 53,
+          "speciesId": 36,
+          "name": "Clefable",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 35,
+          "caughtCount": 54
+        },
+        {
+          "step": 54,
+          "speciesId": 40,
+          "name": "Wigglytuff",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 39,
+          "caughtCount": 55
+        },
+        {
+          "step": 55,
+          "speciesId": 41,
+          "name": "Zubat",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 56
+        },
+        {
+          "step": 56,
+          "speciesId": 42,
+          "name": "Golbat",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 41,
+          "caughtCount": 57
+        },
+        {
+          "step": 57,
+          "speciesId": 45,
+          "name": "Vileplume",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 44,
+          "caughtCount": 58
+        },
+        {
+          "step": 58,
+          "speciesId": 50,
+          "name": "Diglett",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 59
+        },
+        {
+          "step": 59,
+          "speciesId": 51,
+          "name": "Dugtrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 50,
+          "caughtCount": 60
+        },
+        {
+          "step": 60,
+          "speciesId": 54,
+          "name": "Psyduck",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 61
+        },
+        {
+          "step": 61,
+          "speciesId": 55,
+          "name": "Golduck",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 54,
+          "caughtCount": 62
+        },
+        {
+          "step": 62,
+          "speciesId": 60,
+          "name": "Poliwag",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 63
+        },
+        {
+          "step": 63,
+          "speciesId": 61,
+          "name": "Poliwhirl",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 60,
+          "caughtCount": 64
+        },
+        {
+          "step": 64,
+          "speciesId": 62,
+          "name": "Poliwrath",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 61,
+          "caughtCount": 65
+        },
+        {
+          "step": 65,
+          "speciesId": 63,
+          "name": "Abra",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 66
+        },
+        {
+          "step": 66,
+          "speciesId": 64,
+          "name": "Kadabra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 63,
+          "caughtCount": 67
+        },
+        {
+          "step": 67,
+          "speciesId": 65,
+          "name": "Alakazam",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 64,
+          "caughtCount": 68
+        },
+        {
+          "step": 68,
+          "speciesId": 66,
+          "name": "Machop",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 69
+        },
+        {
+          "step": 69,
+          "speciesId": 67,
+          "name": "Machoke",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 70
+        },
+        {
+          "step": 70,
+          "speciesId": 68,
+          "name": "Machamp",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 67,
+          "caughtCount": 71
+        },
+        {
+          "step": 71,
+          "speciesId": 71,
+          "name": "Victreebel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 70,
+          "caughtCount": 72
+        },
+        {
+          "step": 72,
+          "speciesId": 72,
+          "name": "Tentacool",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 73
+        },
+        {
+          "step": 73,
+          "speciesId": 73,
+          "name": "Tentacruel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 72,
+          "caughtCount": 74
+        },
+        {
+          "step": 74,
+          "speciesId": 74,
+          "name": "Geodude",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 75
+        },
+        {
+          "step": 75,
+          "speciesId": 75,
+          "name": "Graveler",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 76
+        },
+        {
+          "step": 76,
+          "speciesId": 76,
+          "name": "Golem",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 75,
+          "caughtCount": 77
+        },
+        {
+          "step": 77,
+          "speciesId": 77,
+          "name": "Ponyta",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 78
+        },
+        {
+          "step": 78,
+          "speciesId": 78,
+          "name": "Rapidash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 77,
+          "caughtCount": 79
+        },
+        {
+          "step": 79,
+          "speciesId": 79,
+          "name": "Slowpoke",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 80
+        },
+        {
+          "step": 80,
+          "speciesId": 80,
+          "name": "Slowbro",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 79,
+          "caughtCount": 81
+        },
+        {
+          "step": 81,
+          "speciesId": 81,
+          "name": "Magnemite",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 82
+        },
+        {
+          "step": 82,
+          "speciesId": 82,
+          "name": "Magneton",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 83
+        },
+        {
+          "step": 83,
+          "speciesId": 86,
+          "name": "Seel",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 84
+        },
+        {
+          "step": 84,
+          "speciesId": 87,
+          "name": "Dewgong",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 86,
+          "caughtCount": 85
+        },
+        {
+          "step": 85,
+          "speciesId": 88,
+          "name": "Grimer",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 86
+        },
+        {
+          "step": 86,
+          "speciesId": 89,
+          "name": "Muk",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 88,
+          "caughtCount": 87
+        },
+        {
+          "step": 87,
+          "speciesId": 90,
+          "name": "Shellder",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 88
+        },
+        {
+          "step": 88,
+          "speciesId": 91,
+          "name": "Cloyster",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 90,
+          "caughtCount": 89
+        },
+        {
+          "step": 89,
+          "speciesId": 92,
+          "name": "Gastly",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 90
+        },
+        {
+          "step": 90,
+          "speciesId": 93,
+          "name": "Haunter",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 91
+        },
+        {
+          "step": 91,
+          "speciesId": 94,
+          "name": "Gengar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 93,
+          "caughtCount": 92
+        },
+        {
+          "step": 92,
+          "speciesId": 95,
+          "name": "Onix",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 93
+        },
+        {
+          "step": 93,
+          "speciesId": 96,
+          "name": "Drowzee",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 94
+        },
+        {
+          "step": 94,
+          "speciesId": 97,
+          "name": "Hypno",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 95
+        },
+        {
+          "step": 95,
+          "speciesId": 98,
+          "name": "Krabby",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 96
+        },
+        {
+          "step": 96,
+          "speciesId": 99,
+          "name": "Kingler",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 98,
+          "caughtCount": 97
+        },
+        {
+          "step": 97,
+          "speciesId": 100,
+          "name": "Voltorb",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 98
+        },
+        {
+          "step": 98,
+          "speciesId": 101,
+          "name": "Electrode",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 99
+        },
+        {
+          "step": 99,
+          "speciesId": 103,
+          "name": "Exeggutor",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 102,
+          "caughtCount": 100
+        },
+        {
+          "step": 100,
+          "speciesId": 104,
+          "name": "Cubone",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 101
+        },
+        {
+          "step": 101,
+          "speciesId": 105,
+          "name": "Marowak",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 104,
+          "caughtCount": 102
+        },
+        {
+          "step": 102,
+          "speciesId": 109,
+          "name": "Koffing",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 103
+        },
+        {
+          "step": 103,
+          "speciesId": 110,
+          "name": "Weezing",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 109,
+          "caughtCount": 104
+        },
+        {
+          "step": 104,
+          "speciesId": 111,
+          "name": "Rhyhorn",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 105
+        },
+        {
+          "step": 105,
+          "speciesId": 112,
+          "name": "Rhydon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 111,
+          "caughtCount": 106
+        },
+        {
+          "step": 106,
+          "speciesId": 114,
+          "name": "Tangela",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 107
+        },
+        {
+          "step": 107,
+          "speciesId": 116,
+          "name": "Horsea",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 108
+        },
+        {
+          "step": 108,
+          "speciesId": 117,
+          "name": "Seadra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 116,
+          "caughtCount": 109
+        },
+        {
+          "step": 109,
+          "speciesId": 118,
+          "name": "Goldeen",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 110
+        },
+        {
+          "step": 110,
+          "speciesId": 119,
+          "name": "Seaking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 118,
+          "caughtCount": 111
+        },
+        {
+          "step": 111,
+          "speciesId": 120,
+          "name": "Staryu",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 112
+        },
+        {
+          "step": 112,
+          "speciesId": 121,
+          "name": "Starmie",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 120,
+          "caughtCount": 113
+        },
+        {
+          "step": 113,
+          "speciesId": 122,
+          "name": "Mr. Mime",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 114
+        },
+        {
+          "step": 114,
+          "speciesId": 125,
+          "name": "Electabuzz",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 115
+        },
+        {
+          "step": 115,
+          "speciesId": 129,
+          "name": "Magikarp",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 116
+        },
+        {
+          "step": 116,
+          "speciesId": 130,
+          "name": "Gyarados",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 129,
+          "caughtCount": 117
+        },
+        {
+          "step": 117,
+          "speciesId": 131,
+          "name": "Lapras",
+          "kind": "quest",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 118
+        },
+        {
+          "step": 118,
+          "speciesId": 134,
+          "name": "Vaporeon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 119
+        },
+        {
+          "step": 119,
+          "speciesId": 135,
+          "name": "Jolteon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 120
+        },
+        {
+          "step": 120,
+          "speciesId": 136,
+          "name": "Flareon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 121
+        },
+        {
+          "step": 121,
+          "speciesId": 138,
+          "name": "Omanyte",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 122
+        },
+        {
+          "step": 122,
+          "speciesId": 139,
+          "name": "Omastar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 138,
+          "caughtCount": 123
+        },
+        {
+          "step": 123,
+          "speciesId": 140,
+          "name": "Kabuto",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 124
+        },
+        {
+          "step": 124,
+          "speciesId": 141,
+          "name": "Kabutops",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 140,
+          "caughtCount": 125
+        },
+        {
+          "step": 125,
+          "speciesId": 142,
+          "name": "Aerodactyl",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 126
+        },
+        {
+          "step": 126,
+          "speciesId": 145,
+          "name": "Zapdos",
+          "kind": "boss",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 127
+        },
+        {
+          "step": 127,
+          "speciesId": 37,
+          "name": "Vulpix",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 128
+        },
+        {
+          "step": 128,
+          "speciesId": 38,
+          "name": "Ninetales",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 37,
+          "caughtCount": 129
+        },
+        {
+          "step": 129,
+          "speciesId": 58,
+          "name": "Growlithe",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 130
+        },
+        {
+          "step": 130,
+          "speciesId": 59,
+          "name": "Arcanine",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 58,
+          "caughtCount": 131
+        },
+        {
+          "step": 131,
+          "speciesId": 83,
+          "name": "Farfetch\u2019d",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 132
+        },
+        {
+          "step": 132,
+          "speciesId": 106,
+          "name": "Hitmonlee",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 133
+        },
+        {
+          "step": 133,
+          "speciesId": 107,
+          "name": "Hitmonchan",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 134
+        },
+        {
+          "step": 134,
+          "speciesId": 108,
+          "name": "Lickitung",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 135
+        },
+        {
+          "step": 135,
+          "speciesId": 113,
+          "name": "Chansey",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 136
+        },
+        {
+          "step": 136,
+          "speciesId": 115,
+          "name": "Kangaskhan",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 137
+        },
+        {
+          "step": 137,
+          "speciesId": 123,
+          "name": "Scyther",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 138
+        },
+        {
+          "step": 138,
+          "speciesId": 124,
+          "name": "Jynx",
+          "kind": "wild",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 139
+        },
+        {
+          "step": 139,
+          "speciesId": 126,
+          "name": "Magmar",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 140
+        },
+        {
+          "step": 140,
+          "speciesId": 127,
+          "name": "Pinsir",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 141
+        },
+        {
+          "step": 141,
+          "speciesId": 128,
+          "name": "Tauros",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 142
+        },
+        {
+          "step": 142,
+          "speciesId": 132,
+          "name": "Ditto",
+          "kind": "wild",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 143
+        },
+        {
+          "step": 143,
+          "speciesId": 137,
+          "name": "Porygon",
+          "kind": "quest",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 144
+        },
+        {
+          "step": 144,
+          "speciesId": 144,
+          "name": "Articuno",
+          "kind": "boss",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 145
+        },
+        {
+          "step": 145,
+          "speciesId": 146,
+          "name": "Moltres",
+          "kind": "boss",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 146
+        },
+        {
+          "step": 146,
+          "speciesId": 147,
+          "name": "Dratini",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 147
+        },
+        {
+          "step": 147,
+          "speciesId": 148,
+          "name": "Dragonair",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 147,
+          "caughtCount": 148
+        },
+        {
+          "step": 148,
+          "speciesId": 149,
+          "name": "Dragonite",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 148,
+          "caughtCount": 149
+        },
+        {
+          "step": 149,
+          "speciesId": 150,
+          "name": "Mewtwo",
+          "kind": "boss",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 150
+        },
+        {
+          "step": 150,
+          "speciesId": 151,
+          "name": "Mew",
+          "kind": "boss",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 151
+        }
+      ]
+    },
+    {
+      "starterId": 4,
+      "caughtCount": 151,
+      "unlockedBiomes": [
+        "camp",
+        "cave",
+        "coast",
+        "forest",
+        "frozen",
+        "grassland",
+        "laboratory",
+        "lake",
+        "mountain",
+        "powerplant",
+        "ruins",
+        "safari",
+        "volcano",
+        "wetland"
+      ],
+      "defeatedBosses": [
+        144,
+        145,
+        146,
+        150,
+        151
+      ],
+      "biomeUnlocks": [
+        {
+          "biomeId": "camp",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": null
+        },
+        {
+          "biomeId": "grassland",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "camp"
+        },
+        {
+          "biomeId": "forest",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "lake",
+          "requiredCaughtCount": 3,
+          "atCaughtCount": 42,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "coast",
+          "requiredCaughtCount": 8,
+          "atCaughtCount": 42,
+          "from": "lake"
+        },
+        {
+          "biomeId": "mountain",
+          "requiredCaughtCount": 15,
+          "atCaughtCount": 42,
+          "from": "forest"
+        },
+        {
+          "biomeId": "cave",
+          "requiredCaughtCount": 12,
+          "atCaughtCount": 42,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "wetland",
+          "requiredCaughtCount": 20,
+          "atCaughtCount": 42,
+          "from": "lake"
+        },
+        {
+          "biomeId": "powerplant",
+          "requiredCaughtCount": 28,
+          "atCaughtCount": 42,
+          "from": "wetland"
+        },
+        {
+          "biomeId": "ruins",
+          "requiredCaughtCount": 36,
+          "atCaughtCount": 42,
+          "from": "cave"
+        },
+        {
+          "biomeId": "safari",
+          "requiredCaughtCount": 45,
+          "atCaughtCount": 127,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "volcano",
+          "requiredCaughtCount": 60,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "frozen",
+          "requiredCaughtCount": 75,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "laboratory",
+          "requiredCaughtCount": 100,
+          "atCaughtCount": 127,
+          "from": "powerplant"
+        }
+      ],
+      "missing": [],
+      "route": [
+        {
+          "step": 1,
+          "speciesId": 1,
+          "name": "Bulbasaur",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 2
+        },
+        {
+          "step": 2,
+          "speciesId": 2,
+          "name": "Ivysaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 1,
+          "caughtCount": 3
+        },
+        {
+          "step": 3,
+          "speciesId": 3,
+          "name": "Venusaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 2,
+          "caughtCount": 4
+        },
+        {
+          "step": 4,
+          "speciesId": 5,
+          "name": "Charmeleon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 4,
+          "caughtCount": 5
+        },
+        {
+          "step": 5,
+          "speciesId": 6,
+          "name": "Charizard",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 5,
+          "caughtCount": 6
+        },
+        {
+          "step": 6,
+          "speciesId": 10,
+          "name": "Caterpie",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 7
+        },
+        {
+          "step": 7,
+          "speciesId": 11,
+          "name": "Metapod",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 10,
+          "caughtCount": 8
+        },
+        {
+          "step": 8,
+          "speciesId": 12,
+          "name": "Butterfree",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 11,
+          "caughtCount": 9
+        },
+        {
+          "step": 9,
+          "speciesId": 13,
+          "name": "Weedle",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 10
+        },
+        {
+          "step": 10,
+          "speciesId": 14,
+          "name": "Kakuna",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 13,
+          "caughtCount": 11
+        },
+        {
+          "step": 11,
+          "speciesId": 15,
+          "name": "Beedrill",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 14,
+          "caughtCount": 12
+        },
+        {
+          "step": 12,
+          "speciesId": 16,
+          "name": "Pidgey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 13
+        },
+        {
+          "step": 13,
+          "speciesId": 17,
+          "name": "Pidgeotto",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 16,
+          "caughtCount": 14
+        },
+        {
+          "step": 14,
+          "speciesId": 18,
+          "name": "Pidgeot",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 17,
+          "caughtCount": 15
+        },
+        {
+          "step": 15,
+          "speciesId": 19,
+          "name": "Rattata",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 16
+        },
+        {
+          "step": 16,
+          "speciesId": 20,
+          "name": "Raticate",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 19,
+          "caughtCount": 17
+        },
+        {
+          "step": 17,
+          "speciesId": 21,
+          "name": "Spearow",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 18
+        },
+        {
+          "step": 18,
+          "speciesId": 22,
+          "name": "Fearow",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 21,
+          "caughtCount": 19
+        },
+        {
+          "step": 19,
+          "speciesId": 25,
+          "name": "Pikachu",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 20
+        },
+        {
+          "step": 20,
+          "speciesId": 29,
+          "name": "Nidoran\u2640",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 21
+        },
+        {
+          "step": 21,
+          "speciesId": 30,
+          "name": "Nidorina",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 29,
+          "caughtCount": 22
+        },
+        {
+          "step": 22,
+          "speciesId": 32,
+          "name": "Nidoran\u2642",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 23
+        },
+        {
+          "step": 23,
+          "speciesId": 33,
+          "name": "Nidorino",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 32,
+          "caughtCount": 24
+        },
+        {
+          "step": 24,
+          "speciesId": 39,
+          "name": "Jigglypuff",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 25
+        },
+        {
+          "step": 25,
+          "speciesId": 43,
+          "name": "Oddish",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 26
+        },
+        {
+          "step": 26,
+          "speciesId": 44,
+          "name": "Gloom",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 43,
+          "caughtCount": 27
+        },
+        {
+          "step": 27,
+          "speciesId": 46,
+          "name": "Paras",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 28
+        },
+        {
+          "step": 28,
+          "speciesId": 47,
+          "name": "Parasect",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 46,
+          "caughtCount": 29
+        },
+        {
+          "step": 29,
+          "speciesId": 48,
+          "name": "Venonat",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 30
+        },
+        {
+          "step": 30,
+          "speciesId": 49,
+          "name": "Venomoth",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 48,
+          "caughtCount": 31
+        },
+        {
+          "step": 31,
+          "speciesId": 52,
+          "name": "Meowth",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 32
+        },
+        {
+          "step": 32,
+          "speciesId": 53,
+          "name": "Persian",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 52,
+          "caughtCount": 33
+        },
+        {
+          "step": 33,
+          "speciesId": 56,
+          "name": "Mankey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 34
+        },
+        {
+          "step": 34,
+          "speciesId": 57,
+          "name": "Primeape",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 56,
+          "caughtCount": 35
+        },
+        {
+          "step": 35,
+          "speciesId": 69,
+          "name": "Bellsprout",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 36
+        },
+        {
+          "step": 36,
+          "speciesId": 70,
+          "name": "Weepinbell",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 69,
+          "caughtCount": 37
+        },
+        {
+          "step": 37,
+          "speciesId": 84,
+          "name": "Doduo",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 38
+        },
+        {
+          "step": 38,
+          "speciesId": 85,
+          "name": "Dodrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 84,
+          "caughtCount": 39
+        },
+        {
+          "step": 39,
+          "speciesId": 102,
+          "name": "Exeggcute",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 40
+        },
+        {
+          "step": 40,
+          "speciesId": 133,
+          "name": "Eevee",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 41
+        },
+        {
+          "step": 41,
+          "speciesId": 143,
+          "name": "Snorlax",
+          "kind": "quest",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 42
+        },
+        {
+          "step": 42,
+          "speciesId": 7,
+          "name": "Squirtle",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 43
+        },
+        {
+          "step": 43,
+          "speciesId": 8,
+          "name": "Wartortle",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 7,
+          "caughtCount": 44
+        },
+        {
+          "step": 44,
+          "speciesId": 9,
+          "name": "Blastoise",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 8,
+          "caughtCount": 45
+        },
+        {
+          "step": 45,
+          "speciesId": 23,
+          "name": "Ekans",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 46
+        },
+        {
+          "step": 46,
+          "speciesId": 24,
+          "name": "Arbok",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 47
+        },
+        {
+          "step": 47,
+          "speciesId": 26,
+          "name": "Raichu",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 25,
+          "caughtCount": 48
+        },
+        {
+          "step": 48,
+          "speciesId": 27,
+          "name": "Sandshrew",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 49
+        },
+        {
+          "step": 49,
+          "speciesId": 28,
+          "name": "Sandslash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 27,
+          "caughtCount": 50
+        },
+        {
+          "step": 50,
+          "speciesId": 31,
+          "name": "Nidoqueen",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 30,
+          "caughtCount": 51
+        },
+        {
+          "step": 51,
+          "speciesId": 34,
+          "name": "Nidoking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 33,
+          "caughtCount": 52
+        },
+        {
+          "step": 52,
+          "speciesId": 35,
+          "name": "Clefairy",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 53
+        },
+        {
+          "step": 53,
+          "speciesId": 36,
+          "name": "Clefable",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 35,
+          "caughtCount": 54
+        },
+        {
+          "step": 54,
+          "speciesId": 40,
+          "name": "Wigglytuff",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 39,
+          "caughtCount": 55
+        },
+        {
+          "step": 55,
+          "speciesId": 41,
+          "name": "Zubat",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 56
+        },
+        {
+          "step": 56,
+          "speciesId": 42,
+          "name": "Golbat",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 41,
+          "caughtCount": 57
+        },
+        {
+          "step": 57,
+          "speciesId": 45,
+          "name": "Vileplume",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 44,
+          "caughtCount": 58
+        },
+        {
+          "step": 58,
+          "speciesId": 50,
+          "name": "Diglett",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 59
+        },
+        {
+          "step": 59,
+          "speciesId": 51,
+          "name": "Dugtrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 50,
+          "caughtCount": 60
+        },
+        {
+          "step": 60,
+          "speciesId": 54,
+          "name": "Psyduck",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 61
+        },
+        {
+          "step": 61,
+          "speciesId": 55,
+          "name": "Golduck",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 54,
+          "caughtCount": 62
+        },
+        {
+          "step": 62,
+          "speciesId": 60,
+          "name": "Poliwag",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 63
+        },
+        {
+          "step": 63,
+          "speciesId": 61,
+          "name": "Poliwhirl",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 60,
+          "caughtCount": 64
+        },
+        {
+          "step": 64,
+          "speciesId": 62,
+          "name": "Poliwrath",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 61,
+          "caughtCount": 65
+        },
+        {
+          "step": 65,
+          "speciesId": 63,
+          "name": "Abra",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 66
+        },
+        {
+          "step": 66,
+          "speciesId": 64,
+          "name": "Kadabra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 63,
+          "caughtCount": 67
+        },
+        {
+          "step": 67,
+          "speciesId": 65,
+          "name": "Alakazam",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 64,
+          "caughtCount": 68
+        },
+        {
+          "step": 68,
+          "speciesId": 66,
+          "name": "Machop",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 69
+        },
+        {
+          "step": 69,
+          "speciesId": 67,
+          "name": "Machoke",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 70
+        },
+        {
+          "step": 70,
+          "speciesId": 68,
+          "name": "Machamp",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 67,
+          "caughtCount": 71
+        },
+        {
+          "step": 71,
+          "speciesId": 71,
+          "name": "Victreebel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 70,
+          "caughtCount": 72
+        },
+        {
+          "step": 72,
+          "speciesId": 72,
+          "name": "Tentacool",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 73
+        },
+        {
+          "step": 73,
+          "speciesId": 73,
+          "name": "Tentacruel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 72,
+          "caughtCount": 74
+        },
+        {
+          "step": 74,
+          "speciesId": 74,
+          "name": "Geodude",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 75
+        },
+        {
+          "step": 75,
+          "speciesId": 75,
+          "name": "Graveler",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 76
+        },
+        {
+          "step": 76,
+          "speciesId": 76,
+          "name": "Golem",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 75,
+          "caughtCount": 77
+        },
+        {
+          "step": 77,
+          "speciesId": 77,
+          "name": "Ponyta",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 78
+        },
+        {
+          "step": 78,
+          "speciesId": 78,
+          "name": "Rapidash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 77,
+          "caughtCount": 79
+        },
+        {
+          "step": 79,
+          "speciesId": 79,
+          "name": "Slowpoke",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 80
+        },
+        {
+          "step": 80,
+          "speciesId": 80,
+          "name": "Slowbro",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 79,
+          "caughtCount": 81
+        },
+        {
+          "step": 81,
+          "speciesId": 81,
+          "name": "Magnemite",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 82
+        },
+        {
+          "step": 82,
+          "speciesId": 82,
+          "name": "Magneton",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 83
+        },
+        {
+          "step": 83,
+          "speciesId": 86,
+          "name": "Seel",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 84
+        },
+        {
+          "step": 84,
+          "speciesId": 87,
+          "name": "Dewgong",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 86,
+          "caughtCount": 85
+        },
+        {
+          "step": 85,
+          "speciesId": 88,
+          "name": "Grimer",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 86
+        },
+        {
+          "step": 86,
+          "speciesId": 89,
+          "name": "Muk",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 88,
+          "caughtCount": 87
+        },
+        {
+          "step": 87,
+          "speciesId": 90,
+          "name": "Shellder",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 88
+        },
+        {
+          "step": 88,
+          "speciesId": 91,
+          "name": "Cloyster",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 90,
+          "caughtCount": 89
+        },
+        {
+          "step": 89,
+          "speciesId": 92,
+          "name": "Gastly",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 90
+        },
+        {
+          "step": 90,
+          "speciesId": 93,
+          "name": "Haunter",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 91
+        },
+        {
+          "step": 91,
+          "speciesId": 94,
+          "name": "Gengar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 93,
+          "caughtCount": 92
+        },
+        {
+          "step": 92,
+          "speciesId": 95,
+          "name": "Onix",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 93
+        },
+        {
+          "step": 93,
+          "speciesId": 96,
+          "name": "Drowzee",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 94
+        },
+        {
+          "step": 94,
+          "speciesId": 97,
+          "name": "Hypno",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 95
+        },
+        {
+          "step": 95,
+          "speciesId": 98,
+          "name": "Krabby",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 96
+        },
+        {
+          "step": 96,
+          "speciesId": 99,
+          "name": "Kingler",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 98,
+          "caughtCount": 97
+        },
+        {
+          "step": 97,
+          "speciesId": 100,
+          "name": "Voltorb",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 98
+        },
+        {
+          "step": 98,
+          "speciesId": 101,
+          "name": "Electrode",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 99
+        },
+        {
+          "step": 99,
+          "speciesId": 103,
+          "name": "Exeggutor",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 102,
+          "caughtCount": 100
+        },
+        {
+          "step": 100,
+          "speciesId": 104,
+          "name": "Cubone",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 101
+        },
+        {
+          "step": 101,
+          "speciesId": 105,
+          "name": "Marowak",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 104,
+          "caughtCount": 102
+        },
+        {
+          "step": 102,
+          "speciesId": 109,
+          "name": "Koffing",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 103
+        },
+        {
+          "step": 103,
+          "speciesId": 110,
+          "name": "Weezing",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 109,
+          "caughtCount": 104
+        },
+        {
+          "step": 104,
+          "speciesId": 111,
+          "name": "Rhyhorn",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 105
+        },
+        {
+          "step": 105,
+          "speciesId": 112,
+          "name": "Rhydon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 111,
+          "caughtCount": 106
+        },
+        {
+          "step": 106,
+          "speciesId": 114,
+          "name": "Tangela",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 107
+        },
+        {
+          "step": 107,
+          "speciesId": 116,
+          "name": "Horsea",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 108
+        },
+        {
+          "step": 108,
+          "speciesId": 117,
+          "name": "Seadra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 116,
+          "caughtCount": 109
+        },
+        {
+          "step": 109,
+          "speciesId": 118,
+          "name": "Goldeen",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 110
+        },
+        {
+          "step": 110,
+          "speciesId": 119,
+          "name": "Seaking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 118,
+          "caughtCount": 111
+        },
+        {
+          "step": 111,
+          "speciesId": 120,
+          "name": "Staryu",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 112
+        },
+        {
+          "step": 112,
+          "speciesId": 121,
+          "name": "Starmie",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 120,
+          "caughtCount": 113
+        },
+        {
+          "step": 113,
+          "speciesId": 122,
+          "name": "Mr. Mime",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 114
+        },
+        {
+          "step": 114,
+          "speciesId": 125,
+          "name": "Electabuzz",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 115
+        },
+        {
+          "step": 115,
+          "speciesId": 129,
+          "name": "Magikarp",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 116
+        },
+        {
+          "step": 116,
+          "speciesId": 130,
+          "name": "Gyarados",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 129,
+          "caughtCount": 117
+        },
+        {
+          "step": 117,
+          "speciesId": 131,
+          "name": "Lapras",
+          "kind": "quest",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 118
+        },
+        {
+          "step": 118,
+          "speciesId": 134,
+          "name": "Vaporeon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 119
+        },
+        {
+          "step": 119,
+          "speciesId": 135,
+          "name": "Jolteon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 120
+        },
+        {
+          "step": 120,
+          "speciesId": 136,
+          "name": "Flareon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 121
+        },
+        {
+          "step": 121,
+          "speciesId": 138,
+          "name": "Omanyte",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 122
+        },
+        {
+          "step": 122,
+          "speciesId": 139,
+          "name": "Omastar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 138,
+          "caughtCount": 123
+        },
+        {
+          "step": 123,
+          "speciesId": 140,
+          "name": "Kabuto",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 124
+        },
+        {
+          "step": 124,
+          "speciesId": 141,
+          "name": "Kabutops",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 140,
+          "caughtCount": 125
+        },
+        {
+          "step": 125,
+          "speciesId": 142,
+          "name": "Aerodactyl",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 126
+        },
+        {
+          "step": 126,
+          "speciesId": 145,
+          "name": "Zapdos",
+          "kind": "boss",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 127
+        },
+        {
+          "step": 127,
+          "speciesId": 37,
+          "name": "Vulpix",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 128
+        },
+        {
+          "step": 128,
+          "speciesId": 38,
+          "name": "Ninetales",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 37,
+          "caughtCount": 129
+        },
+        {
+          "step": 129,
+          "speciesId": 58,
+          "name": "Growlithe",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 130
+        },
+        {
+          "step": 130,
+          "speciesId": 59,
+          "name": "Arcanine",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 58,
+          "caughtCount": 131
+        },
+        {
+          "step": 131,
+          "speciesId": 83,
+          "name": "Farfetch\u2019d",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 132
+        },
+        {
+          "step": 132,
+          "speciesId": 106,
+          "name": "Hitmonlee",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 133
+        },
+        {
+          "step": 133,
+          "speciesId": 107,
+          "name": "Hitmonchan",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 134
+        },
+        {
+          "step": 134,
+          "speciesId": 108,
+          "name": "Lickitung",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 135
+        },
+        {
+          "step": 135,
+          "speciesId": 113,
+          "name": "Chansey",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 136
+        },
+        {
+          "step": 136,
+          "speciesId": 115,
+          "name": "Kangaskhan",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 137
+        },
+        {
+          "step": 137,
+          "speciesId": 123,
+          "name": "Scyther",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 138
+        },
+        {
+          "step": 138,
+          "speciesId": 124,
+          "name": "Jynx",
+          "kind": "wild",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 139
+        },
+        {
+          "step": 139,
+          "speciesId": 126,
+          "name": "Magmar",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 140
+        },
+        {
+          "step": 140,
+          "speciesId": 127,
+          "name": "Pinsir",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 141
+        },
+        {
+          "step": 141,
+          "speciesId": 128,
+          "name": "Tauros",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 142
+        },
+        {
+          "step": 142,
+          "speciesId": 132,
+          "name": "Ditto",
+          "kind": "wild",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 143
+        },
+        {
+          "step": 143,
+          "speciesId": 137,
+          "name": "Porygon",
+          "kind": "quest",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 144
+        },
+        {
+          "step": 144,
+          "speciesId": 144,
+          "name": "Articuno",
+          "kind": "boss",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 145
+        },
+        {
+          "step": 145,
+          "speciesId": 146,
+          "name": "Moltres",
+          "kind": "boss",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 146
+        },
+        {
+          "step": 146,
+          "speciesId": 147,
+          "name": "Dratini",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 147
+        },
+        {
+          "step": 147,
+          "speciesId": 148,
+          "name": "Dragonair",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 147,
+          "caughtCount": 148
+        },
+        {
+          "step": 148,
+          "speciesId": 149,
+          "name": "Dragonite",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 148,
+          "caughtCount": 149
+        },
+        {
+          "step": 149,
+          "speciesId": 150,
+          "name": "Mewtwo",
+          "kind": "boss",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 150
+        },
+        {
+          "step": 150,
+          "speciesId": 151,
+          "name": "Mew",
+          "kind": "boss",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 151
+        }
+      ]
+    },
+    {
+      "starterId": 7,
+      "caughtCount": 151,
+      "unlockedBiomes": [
+        "camp",
+        "cave",
+        "coast",
+        "forest",
+        "frozen",
+        "grassland",
+        "laboratory",
+        "lake",
+        "mountain",
+        "powerplant",
+        "ruins",
+        "safari",
+        "volcano",
+        "wetland"
+      ],
+      "defeatedBosses": [
+        144,
+        145,
+        146,
+        150,
+        151
+      ],
+      "biomeUnlocks": [
+        {
+          "biomeId": "camp",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": null
+        },
+        {
+          "biomeId": "grassland",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "camp"
+        },
+        {
+          "biomeId": "forest",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "lake",
+          "requiredCaughtCount": 3,
+          "atCaughtCount": 42,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "coast",
+          "requiredCaughtCount": 8,
+          "atCaughtCount": 42,
+          "from": "lake"
+        },
+        {
+          "biomeId": "mountain",
+          "requiredCaughtCount": 15,
+          "atCaughtCount": 42,
+          "from": "forest"
+        },
+        {
+          "biomeId": "cave",
+          "requiredCaughtCount": 12,
+          "atCaughtCount": 42,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "wetland",
+          "requiredCaughtCount": 20,
+          "atCaughtCount": 42,
+          "from": "lake"
+        },
+        {
+          "biomeId": "powerplant",
+          "requiredCaughtCount": 28,
+          "atCaughtCount": 42,
+          "from": "wetland"
+        },
+        {
+          "biomeId": "ruins",
+          "requiredCaughtCount": 36,
+          "atCaughtCount": 42,
+          "from": "cave"
+        },
+        {
+          "biomeId": "safari",
+          "requiredCaughtCount": 45,
+          "atCaughtCount": 127,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "volcano",
+          "requiredCaughtCount": 60,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "frozen",
+          "requiredCaughtCount": 75,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "laboratory",
+          "requiredCaughtCount": 100,
+          "atCaughtCount": 127,
+          "from": "powerplant"
+        }
+      ],
+      "missing": [],
+      "route": [
+        {
+          "step": 1,
+          "speciesId": 1,
+          "name": "Bulbasaur",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 2
+        },
+        {
+          "step": 2,
+          "speciesId": 2,
+          "name": "Ivysaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 1,
+          "caughtCount": 3
+        },
+        {
+          "step": 3,
+          "speciesId": 3,
+          "name": "Venusaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 2,
+          "caughtCount": 4
+        },
+        {
+          "step": 4,
+          "speciesId": 8,
+          "name": "Wartortle",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 7,
+          "caughtCount": 5
+        },
+        {
+          "step": 5,
+          "speciesId": 9,
+          "name": "Blastoise",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 8,
+          "caughtCount": 6
+        },
+        {
+          "step": 6,
+          "speciesId": 10,
+          "name": "Caterpie",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 7
+        },
+        {
+          "step": 7,
+          "speciesId": 11,
+          "name": "Metapod",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 10,
+          "caughtCount": 8
+        },
+        {
+          "step": 8,
+          "speciesId": 12,
+          "name": "Butterfree",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 11,
+          "caughtCount": 9
+        },
+        {
+          "step": 9,
+          "speciesId": 13,
+          "name": "Weedle",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 10
+        },
+        {
+          "step": 10,
+          "speciesId": 14,
+          "name": "Kakuna",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 13,
+          "caughtCount": 11
+        },
+        {
+          "step": 11,
+          "speciesId": 15,
+          "name": "Beedrill",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 14,
+          "caughtCount": 12
+        },
+        {
+          "step": 12,
+          "speciesId": 16,
+          "name": "Pidgey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 13
+        },
+        {
+          "step": 13,
+          "speciesId": 17,
+          "name": "Pidgeotto",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 16,
+          "caughtCount": 14
+        },
+        {
+          "step": 14,
+          "speciesId": 18,
+          "name": "Pidgeot",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 17,
+          "caughtCount": 15
+        },
+        {
+          "step": 15,
+          "speciesId": 19,
+          "name": "Rattata",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 16
+        },
+        {
+          "step": 16,
+          "speciesId": 20,
+          "name": "Raticate",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 19,
+          "caughtCount": 17
+        },
+        {
+          "step": 17,
+          "speciesId": 21,
+          "name": "Spearow",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 18
+        },
+        {
+          "step": 18,
+          "speciesId": 22,
+          "name": "Fearow",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 21,
+          "caughtCount": 19
+        },
+        {
+          "step": 19,
+          "speciesId": 25,
+          "name": "Pikachu",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 20
+        },
+        {
+          "step": 20,
+          "speciesId": 29,
+          "name": "Nidoran\u2640",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 21
+        },
+        {
+          "step": 21,
+          "speciesId": 30,
+          "name": "Nidorina",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 29,
+          "caughtCount": 22
+        },
+        {
+          "step": 22,
+          "speciesId": 32,
+          "name": "Nidoran\u2642",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 23
+        },
+        {
+          "step": 23,
+          "speciesId": 33,
+          "name": "Nidorino",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 32,
+          "caughtCount": 24
+        },
+        {
+          "step": 24,
+          "speciesId": 39,
+          "name": "Jigglypuff",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 25
+        },
+        {
+          "step": 25,
+          "speciesId": 43,
+          "name": "Oddish",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 26
+        },
+        {
+          "step": 26,
+          "speciesId": 44,
+          "name": "Gloom",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 43,
+          "caughtCount": 27
+        },
+        {
+          "step": 27,
+          "speciesId": 46,
+          "name": "Paras",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 28
+        },
+        {
+          "step": 28,
+          "speciesId": 47,
+          "name": "Parasect",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 46,
+          "caughtCount": 29
+        },
+        {
+          "step": 29,
+          "speciesId": 48,
+          "name": "Venonat",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 30
+        },
+        {
+          "step": 30,
+          "speciesId": 49,
+          "name": "Venomoth",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 48,
+          "caughtCount": 31
+        },
+        {
+          "step": 31,
+          "speciesId": 52,
+          "name": "Meowth",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 32
+        },
+        {
+          "step": 32,
+          "speciesId": 53,
+          "name": "Persian",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 52,
+          "caughtCount": 33
+        },
+        {
+          "step": 33,
+          "speciesId": 56,
+          "name": "Mankey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 34
+        },
+        {
+          "step": 34,
+          "speciesId": 57,
+          "name": "Primeape",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 56,
+          "caughtCount": 35
+        },
+        {
+          "step": 35,
+          "speciesId": 69,
+          "name": "Bellsprout",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 36
+        },
+        {
+          "step": 36,
+          "speciesId": 70,
+          "name": "Weepinbell",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 69,
+          "caughtCount": 37
+        },
+        {
+          "step": 37,
+          "speciesId": 84,
+          "name": "Doduo",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 38
+        },
+        {
+          "step": 38,
+          "speciesId": 85,
+          "name": "Dodrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 84,
+          "caughtCount": 39
+        },
+        {
+          "step": 39,
+          "speciesId": 102,
+          "name": "Exeggcute",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 40
+        },
+        {
+          "step": 40,
+          "speciesId": 133,
+          "name": "Eevee",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 41
+        },
+        {
+          "step": 41,
+          "speciesId": 143,
+          "name": "Snorlax",
+          "kind": "quest",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 42
+        },
+        {
+          "step": 42,
+          "speciesId": 4,
+          "name": "Charmander",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 43
+        },
+        {
+          "step": 43,
+          "speciesId": 5,
+          "name": "Charmeleon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 4,
+          "caughtCount": 44
+        },
+        {
+          "step": 44,
+          "speciesId": 6,
+          "name": "Charizard",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 5,
+          "caughtCount": 45
+        },
+        {
+          "step": 45,
+          "speciesId": 23,
+          "name": "Ekans",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 46
+        },
+        {
+          "step": 46,
+          "speciesId": 24,
+          "name": "Arbok",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 47
+        },
+        {
+          "step": 47,
+          "speciesId": 26,
+          "name": "Raichu",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 25,
+          "caughtCount": 48
+        },
+        {
+          "step": 48,
+          "speciesId": 27,
+          "name": "Sandshrew",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 49
+        },
+        {
+          "step": 49,
+          "speciesId": 28,
+          "name": "Sandslash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 27,
+          "caughtCount": 50
+        },
+        {
+          "step": 50,
+          "speciesId": 31,
+          "name": "Nidoqueen",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 30,
+          "caughtCount": 51
+        },
+        {
+          "step": 51,
+          "speciesId": 34,
+          "name": "Nidoking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 33,
+          "caughtCount": 52
+        },
+        {
+          "step": 52,
+          "speciesId": 35,
+          "name": "Clefairy",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 53
+        },
+        {
+          "step": 53,
+          "speciesId": 36,
+          "name": "Clefable",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 35,
+          "caughtCount": 54
+        },
+        {
+          "step": 54,
+          "speciesId": 40,
+          "name": "Wigglytuff",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 39,
+          "caughtCount": 55
+        },
+        {
+          "step": 55,
+          "speciesId": 41,
+          "name": "Zubat",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 56
+        },
+        {
+          "step": 56,
+          "speciesId": 42,
+          "name": "Golbat",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 41,
+          "caughtCount": 57
+        },
+        {
+          "step": 57,
+          "speciesId": 45,
+          "name": "Vileplume",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 44,
+          "caughtCount": 58
+        },
+        {
+          "step": 58,
+          "speciesId": 50,
+          "name": "Diglett",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 59
+        },
+        {
+          "step": 59,
+          "speciesId": 51,
+          "name": "Dugtrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 50,
+          "caughtCount": 60
+        },
+        {
+          "step": 60,
+          "speciesId": 54,
+          "name": "Psyduck",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 61
+        },
+        {
+          "step": 61,
+          "speciesId": 55,
+          "name": "Golduck",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 54,
+          "caughtCount": 62
+        },
+        {
+          "step": 62,
+          "speciesId": 60,
+          "name": "Poliwag",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 63
+        },
+        {
+          "step": 63,
+          "speciesId": 61,
+          "name": "Poliwhirl",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 60,
+          "caughtCount": 64
+        },
+        {
+          "step": 64,
+          "speciesId": 62,
+          "name": "Poliwrath",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 61,
+          "caughtCount": 65
+        },
+        {
+          "step": 65,
+          "speciesId": 63,
+          "name": "Abra",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 66
+        },
+        {
+          "step": 66,
+          "speciesId": 64,
+          "name": "Kadabra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 63,
+          "caughtCount": 67
+        },
+        {
+          "step": 67,
+          "speciesId": 65,
+          "name": "Alakazam",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 64,
+          "caughtCount": 68
+        },
+        {
+          "step": 68,
+          "speciesId": 66,
+          "name": "Machop",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 69
+        },
+        {
+          "step": 69,
+          "speciesId": 67,
+          "name": "Machoke",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 70
+        },
+        {
+          "step": 70,
+          "speciesId": 68,
+          "name": "Machamp",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 67,
+          "caughtCount": 71
+        },
+        {
+          "step": 71,
+          "speciesId": 71,
+          "name": "Victreebel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 70,
+          "caughtCount": 72
+        },
+        {
+          "step": 72,
+          "speciesId": 72,
+          "name": "Tentacool",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 73
+        },
+        {
+          "step": 73,
+          "speciesId": 73,
+          "name": "Tentacruel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 72,
+          "caughtCount": 74
+        },
+        {
+          "step": 74,
+          "speciesId": 74,
+          "name": "Geodude",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 75
+        },
+        {
+          "step": 75,
+          "speciesId": 75,
+          "name": "Graveler",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 76
+        },
+        {
+          "step": 76,
+          "speciesId": 76,
+          "name": "Golem",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 75,
+          "caughtCount": 77
+        },
+        {
+          "step": 77,
+          "speciesId": 77,
+          "name": "Ponyta",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 78
+        },
+        {
+          "step": 78,
+          "speciesId": 78,
+          "name": "Rapidash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 77,
+          "caughtCount": 79
+        },
+        {
+          "step": 79,
+          "speciesId": 79,
+          "name": "Slowpoke",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 80
+        },
+        {
+          "step": 80,
+          "speciesId": 80,
+          "name": "Slowbro",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 79,
+          "caughtCount": 81
+        },
+        {
+          "step": 81,
+          "speciesId": 81,
+          "name": "Magnemite",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 82
+        },
+        {
+          "step": 82,
+          "speciesId": 82,
+          "name": "Magneton",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 83
+        },
+        {
+          "step": 83,
+          "speciesId": 86,
+          "name": "Seel",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 84
+        },
+        {
+          "step": 84,
+          "speciesId": 87,
+          "name": "Dewgong",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 86,
+          "caughtCount": 85
+        },
+        {
+          "step": 85,
+          "speciesId": 88,
+          "name": "Grimer",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 86
+        },
+        {
+          "step": 86,
+          "speciesId": 89,
+          "name": "Muk",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 88,
+          "caughtCount": 87
+        },
+        {
+          "step": 87,
+          "speciesId": 90,
+          "name": "Shellder",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 88
+        },
+        {
+          "step": 88,
+          "speciesId": 91,
+          "name": "Cloyster",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 90,
+          "caughtCount": 89
+        },
+        {
+          "step": 89,
+          "speciesId": 92,
+          "name": "Gastly",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 90
+        },
+        {
+          "step": 90,
+          "speciesId": 93,
+          "name": "Haunter",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 91
+        },
+        {
+          "step": 91,
+          "speciesId": 94,
+          "name": "Gengar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 93,
+          "caughtCount": 92
+        },
+        {
+          "step": 92,
+          "speciesId": 95,
+          "name": "Onix",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 93
+        },
+        {
+          "step": 93,
+          "speciesId": 96,
+          "name": "Drowzee",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 94
+        },
+        {
+          "step": 94,
+          "speciesId": 97,
+          "name": "Hypno",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 95
+        },
+        {
+          "step": 95,
+          "speciesId": 98,
+          "name": "Krabby",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 96
+        },
+        {
+          "step": 96,
+          "speciesId": 99,
+          "name": "Kingler",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 98,
+          "caughtCount": 97
+        },
+        {
+          "step": 97,
+          "speciesId": 100,
+          "name": "Voltorb",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 98
+        },
+        {
+          "step": 98,
+          "speciesId": 101,
+          "name": "Electrode",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 99
+        },
+        {
+          "step": 99,
+          "speciesId": 103,
+          "name": "Exeggutor",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 102,
+          "caughtCount": 100
+        },
+        {
+          "step": 100,
+          "speciesId": 104,
+          "name": "Cubone",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 101
+        },
+        {
+          "step": 101,
+          "speciesId": 105,
+          "name": "Marowak",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 104,
+          "caughtCount": 102
+        },
+        {
+          "step": 102,
+          "speciesId": 109,
+          "name": "Koffing",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 103
+        },
+        {
+          "step": 103,
+          "speciesId": 110,
+          "name": "Weezing",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 109,
+          "caughtCount": 104
+        },
+        {
+          "step": 104,
+          "speciesId": 111,
+          "name": "Rhyhorn",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 105
+        },
+        {
+          "step": 105,
+          "speciesId": 112,
+          "name": "Rhydon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 111,
+          "caughtCount": 106
+        },
+        {
+          "step": 106,
+          "speciesId": 114,
+          "name": "Tangela",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 107
+        },
+        {
+          "step": 107,
+          "speciesId": 116,
+          "name": "Horsea",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 108
+        },
+        {
+          "step": 108,
+          "speciesId": 117,
+          "name": "Seadra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 116,
+          "caughtCount": 109
+        },
+        {
+          "step": 109,
+          "speciesId": 118,
+          "name": "Goldeen",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 110
+        },
+        {
+          "step": 110,
+          "speciesId": 119,
+          "name": "Seaking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 118,
+          "caughtCount": 111
+        },
+        {
+          "step": 111,
+          "speciesId": 120,
+          "name": "Staryu",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 112
+        },
+        {
+          "step": 112,
+          "speciesId": 121,
+          "name": "Starmie",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 120,
+          "caughtCount": 113
+        },
+        {
+          "step": 113,
+          "speciesId": 122,
+          "name": "Mr. Mime",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 114
+        },
+        {
+          "step": 114,
+          "speciesId": 125,
+          "name": "Electabuzz",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 115
+        },
+        {
+          "step": 115,
+          "speciesId": 129,
+          "name": "Magikarp",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 116
+        },
+        {
+          "step": 116,
+          "speciesId": 130,
+          "name": "Gyarados",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 129,
+          "caughtCount": 117
+        },
+        {
+          "step": 117,
+          "speciesId": 131,
+          "name": "Lapras",
+          "kind": "quest",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 118
+        },
+        {
+          "step": 118,
+          "speciesId": 134,
+          "name": "Vaporeon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 119
+        },
+        {
+          "step": 119,
+          "speciesId": 135,
+          "name": "Jolteon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 120
+        },
+        {
+          "step": 120,
+          "speciesId": 136,
+          "name": "Flareon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 121
+        },
+        {
+          "step": 121,
+          "speciesId": 138,
+          "name": "Omanyte",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 122
+        },
+        {
+          "step": 122,
+          "speciesId": 139,
+          "name": "Omastar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 138,
+          "caughtCount": 123
+        },
+        {
+          "step": 123,
+          "speciesId": 140,
+          "name": "Kabuto",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 124
+        },
+        {
+          "step": 124,
+          "speciesId": 141,
+          "name": "Kabutops",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 140,
+          "caughtCount": 125
+        },
+        {
+          "step": 125,
+          "speciesId": 142,
+          "name": "Aerodactyl",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 126
+        },
+        {
+          "step": 126,
+          "speciesId": 145,
+          "name": "Zapdos",
+          "kind": "boss",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 127
+        },
+        {
+          "step": 127,
+          "speciesId": 37,
+          "name": "Vulpix",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 128
+        },
+        {
+          "step": 128,
+          "speciesId": 38,
+          "name": "Ninetales",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 37,
+          "caughtCount": 129
+        },
+        {
+          "step": 129,
+          "speciesId": 58,
+          "name": "Growlithe",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 130
+        },
+        {
+          "step": 130,
+          "speciesId": 59,
+          "name": "Arcanine",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 58,
+          "caughtCount": 131
+        },
+        {
+          "step": 131,
+          "speciesId": 83,
+          "name": "Farfetch\u2019d",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 132
+        },
+        {
+          "step": 132,
+          "speciesId": 106,
+          "name": "Hitmonlee",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 133
+        },
+        {
+          "step": 133,
+          "speciesId": 107,
+          "name": "Hitmonchan",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 134
+        },
+        {
+          "step": 134,
+          "speciesId": 108,
+          "name": "Lickitung",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 135
+        },
+        {
+          "step": 135,
+          "speciesId": 113,
+          "name": "Chansey",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 136
+        },
+        {
+          "step": 136,
+          "speciesId": 115,
+          "name": "Kangaskhan",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 137
+        },
+        {
+          "step": 137,
+          "speciesId": 123,
+          "name": "Scyther",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 138
+        },
+        {
+          "step": 138,
+          "speciesId": 124,
+          "name": "Jynx",
+          "kind": "wild",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 139
+        },
+        {
+          "step": 139,
+          "speciesId": 126,
+          "name": "Magmar",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 140
+        },
+        {
+          "step": 140,
+          "speciesId": 127,
+          "name": "Pinsir",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 141
+        },
+        {
+          "step": 141,
+          "speciesId": 128,
+          "name": "Tauros",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 142
+        },
+        {
+          "step": 142,
+          "speciesId": 132,
+          "name": "Ditto",
+          "kind": "wild",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 143
+        },
+        {
+          "step": 143,
+          "speciesId": 137,
+          "name": "Porygon",
+          "kind": "quest",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 144
+        },
+        {
+          "step": 144,
+          "speciesId": 144,
+          "name": "Articuno",
+          "kind": "boss",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 145
+        },
+        {
+          "step": 145,
+          "speciesId": 146,
+          "name": "Moltres",
+          "kind": "boss",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 146
+        },
+        {
+          "step": 146,
+          "speciesId": 147,
+          "name": "Dratini",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 147
+        },
+        {
+          "step": 147,
+          "speciesId": 148,
+          "name": "Dragonair",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 147,
+          "caughtCount": 148
+        },
+        {
+          "step": 148,
+          "speciesId": 149,
+          "name": "Dragonite",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 148,
+          "caughtCount": 149
+        },
+        {
+          "step": 149,
+          "speciesId": 150,
+          "name": "Mewtwo",
+          "kind": "boss",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 150
+        },
+        {
+          "step": 150,
+          "speciesId": 151,
+          "name": "Mew",
+          "kind": "boss",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 151
+        }
+      ]
+    },
+    {
+      "starterId": 25,
+      "caughtCount": 151,
+      "unlockedBiomes": [
+        "camp",
+        "cave",
+        "coast",
+        "forest",
+        "frozen",
+        "grassland",
+        "laboratory",
+        "lake",
+        "mountain",
+        "powerplant",
+        "ruins",
+        "safari",
+        "volcano",
+        "wetland"
+      ],
+      "defeatedBosses": [
+        144,
+        145,
+        146,
+        150,
+        151
+      ],
+      "biomeUnlocks": [
+        {
+          "biomeId": "camp",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": null
+        },
+        {
+          "biomeId": "grassland",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "camp"
+        },
+        {
+          "biomeId": "forest",
+          "requiredCaughtCount": 0,
+          "atCaughtCount": 1,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "lake",
+          "requiredCaughtCount": 3,
+          "atCaughtCount": 39,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "coast",
+          "requiredCaughtCount": 8,
+          "atCaughtCount": 39,
+          "from": "lake"
+        },
+        {
+          "biomeId": "mountain",
+          "requiredCaughtCount": 15,
+          "atCaughtCount": 39,
+          "from": "forest"
+        },
+        {
+          "biomeId": "cave",
+          "requiredCaughtCount": 12,
+          "atCaughtCount": 39,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "wetland",
+          "requiredCaughtCount": 20,
+          "atCaughtCount": 39,
+          "from": "lake"
+        },
+        {
+          "biomeId": "powerplant",
+          "requiredCaughtCount": 28,
+          "atCaughtCount": 39,
+          "from": "wetland"
+        },
+        {
+          "biomeId": "ruins",
+          "requiredCaughtCount": 36,
+          "atCaughtCount": 39,
+          "from": "cave"
+        },
+        {
+          "biomeId": "safari",
+          "requiredCaughtCount": 45,
+          "atCaughtCount": 127,
+          "from": "grassland"
+        },
+        {
+          "biomeId": "volcano",
+          "requiredCaughtCount": 60,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "frozen",
+          "requiredCaughtCount": 75,
+          "atCaughtCount": 127,
+          "from": "mountain"
+        },
+        {
+          "biomeId": "laboratory",
+          "requiredCaughtCount": 100,
+          "atCaughtCount": 127,
+          "from": "powerplant"
+        }
+      ],
+      "missing": [],
+      "route": [
+        {
+          "step": 1,
+          "speciesId": 1,
+          "name": "Bulbasaur",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 2
+        },
+        {
+          "step": 2,
+          "speciesId": 2,
+          "name": "Ivysaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 1,
+          "caughtCount": 3
+        },
+        {
+          "step": 3,
+          "speciesId": 3,
+          "name": "Venusaur",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 2,
+          "caughtCount": 4
+        },
+        {
+          "step": 4,
+          "speciesId": 10,
+          "name": "Caterpie",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 5
+        },
+        {
+          "step": 5,
+          "speciesId": 11,
+          "name": "Metapod",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 10,
+          "caughtCount": 6
+        },
+        {
+          "step": 6,
+          "speciesId": 12,
+          "name": "Butterfree",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 11,
+          "caughtCount": 7
+        },
+        {
+          "step": 7,
+          "speciesId": 13,
+          "name": "Weedle",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 8
+        },
+        {
+          "step": 8,
+          "speciesId": 14,
+          "name": "Kakuna",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 13,
+          "caughtCount": 9
+        },
+        {
+          "step": 9,
+          "speciesId": 15,
+          "name": "Beedrill",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 14,
+          "caughtCount": 10
+        },
+        {
+          "step": 10,
+          "speciesId": 16,
+          "name": "Pidgey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 11
+        },
+        {
+          "step": 11,
+          "speciesId": 17,
+          "name": "Pidgeotto",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 16,
+          "caughtCount": 12
+        },
+        {
+          "step": 12,
+          "speciesId": 18,
+          "name": "Pidgeot",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 17,
+          "caughtCount": 13
+        },
+        {
+          "step": 13,
+          "speciesId": 19,
+          "name": "Rattata",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 14
+        },
+        {
+          "step": 14,
+          "speciesId": 20,
+          "name": "Raticate",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 19,
+          "caughtCount": 15
+        },
+        {
+          "step": 15,
+          "speciesId": 21,
+          "name": "Spearow",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 16
+        },
+        {
+          "step": 16,
+          "speciesId": 22,
+          "name": "Fearow",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 21,
+          "caughtCount": 17
+        },
+        {
+          "step": 17,
+          "speciesId": 29,
+          "name": "Nidoran\u2640",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 18
+        },
+        {
+          "step": 18,
+          "speciesId": 30,
+          "name": "Nidorina",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 29,
+          "caughtCount": 19
+        },
+        {
+          "step": 19,
+          "speciesId": 32,
+          "name": "Nidoran\u2642",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 20
+        },
+        {
+          "step": 20,
+          "speciesId": 33,
+          "name": "Nidorino",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 32,
+          "caughtCount": 21
+        },
+        {
+          "step": 21,
+          "speciesId": 39,
+          "name": "Jigglypuff",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 22
+        },
+        {
+          "step": 22,
+          "speciesId": 43,
+          "name": "Oddish",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 23
+        },
+        {
+          "step": 23,
+          "speciesId": 44,
+          "name": "Gloom",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 43,
+          "caughtCount": 24
+        },
+        {
+          "step": 24,
+          "speciesId": 46,
+          "name": "Paras",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 25
+        },
+        {
+          "step": 25,
+          "speciesId": 47,
+          "name": "Parasect",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 46,
+          "caughtCount": 26
+        },
+        {
+          "step": 26,
+          "speciesId": 48,
+          "name": "Venonat",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 27
+        },
+        {
+          "step": 27,
+          "speciesId": 49,
+          "name": "Venomoth",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 48,
+          "caughtCount": 28
+        },
+        {
+          "step": 28,
+          "speciesId": 52,
+          "name": "Meowth",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 29
+        },
+        {
+          "step": 29,
+          "speciesId": 53,
+          "name": "Persian",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 52,
+          "caughtCount": 30
+        },
+        {
+          "step": 30,
+          "speciesId": 56,
+          "name": "Mankey",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 31
+        },
+        {
+          "step": 31,
+          "speciesId": 57,
+          "name": "Primeape",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 56,
+          "caughtCount": 32
+        },
+        {
+          "step": 32,
+          "speciesId": 69,
+          "name": "Bellsprout",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 33
+        },
+        {
+          "step": 33,
+          "speciesId": 70,
+          "name": "Weepinbell",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 69,
+          "caughtCount": 34
+        },
+        {
+          "step": 34,
+          "speciesId": 84,
+          "name": "Doduo",
+          "kind": "wild",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 35
+        },
+        {
+          "step": 35,
+          "speciesId": 85,
+          "name": "Dodrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 84,
+          "caughtCount": 36
+        },
+        {
+          "step": 36,
+          "speciesId": 102,
+          "name": "Exeggcute",
+          "kind": "wild",
+          "biomeId": "forest",
+          "from": null,
+          "caughtCount": 37
+        },
+        {
+          "step": 37,
+          "speciesId": 133,
+          "name": "Eevee",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 38
+        },
+        {
+          "step": 38,
+          "speciesId": 143,
+          "name": "Snorlax",
+          "kind": "quest",
+          "biomeId": "grassland",
+          "from": null,
+          "caughtCount": 39
+        },
+        {
+          "step": 39,
+          "speciesId": 4,
+          "name": "Charmander",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 40
+        },
+        {
+          "step": 40,
+          "speciesId": 5,
+          "name": "Charmeleon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 4,
+          "caughtCount": 41
+        },
+        {
+          "step": 41,
+          "speciesId": 6,
+          "name": "Charizard",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 5,
+          "caughtCount": 42
+        },
+        {
+          "step": 42,
+          "speciesId": 7,
+          "name": "Squirtle",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 43
+        },
+        {
+          "step": 43,
+          "speciesId": 8,
+          "name": "Wartortle",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 7,
+          "caughtCount": 44
+        },
+        {
+          "step": 44,
+          "speciesId": 9,
+          "name": "Blastoise",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 8,
+          "caughtCount": 45
+        },
+        {
+          "step": 45,
+          "speciesId": 23,
+          "name": "Ekans",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 46
+        },
+        {
+          "step": 46,
+          "speciesId": 24,
+          "name": "Arbok",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 47
+        },
+        {
+          "step": 47,
+          "speciesId": 26,
+          "name": "Raichu",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 25,
+          "caughtCount": 48
+        },
+        {
+          "step": 48,
+          "speciesId": 27,
+          "name": "Sandshrew",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 49
+        },
+        {
+          "step": 49,
+          "speciesId": 28,
+          "name": "Sandslash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 27,
+          "caughtCount": 50
+        },
+        {
+          "step": 50,
+          "speciesId": 31,
+          "name": "Nidoqueen",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 30,
+          "caughtCount": 51
+        },
+        {
+          "step": 51,
+          "speciesId": 34,
+          "name": "Nidoking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 33,
+          "caughtCount": 52
+        },
+        {
+          "step": 52,
+          "speciesId": 35,
+          "name": "Clefairy",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 53
+        },
+        {
+          "step": 53,
+          "speciesId": 36,
+          "name": "Clefable",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 35,
+          "caughtCount": 54
+        },
+        {
+          "step": 54,
+          "speciesId": 40,
+          "name": "Wigglytuff",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 39,
+          "caughtCount": 55
+        },
+        {
+          "step": 55,
+          "speciesId": 41,
+          "name": "Zubat",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 56
+        },
+        {
+          "step": 56,
+          "speciesId": 42,
+          "name": "Golbat",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 41,
+          "caughtCount": 57
+        },
+        {
+          "step": 57,
+          "speciesId": 45,
+          "name": "Vileplume",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 44,
+          "caughtCount": 58
+        },
+        {
+          "step": 58,
+          "speciesId": 50,
+          "name": "Diglett",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 59
+        },
+        {
+          "step": 59,
+          "speciesId": 51,
+          "name": "Dugtrio",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 50,
+          "caughtCount": 60
+        },
+        {
+          "step": 60,
+          "speciesId": 54,
+          "name": "Psyduck",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 61
+        },
+        {
+          "step": 61,
+          "speciesId": 55,
+          "name": "Golduck",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 54,
+          "caughtCount": 62
+        },
+        {
+          "step": 62,
+          "speciesId": 60,
+          "name": "Poliwag",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 63
+        },
+        {
+          "step": 63,
+          "speciesId": 61,
+          "name": "Poliwhirl",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 60,
+          "caughtCount": 64
+        },
+        {
+          "step": 64,
+          "speciesId": 62,
+          "name": "Poliwrath",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 61,
+          "caughtCount": 65
+        },
+        {
+          "step": 65,
+          "speciesId": 63,
+          "name": "Abra",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 66
+        },
+        {
+          "step": 66,
+          "speciesId": 64,
+          "name": "Kadabra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 63,
+          "caughtCount": 67
+        },
+        {
+          "step": 67,
+          "speciesId": 65,
+          "name": "Alakazam",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 64,
+          "caughtCount": 68
+        },
+        {
+          "step": 68,
+          "speciesId": 66,
+          "name": "Machop",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 69
+        },
+        {
+          "step": 69,
+          "speciesId": 67,
+          "name": "Machoke",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 70
+        },
+        {
+          "step": 70,
+          "speciesId": 68,
+          "name": "Machamp",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 67,
+          "caughtCount": 71
+        },
+        {
+          "step": 71,
+          "speciesId": 71,
+          "name": "Victreebel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 70,
+          "caughtCount": 72
+        },
+        {
+          "step": 72,
+          "speciesId": 72,
+          "name": "Tentacool",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 73
+        },
+        {
+          "step": 73,
+          "speciesId": 73,
+          "name": "Tentacruel",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 72,
+          "caughtCount": 74
+        },
+        {
+          "step": 74,
+          "speciesId": 74,
+          "name": "Geodude",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 75
+        },
+        {
+          "step": 75,
+          "speciesId": 75,
+          "name": "Graveler",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 76
+        },
+        {
+          "step": 76,
+          "speciesId": 76,
+          "name": "Golem",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 75,
+          "caughtCount": 77
+        },
+        {
+          "step": 77,
+          "speciesId": 77,
+          "name": "Ponyta",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 78
+        },
+        {
+          "step": 78,
+          "speciesId": 78,
+          "name": "Rapidash",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 77,
+          "caughtCount": 79
+        },
+        {
+          "step": 79,
+          "speciesId": 79,
+          "name": "Slowpoke",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 80
+        },
+        {
+          "step": 80,
+          "speciesId": 80,
+          "name": "Slowbro",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 79,
+          "caughtCount": 81
+        },
+        {
+          "step": 81,
+          "speciesId": 81,
+          "name": "Magnemite",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 82
+        },
+        {
+          "step": 82,
+          "speciesId": 82,
+          "name": "Magneton",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 83
+        },
+        {
+          "step": 83,
+          "speciesId": 86,
+          "name": "Seel",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 84
+        },
+        {
+          "step": 84,
+          "speciesId": 87,
+          "name": "Dewgong",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 86,
+          "caughtCount": 85
+        },
+        {
+          "step": 85,
+          "speciesId": 88,
+          "name": "Grimer",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 86
+        },
+        {
+          "step": 86,
+          "speciesId": 89,
+          "name": "Muk",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 88,
+          "caughtCount": 87
+        },
+        {
+          "step": 87,
+          "speciesId": 90,
+          "name": "Shellder",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 88
+        },
+        {
+          "step": 88,
+          "speciesId": 91,
+          "name": "Cloyster",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 90,
+          "caughtCount": 89
+        },
+        {
+          "step": 89,
+          "speciesId": 92,
+          "name": "Gastly",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 90
+        },
+        {
+          "step": 90,
+          "speciesId": 93,
+          "name": "Haunter",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 91
+        },
+        {
+          "step": 91,
+          "speciesId": 94,
+          "name": "Gengar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 93,
+          "caughtCount": 92
+        },
+        {
+          "step": 92,
+          "speciesId": 95,
+          "name": "Onix",
+          "kind": "wild",
+          "biomeId": "mountain",
+          "from": null,
+          "caughtCount": 93
+        },
+        {
+          "step": 93,
+          "speciesId": 96,
+          "name": "Drowzee",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 94
+        },
+        {
+          "step": 94,
+          "speciesId": 97,
+          "name": "Hypno",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 95
+        },
+        {
+          "step": 95,
+          "speciesId": 98,
+          "name": "Krabby",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 96
+        },
+        {
+          "step": 96,
+          "speciesId": 99,
+          "name": "Kingler",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 98,
+          "caughtCount": 97
+        },
+        {
+          "step": 97,
+          "speciesId": 100,
+          "name": "Voltorb",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 98
+        },
+        {
+          "step": 98,
+          "speciesId": 101,
+          "name": "Electrode",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 99
+        },
+        {
+          "step": 99,
+          "speciesId": 103,
+          "name": "Exeggutor",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 102,
+          "caughtCount": 100
+        },
+        {
+          "step": 100,
+          "speciesId": 104,
+          "name": "Cubone",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 101
+        },
+        {
+          "step": 101,
+          "speciesId": 105,
+          "name": "Marowak",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 104,
+          "caughtCount": 102
+        },
+        {
+          "step": 102,
+          "speciesId": 109,
+          "name": "Koffing",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 103
+        },
+        {
+          "step": 103,
+          "speciesId": 110,
+          "name": "Weezing",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 109,
+          "caughtCount": 104
+        },
+        {
+          "step": 104,
+          "speciesId": 111,
+          "name": "Rhyhorn",
+          "kind": "wild",
+          "biomeId": "cave",
+          "from": null,
+          "caughtCount": 105
+        },
+        {
+          "step": 105,
+          "speciesId": 112,
+          "name": "Rhydon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 111,
+          "caughtCount": 106
+        },
+        {
+          "step": 106,
+          "speciesId": 114,
+          "name": "Tangela",
+          "kind": "wild",
+          "biomeId": "wetland",
+          "from": null,
+          "caughtCount": 107
+        },
+        {
+          "step": 107,
+          "speciesId": 116,
+          "name": "Horsea",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 108
+        },
+        {
+          "step": 108,
+          "speciesId": 117,
+          "name": "Seadra",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 116,
+          "caughtCount": 109
+        },
+        {
+          "step": 109,
+          "speciesId": 118,
+          "name": "Goldeen",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 110
+        },
+        {
+          "step": 110,
+          "speciesId": 119,
+          "name": "Seaking",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 118,
+          "caughtCount": 111
+        },
+        {
+          "step": 111,
+          "speciesId": 120,
+          "name": "Staryu",
+          "kind": "wild",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 112
+        },
+        {
+          "step": 112,
+          "speciesId": 121,
+          "name": "Starmie",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 120,
+          "caughtCount": 113
+        },
+        {
+          "step": 113,
+          "speciesId": 122,
+          "name": "Mr. Mime",
+          "kind": "wild",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 114
+        },
+        {
+          "step": 114,
+          "speciesId": 125,
+          "name": "Electabuzz",
+          "kind": "wild",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 115
+        },
+        {
+          "step": 115,
+          "speciesId": 129,
+          "name": "Magikarp",
+          "kind": "wild",
+          "biomeId": "lake",
+          "from": null,
+          "caughtCount": 116
+        },
+        {
+          "step": 116,
+          "speciesId": 130,
+          "name": "Gyarados",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 129,
+          "caughtCount": 117
+        },
+        {
+          "step": 117,
+          "speciesId": 131,
+          "name": "Lapras",
+          "kind": "quest",
+          "biomeId": "coast",
+          "from": null,
+          "caughtCount": 118
+        },
+        {
+          "step": 118,
+          "speciesId": 134,
+          "name": "Vaporeon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 119
+        },
+        {
+          "step": 119,
+          "speciesId": 135,
+          "name": "Jolteon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 120
+        },
+        {
+          "step": 120,
+          "speciesId": 136,
+          "name": "Flareon",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 133,
+          "caughtCount": 121
+        },
+        {
+          "step": 121,
+          "speciesId": 138,
+          "name": "Omanyte",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 122
+        },
+        {
+          "step": 122,
+          "speciesId": 139,
+          "name": "Omastar",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 138,
+          "caughtCount": 123
+        },
+        {
+          "step": 123,
+          "speciesId": 140,
+          "name": "Kabuto",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 124
+        },
+        {
+          "step": 124,
+          "speciesId": 141,
+          "name": "Kabutops",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 140,
+          "caughtCount": 125
+        },
+        {
+          "step": 125,
+          "speciesId": 142,
+          "name": "Aerodactyl",
+          "kind": "quest",
+          "biomeId": "camp",
+          "from": null,
+          "caughtCount": 126
+        },
+        {
+          "step": 126,
+          "speciesId": 145,
+          "name": "Zapdos",
+          "kind": "boss",
+          "biomeId": "powerplant",
+          "from": null,
+          "caughtCount": 127
+        },
+        {
+          "step": 127,
+          "speciesId": 37,
+          "name": "Vulpix",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 128
+        },
+        {
+          "step": 128,
+          "speciesId": 38,
+          "name": "Ninetales",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 37,
+          "caughtCount": 129
+        },
+        {
+          "step": 129,
+          "speciesId": 58,
+          "name": "Growlithe",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 130
+        },
+        {
+          "step": 130,
+          "speciesId": 59,
+          "name": "Arcanine",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 58,
+          "caughtCount": 131
+        },
+        {
+          "step": 131,
+          "speciesId": 83,
+          "name": "Farfetch\u2019d",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 132
+        },
+        {
+          "step": 132,
+          "speciesId": 106,
+          "name": "Hitmonlee",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 133
+        },
+        {
+          "step": 133,
+          "speciesId": 107,
+          "name": "Hitmonchan",
+          "kind": "quest",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 134
+        },
+        {
+          "step": 134,
+          "speciesId": 108,
+          "name": "Lickitung",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 135
+        },
+        {
+          "step": 135,
+          "speciesId": 113,
+          "name": "Chansey",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 136
+        },
+        {
+          "step": 136,
+          "speciesId": 115,
+          "name": "Kangaskhan",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 137
+        },
+        {
+          "step": 137,
+          "speciesId": 123,
+          "name": "Scyther",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 138
+        },
+        {
+          "step": 138,
+          "speciesId": 124,
+          "name": "Jynx",
+          "kind": "wild",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 139
+        },
+        {
+          "step": 139,
+          "speciesId": 126,
+          "name": "Magmar",
+          "kind": "wild",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 140
+        },
+        {
+          "step": 140,
+          "speciesId": 127,
+          "name": "Pinsir",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 141
+        },
+        {
+          "step": 141,
+          "speciesId": 128,
+          "name": "Tauros",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 142
+        },
+        {
+          "step": 142,
+          "speciesId": 132,
+          "name": "Ditto",
+          "kind": "wild",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 143
+        },
+        {
+          "step": 143,
+          "speciesId": 137,
+          "name": "Porygon",
+          "kind": "quest",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 144
+        },
+        {
+          "step": 144,
+          "speciesId": 144,
+          "name": "Articuno",
+          "kind": "boss",
+          "biomeId": "frozen",
+          "from": null,
+          "caughtCount": 145
+        },
+        {
+          "step": 145,
+          "speciesId": 146,
+          "name": "Moltres",
+          "kind": "boss",
+          "biomeId": "volcano",
+          "from": null,
+          "caughtCount": 146
+        },
+        {
+          "step": 146,
+          "speciesId": 147,
+          "name": "Dratini",
+          "kind": "wild",
+          "biomeId": "safari",
+          "from": null,
+          "caughtCount": 147
+        },
+        {
+          "step": 147,
+          "speciesId": 148,
+          "name": "Dragonair",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 147,
+          "caughtCount": 148
+        },
+        {
+          "step": 148,
+          "speciesId": 149,
+          "name": "Dragonite",
+          "kind": "evolution",
+          "biomeId": null,
+          "from": 148,
+          "caughtCount": 149
+        },
+        {
+          "step": 149,
+          "speciesId": 150,
+          "name": "Mewtwo",
+          "kind": "boss",
+          "biomeId": "laboratory",
+          "from": null,
+          "caughtCount": 150
+        },
+        {
+          "step": 150,
+          "speciesId": 151,
+          "name": "Mew",
+          "kind": "boss",
+          "biomeId": "ruins",
+          "from": null,
+          "caughtCount": 151
+        }
+      ]
+    }
+  ],
+  "sourceChecks": [
+    {
+      "file": "cache/pokemon.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/pokemon_species.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/pokemon_species_names.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/pokemon_stats.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/pokemon_types.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/stats.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/types.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/pokemon_moves.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/moves.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/move_names.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/move_meta.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/move_meta_ailments.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/move_damage_classes.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/pokemon_evolution.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/evolution_triggers.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/items.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/type_efficacy.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/growth_rates.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/pokemon_move_methods.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/move_meta_stat_changes.csv",
+      "sha256Verified": true
+    },
+    {
+      "file": "cache/experience.csv",
+      "sha256Verified": true
+    }
+  ],
+  "errors": []
+}

@@ -19,7 +19,7 @@ for %%f in (index.html _redirects _headers manifest.json sw.js robots.txt sitema
 )
 
 REM static folders
-for %%d in (images ev-calculator) do (
+for %%d in (assets images ev-calculator games) do (
   if exist "%%d" robocopy "%%d" "_deploy\%%d" /e /njh /njs /ndl /nfl >nul
 )
 

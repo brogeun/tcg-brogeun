@@ -1,0 +1,7186 @@
+{
+  "schemaVersion": 2,
+  "assetRoot": "assets/environment/",
+  "sourceAssetManifest": "assets/environment/environment-manifest.json",
+  "units": "Three.js world units; y-up; x/z plane; rotation radians; +Z south on map. All props use uniform scale derived from full glTF scene bounds.",
+  "alignment": "Before applying authored scale, translate root by(-sourceCenterX,-sourceMinY,-sourceCenterZ), then rotateY. Place at terrainHeight(x,z)+y. Footprint bounds in this blueprint assume centered x/z pivots.",
+  "criticalIntegrationNotes": [
+    "Do not consume both scale and height normalization: use scale directly. height is measured output metadata.",
+    "Existing placeBatch uses source origin instead of centered X/Z; center source scene for blueprint footprints.",
+    "Reuse existing interaction functions but move special acquisition markers to specialBindings positions.",
+    "Keep existing species acquisition/spawn rules; ecology pockets constrain spawn geography and group behavior without dropping any species.",
+    "Maintain flat walkable decks/bridges and blend their approaches; water polygons must exclude island and bridge walk surfaces.",
+    "No generated random placement is present; optional micro-foliage must remain inside explicit ecology/dressing pockets and outside paths.",
+    "All shortcuts are optional loops, not the only acquisition path for any species. Ability grants persist after catching a qualifying family; no permanent party slot required."
+  ],
+  "materialVariants": {
+    "foliageRules": {
+      "materialNames": [
+        "Leaves_NormalTree",
+        "Leaves_TwistedTree",
+        "Leaves_Pine"
+      ],
+      "method": "replace-sampled-RGB-with-regional-canopy-color-times-soft-luminance; preserve texture alpha and vertex AO; never multiply red source by green tint",
+      "sourceIssue": {
+        "Leaves_TwistedTree_C.png": "RGB167,23,23: intentional source autumn red; shared by TwistedTree_1–5, Bush_Common and Bush_Common_Flowers",
+        "Leaves_NormalTree_C.png": "RGB88,123,0: olive green",
+        "Leaf_Pine_C.png": "RGB51,88,0: dark pine green"
+      },
+      "castShadow": false,
+      "receiveShadow": true,
+      "alphaTest": 0.2,
+      "roughness": 0.95,
+      "normalScale": 0.55,
+      "textureAliasingFound": false
+    },
+    "forest-canopy": {
+      "canopy": "#4c8157",
+      "bark": "#857765"
+    },
+    "wetland-canopy": {
+      "canopy": "#55796c",
+      "bark": "#6e7770"
+    },
+    "ruins-canopy": {
+      "canopy": "#697a77",
+      "bark": "#7c7a79"
+    },
+    "snow-pine": {
+      "canopy": "#a4bec1",
+      "bark": "#83979d",
+      "topSnowTint": "#e0e9eb"
+    },
+    "basalt": {
+      "color": "#454445",
+      "roughness": 0.95
+    },
+    "charred": {
+      "color": "#494441",
+      "roughness": 1
+    },
+    "snow-stone": {
+      "color": "#b8cdd4",
+      "roughness": 0.86
+    },
+    "ice": {
+      "color": "#8bc5de",
+      "emissive": "#244c66",
+      "emissiveIntensity": 0.18,
+      "roughness": 0.24,
+      "metalness": 0.05
+    },
+    "crystal": {
+      "color": "#a59ad8",
+      "emissive": "#644998",
+      "emissiveIntensity": 0.5,
+      "roughness": 0.3
+    },
+    "conductor-metal": {
+      "color": "#889ca1",
+      "metalness": 0.55,
+      "roughness": 0.42
+    },
+    "concrete": {
+      "color": "#93a09b",
+      "metalness": 0,
+      "roughness": 0.95
+    },
+    "warm-wood": {
+      "color": "#b29a72",
+      "metalness": 0,
+      "roughness": 0.9
+    },
+    "sterile-floor": {
+      "color": "#a7bdc3",
+      "metalness": 0.12,
+      "roughness": 0.58
+    },
+    "sterile-wall": {
+      "color": "#a2b8c0",
+      "metalness": 0.4,
+      "roughness": 0.46
+    },
+    "sterile-control": {
+      "color": "#6e919f",
+      "metalness": 0.35,
+      "roughness": 0.5
+    },
+    "containment-pylon": {
+      "color": "#91a6ba",
+      "emissive": "#514575",
+      "emissiveIntensity": 0.16,
+      "metalness": 0.42,
+      "roughness": 0.4
+    },
+    "bleached": {
+      "color": "#939f9f",
+      "roughness": 1
+    },
+    "forest-grove-deep": {
+      "canopy": "#38674d",
+      "roughness": 0.95
+    },
+    "forest-grove-fern": {
+      "canopy": "#527e50",
+      "roughness": 0.95
+    },
+    "forest-grove-sun": {
+      "canopy": "#708f51",
+      "roughness": 0.95
+    }
+  },
+  "fieldCapabilities": [
+    {
+      "id": "cut",
+      "name": {
+        "ko-KR": "풀베기",
+        "en-US": "Cut"
+      },
+      "grant": {
+        "caughtAnyFamilyRootIds": [
+          1,
+          43,
+          69
+        ],
+        "orCaughtCount": 10
+      },
+      "icon": "leaf",
+      "description": {
+        "ko-KR": "얽힌 덩굴을 치워 숲의 지름길을 엽니다.",
+        "en-US": "Clear tangled vines to open forest shortcuts."
+      }
+    },
+    {
+      "id": "surf",
+      "name": {
+        "ko-KR": "수상 이동",
+        "en-US": "Water Traversal"
+      },
+      "grant": {
+        "caughtAnyFamilyRootIds": [
+          7,
+          60,
+          79
+        ],
+        "orCaughtCount": 20
+      },
+      "icon": "water",
+      "description": {
+        "ko-KR": "얕은 물길과 호수의 작은 섬에 접근합니다.",
+        "en-US": "Reach shallow waterways and small lake islands."
+      }
+    },
+    {
+      "id": "rock-smash",
+      "name": {
+        "ko-KR": "바위깨기",
+        "en-US": "Rock Smash"
+      },
+      "grant": {
+        "caughtAnyFamilyRootIds": [
+          66,
+          74,
+          95
+        ],
+        "orCaughtCount": 20
+      },
+      "icon": "rock",
+      "description": {
+        "ko-KR": "금이 간 바위를 깨고 화석층을 조사합니다.",
+        "en-US": "Break cracked rocks and investigate fossil beds."
+      }
+    },
+    {
+      "id": "climb",
+      "name": {
+        "ko-KR": "절벽 등반",
+        "en-US": "Cliff Climb"
+      },
+      "grant": {
+        "caughtAnyFamilyRootIds": [
+          56,
+          66,
+          74
+        ],
+        "orCaughtCount": 30
+      },
+      "icon": "mountain",
+      "description": {
+        "ko-KR": "낮은 절벽을 올라 전망대와 능선 지름길에 도달합니다.",
+        "en-US": "Climb low cliffs to viewpoints and ridge shortcuts."
+      }
+    },
+    {
+      "id": "flash",
+      "name": {
+        "ko-KR": "동굴 조명",
+        "en-US": "Cave Illumination"
+      },
+      "grant": {
+        "caughtAnyFamilyRootIds": [
+          25,
+          81,
+          100
+        ],
+        "orCaughtCount": 30
+      },
+      "icon": "light",
+      "description": {
+        "ko-KR": "어두운 회랑의 둥지와 탐사 흔적을 드러냅니다.",
+        "en-US": "Reveal nests and expedition traces in dark galleries."
+      }
+    },
+    {
+      "id": "strength",
+      "name": {
+        "ko-KR": "괴력 밀기",
+        "en-US": "Strength Push"
+      },
+      "grant": {
+        "caughtAnyFamilyRootIds": [
+          66,
+          111,
+          143
+        ],
+        "orCaughtCount": 50
+      },
+      "icon": "strength",
+      "description": {
+        "ko-KR": "통나무와 무거운 장애물을 옮겨 우회로를 연결합니다.",
+        "en-US": "Move logs and heavy obstacles to connect side routes."
+      }
+    }
+  ],
+  "shortcuts": [
+    {
+      "id": "verdant-vinecut",
+      "regionId": "verdant",
+      "capability": "cut",
+      "from": [
+        -8,
+        -3
+      ],
+      "to": [
+        -14,
+        -11
+      ],
+      "interaction": [
+        -8,
+        -3
+      ],
+      "blockerAsset": "quaternius/Bush_Common.glb",
+      "blockerWidth": 3.4,
+      "name": {
+        "ko-KR": "덩굴 속 샛길",
+        "en-US": "Vinecut Side Trail"
+      },
+      "hint": {
+        "ko-KR": "풀베기 능력으로 덩굴을 정리하면 천년 뿌리나무에 빨리 닿습니다.",
+        "en-US": "Cut clears a faster trail toward the Elderroot Tree."
+      },
+      "polyline": [
+        [
+          -8,
+          -3
+        ],
+        [
+          -11,
+          -7
+        ],
+        [
+          -14,
+          -11
+        ]
+      ],
+      "reward": {
+        "landmarkId": "verdant-elder",
+        "researchTokens": 1
+      }
+    },
+    {
+      "id": "waterside-islandcross",
+      "regionId": "waterside",
+      "capability": "surf",
+      "from": [
+        35,
+        -12
+      ],
+      "to": [
+        16,
+        -12
+      ],
+      "interaction": [
+        35,
+        -12
+      ],
+      "blockerAsset": null,
+      "name": {
+        "ko-KR": "수련섬 물길",
+        "en-US": "Waterlily Island Crossing"
+      },
+      "hint": {
+        "ko-KR": "수상 이동 능력이 있으면 낚시터에서 섬으로 건너갈 수 있습니다.",
+        "en-US": "Water traversal connects the fishing deck to the island."
+      },
+      "polyline": [
+        [
+          35,
+          -12
+        ],
+        [
+          27,
+          -12
+        ],
+        [
+          21,
+          -12
+        ],
+        [
+          16,
+          -12
+        ]
+      ],
+      "reward": {
+        "landmarkId": "waterside-island",
+        "researchTokens": 1
+      }
+    },
+    {
+      "id": "highlands-fossilbreak",
+      "regionId": "highlands",
+      "capability": "rock-smash",
+      "from": [
+        -23,
+        -17
+      ],
+      "to": [
+        -28,
+        -20
+      ],
+      "interaction": [
+        -23,
+        -17
+      ],
+      "blockerAsset": "nature/rock_smallA.glb",
+      "blockerWidth": 2.1,
+      "name": {
+        "ko-KR": "금 간 화석길",
+        "en-US": "Cracked Fossil Passage"
+      },
+      "hint": {
+        "ko-KR": "바위깨기로 막힌 화석단의 샛길을 엽니다.",
+        "en-US": "Rock Smash opens the side entrance to the fossil terrace."
+      },
+      "polyline": [
+        [
+          -23,
+          -17
+        ],
+        [
+          -25,
+          -19
+        ],
+        [
+          -28,
+          -20
+        ]
+      ],
+      "reward": {
+        "landmarkId": "highlands-ascent",
+        "itemPool": [
+          "helix-fossil",
+          "dome-fossil",
+          "old-amber"
+        ]
+      }
+    },
+    {
+      "id": "highlands-clifflift",
+      "regionId": "highlands",
+      "capability": "climb",
+      "from": [
+        26,
+        -14
+      ],
+      "to": [
+        26,
+        -25
+      ],
+      "interaction": [
+        26,
+        -14
+      ],
+      "blockerAsset": "nature/rock_tallA.glb",
+      "blockerWidth": 3.4,
+      "name": {
+        "ko-KR": "달오름 등반길",
+        "en-US": "Moonrise Climbing Route"
+      },
+      "hint": {
+        "ko-KR": "절벽 등반으로 긴 굽잇길을 줄일 수 있습니다.",
+        "en-US": "Cliff Climb bypasses the long switchback."
+      },
+      "polyline": [
+        [
+          26,
+          -14
+        ],
+        [
+          26,
+          -19
+        ],
+        [
+          26,
+          -25
+        ]
+      ],
+      "verticalDifference": 4.2,
+      "reward": {
+        "landmarkId": "highlands-ascent",
+        "researchTokens": 1
+      },
+      "traversalPoints": [
+        [
+          26,
+          4,
+          -14
+        ],
+        [
+          26,
+          4,
+          -16.9
+        ],
+        [
+          26,
+          9.2,
+          -16.9
+        ],
+        [
+          26,
+          9.2,
+          -19
+        ],
+        [
+          26,
+          9,
+          -25
+        ]
+      ]
+    },
+    {
+      "id": "highlands-lantern-gallery",
+      "regionId": "highlands",
+      "capability": "flash",
+      "from": [
+        12,
+        -3
+      ],
+      "to": [
+        12,
+        -16
+      ],
+      "interaction": [
+        12,
+        -3
+      ],
+      "blockerAsset": null,
+      "name": {
+        "ko-KR": "빛으로 드러난 회랑",
+        "en-US": "Lantern-Revealed Gallery"
+      },
+      "hint": {
+        "ko-KR": "동굴 조명으로 어둠 속의 안전한 길과 둥지를 발견합니다.",
+        "en-US": "Cave illumination reveals the safe route and nest in the darkness."
+      },
+      "polyline": [
+        [
+          12,
+          -3
+        ],
+        [
+          12,
+          -10
+        ],
+        [
+          12,
+          -16
+        ]
+      ],
+      "reward": {
+        "landmarkId": "highlands-cave",
+        "researchTokens": 1
+      }
+    },
+    {
+      "id": "verdant-logpush",
+      "regionId": "verdant",
+      "capability": "strength",
+      "from": [
+        10,
+        -8
+      ],
+      "to": [
+        15,
+        -14
+      ],
+      "interaction": [
+        10,
+        -8
+      ],
+      "blockerAsset": "nature/log_large.glb",
+      "blockerWidth": 5,
+      "pushTo": [
+        15,
+        -9
+      ],
+      "name": {
+        "ko-KR": "통나무 둥지길",
+        "en-US": "Logbank Den Shortcut"
+      },
+      "hint": {
+        "ko-KR": "괴력 밀기로 통나무를 옮기면 둥지 둔덕으로 바로 갈 수 있습니다.",
+        "en-US": "Strength Push moves the log for direct access to the den bank."
+      },
+      "polyline": [
+        [
+          10,
+          -8
+        ],
+        [
+          13,
+          -11
+        ],
+        [
+          15,
+          -14
+        ]
+      ],
+      "reward": {
+        "landmarkId": "verdant-reserve",
+        "researchTokens": 1
+      }
+    }
+  ],
+  "regions": {
+    "verdant": {
+      "id": "verdant",
+      "name": {
+        "ko-KR": "푸른잎 탐험지",
+        "en-US": "Verdant Expedition"
+      },
+      "staged": false,
+      "playableBounds": {
+        "min": [
+          -44,
+          -44
+        ],
+        "max": [
+          44,
+          44
+        ]
+      },
+      "palette": {
+        "ground": "#587949",
+        "path": "#b5a57c",
+        "canopy": "#52804e",
+        "accent": "#d5d98a",
+        "sky": "#a4cec1",
+        "fog": "#99bda1"
+      },
+      "safePoint": {
+        "id": "verdant-rest",
+        "position": {
+          "x": 0,
+          "z": 26
+        },
+        "radius": 4
+      },
+      "terrain": {
+        "baseAmplitude": 0.13,
+        "features": [
+          {
+            "shape": "mound",
+            "center": [
+              -27,
+              -22
+            ],
+            "radius": [
+              13,
+              14
+            ],
+            "height": 1.8
+          },
+          {
+            "shape": "mound",
+            "center": [
+              28,
+              -23
+            ],
+            "radius": [
+              15,
+              13
+            ],
+            "height": 1.2
+          }
+        ],
+        "maximumWalkableSlope": 0.62
+      },
+      "paths": [
+        {
+          "id": "verdant-main",
+          "points": [
+            [
+              0,
+              30
+            ],
+            [
+              0,
+              16
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              -8,
+              -3
+            ],
+            [
+              -17,
+              -3
+            ],
+            [
+              -23,
+              -8
+            ],
+            [
+              -17,
+              -15
+            ],
+            [
+              -15,
+              -36
+            ]
+          ],
+          "width": 4.6,
+          "surface": "soil"
+        },
+        {
+          "id": "verdant-loop",
+          "points": [
+            [
+              4,
+              4
+            ],
+            [
+              20,
+              -3
+            ],
+            [
+              20,
+              -19
+            ],
+            [
+              2,
+              -25
+            ],
+            [
+              -17,
+              -15
+            ]
+          ],
+          "width": 3.6,
+          "surface": "soil"
+        },
+        {
+          "id": "verdant-coast",
+          "points": [
+            [
+              4,
+              4
+            ],
+            [
+              21,
+              8
+            ],
+            [
+              38,
+              8
+            ]
+          ],
+          "width": 4,
+          "surface": "soil"
+        },
+        {
+          "id": "verdant-services",
+          "points": [
+            [
+              -8,
+              23
+            ],
+            [
+              0,
+              23
+            ],
+            [
+              8,
+              23
+            ]
+          ],
+          "width": 3,
+          "surface": "soil"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "verdant-camp",
+          "rank": "major",
+          "nameKey": "verdant-camp.name",
+          "descriptionKey": "verdant-camp.description",
+          "name": {
+            "ko-KR": "새싹 탐험 야영지",
+            "en-US": "Sprout Expedition Camp"
+          },
+          "description": {
+            "ko-KR": "쉼터에서 회복하고 양옆의 연구대와 보급 수레를 이용하세요.",
+            "en-US": "Rest here, then use the research desk and supply cart on either side."
+          },
+          "position": {
+            "x": 0,
+            "z": 23
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "verdant-meadow",
+          "rank": "major",
+          "nameKey": "verdant-meadow.name",
+          "descriptionKey": "verdant-meadow.description",
+          "name": {
+            "ko-KR": "바람꽃 초원",
+            "en-US": "Windflower Meadow"
+          },
+          "description": {
+            "ko-KR": "낮은 풀밭의 야생 포켓몬을 만난 뒤 큰 나무 쪽 길로 가보세요.",
+            "en-US": "Meet wild Pokemon in the short grass, then follow the trail toward the great tree."
+          },
+          "position": {
+            "x": 4,
+            "z": 4
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "verdant-elder",
+          "rank": "major",
+          "nameKey": "verdant-elder.name",
+          "descriptionKey": "verdant-elder.description",
+          "name": {
+            "ko-KR": "천년 뿌리나무",
+            "en-US": "Ancient Root Tree"
+          },
+          "description": {
+            "ko-KR": "넓은 뿌리 주변의 둥지와 흔들 수 있는 나무를 살펴보세요.",
+            "en-US": "Inspect nests and shakeable trees around the spreading roots."
+          },
+          "position": {
+            "x": -17,
+            "z": -15
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "verdant-reserve",
+          "rank": "major",
+          "nameKey": "verdant-reserve.name",
+          "descriptionKey": "verdant-reserve.description",
+          "name": {
+            "ko-KR": "햇살 관찰 공터",
+            "en-US": "Sunlit Observation Clearing"
+          },
+          "description": {
+            "ko-KR": "45종을 기록하면 희귀한 둥지의 기척을 찾을 수 있어요. 야영지의 도장 연구도 확인하세요.",
+            "en-US": "Rare nests become available after 45 records. Check the camp dojo research too."
+          },
+          "position": {
+            "x": 20,
+            "z": -19
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        }
+      ],
+      "props": [
+        {
+          "rendererKey": "nature/tent_detailedOpen",
+          "x": -8,
+          "z": 27,
+          "height": 3.3,
+          "rotation": 0.3,
+          "scale": 5.880981975,
+          "bounds": {
+            "width": 5.577577499999999,
+            "height": 3.3,
+            "depth": 4.5068925
+          },
+          "materialVariant": "warm-wood",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "survival/workbench",
+          "x": -6,
+          "z": 25,
+          "height": 1.1,
+          "rotation": 0,
+          "scale": 3.8382266153846154,
+          "bounds": {
+            "width": 1.2499384615384617,
+            "height": 1.1,
+            "depth": 1.1347769230769231
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "survival/structure-canvas",
+          "x": 7,
+          "z": 27,
+          "height": 3.1,
+          "rotation": 0,
+          "scale": 6.2,
+          "bounds": {
+            "width": 3.1,
+            "height": 3.1,
+            "depth": 3.1
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "survival/chest",
+          "x": 6,
+          "z": 25,
+          "height": 0.8,
+          "rotation": 0,
+          "scale": 3.1105224000000002,
+          "bounds": {
+            "width": 0.81,
+            "height": 0.8,
+            "depth": 0.8461600000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "nature/campfire_logs",
+          "x": -3,
+          "z": 28,
+          "height": 0.5,
+          "rotation": 0,
+          "scale": 7.9872425,
+          "bounds": {
+            "width": 2.3310833333333334,
+            "height": 0.5,
+            "depth": 2.3310833333333334
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "survival/bedroll",
+          "x": 4,
+          "z": 28,
+          "height": 0.3,
+          "rotation": 0,
+          "scale": 2.4029576027218003,
+          "bounds": {
+            "width": 1.5091075634650615,
+            "height": 0.3,
+            "depth": 0.8472781994242345
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "nature/sign",
+          "x": 2,
+          "z": 19,
+          "height": 1.5,
+          "rotation": 0,
+          "scale": 3.6695409090909097,
+          "bounds": {
+            "width": 1.113727272727273,
+            "height": 1.5,
+            "depth": 0.3192727272727273
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_1",
+          "x": -21,
+          "z": -20,
+          "height": 18,
+          "rotation": 0.6,
+          "scale": 1.0762010526315788,
+          "bounds": {
+            "width": 18.897252631578944,
+            "height": 18,
+            "depth": 18.19923157894737
+          },
+          "materialVariant": "forest-canopy",
+          "collision": {
+            "radius": 2.1
+          }
+        },
+        {
+          "rendererKey": "nature/log_large",
+          "x": -24,
+          "z": -11,
+          "height": 1.5,
+          "rotation": 1.2,
+          "scale": 3.5996160409556315,
+          "bounds": {
+            "width": 4.0231708617747435,
+            "height": 1.5,
+            "depth": 2.9528050341296925
+          },
+          "materialVariant": "",
+          "collision": {
+            "radius": 0.9
+          }
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -15,
+          "z": 22,
+          "height": 10,
+          "rotation": 0,
+          "scale": 1.308387,
+          "bounds": {
+            "width": 6.4688,
+            "height": 10,
+            "depth": 6.2535
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -16,
+          "z": 10,
+          "height": 11,
+          "rotation": 1.7,
+          "scale": 1.4392257000000002,
+          "bounds": {
+            "width": 7.11568,
+            "height": 11,
+            "depth": 6.878850000000001
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -10,
+          "z": 3,
+          "height": 9,
+          "rotation": 3.4,
+          "scale": 1.1775483,
+          "bounds": {
+            "width": 5.82192,
+            "height": 9,
+            "depth": 5.62815
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -24,
+          "z": 4,
+          "height": 12,
+          "rotation": 5.1,
+          "scale": 1.5700644,
+          "bounds": {
+            "width": 7.76256,
+            "height": 12,
+            "depth": 7.504199999999999
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -28,
+          "z": -4,
+          "height": 12,
+          "rotation": 6.8,
+          "scale": 1.5700644,
+          "bounds": {
+            "width": 7.76256,
+            "height": 12,
+            "depth": 7.504199999999999
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -30,
+          "z": -13,
+          "height": 14,
+          "rotation": 8.5,
+          "scale": 1.8317417999999999,
+          "bounds": {
+            "width": 9.05632,
+            "height": 14,
+            "depth": 8.7549
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -33,
+          "z": -25,
+          "height": 13,
+          "rotation": 10.2,
+          "scale": 1.7009031000000001,
+          "bounds": {
+            "width": 8.40944,
+            "height": 13,
+            "depth": 8.12955
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -25,
+          "z": -33,
+          "height": 12,
+          "rotation": 11.9,
+          "scale": 1.5700644,
+          "bounds": {
+            "width": 7.76256,
+            "height": 12,
+            "depth": 7.504199999999999
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -6,
+          "z": -34,
+          "height": 12,
+          "rotation": 13.6,
+          "scale": 1.5700644,
+          "bounds": {
+            "width": 7.76256,
+            "height": 12,
+            "depth": 7.504199999999999
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 2,
+          "z": -33,
+          "height": 11,
+          "rotation": 15.299999999999999,
+          "scale": 1.4392257000000002,
+          "bounds": {
+            "width": 7.11568,
+            "height": 11,
+            "depth": 6.878850000000001
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 8,
+          "z": -29,
+          "height": 9,
+          "rotation": 17,
+          "scale": 1.1775483,
+          "bounds": {
+            "width": 5.82192,
+            "height": 9,
+            "depth": 5.62815
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -6,
+          "z": -13,
+          "height": 10,
+          "rotation": 18.7,
+          "scale": 1.308387,
+          "bounds": {
+            "width": 6.4688,
+            "height": 10,
+            "depth": 6.2535
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -8,
+          "z": -29,
+          "height": 9,
+          "rotation": 20.4,
+          "scale": 1.1775483,
+          "bounds": {
+            "width": 5.82192,
+            "height": 9,
+            "depth": 5.62815
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 6,
+          "z": -13,
+          "height": 9,
+          "rotation": 22.099999999999998,
+          "scale": 1.1775483,
+          "bounds": {
+            "width": 5.82192,
+            "height": 9,
+            "depth": 5.62815
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 12,
+          "z": -31,
+          "height": 10,
+          "rotation": 23.8,
+          "scale": 1.308387,
+          "bounds": {
+            "width": 6.4688,
+            "height": 10,
+            "depth": 6.2535
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 29,
+          "z": -31,
+          "height": 12,
+          "rotation": 25.5,
+          "scale": 1.5700644,
+          "bounds": {
+            "width": 7.76256,
+            "height": 12,
+            "depth": 7.504199999999999
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 34,
+          "z": -22,
+          "height": 11,
+          "rotation": 27.2,
+          "scale": 1.4392257000000002,
+          "bounds": {
+            "width": 7.11568,
+            "height": 11,
+            "depth": 6.878850000000001
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 33,
+          "z": -8,
+          "height": 10,
+          "rotation": 28.9,
+          "scale": 1.308387,
+          "bounds": {
+            "width": 6.4688,
+            "height": 10,
+            "depth": 6.2535
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 30,
+          "z": 0,
+          "height": 8,
+          "rotation": 30.599999999999998,
+          "scale": 1.0467096,
+          "bounds": {
+            "width": 5.17504,
+            "height": 8,
+            "depth": 5.002800000000001
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 25,
+          "z": 18,
+          "height": 9,
+          "rotation": 32.3,
+          "scale": 1.1775483,
+          "bounds": {
+            "width": 5.82192,
+            "height": 9,
+            "depth": 5.62815
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": 15,
+          "z": 30,
+          "height": 10,
+          "rotation": 34,
+          "scale": 1.308387,
+          "bounds": {
+            "width": 6.4688,
+            "height": 10,
+            "depth": 6.2535
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_2",
+          "x": -22,
+          "z": 32,
+          "height": 11,
+          "rotation": 35.699999999999996,
+          "scale": 1.4392257000000002,
+          "bounds": {
+            "width": 7.11568,
+            "height": 11,
+            "depth": 6.878850000000001
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 0,
+          "z": 41,
+          "height": 11,
+          "rotation": 0,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 11.527455503107054,
+          "z": 39.34612775895344,
+          "height": 13,
+          "rotation": 1.7,
+          "scale": 1.379283,
+          "bounds": {
+            "width": 5.6038,
+            "height": 13,
+            "depth": 5.8496
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 22.124913998092737,
+          "z": 34.51793998165302,
+          "height": 15,
+          "rotation": 3.4,
+          "scale": 1.5914803846153844,
+          "bounds": {
+            "width": 6.465923076923076,
+            "height": 15,
+            "depth": 6.74953846153846
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 30.937407561518036,
+          "z": 26.904958899290794,
+          "height": 11,
+          "rotation": 5.1,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 37.25397334075121,
+          "z": 17.121374662292684,
+          "height": 13,
+          "rotation": 6.8,
+          "scale": 1.379283,
+          "bounds": {
+            "width": 5.6038,
+            "height": 13,
+            "depth": 5.8496
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 40.56501168696211,
+          "z": 5.956494509073914,
+          "height": 15,
+          "rotation": 8.5,
+          "scale": 1.5914803846153844,
+          "bounds": {
+            "width": 6.465923076923076,
+            "height": 15,
+            "depth": 6.74953846153846
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 40.60339897040248,
+          "z": -5.68893593304748,
+          "height": 11,
+          "rotation": 10.2,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 37.36603823192642,
+          "z": -16.87540182781474,
+          "height": 13,
+          "rotation": 11.9,
+          "scale": 1.379283,
+          "bounds": {
+            "width": 5.6038,
+            "height": 13,
+            "depth": 5.8496
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 31.1141090354178,
+          "z": -26.70041608162937,
+          "height": 15,
+          "rotation": 13.6,
+          "scale": 1.5914803846153844,
+          "bounds": {
+            "width": 6.465923076923076,
+            "height": 15,
+            "depth": 6.74953846153846
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 22.351996363856827,
+          "z": -34.37132901925864,
+          "height": 11,
+          "rotation": 15.299999999999999,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 11.786598506044339,
+          "z": -39.2692767396767,
+          "height": 13,
+          "rotation": 17,
+          "scale": 1.379283,
+          "bounds": {
+            "width": 5.6038,
+            "height": 13,
+            "depth": 5.8496
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": 0.27029683918268455,
+          "z": -40.99910901005933,
+          "height": 15,
+          "rotation": 18.7,
+          "scale": 1.5914803846153844,
+          "bounds": {
+            "width": 6.465923076923076,
+            "height": 15,
+            "depth": 6.74953846153846
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -11.267811483248085,
+          "z": -39.42126868047225,
+          "height": 11,
+          "rotation": 20.4,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -21.896870018874466,
+          "z": -34.66305069344758,
+          "height": 13,
+          "rotation": 22.099999999999998,
+          "scale": 1.379283,
+          "bounds": {
+            "width": 5.6038,
+            "height": 13,
+            "depth": 5.8496
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -30.759361457426667,
+          "z": -27.10833234877009,
+          "height": 15,
+          "rotation": 23.8,
+          "scale": 1.5914803846153844,
+          "bounds": {
+            "width": 6.465923076923076,
+            "height": 15,
+            "depth": 6.74953846153846
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -37.14028928296641,
+          "z": -17.36660335176602,
+          "height": 11,
+          "rotation": 25.5,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -40.52486132950435,
+          "z": -6.223794198432578,
+          "height": 13,
+          "rotation": 27.2,
+          "scale": 1.379283,
+          "bounds": {
+            "width": 5.6038,
+            "height": 13,
+            "depth": 5.8496
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -40.64002151140189,
+          "z": 5.421130099231316,
+          "height": 15,
+          "rotation": 28.9,
+          "scale": 1.5914803846153844,
+          "bounds": {
+            "width": 6.465923076923076,
+            "height": 15,
+            "depth": 6.74953846153846
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -37.47647908582419,
+          "z": 16.62869553903079,
+          "height": 11,
+          "rotation": 30.599999999999998,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -31.289458199163267,
+          "z": 26.494712785814734,
+          "height": 13,
+          "rotation": 32.3,
+          "scale": 1.379283,
+          "bounds": {
+            "width": 5.6038,
+            "height": 13,
+            "depth": 5.8496
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -22.578107246503173,
+          "z": 34.22322417840553,
+          "height": 15,
+          "rotation": 34,
+          "scale": 1.5914803846153844,
+          "bounds": {
+            "width": 6.465923076923076,
+            "height": 15,
+            "depth": 6.74953846153846
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/CommonTree_3",
+          "x": -12.045229228947292,
+          "z": 39.19071896281202,
+          "height": 11,
+          "rotation": 35.699999999999996,
+          "scale": 1.1670856153846154,
+          "bounds": {
+            "width": 4.7416769230769225,
+            "height": 11,
+            "depth": 4.949661538461538
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 15,
+          "z": 3,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.2528789090909091,
+          "bounds": {
+            "width": 0.5402181818181818,
+            "height": 0.4,
+            "depth": 0.5513454545454546
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 6.874379850851911,
+          "z": 6.786721323908493,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 11.535505001356423,
+          "z": -3.2398051245129347,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 15.135421759098605,
+          "z": 8.361766239892916,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 3.9052835583162206,
+          "z": 1.7732161510266575,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.3287425818181818,
+          "bounds": {
+            "width": 0.7022836363636363,
+            "height": 0.52,
+            "depth": 0.7167490909090909
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 17.374069725987113,
+          "z": -1.097914742921315,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 8.98837874430703,
+          "z": 10.659428740530778,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 7.15608079885247,
+          "z": -4.280789926695872,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 19.030466397900767,
+          "z": 5.86277428885652,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.4046062545454545,
+          "bounds": {
+            "width": 0.8643490909090908,
+            "height": 0.64,
+            "depth": 0.8821527272727272
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 2.895172491580009,
+          "z": 6.428085625937403,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 14.76067795280978,
+          "z": -5.242236067075835,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 13.879245535178281,
+          "z": 11.850013698560305,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 2.6889153145134213,
+          "z": -1.6889627876998246,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.2528789090909091,
+          "bounds": {
+            "width": 0.5402181818181818,
+            "height": 0.4,
+            "depth": 0.5513454545454546
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 20.514017375511596,
+          "z": 0.783126141522144,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 5.367071768470728,
+          "z": 11.24641340760618,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 9.543641574147845,
+          "z": -7.092234983733999,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 19.054693944387033,
+          "z": 9.578898499160392,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.3287425818181818,
+          "bounds": {
+            "width": 0.7022836363636363,
+            "height": 0.52,
+            "depth": 0.7167490909090909
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 0.42066904495490043,
+          "z": 3.611153459885958,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 18.513928831353798,
+          "z": -4.741232092663092,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 10.693786915518537,
+          "z": 13.96996536112184,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 19.378478464894854,
+          "z": -23.021195928929462,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.4046062545454545,
+          "bounds": {
+            "width": 0.8643490909090908,
+            "height": 0.64,
+            "depth": 0.8821527272727272
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 27.56395727860954,
+          "z": -19.36566617478814,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 16.936122066824005,
+          "z": -16.315020505312294,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 23.3394622844041,
+          "z": -26.63747626176852,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 25.723149391786,
+          "z": -13.837357822618323,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.2528789090909091,
+          "bounds": {
+            "width": 0.5402181818181818,
+            "height": 0.4,
+            "depth": 0.5513454545454546
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 14.727408902162274,
+          "z": -22.128635439817902,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 29.103535842772818,
+          "z": -23.5004638604143,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 19.020056019772106,
+          "z": -12.325004843237341,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 18.899240356975483,
+          "z": -27.94160920928131,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.3287425818181818,
+          "bounds": {
+            "width": 0.7022836363636363,
+            "height": 0.52,
+            "depth": 0.7167490909090909
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 29.900974547184845,
+          "z": -16.12513210486638,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 13.30997292724725,
+          "z": -17.438636393445954,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 26.797405295433762,
+          "z": -27.9748165965051,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 23.90535304949633,
+          "z": -10.649591964489554,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.4046062545454545,
+          "bounds": {
+            "width": 0.8643490909090908,
+            "height": 0.64,
+            "depth": 0.8821527272727272
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 14.09029707213707,
+          "z": -25.73303200051209,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.16085133333333335,
+          "bounds": {
+            "width": 0.3106666666666667,
+            "height": 0.4,
+            "depth": 0.2526666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 31.920218319996216,
+          "z": -21.149992623592833,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 15.331813932386648,
+          "z": -12.285761126388286,
+          "height": 0.64,
+          "rotation": 0,
+          "scale": 0.2573621333333333,
+          "bounds": {
+            "width": 0.4970666666666667,
+            "height": 0.64,
+            "depth": 0.40426666666666666
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common_Flowers",
+          "x": 21.690146932152977,
+          "z": -30.3953831615937,
+          "height": 0.4,
+          "rotation": 0,
+          "scale": 0.2528789090909091,
+          "bounds": {
+            "width": 0.5402181818181818,
+            "height": 0.4,
+            "depth": 0.5513454545454546
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Flower_4_Group",
+          "x": 29.395089567653457,
+          "z": -12.409980086041339,
+          "height": 0.52,
+          "rotation": 0,
+          "scale": 0.20910673333333332,
+          "bounds": {
+            "width": 0.4038666666666667,
+            "height": 0.52,
+            "depth": 0.3284666666666667
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Bush_Common",
+          "x": -10,
+          "z": -6,
+          "height": 1.8,
+          "rotation": 0,
+          "scale": 1.1379325973271355,
+          "bounds": {
+            "width": 2.1789657176060433,
+            "height": 1.8,
+            "depth": 2.2361417780360258
+          },
+          "materialVariant": "forest-grove-fern",
+          "collision": {
+            "radius": 0.8
+          }
+        },
+        {
+          "rendererKey": "nature/log_large",
+          "x": 12,
+          "z": -10,
+          "height": 1.3,
+          "rotation": 0.8,
+          "scale": 3.1196672354948807,
+          "bounds": {
+            "width": 3.486748080204778,
+            "height": 1.3,
+            "depth": 2.559097696245734
+          },
+          "materialVariant": "",
+          "collision": {
+            "radius": 0.8
+          }
+        }
+      ],
+      "ecologyPockets": [
+        {
+          "id": "verdant-first",
+          "center": [
+            6,
+            15
+          ],
+          "radius": [
+            6,
+            5
+          ],
+          "speciesIds": [
+            16,
+            19
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "verdant-meadow-life",
+          "center": [
+            11,
+            1
+          ],
+          "radius": [
+            8,
+            6
+          ],
+          "speciesIds": [
+            21,
+            29,
+            32,
+            39,
+            52,
+            56,
+            84
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "verdant-understory",
+          "center": [
+            -27,
+            -1
+          ],
+          "radius": [
+            7,
+            7
+          ],
+          "speciesIds": [
+            48,
+            69
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "verdant-tree-life",
+          "center": [
+            -24,
+            -18
+          ],
+          "radius": [
+            8,
+            7
+          ],
+          "speciesIds": [
+            10,
+            13,
+            43,
+            46,
+            102
+          ],
+          "method": "tree",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "verdant-starter-nests",
+          "center": [
+            -12,
+            -12
+          ],
+          "radius": [
+            5,
+            5
+          ],
+          "speciesIds": [
+            1,
+            25
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "verdant-reserve-nests",
+          "center": [
+            21,
+            -20
+          ],
+          "radius": [
+            7,
+            6
+          ],
+          "speciesIds": [
+            83,
+            113,
+            115,
+            123,
+            127,
+            128,
+            147
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "verdant-reserve-life",
+          "center": [
+            28,
+            -14
+          ],
+          "radius": [
+            5,
+            5
+          ],
+          "speciesIds": [
+            85,
+            108
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        }
+      ],
+      "waterBodies": [],
+      "setpieces": [],
+      "entrances": [
+        {
+          "to": "waterside",
+          "position": {
+            "x": 38,
+            "z": 8
+          },
+          "lookAt": {
+            "x": 20,
+            "z": 8
+          }
+        },
+        {
+          "to": "highlands",
+          "position": {
+            "x": -15,
+            "z": -36
+          },
+          "lookAt": {
+            "x": -17,
+            "z": -15
+          }
+        }
+      ],
+      "specialBindings": [
+        {
+          "speciesId": 133,
+          "position": [
+            -6,
+            22
+          ]
+        },
+        {
+          "speciesId": 138,
+          "position": [
+            -9,
+            22
+          ]
+        },
+        {
+          "speciesId": 140,
+          "position": [
+            -9,
+            25
+          ]
+        },
+        {
+          "speciesId": 142,
+          "position": [
+            -9,
+            28
+          ]
+        },
+        {
+          "speciesId": 143,
+          "position": [
+            24,
+            5
+          ]
+        },
+        {
+          "speciesId": 106,
+          "position": [
+            8,
+            22
+          ]
+        },
+        {
+          "speciesId": 107,
+          "position": [
+            11,
+            22
+          ]
+        }
+      ],
+      "budget": {
+        "maxActiveWild": 8,
+        "ambientParticleBudget": 60
+      },
+      "digSites": [],
+      "services": {
+        "research": [
+          -6,
+          23
+        ],
+        "shop": [
+          6,
+          23
+        ],
+        "board": [
+          0,
+          20
+        ]
+      }
+    },
+    "waterside": {
+      "id": "waterside",
+      "name": {
+        "ko-KR": "물빛 해안",
+        "en-US": "Waterside Coast"
+      },
+      "staged": false,
+      "playableBounds": {
+        "min": [
+          -44,
+          -44
+        ],
+        "max": [
+          44,
+          44
+        ]
+      },
+      "palette": {
+        "ground": "#88a477",
+        "path": "#d5c69a",
+        "canopy": "#688b65",
+        "accent": "#b5e3d5",
+        "sky": "#a2d2df",
+        "fog": "#b1cfca",
+        "water": "#398f9d"
+      },
+      "safePoint": {
+        "id": "waterside-rest",
+        "position": {
+          "x": -18,
+          "z": 28
+        },
+        "radius": 4
+      },
+      "terrain": {
+        "baseAmplitude": 0.13,
+        "features": [],
+        "maximumWalkableSlope": 0.62
+      },
+      "paths": [
+        {
+          "id": "waterside-main",
+          "points": [
+            [
+              -35,
+              28
+            ],
+            [
+              -18,
+              28
+            ],
+            [
+              -16,
+              18
+            ],
+            [
+              4.5,
+              18
+            ],
+            [
+              20,
+              18
+            ],
+            [
+              22,
+              25
+            ],
+            [
+              33,
+              25
+            ]
+          ],
+          "width": 4,
+          "surface": "soil"
+        },
+        {
+          "id": "waterside-bank",
+          "points": [
+            [
+              -16,
+              18
+            ],
+            [
+              -17,
+              4
+            ],
+            [
+              -17,
+              -10
+            ],
+            [
+              -16,
+              -23
+            ],
+            [
+              -9,
+              -28
+            ]
+          ],
+          "width": 3.5,
+          "surface": "soil"
+        },
+        {
+          "id": "waterside-east",
+          "points": [
+            [
+              20,
+              18
+            ],
+            [
+              34,
+              6
+            ],
+            [
+              36,
+              -13
+            ],
+            [
+              36,
+              -25
+            ],
+            [
+              34,
+              -34
+            ]
+          ],
+          "width": 3.4,
+          "surface": "soil"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "waterside-pool",
+          "rank": "major",
+          "nameKey": "waterside-pool.name",
+          "descriptionKey": "waterside-pool.description",
+          "name": {
+            "ko-KR": "갈대 물굽이",
+            "en-US": "Reedwater Bend"
+          },
+          "description": {
+            "ko-KR": "갈대 가장자리에서 낚시하거나 조용한 물가의 둥지를 살펴보세요.",
+            "en-US": "Fish beside the reeds or inspect nests along the quiet bank."
+          },
+          "position": {
+            "x": -17,
+            "z": -10
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "waterside-beach",
+          "rank": "major",
+          "nameKey": "waterside-beach.name",
+          "descriptionKey": "waterside-beach.description",
+          "name": {
+            "ko-KR": "진주빛 모래톱",
+            "en-US": "Pearl Sandbar"
+          },
+          "description": {
+            "ko-KR": "라프라스의 구조 기록과 절벽 아래 오래된 호박 지층을 찾아보세요.",
+            "en-US": "Find the Lapras rescue record and the Old Amber bed beneath the cliff."
+          },
+          "position": {
+            "x": 22,
+            "z": 25
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "waterside-island",
+          "rank": "major",
+          "nameKey": "waterside-island.name",
+          "descriptionKey": "waterside-island.description",
+          "name": {
+            "ko-KR": "수련 관찰섬",
+            "en-US": "Waterlily Observation Island"
+          },
+          "description": {
+            "ko-KR": "수상 이동을 익힌 뒤 동쪽 둑에서 섬으로 건너가 보세요.",
+            "en-US": "After learning Surf, cross to the island from the eastern bank."
+          },
+          "position": {
+            "x": 14,
+            "z": -12
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "waterside-falls",
+          "rank": "major",
+          "nameKey": "waterside-falls.name",
+          "descriptionKey": "waterside-falls.description",
+          "name": {
+            "ko-KR": "물빛 계단폭포",
+            "en-US": "Waterside Cascade"
+          },
+          "description": {
+            "ko-KR": "한 물줄기가 폭포에서 갈대밭과 바다까지 이어집니다.",
+            "en-US": "One stream links the waterfall, reed beds and sea."
+          },
+          "position": {
+            "x": -9,
+            "z": -28
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        }
+      ],
+      "props": [
+        {
+          "rendererKey": "nature/bridge_wood",
+          "x": 4.5,
+          "z": 18,
+          "height": 2.3077,
+          "rotation": 0,
+          "scale": 5.769231,
+          "bounds": {
+            "width": 6.0048,
+            "height": 2.3077,
+            "depth": 6.0048
+          },
+          "materialVariant": "warm-wood",
+          "scaleXYZ": [
+            4,
+            1,
+            1
+          ],
+          "walkSurface": {
+            "kind": "bridge-deck",
+            "rotation": 1.5707963267948966,
+            "width": 3.2,
+            "length": 19.2,
+            "heightFraction": 0.5,
+            "rails": 2.25,
+            "approachBlendLength": 3
+          }
+        },
+        {
+          "rendererKey": "nature/cliff_waterfall_rock",
+          "x": 0,
+          "z": -35,
+          "height": 8,
+          "rotation": 0,
+          "scale": 8,
+          "bounds": {
+            "width": 8,
+            "height": 8,
+            "depth": 1.348
+          },
+          "materialVariant": "bleached",
+          "collision": {
+            "radius": 3
+          }
+        },
+        {
+          "rendererKey": "nature/rock_tallA",
+          "x": -6,
+          "z": -36,
+          "height": 7,
+          "rotation": 0,
+          "scale": 7.028635,
+          "bounds": {
+            "width": 7.4348,
+            "height": 7,
+            "depth": 5.5947
+          },
+          "materialVariant": "",
+          "collision": {
+            "radius": 2
+          }
+        },
+        {
+          "rendererKey": "nature/rock_tallA",
+          "x": 6,
+          "z": -35,
+          "height": 6,
+          "rotation": 0,
+          "scale": 6.024544285714286,
+          "bounds": {
+            "width": 6.372685714285714,
+            "height": 6,
+            "depth": 4.795457142857142
+          },
+          "materialVariant": "",
+          "collision": {
+            "radius": 2
+          }
+        },
+        {
+          "rendererKey": "nature/tree_palmDetailedTall",
+          "x": 27,
+          "z": 31,
+          "height": 9,
+          "rotation": 0,
+          "scale": 6.322591097560975,
+          "bounds": {
+            "width": 10.289085365853659,
+            "height": 9,
+            "depth": 10.289085365853659
+          },
+          "materialVariant": "",
+          "collision": {
+            "radius": 0.7
+          }
+        },
+        {
+          "rendererKey": "nature/tree_palmDetailedTall",
+          "x": 34,
+          "z": 22,
+          "height": 7,
+          "rotation": 0,
+          "scale": 4.917570853658536,
+          "bounds": {
+            "width": 8.002621951219513,
+            "height": 7,
+            "depth": 8.002621951219513
+          },
+          "materialVariant": "",
+          "collision": {
+            "radius": 0.6
+          }
+        },
+        {
+          "rendererKey": "nature/canoe",
+          "x": -5,
+          "z": 27,
+          "height": 0.6,
+          "rotation": 0.2,
+          "scale": 3.287671232876712,
+          "bounds": {
+            "width": 2.6781698630136987,
+            "height": 0.6,
+            "depth": 3.7908493150684928
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "survival/campfire-fishing-stand",
+          "x": -16,
+          "z": -8,
+          "height": 1.1,
+          "rotation": 0,
+          "scale": 3.9855070588235297,
+          "bounds": {
+            "width": 1.5722882352941177,
+            "height": 1.1,
+            "depth": 1.0094117647058825
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "nature/sign",
+          "x": -19,
+          "z": 21,
+          "height": 1.4,
+          "rotation": 0,
+          "scale": 3.4249048484848488,
+          "bounds": {
+            "width": 1.039478787878788,
+            "height": 1.4,
+            "depth": 0.2979878787878788
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "nature/statue_column",
+          "x": 15,
+          "z": -13,
+          "height": 2,
+          "rotation": 0,
+          "scale": 2,
+          "bounds": {
+            "width": 0.6,
+            "height": 2,
+            "depth": 0.6
+          },
+          "materialVariant": "bleached"
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -29,
+          "z": 34,
+          "height": 9,
+          "rotation": 0,
+          "scale": 0.5599611000000001,
+          "bounds": {
+            "width": 7.085249999999999,
+            "height": 9,
+            "depth": 7.1577
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -32,
+          "z": 13,
+          "height": 10,
+          "rotation": 1.7,
+          "scale": 0.622179,
+          "bounds": {
+            "width": 7.8725,
+            "height": 10,
+            "depth": 7.953
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -26,
+          "z": 0,
+          "height": 8,
+          "rotation": 3.4,
+          "scale": 0.49774320000000005,
+          "bounds": {
+            "width": 6.298,
+            "height": 8,
+            "depth": 6.362400000000001
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -33,
+          "z": -8,
+          "height": 10,
+          "rotation": 5.1,
+          "scale": 0.622179,
+          "bounds": {
+            "width": 7.8725,
+            "height": 10,
+            "depth": 7.953
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -35,
+          "z": -19,
+          "height": 11,
+          "rotation": 6.8,
+          "scale": 0.6843969000000001,
+          "bounds": {
+            "width": 8.65975,
+            "height": 11,
+            "depth": 8.7483
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -29,
+          "z": -31,
+          "height": 10,
+          "rotation": 8.5,
+          "scale": 0.622179,
+          "bounds": {
+            "width": 7.8725,
+            "height": 10,
+            "depth": 7.953
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -16,
+          "z": -35,
+          "height": 9,
+          "rotation": 10.2,
+          "scale": 0.5599611000000001,
+          "bounds": {
+            "width": 7.085249999999999,
+            "height": 9,
+            "depth": 7.1577
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_3",
+          "x": -23,
+          "z": -29,
+          "height": 8,
+          "rotation": 11.9,
+          "scale": 0.49774320000000005,
+          "bounds": {
+            "width": 6.298,
+            "height": 8,
+            "depth": 6.362400000000001
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "nature/tree_palmDetailedTall",
+          "x": 34,
+          "z": -32,
+          "height": 7,
+          "rotation": 0,
+          "scale": 4.917570853658536,
+          "bounds": {
+            "width": 8.002621951219513,
+            "height": 7,
+            "depth": 8.002621951219513
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "nature/tree_palmDetailedTall",
+          "x": 39,
+          "z": -24,
+          "height": 7,
+          "rotation": 1.7,
+          "scale": 4.917570853658536,
+          "bounds": {
+            "width": 8.002621951219513,
+            "height": 7,
+            "depth": 8.002621951219513
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "nature/tree_palmDetailedTall",
+          "x": 38,
+          "z": -5,
+          "height": 7,
+          "rotation": 3.4,
+          "scale": 4.917570853658536,
+          "bounds": {
+            "width": 8.002621951219513,
+            "height": 7,
+            "depth": 8.002621951219513
+          },
+          "materialVariant": "wetland-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6,
+          "z": 25,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6.8,
+          "z": 22.8,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -7.6,
+          "z": 20.6,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6,
+          "z": 18.4,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6.8,
+          "z": 16.2,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -7.6,
+          "z": 14,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6,
+          "z": 11.799999999999999,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6.8,
+          "z": 9.599999999999998,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -7.6,
+          "z": 7.399999999999999,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6,
+          "z": 5.199999999999999,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -6.8,
+          "z": 3,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -7.6,
+          "z": 0.7999999999999972,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13,
+          "z": -1.4000000000000021,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13.8,
+          "z": -3.6000000000000014,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -14.6,
+          "z": -5.800000000000004,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13,
+          "z": -8,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13.8,
+          "z": -10.200000000000003,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -14.6,
+          "z": -12.400000000000006,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13,
+          "z": -14.600000000000001,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13.8,
+          "z": -16.800000000000004,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -14.6,
+          "z": -19,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13,
+          "z": -21.200000000000003,
+          "height": 0.9,
+          "rotation": 0,
+          "scale": 0.538341,
+          "bounds": {
+            "width": 0.9258,
+            "height": 0.9,
+            "depth": 0.951075
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -13.8,
+          "z": -23.400000000000006,
+          "height": 1.08,
+          "rotation": 0,
+          "scale": 0.6460092000000001,
+          "bounds": {
+            "width": 1.1109600000000002,
+            "height": 1.08,
+            "depth": 1.1412900000000001
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Grass_Wispy_Tall",
+          "x": -14.6,
+          "z": -25.6,
+          "height": 1.26,
+          "rotation": 0,
+          "scale": 0.7536774,
+          "bounds": {
+            "width": 1.29612,
+            "height": 1.26,
+            "depth": 1.3315050000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 17,
+          "z": 28,
+          "height": 0.22,
+          "rotation": 0,
+          "scale": 2.3042305000000005,
+          "bounds": {
+            "width": 1.2451633333333334,
+            "height": 0.22,
+            "depth": 0.9775700000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 20,
+          "z": 28,
+          "height": 0.33999999999999997,
+          "rotation": 0,
+          "scale": 3.5610835,
+          "bounds": {
+            "width": 1.9243433333333333,
+            "height": 0.33999999999999997,
+            "depth": 1.51079
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 23,
+          "z": 28,
+          "height": 0.45999999999999996,
+          "rotation": 0,
+          "scale": 4.8179365,
+          "bounds": {
+            "width": 2.6035233333333334,
+            "height": 0.45999999999999996,
+            "depth": 2.04401
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 26,
+          "z": 28,
+          "height": 0.22,
+          "rotation": 0,
+          "scale": 2.3042305000000005,
+          "bounds": {
+            "width": 1.2451633333333334,
+            "height": 0.22,
+            "depth": 0.9775700000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 29,
+          "z": 28,
+          "height": 0.33999999999999997,
+          "rotation": 0,
+          "scale": 3.5610835,
+          "bounds": {
+            "width": 1.9243433333333333,
+            "height": 0.33999999999999997,
+            "depth": 1.51079
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 32,
+          "z": 28,
+          "height": 0.45999999999999996,
+          "rotation": 0,
+          "scale": 4.8179365,
+          "bounds": {
+            "width": 2.6035233333333334,
+            "height": 0.45999999999999996,
+            "depth": 2.04401
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 17,
+          "z": 31,
+          "height": 0.22,
+          "rotation": 0,
+          "scale": 2.3042305000000005,
+          "bounds": {
+            "width": 1.2451633333333334,
+            "height": 0.22,
+            "depth": 0.9775700000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 20,
+          "z": 31,
+          "height": 0.33999999999999997,
+          "rotation": 0,
+          "scale": 3.5610835,
+          "bounds": {
+            "width": 1.9243433333333333,
+            "height": 0.33999999999999997,
+            "depth": 1.51079
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 23,
+          "z": 31,
+          "height": 0.45999999999999996,
+          "rotation": 0,
+          "scale": 4.8179365,
+          "bounds": {
+            "width": 2.6035233333333334,
+            "height": 0.45999999999999996,
+            "depth": 2.04401
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 26,
+          "z": 31,
+          "height": 0.22,
+          "rotation": 0,
+          "scale": 2.3042305000000005,
+          "bounds": {
+            "width": 1.2451633333333334,
+            "height": 0.22,
+            "depth": 0.9775700000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 29,
+          "z": 31,
+          "height": 0.33999999999999997,
+          "rotation": 0,
+          "scale": 3.5610835,
+          "bounds": {
+            "width": 1.9243433333333333,
+            "height": 0.33999999999999997,
+            "depth": 1.51079
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 32,
+          "z": 31,
+          "height": 0.45999999999999996,
+          "rotation": 0,
+          "scale": 4.8179365,
+          "bounds": {
+            "width": 2.6035233333333334,
+            "height": 0.45999999999999996,
+            "depth": 2.04401
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 17,
+          "z": 34,
+          "height": 0.22,
+          "rotation": 0,
+          "scale": 2.3042305000000005,
+          "bounds": {
+            "width": 1.2451633333333334,
+            "height": 0.22,
+            "depth": 0.9775700000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 20,
+          "z": 34,
+          "height": 0.33999999999999997,
+          "rotation": 0,
+          "scale": 3.5610835,
+          "bounds": {
+            "width": 1.9243433333333333,
+            "height": 0.33999999999999997,
+            "depth": 1.51079
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 23,
+          "z": 34,
+          "height": 0.45999999999999996,
+          "rotation": 0,
+          "scale": 4.8179365,
+          "bounds": {
+            "width": 2.6035233333333334,
+            "height": 0.45999999999999996,
+            "depth": 2.04401
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 26,
+          "z": 34,
+          "height": 0.22,
+          "rotation": 0,
+          "scale": 2.3042305000000005,
+          "bounds": {
+            "width": 1.2451633333333334,
+            "height": 0.22,
+            "depth": 0.9775700000000002
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 29,
+          "z": 34,
+          "height": 0.33999999999999997,
+          "rotation": 0,
+          "scale": 3.5610835,
+          "bounds": {
+            "width": 1.9243433333333333,
+            "height": 0.33999999999999997,
+            "depth": 1.51079
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pebble_Round_1",
+          "x": 32,
+          "z": 34,
+          "height": 0.45999999999999996,
+          "rotation": 0,
+          "scale": 4.8179365,
+          "bounds": {
+            "width": 2.6035233333333334,
+            "height": 0.45999999999999996,
+            "depth": 2.04401
+          },
+          "materialVariant": ""
+        }
+      ],
+      "ecologyPockets": [
+        {
+          "id": "waterside-bank-life",
+          "center": [
+            -23,
+            5
+          ],
+          "radius": [
+            7,
+            7
+          ],
+          "speciesIds": [
+            54,
+            79
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "waterside-nest",
+          "center": [
+            -20,
+            -14
+          ],
+          "radius": [
+            4,
+            4
+          ],
+          "speciesIds": [
+            7
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "waterside-tide-life",
+          "center": [
+            23,
+            31
+          ],
+          "radius": [
+            6,
+            4
+          ],
+          "speciesIds": [
+            86
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "waterside-marsh-life",
+          "center": [
+            -28,
+            -21
+          ],
+          "radius": [
+            8,
+            8
+          ],
+          "speciesIds": [
+            23,
+            24,
+            44,
+            49,
+            70,
+            88,
+            114
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "waterside-fishing",
+          "center": [
+            -7,
+            -15
+          ],
+          "radius": [
+            2.5,
+            5
+          ],
+          "speciesIds": [
+            60,
+            72,
+            118,
+            129,
+            90,
+            98,
+            116,
+            120
+          ],
+          "method": "fishing",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        }
+      ],
+      "waterBodies": [
+        {
+          "id": "waterside-estuary",
+          "kind": "water",
+          "surfaceY": 0.18,
+          "foam": true,
+          "flowSpeed": 0.65,
+          "polygon": [
+            [
+              -3,
+              35
+            ],
+            [
+              12,
+              35
+            ],
+            [
+              12,
+              15
+            ],
+            [
+              20,
+              4
+            ],
+            [
+              29,
+              -2
+            ],
+            [
+              30,
+              -19
+            ],
+            [
+              18,
+              -31
+            ],
+            [
+              -1,
+              -32
+            ],
+            [
+              -10,
+              -22
+            ],
+            [
+              -10,
+              -10
+            ],
+            [
+              -3,
+              0
+            ],
+            [
+              -3,
+              8
+            ]
+          ],
+          "holes": [
+            [
+              [
+                9,
+                -16
+              ],
+              [
+                13,
+                -19
+              ],
+              [
+                18,
+                -17
+              ],
+              [
+                20,
+                -12
+              ],
+              [
+                17,
+                -7
+              ],
+              [
+                11,
+                -7
+              ],
+              [
+                8,
+                -11
+              ]
+            ]
+          ],
+          "basin": {
+            "floorY": -1.7,
+            "shoreBlendWidth": 2.6
+          }
+        }
+      ],
+      "setpieces": [
+        {
+          "id": "waterside-cascade",
+          "kind": "waterfall-ribbon",
+          "from": [
+            0,
+            6.8,
+            -32
+          ],
+          "to": [
+            0,
+            0.18,
+            -27
+          ],
+          "width": 3.8,
+          "color": "#b9ecdf",
+          "mistBudget": 0
+        }
+      ],
+      "entrances": [
+        {
+          "to": "verdant",
+          "position": {
+            "x": -35,
+            "z": 28
+          },
+          "lookAt": {
+            "x": -18,
+            "z": 28
+          }
+        },
+        {
+          "to": "complex",
+          "position": {
+            "x": 34,
+            "z": -34
+          },
+          "lookAt": {
+            "x": 36,
+            "z": -20
+          }
+        }
+      ],
+      "specialBindings": [
+        {
+          "speciesId": 131,
+          "position": [
+            23,
+            21
+          ]
+        }
+      ],
+      "budget": {
+        "maxActiveWild": 8,
+        "ambientParticleBudget": 60
+      },
+      "digSites": [
+        {
+          "item": "old-amber",
+          "position": [
+            28,
+            25
+          ]
+        }
+      ],
+      "fishingPoint": {
+        "x": -14,
+        "z": -10
+      }
+    },
+    "highlands": {
+      "id": "highlands",
+      "name": {
+        "ko-KR": "달오름 산맥",
+        "en-US": "Moonrise Highlands"
+      },
+      "staged": false,
+      "playableBounds": {
+        "min": [
+          -44,
+          -44
+        ],
+        "max": [
+          44,
+          44
+        ]
+      },
+      "palette": {
+        "ground": "#777e76",
+        "path": "#b2a38a",
+        "canopy": "#64837a",
+        "accent": "#c6dceb",
+        "sky": "#abc5d8",
+        "fog": "#b5c9cd",
+        "ice": "#a9d5e1"
+      },
+      "safePoint": {
+        "id": "highlands-rest",
+        "position": {
+          "x": -22,
+          "z": 31
+        },
+        "radius": 4
+      },
+      "terrain": {
+        "baseAmplitude": 0,
+        "features": [],
+        "maximumWalkableSlope": 0.62,
+        "shelves": [
+          {
+            "polygon": [
+              [
+                -44,
+                -44
+              ],
+              [
+                44,
+                -44
+              ],
+              [
+                44,
+                12
+              ],
+              [
+                -44,
+                12
+              ]
+            ],
+            "height": 4
+          },
+          {
+            "polygon": [
+              [
+                22,
+                -44
+              ],
+              [
+                44,
+                -44
+              ],
+              [
+                44,
+                -18
+              ],
+              [
+                22,
+                -18
+              ]
+            ],
+            "height": 9
+          },
+          {
+            "polygon": [
+              [
+                -8,
+                1
+              ],
+              [
+                5,
+                1
+              ],
+              [
+                5,
+                9
+              ],
+              [
+                -8,
+                9
+              ]
+            ],
+            "height": -3
+          }
+        ],
+        "ramps": [
+          {
+            "points": [
+              [
+                -22,
+                28
+              ],
+              [
+                -22,
+                12
+              ]
+            ],
+            "width": 9,
+            "heights": [
+              0,
+              4
+            ]
+          },
+          {
+            "points": [
+              [
+                12,
+                -22
+              ],
+              [
+                24,
+                -34
+              ]
+            ],
+            "width": 8,
+            "heights": [
+              4,
+              9
+            ]
+          }
+        ]
+      },
+      "paths": [
+        {
+          "id": "highlands-main",
+          "points": [
+            [
+              -36,
+              32
+            ],
+            [
+              -22,
+              31
+            ],
+            [
+              -22,
+              28
+            ],
+            [
+              -22,
+              12
+            ],
+            [
+              -14,
+              5
+            ],
+            [
+              8,
+              5
+            ],
+            [
+              12,
+              0
+            ],
+            [
+              12,
+              -22
+            ],
+            [
+              24,
+              -34
+            ],
+            [
+              27,
+              -31
+            ]
+          ],
+          "width": 4,
+          "surface": "soil"
+        },
+        {
+          "id": "highlands-exit",
+          "points": [
+            [
+              8,
+              5
+            ],
+            [
+              28,
+              5
+            ],
+            [
+              37,
+              7
+            ]
+          ],
+          "width": 3.7,
+          "surface": "soil"
+        },
+        {
+          "id": "highlands-complex",
+          "points": [
+            [
+              12,
+              -21
+            ],
+            [
+              0,
+              -23
+            ],
+            [
+              -14,
+              -24
+            ],
+            [
+              -36,
+              -24
+            ]
+          ],
+          "width": 3.5,
+          "surface": "soil"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "highlands-ascent",
+          "rank": "major",
+          "nameKey": "highlands-ascent.name",
+          "descriptionKey": "highlands-ascent.description",
+          "name": {
+            "ko-KR": "달오름 오르막",
+            "en-US": "Moonrise Ascent"
+          },
+          "description": {
+            "ko-KR": "등반길을 올라 협곡의 돌다리로 향하세요. 급한 절벽은 걸어서 넘을 수 없어요.",
+            "en-US": "Climb the graded trail toward the ravine bridge. Steep cliffs cannot be crossed on foot."
+          },
+          "position": {
+            "x": -22,
+            "z": 22
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "highlands-ravine",
+          "rank": "major",
+          "nameKey": "highlands-ravine.name",
+          "descriptionKey": "highlands-ravine.description",
+          "name": {
+            "ko-KR": "메아리 협곡교",
+            "en-US": "Echo Ravine Bridge"
+          },
+          "description": {
+            "ko-KR": "좁은 다리 아래 깊은 협곡이 보입니다. 다리를 건너 동굴 입구를 찾아보세요.",
+            "en-US": "A deep ravine lies below the narrow bridge. Cross it to find the cave entrance."
+          },
+          "position": {
+            "x": -13,
+            "z": 5
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "highlands-cave",
+          "rank": "major",
+          "nameKey": "highlands-cave.name",
+          "descriptionKey": "highlands-cave.description",
+          "name": {
+            "ko-KR": "푸른 결정 회랑",
+            "en-US": "Blue Crystal Gallery"
+          },
+          "description": {
+            "ko-KR": "짧은 동굴을 통과하며 화석 지층과 결정빛 아래 둥지를 조사하세요.",
+            "en-US": "Explore the short cave for fossil beds and nests beneath the crystal light."
+          },
+          "position": {
+            "x": 12,
+            "z": -10
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "highlands-summit",
+          "rank": "major",
+          "nameKey": "highlands-summit.name",
+          "descriptionKey": "highlands-summit.description",
+          "name": {
+            "ko-KR": "서릿빛 정상",
+            "en-US": "Frostlight Summit"
+          },
+          "description": {
+            "ko-KR": "눈길을 따라 프리져의 성역에 도착했어요. 성역의 기척은80종 기록 뒤에 응답해요.",
+            "en-US": "Follow the snow trail to Articuno. The sanctuary responds after 80 records."
+          },
+          "position": {
+            "x": 26,
+            "z": -31
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        }
+      ],
+      "props": [
+        {
+          "rendererKey": "nature/bridge_wood",
+          "x": -1.5,
+          "z": 5,
+          "height": 2.3077,
+          "rotation": 0,
+          "scale": 5.769231,
+          "bounds": {
+            "width": 6.0048,
+            "height": 2.3077,
+            "depth": 6.0048
+          },
+          "materialVariant": "concrete",
+          "scaleXYZ": [
+            4,
+            1,
+            1
+          ],
+          "walkSurface": {
+            "kind": "bridge-deck",
+            "rotation": 1.5707963267948966,
+            "width": 3.2,
+            "length": 19.2,
+            "heightFraction": 0.5,
+            "rails": 2.25,
+            "approachBlendLength": 2
+          }
+        },
+        {
+          "rendererKey": "nature/cliff_cave_rock",
+          "x": 6,
+          "z": -2,
+          "height": 6,
+          "rotation": 0,
+          "scale": 6,
+          "bounds": {
+            "width": 6.043019999999999,
+            "height": 6,
+            "depth": 1.30962
+          },
+          "materialVariant": "basalt"
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": 9,
+          "z": -7,
+          "height": 1.8,
+          "rotation": 0,
+          "scale": 1.8073633500000001,
+          "bounds": {
+            "width": 1.9118025,
+            "height": 1.8,
+            "depth": 1.4386275000000002
+          },
+          "materialVariant": "crystal"
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": 15,
+          "z": -14,
+          "height": 1.4,
+          "rotation": 0,
+          "scale": 1.4057270499999999,
+          "bounds": {
+            "width": 1.4869575,
+            "height": 1.4,
+            "depth": 1.1189324999999999
+          },
+          "materialVariant": "crystal"
+        },
+        {
+          "rendererKey": "nature/rock_largeA",
+          "x": 32,
+          "z": -35,
+          "height": 3,
+          "rotation": 0,
+          "scale": 11.548412142857142,
+          "bounds": {
+            "width": 9.0645,
+            "height": 3,
+            "depth": 11.727
+          },
+          "materialVariant": "snow-stone",
+          "collision": {
+            "radius": 1
+          }
+        },
+        {
+          "rendererKey": "nature/sign",
+          "x": -25,
+          "z": 29,
+          "height": 1.5,
+          "rotation": 0,
+          "scale": 3.6695409090909097,
+          "bounds": {
+            "width": 1.113727272727273,
+            "height": 1.5,
+            "depth": 0.3192727272727273
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": -31,
+          "z": 33,
+          "height": 8,
+          "rotation": 0,
+          "scale": 1.082222,
+          "bounds": {
+            "width": 4.3979,
+            "height": 8,
+            "depth": 4.7611
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": -34,
+          "z": 21,
+          "height": 9,
+          "rotation": 1.7,
+          "scale": 1.21749975,
+          "bounds": {
+            "width": 4.9476375,
+            "height": 9,
+            "depth": 5.3562375
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": -31,
+          "z": 6,
+          "height": 10,
+          "rotation": 3.4,
+          "scale": 1.3527775,
+          "bounds": {
+            "width": 5.497375,
+            "height": 10,
+            "depth": 5.951375
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": -34,
+          "z": -10,
+          "height": 9,
+          "rotation": 5.1,
+          "scale": 1.21749975,
+          "bounds": {
+            "width": 4.9476375,
+            "height": 9,
+            "depth": 5.3562375
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": -26,
+          "z": -31,
+          "height": 11,
+          "rotation": 6.8,
+          "scale": 1.48805525,
+          "bounds": {
+            "width": 6.0471125,
+            "height": 11,
+            "depth": 6.5465124999999995
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": -11,
+          "z": -32,
+          "height": 8,
+          "rotation": 8.5,
+          "scale": 1.082222,
+          "bounds": {
+            "width": 4.3979,
+            "height": 8,
+            "depth": 4.7611
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": 27,
+          "z": 1,
+          "height": 8,
+          "rotation": 10.2,
+          "scale": 1.082222,
+          "bounds": {
+            "width": 4.3979,
+            "height": 8,
+            "depth": 4.7611
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_3",
+          "x": 34,
+          "z": -8,
+          "height": 9,
+          "rotation": 11.9,
+          "scale": 1.21749975,
+          "bounds": {
+            "width": 4.9476375,
+            "height": 9,
+            "depth": 5.3562375
+          },
+          "materialVariant": "forest-grove-deep",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_2",
+          "x": 26,
+          "z": -40,
+          "height": 9,
+          "rotation": 0,
+          "scale": 1.2201342352941178,
+          "bounds": {
+            "width": 7.701458823529412,
+            "height": 9,
+            "depth": 7.161458823529412
+          },
+          "materialVariant": "snow-pine",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_2",
+          "x": 35,
+          "z": -39,
+          "height": 10,
+          "rotation": 1.7,
+          "scale": 1.355704705882353,
+          "bounds": {
+            "width": 8.557176470588235,
+            "height": 10,
+            "depth": 7.9571764705882355
+          },
+          "materialVariant": "snow-pine",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/Pine_2",
+          "x": 41,
+          "z": -29,
+          "height": 9,
+          "rotation": 3.4,
+          "scale": 1.2201342352941178,
+          "bounds": {
+            "width": 7.701458823529412,
+            "height": 9,
+            "depth": 7.161458823529412
+          },
+          "materialVariant": "snow-pine",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "nature/rock_smallA",
+          "x": -25,
+          "z": -18,
+          "height": 1.6,
+          "rotation": 0,
+          "scale": 8.36715040431267,
+          "bounds": {
+            "width": 3.0188679245283025,
+            "height": 1.6,
+            "depth": 3.0188679245283025
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 0.7
+          }
+        },
+        {
+          "rendererKey": "nature/rock_tallA",
+          "x": 27,
+          "z": -16,
+          "height": 2.3,
+          "rotation": 0,
+          "scale": 2.309408642857143,
+          "bounds": {
+            "width": 2.442862857142857,
+            "height": 2.3,
+            "depth": 1.8382585714285713
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 0.8
+          }
+        }
+      ],
+      "ecologyPockets": [
+        {
+          "id": "highlands-rock-life",
+          "center": [
+            -30,
+            -3
+          ],
+          "radius": [
+            8,
+            8
+          ],
+          "speciesIds": [
+            27,
+            66,
+            74,
+            77,
+            95
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "highlands-starter-nests",
+          "center": [
+            -29,
+            -16
+          ],
+          "radius": [
+            5,
+            5
+          ],
+          "speciesIds": [
+            4,
+            35
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "highlands-cave-life",
+          "center": [
+            12,
+            -9
+          ],
+          "radius": [
+            3,
+            7
+          ],
+          "speciesIds": [
+            41,
+            50,
+            67,
+            75,
+            104,
+            111
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "highlands-cave-nest",
+          "center": [
+            12,
+            -15
+          ],
+          "radius": [
+            2,
+            2
+          ],
+          "speciesIds": [
+            63
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "highlands-snow-life",
+          "center": [
+            29,
+            -29
+          ],
+          "radius": [
+            5,
+            5
+          ],
+          "speciesIds": [
+            87,
+            124
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "highlands-snow-water",
+          "center": [
+            32.15,
+            -22.5
+          ],
+          "radius": [
+            1.4,
+            1.8
+          ],
+          "speciesIds": [
+            91,
+            117
+          ],
+          "method": "field",
+          "leashRadius": 2,
+          "conditions": {},
+          "count": [
+            1,
+            2
+          ]
+        }
+      ],
+      "waterBodies": [
+        {
+          "id": "highlands-summit-thaw",
+          "kind": "water",
+          "surfaceY": 9.02,
+          "foam": true,
+          "flowSpeed": 0.15,
+          "polygon": [
+            [
+              30.5,
+              -24.5
+            ],
+            [
+              33.8,
+              -24.5
+            ],
+            [
+              33.8,
+              -20.5
+            ],
+            [
+              30.5,
+              -20.5
+            ]
+          ],
+          "basin": {
+            "floorY": 8.5,
+            "shoreBlendWidth": 0.3
+          }
+        },
+        {
+          "id": "highlands-summit-ice",
+          "kind": "ice",
+          "surfaceY": 9.02,
+          "polygon": [
+            [
+              30,
+              -25
+            ],
+            [
+              39,
+              -25
+            ],
+            [
+              39,
+              -19
+            ],
+            [
+              30,
+              -19
+            ]
+          ],
+          "basin": {
+            "floorY": 8.9,
+            "shoreBlendWidth": 0.6
+          },
+          "holes": [
+            [
+              [
+                30.5,
+                -24.5
+              ],
+              [
+                33.8,
+                -24.5
+              ],
+              [
+                33.8,
+                -20.5
+              ],
+              [
+                30.5,
+                -20.5
+              ]
+            ]
+          ]
+        }
+      ],
+      "setpieces": [],
+      "entrances": [
+        {
+          "to": "verdant",
+          "position": {
+            "x": -36,
+            "z": 32
+          },
+          "lookAt": {
+            "x": -22,
+            "z": 28
+          }
+        },
+        {
+          "to": "caldera",
+          "position": {
+            "x": 37,
+            "z": 7
+          },
+          "lookAt": {
+            "x": 28,
+            "z": 5
+          }
+        },
+        {
+          "to": "complex",
+          "position": {
+            "x": -36,
+            "z": -24
+          },
+          "lookAt": {
+            "x": -14,
+            "z": -20
+          }
+        }
+      ],
+      "specialBindings": [
+        {
+          "speciesId": 144,
+          "position": [
+            30,
+            -31
+          ]
+        }
+      ],
+      "budget": {
+        "maxActiveWild": 8,
+        "ambientParticleBudget": 60
+      },
+      "digSites": [
+        {
+          "item": "dome-fossil",
+          "position": [
+            -28,
+            -20
+          ]
+        },
+        {
+          "item": "helix-fossil",
+          "position": [
+            14,
+            -13
+          ]
+        }
+      ],
+      "surfaceZones": [
+        {
+          "bounds": [
+            22,
+            -44,
+            44,
+            -18
+          ],
+          "color": "#d4e0e3"
+        }
+      ],
+      "structures": [
+        {
+          "id": "west-cliff",
+          "kind": "cliff",
+          "position": [
+            -35,
+            2,
+            12
+          ],
+          "size": [
+            18,
+            4,
+            0.8
+          ],
+          "color": "#687277"
+        },
+        {
+          "id": "east-cliff",
+          "kind": "cliff",
+          "position": [
+            14,
+            2,
+            12
+          ],
+          "size": [
+            60,
+            4,
+            0.8
+          ],
+          "color": "#687277"
+        },
+        {
+          "id": "ravine-north-face",
+          "kind": "cliff",
+          "position": [
+            -1.5,
+            0.5,
+            1
+          ],
+          "size": [
+            13,
+            7,
+            0.5
+          ],
+          "color": "#687277"
+        },
+        {
+          "id": "ravine-south-face",
+          "kind": "cliff",
+          "position": [
+            -1.5,
+            0.5,
+            9
+          ],
+          "size": [
+            13,
+            7,
+            0.5
+          ],
+          "color": "#687277"
+        },
+        {
+          "id": "ravine-bed",
+          "kind": "floor",
+          "position": [
+            -1.5,
+            -3.1,
+            5
+          ],
+          "size": [
+            13,
+            0.2,
+            8
+          ],
+          "color": "#3a4149"
+        },
+        {
+          "id": "cave-floor",
+          "kind": "floor",
+          "position": [
+            12,
+            3.95,
+            -9
+          ],
+          "size": [
+            11,
+            0.2,
+            20
+          ],
+          "color": "#777587"
+        },
+        {
+          "id": "cave-west-wall",
+          "kind": "wall",
+          "position": [
+            6.5,
+            6,
+            -9
+          ],
+          "size": [
+            1,
+            4,
+            20
+          ],
+          "color": "#555b6a"
+        },
+        {
+          "id": "cave-east-wall",
+          "kind": "wall",
+          "position": [
+            17.5,
+            6,
+            -9
+          ],
+          "size": [
+            1,
+            4,
+            20
+          ],
+          "color": "#555b6a"
+        },
+        {
+          "id": "cave-roof",
+          "kind": "roof",
+          "position": [
+            12,
+            8.5,
+            -9
+          ],
+          "size": [
+            12,
+            1,
+            20
+          ],
+          "color": "#666b76",
+          "cutawayZone": [
+            6,
+            -20,
+            18,
+            2
+          ]
+        },
+        {
+          "id": "summit-front",
+          "kind": "cliff",
+          "position": [
+            33,
+            6.5,
+            -18
+          ],
+          "size": [
+            22,
+            5,
+            0.7
+          ],
+          "color": "#8ea3ad"
+        },
+        {
+          "id": "summit-west-lower",
+          "kind": "cliff",
+          "position": [
+            22,
+            6.5,
+            -20
+          ],
+          "size": [
+            0.7,
+            5,
+            4
+          ],
+          "color": "#8ea3ad"
+        },
+        {
+          "id": "summit-west-upper",
+          "kind": "cliff",
+          "position": [
+            22,
+            6.5,
+            -39
+          ],
+          "size": [
+            0.7,
+            5,
+            10
+          ],
+          "color": "#8ea3ad"
+        }
+      ],
+      "localLights": [
+        {
+          "position": [
+            12,
+            6,
+            -5
+          ],
+          "color": "#9ba6ed",
+          "intensity": 8,
+          "distance": 12
+        },
+        {
+          "position": [
+            12,
+            6,
+            -15
+          ],
+          "color": "#b7dfea",
+          "intensity": 6,
+          "distance": 10
+        }
+      ]
+    },
+    "caldera": {
+      "id": "caldera",
+      "name": {
+        "ko-KR": "잿불 분화구",
+        "en-US": "Ember Caldera"
+      },
+      "staged": false,
+      "playableBounds": {
+        "min": [
+          -34,
+          -34
+        ],
+        "max": [
+          34,
+          34
+        ]
+      },
+      "palette": {
+        "ground": "#49413a",
+        "path": "#a58d75",
+        "canopy": "#4d4941",
+        "accent": "#e9aa73",
+        "sky": "#a69c92",
+        "fog": "#958477",
+        "lava": "#e7581c"
+      },
+      "safePoint": {
+        "id": "caldera-rest",
+        "position": {
+          "x": -22,
+          "z": 22
+        },
+        "radius": 4
+      },
+      "terrain": {
+        "baseAmplitude": 0.09,
+        "features": [
+          {
+            "shape": "mound",
+            "center": [
+              29,
+              -25
+            ],
+            "radius": [
+              12,
+              12
+            ],
+            "height": 2.5
+          }
+        ],
+        "maximumWalkableSlope": 0.62
+      },
+      "paths": [
+        {
+          "id": "caldera-main",
+          "points": [
+            [
+              -30,
+              25
+            ],
+            [
+              -22,
+              22
+            ],
+            [
+              -20,
+              12
+            ],
+            [
+              -15,
+              4
+            ],
+            [
+              -2.5,
+              4
+            ],
+            [
+              11,
+              4
+            ],
+            [
+              20,
+              -5
+            ],
+            [
+              20,
+              -16
+            ]
+          ],
+          "width": 4,
+          "surface": "soil"
+        },
+        {
+          "id": "caldera-west",
+          "points": [
+            [
+              -20,
+              12
+            ],
+            [
+              -21,
+              -1
+            ],
+            [
+              -21,
+              -16
+            ]
+          ],
+          "width": 3.5,
+          "surface": "soil"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "caldera-approach",
+          "rank": "major",
+          "nameKey": "caldera-approach.name",
+          "descriptionKey": "caldera-approach.description",
+          "name": {
+            "ko-KR": "그을린 쉼터",
+            "en-US": "Ashen Rest Stop"
+          },
+          "description": {
+            "ko-KR": "밝은 재가 쌓인 길을 따라 용암교로 향하세요.",
+            "en-US": "Follow the pale ash trail toward the lava bridge."
+          },
+          "position": {
+            "x": -22,
+            "z": 18
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "caldera-bridge",
+          "rank": "major",
+          "nameKey": "caldera-bridge.name",
+          "descriptionKey": "caldera-bridge.description",
+          "name": {
+            "ko-KR": "잿불 돌다리",
+            "en-US": "Ember Stone Bridge"
+          },
+          "description": {
+            "ko-KR": "용암은 수상 이동으로도 건널 수 없어요. 다리 위의 안전한 보행로를 이용하세요.",
+            "en-US": "Surf cannot cross lava. Stay on the safe bridge walkway."
+          },
+          "position": {
+            "x": -13,
+            "z": 4
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "caldera-sanctuary",
+          "rank": "major",
+          "nameKey": "caldera-sanctuary.name",
+          "descriptionKey": "caldera-sanctuary.description",
+          "name": {
+            "ko-KR": "불꽃 날개 성역",
+            "en-US": "Flamewing Sanctuary"
+          },
+          "description": {
+            "ko-KR": "100종의 기록이 모이면 파이어가 응답합니다. 쓰러뜨린 뒤에도 다시 도전할 수 있어요.",
+            "en-US": "Moltres responds after 100 records. You can challenge the sanctuary again."
+          },
+          "position": {
+            "x": 20,
+            "z": -16
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        }
+      ],
+      "props": [
+        {
+          "rendererKey": "nature/bridge_wood",
+          "x": -2.5,
+          "z": 4,
+          "height": 2.3077,
+          "rotation": 0,
+          "scale": 5.769231,
+          "bounds": {
+            "width": 6.0048,
+            "height": 2.3077,
+            "depth": 6.0048
+          },
+          "materialVariant": "basalt",
+          "scaleXYZ": [
+            4,
+            1,
+            1
+          ],
+          "walkSurface": {
+            "kind": "bridge-deck",
+            "rotation": 1.5707963267948966,
+            "width": 3.2,
+            "length": 19.2,
+            "heightFraction": 0.5,
+            "rails": 2.25,
+            "approachBlendLength": 3
+          }
+        },
+        {
+          "rendererKey": "nature/sign",
+          "x": -24,
+          "z": 19,
+          "height": 1.5,
+          "rotation": 0,
+          "scale": 3.6695409090909097,
+          "bounds": {
+            "width": 1.113727272727273,
+            "height": 1.5,
+            "depth": 0.3192727272727273
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "nature/rock_largeA",
+          "x": -28,
+          "z": 9,
+          "height": 4,
+          "rotation": 0,
+          "scale": 15.397882857142857,
+          "bounds": {
+            "width": 12.086,
+            "height": 4,
+            "depth": 15.636
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_tallA",
+          "x": -28,
+          "z": -7,
+          "height": 5,
+          "rotation": 1.3,
+          "scale": 5.020453571428572,
+          "bounds": {
+            "width": 5.3105714285714285,
+            "height": 5,
+            "depth": 3.9962142857142853
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_largeA",
+          "x": -27,
+          "z": -25,
+          "height": 6,
+          "rotation": 2.6,
+          "scale": 23.096824285714284,
+          "bounds": {
+            "width": 18.129,
+            "height": 6,
+            "depth": 23.454
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_tallA",
+          "x": -15,
+          "z": -30,
+          "height": 4,
+          "rotation": 3.9000000000000004,
+          "scale": 4.016362857142857,
+          "bounds": {
+            "width": 4.248457142857142,
+            "height": 4,
+            "depth": 3.196971428571428
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_largeA",
+          "x": 17,
+          "z": -28,
+          "height": 5,
+          "rotation": 5.2,
+          "scale": 19.247353571428572,
+          "bounds": {
+            "width": 15.107500000000002,
+            "height": 5,
+            "depth": 19.545
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_tallA",
+          "x": 29,
+          "z": -23,
+          "height": 6,
+          "rotation": 6.5,
+          "scale": 6.024544285714286,
+          "bounds": {
+            "width": 6.372685714285714,
+            "height": 6,
+            "depth": 4.795457142857142
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_largeA",
+          "x": 30,
+          "z": -7,
+          "height": 4,
+          "rotation": 7.800000000000001,
+          "scale": 15.397882857142857,
+          "bounds": {
+            "width": 12.086,
+            "height": 4,
+            "depth": 15.636
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_tallA",
+          "x": 27,
+          "z": 15,
+          "height": 5,
+          "rotation": 9.1,
+          "scale": 5.020453571428572,
+          "bounds": {
+            "width": 5.3105714285714285,
+            "height": 5,
+            "depth": 3.9962142857142853
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "nature/rock_largeA",
+          "x": 17,
+          "z": 26,
+          "height": 6,
+          "rotation": 10.4,
+          "scale": 23.096824285714284,
+          "bounds": {
+            "width": 18.129,
+            "height": 6,
+            "depth": 23.454
+          },
+          "materialVariant": "basalt",
+          "collision": {
+            "radius": 1.6
+          }
+        },
+        {
+          "rendererKey": "quaternius/DeadTree_1",
+          "x": -30,
+          "z": 29,
+          "height": 5,
+          "rotation": 0,
+          "scale": 0.526566,
+          "bounds": {
+            "width": 3.5769,
+            "height": 5,
+            "depth": 3.3929
+          },
+          "materialVariant": "charred",
+          "collision": {
+            "radius": 0.6
+          }
+        },
+        {
+          "rendererKey": "quaternius/DeadTree_1",
+          "x": -28,
+          "z": 17,
+          "height": 5,
+          "rotation": 1,
+          "scale": 0.526566,
+          "bounds": {
+            "width": 3.5769,
+            "height": 5,
+            "depth": 3.3929
+          },
+          "materialVariant": "charred",
+          "collision": {
+            "radius": 0.6
+          }
+        },
+        {
+          "rendererKey": "quaternius/DeadTree_1",
+          "x": -26,
+          "z": -19,
+          "height": 5,
+          "rotation": 2,
+          "scale": 0.526566,
+          "bounds": {
+            "width": 3.5769,
+            "height": 5,
+            "depth": 3.3929
+          },
+          "materialVariant": "charred",
+          "collision": {
+            "radius": 0.6
+          }
+        },
+        {
+          "rendererKey": "quaternius/DeadTree_1",
+          "x": 29,
+          "z": 3,
+          "height": 5,
+          "rotation": 3,
+          "scale": 0.526566,
+          "bounds": {
+            "width": 3.5769,
+            "height": 5,
+            "depth": 3.3929
+          },
+          "materialVariant": "charred",
+          "collision": {
+            "radius": 0.6
+          }
+        }
+      ],
+      "ecologyPockets": [
+        {
+          "id": "caldera-west-life",
+          "center": [
+            -23,
+            -10
+          ],
+          "radius": [
+            5,
+            8
+          ],
+          "speciesIds": [
+            37,
+            58,
+            78,
+            110
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "caldera-hot-nest",
+          "center": [
+            22,
+            12
+          ],
+          "radius": [
+            4,
+            4
+          ],
+          "speciesIds": [
+            126
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        }
+      ],
+      "waterBodies": [
+        {
+          "id": "caldera-flow",
+          "kind": "lava",
+          "surfaceY": 0.1,
+          "polygon": [
+            [
+              -8,
+              27
+            ],
+            [
+              5,
+              24
+            ],
+            [
+              5,
+              13
+            ],
+            [
+              7,
+              8
+            ],
+            [
+              5,
+              -6
+            ],
+            [
+              10,
+              -14
+            ],
+            [
+              7,
+              -29
+            ],
+            [
+              -6,
+              -30
+            ],
+            [
+              -10,
+              -18
+            ],
+            [
+              -9,
+              -3
+            ],
+            [
+              -10,
+              7
+            ]
+          ],
+          "basin": {
+            "floorY": -1.9,
+            "shoreBlendWidth": 1.5
+          }
+        }
+      ],
+      "setpieces": [],
+      "entrances": [
+        {
+          "to": "highlands",
+          "position": {
+            "x": -30,
+            "z": 25
+          },
+          "lookAt": {
+            "x": -22,
+            "z": 22
+          }
+        }
+      ],
+      "specialBindings": [
+        {
+          "speciesId": 146,
+          "position": [
+            20,
+            -17
+          ]
+        }
+      ],
+      "budget": {
+        "maxActiveWild": 8,
+        "ambientParticleBudget": 60
+      },
+      "digSites": [],
+      "ambient": {
+        "count": 48,
+        "bounds": [
+          -8,
+          -25,
+          5,
+          24
+        ],
+        "minY": 0.3,
+        "maxY": 5,
+        "color": "#ffb776",
+        "size": 0.07,
+        "velocity": 0.35
+      },
+      "localLights": [
+        {
+          "position": [
+            -3,
+            2,
+            -12
+          ],
+          "color": "#fa7738",
+          "intensity": 12,
+          "distance": 18
+        },
+        {
+          "position": [
+            0,
+            2,
+            16
+          ],
+          "color": "#fa7738",
+          "intensity": 9,
+          "distance": 15
+        }
+      ]
+    },
+    "complex": {
+      "id": "complex",
+      "name": {
+        "ko-KR": "폐허 연구단지",
+        "en-US": "Ruined Research Complex"
+      },
+      "staged": false,
+      "playableBounds": {
+        "min": [
+          -44,
+          -44
+        ],
+        "max": [
+          44,
+          44
+        ]
+      },
+      "palette": {
+        "ground": "#697a72",
+        "path": "#aeb1a0",
+        "canopy": "#657e72",
+        "accent": "#acd4d4",
+        "sky": "#a1bec7",
+        "fog": "#a4bcbb"
+      },
+      "safePoint": {
+        "id": "complex-rest",
+        "position": {
+          "x": -24,
+          "z": 28
+        },
+        "radius": 4
+      },
+      "terrain": {
+        "baseAmplitude": 0,
+        "features": [],
+        "maximumWalkableSlope": 0.62
+      },
+      "paths": [
+        {
+          "id": "complex-main",
+          "points": [
+            [
+              -37,
+              31
+            ],
+            [
+              -24,
+              28
+            ],
+            [
+              -20,
+              12
+            ],
+            [
+              0,
+              12
+            ],
+            [
+              22,
+              12
+            ],
+            [
+              26,
+              1
+            ]
+          ],
+          "width": 4.5,
+          "surface": "soil"
+        },
+        {
+          "id": "complex-lab-route",
+          "points": [
+            [
+              0,
+              12
+            ],
+            [
+              4,
+              3
+            ],
+            [
+              4,
+              -4
+            ]
+          ],
+          "width": 4,
+          "surface": "soil"
+        },
+        {
+          "id": "complex-mountain",
+          "points": [
+            [
+              -24,
+              28
+            ],
+            [
+              -34,
+              17
+            ],
+            [
+              -36,
+              -23
+            ]
+          ],
+          "width": 3.5,
+          "surface": "soil"
+        },
+        {
+          "id": "complex-interior",
+          "points": [
+            [
+              4,
+              -4
+            ],
+            [
+              4,
+              -9
+            ],
+            [
+              4,
+              -14
+            ],
+            [
+              6,
+              -18
+            ],
+            [
+              6,
+              -22
+            ],
+            [
+              6,
+              -29
+            ]
+          ],
+          "width": 4,
+          "surface": "soil"
+        }
+      ],
+      "landmarks": [
+        {
+          "id": "complex-courtyard",
+          "rank": "major",
+          "nameKey": "complex-courtyard.name",
+          "descriptionKey": "complex-courtyard.description",
+          "name": {
+            "ko-KR": "기억의 안뜰",
+            "en-US": "Courtyard of Memories"
+          },
+          "description": {
+            "ko-KR": "무너진 담장 안에 세 기억의 돌이 남아 있습니다. 동쪽에는 발전 구획이 이어져요.",
+            "en-US": "Three memory stones remain inside the ruined walls. The power section lies to the east."
+          },
+          "position": {
+            "x": -20,
+            "z": 12
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "complex-generator",
+          "rank": "major",
+          "nameKey": "complex-generator.name",
+          "descriptionKey": "complex-generator.description",
+          "name": {
+            "ko-KR": "끊어진 발전 회로",
+            "en-US": "Broken Generator Circuit"
+          },
+          "description": {
+            "ko-KR": "전기 포켓몬의 서식지를 조사하고 북쪽 피뢰 성역을 찾아보세요.",
+            "en-US": "Investigate electric Pokemon habitats and the lightning sanctuary to the north."
+          },
+          "position": {
+            "x": 22,
+            "z": 12
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "complex-lab",
+          "rank": "major",
+          "nameKey": "complex-lab.name",
+          "descriptionKey": "complex-lab.description",
+          "name": {
+            "ko-KR": "생명 연구실",
+            "en-US": "Life Research Room"
+          },
+          "description": {
+            "ko-KR": "100종의 연구 기록으로 연구실 출입 권한을 얻을 수 있어요.",
+            "en-US": "100 research records grant access to the laboratory."
+          },
+          "position": {
+            "x": 4,
+            "z": -14
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        },
+        {
+          "id": "complex-containment",
+          "rank": "major",
+          "nameKey": "complex-containment.name",
+          "descriptionKey": "complex-containment.description",
+          "name": {
+            "ko-KR": "심층 격리실",
+            "en-US": "Deep Containment Chamber"
+          },
+          "description": {
+            "ko-KR": "세 전설의 새와120종의 기록이 격리실의 실험을 깨웁니다.",
+            "en-US": "Three legendary birds and 120 records awaken the containment experiment."
+          },
+          "position": {
+            "x": 6,
+            "z": -29
+          },
+          "discoveryRadius": 5,
+          "reward": {
+            "type": "research-token",
+            "amount": 1
+          }
+        }
+      ],
+      "props": [
+        {
+          "rendererKey": "nature/statue_column",
+          "x": -26,
+          "z": 6,
+          "height": 3.8,
+          "rotation": 0,
+          "scale": 3.8,
+          "bounds": {
+            "width": 1.14,
+            "height": 3.8,
+            "depth": 1.14
+          },
+          "materialVariant": "bleached",
+          "collision": {
+            "radius": 1
+          }
+        },
+        {
+          "rendererKey": "nature/statue_column",
+          "x": -15,
+          "z": 3,
+          "height": 2.7,
+          "rotation": 0.2,
+          "scale": 2.7,
+          "bounds": {
+            "width": 0.81,
+            "height": 2.7,
+            "depth": 0.81
+          },
+          "materialVariant": "bleached",
+          "collision": {
+            "radius": 0.9
+          }
+        },
+        {
+          "rendererKey": "survival/structure-metal",
+          "x": 19,
+          "z": 17,
+          "height": 3,
+          "rotation": 0,
+          "scale": 6,
+          "bounds": {
+            "width": 3.2125961538461536,
+            "height": 3,
+            "depth": 3.2125961538461536
+          },
+          "materialVariant": "conductor-metal",
+          "collision": {
+            "radius": 1.4
+          }
+        },
+        {
+          "rendererKey": "survival/structure-metal",
+          "x": 28,
+          "z": 15,
+          "height": 2.7,
+          "rotation": 0,
+          "scale": 5.4,
+          "bounds": {
+            "width": 2.891336538461539,
+            "height": 2.7,
+            "depth": 2.891336538461539
+          },
+          "materialVariant": "conductor-metal",
+          "collision": {
+            "radius": 1.3
+          }
+        },
+        {
+          "rendererKey": "survival/barrel",
+          "x": 28,
+          "z": 9,
+          "height": 1.4,
+          "rotation": 0,
+          "scale": 4.069767578947368,
+          "bounds": {
+            "width": 0.9624631578947368,
+            "height": 1.4,
+            "depth": 0.9624631578947368
+          },
+          "materialVariant": "conductor-metal"
+        },
+        {
+          "rendererKey": "survival/workbench",
+          "x": 17,
+          "z": 10,
+          "height": 1.4,
+          "rotation": 0,
+          "scale": 4.885015692307692,
+          "bounds": {
+            "width": 1.5908307692307693,
+            "height": 1.4,
+            "depth": 1.4442615384615383
+          },
+          "materialVariant": "sterile-control"
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": 31,
+          "z": -2,
+          "height": 5.5,
+          "rotation": 0,
+          "scale": 5.522499125,
+          "bounds": {
+            "width": 5.84161875,
+            "height": 5.5,
+            "depth": 4.395806250000001
+          },
+          "materialVariant": "crystal",
+          "collision": {
+            "radius": 1.5
+          }
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": 21,
+          "z": -3,
+          "height": 4,
+          "rotation": 0,
+          "scale": 4.016363,
+          "bounds": {
+            "width": 4.24845,
+            "height": 4,
+            "depth": 3.19695
+          },
+          "materialVariant": "conductor-metal",
+          "collision": {
+            "radius": 1.2
+          }
+        },
+        {
+          "rendererKey": "nature/sign",
+          "x": -22,
+          "z": 24,
+          "height": 1.5,
+          "rotation": 0,
+          "scale": 3.6695409090909097,
+          "bounds": {
+            "width": 1.113727272727273,
+            "height": 1.5,
+            "depth": 0.3192727272727273
+          },
+          "materialVariant": ""
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": -39,
+          "z": 37,
+          "height": 10,
+          "rotation": 0,
+          "bounds": {
+            "width": 6,
+            "height": 10,
+            "depth": 6
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": -40,
+          "z": 8,
+          "height": 11,
+          "rotation": 1.7,
+          "bounds": {
+            "width": 6.6,
+            "height": 11,
+            "depth": 6.6
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": -40,
+          "z": -11,
+          "height": 12,
+          "rotation": 3.4,
+          "bounds": {
+            "width": 7.199999999999999,
+            "height": 12,
+            "depth": 7.199999999999999
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": -28,
+          "z": -30,
+          "height": 11,
+          "rotation": 5.1,
+          "bounds": {
+            "width": 6.6,
+            "height": 11,
+            "depth": 6.6
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": 29,
+          "z": -30,
+          "height": 10,
+          "rotation": 6.8,
+          "bounds": {
+            "width": 6,
+            "height": 10,
+            "depth": 6
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": 37,
+          "z": -18,
+          "height": 10,
+          "rotation": 8.5,
+          "bounds": {
+            "width": 6,
+            "height": 10,
+            "depth": 6
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": 38,
+          "z": 7,
+          "height": 9,
+          "rotation": 10.2,
+          "bounds": {
+            "width": 5.3999999999999995,
+            "height": 9,
+            "depth": 5.3999999999999995
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": 36,
+          "z": 28,
+          "height": 10,
+          "rotation": 11.9,
+          "bounds": {
+            "width": 6,
+            "height": 10,
+            "depth": 6
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "quaternius/TwistedTree_2",
+          "x": -6,
+          "z": 34,
+          "height": 9,
+          "rotation": 13.6,
+          "bounds": {
+            "width": 5.3999999999999995,
+            "height": 9,
+            "depth": 5.3999999999999995
+          },
+          "materialVariant": "ruins-canopy",
+          "collision": {
+            "radius": 0.75
+          },
+          "castShadow": true
+        },
+        {
+          "rendererKey": "survival/workbench",
+          "x": -3,
+          "z": -12,
+          "height": 1.4,
+          "rotation": 0,
+          "scale": 4.885015692307692,
+          "bounds": {
+            "width": 1.5908307692307693,
+            "height": 1.4,
+            "depth": 1.4442615384615383
+          },
+          "materialVariant": "sterile-control",
+          "y": 0.1
+        },
+        {
+          "rendererKey": "survival/chest",
+          "x": -4,
+          "z": -9,
+          "height": 0.7,
+          "rotation": 0,
+          "scale": 2.7217070999999997,
+          "bounds": {
+            "width": 0.7087499999999999,
+            "height": 0.7,
+            "depth": 0.74039
+          },
+          "materialVariant": "",
+          "y": 0.1
+        },
+        {
+          "rendererKey": "survival/barrel",
+          "x": 17,
+          "z": -9,
+          "height": 1.1,
+          "rotation": 0,
+          "scale": 3.1976745263157897,
+          "bounds": {
+            "width": 0.756221052631579,
+            "height": 1.1,
+            "depth": 0.756221052631579
+          },
+          "materialVariant": "sterile-control",
+          "y": 0.1
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": -3,
+          "z": -28,
+          "height": 3,
+          "rotation": 0,
+          "scale": 3.01227225,
+          "bounds": {
+            "width": 3.1863375,
+            "height": 3,
+            "depth": 2.3977125
+          },
+          "materialVariant": "containment-pylon",
+          "y": 0.1,
+          "collision": {
+            "radius": 0.75
+          }
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": 15,
+          "z": -28,
+          "height": 3,
+          "rotation": 0,
+          "scale": 3.01227225,
+          "bounds": {
+            "width": 3.1863375,
+            "height": 3,
+            "depth": 2.3977125
+          },
+          "materialVariant": "containment-pylon",
+          "y": 0.1,
+          "collision": {
+            "radius": 0.75
+          }
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": -3,
+          "z": -36,
+          "height": 3,
+          "rotation": 0,
+          "scale": 3.01227225,
+          "bounds": {
+            "width": 3.1863375,
+            "height": 3,
+            "depth": 2.3977125
+          },
+          "materialVariant": "containment-pylon",
+          "y": 0.1,
+          "collision": {
+            "radius": 0.75
+          }
+        },
+        {
+          "rendererKey": "nature/stone_tallA",
+          "x": 15,
+          "z": -36,
+          "height": 3,
+          "rotation": 0,
+          "scale": 3.01227225,
+          "bounds": {
+            "width": 3.1863375,
+            "height": 3,
+            "depth": 2.3977125
+          },
+          "materialVariant": "containment-pylon",
+          "y": 0.1,
+          "collision": {
+            "radius": 0.75
+          }
+        }
+      ],
+      "ecologyPockets": [
+        {
+          "id": "complex-ghost-life",
+          "center": [
+            -20,
+            11
+          ],
+          "radius": [
+            7,
+            7
+          ],
+          "speciesIds": [
+            92,
+            93,
+            96,
+            97
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "complex-memory-nest",
+          "center": [
+            -18,
+            5
+          ],
+          "radius": [
+            3,
+            3
+          ],
+          "speciesIds": [
+            122
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "complex-electric-life",
+          "center": [
+            23,
+            19
+          ],
+          "radius": [
+            7,
+            5
+          ],
+          "speciesIds": [
+            81,
+            82,
+            100,
+            101,
+            109
+          ],
+          "method": "field",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "complex-electric-nest",
+          "center": [
+            28,
+            22
+          ],
+          "radius": [
+            3,
+            3
+          ],
+          "speciesIds": [
+            125
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "id": "complex-lab-anomaly",
+          "center": [
+            -2,
+            -17
+          ],
+          "radius": [
+            2,
+            2
+          ],
+          "speciesIds": [
+            132
+          ],
+          "method": "nest",
+          "leashRadius": 7,
+          "conditions": {},
+          "count": [
+            1,
+            3
+          ],
+          "indoor": true
+        }
+      ],
+      "waterBodies": [],
+      "setpieces": [
+        {
+          "kind": "rune-interactions",
+          "positions": [
+            [
+              -25,
+              10
+            ],
+            [
+              -20,
+              4
+            ],
+            [
+              -15,
+              10
+            ]
+          ]
+        },
+        {
+          "kind": "containment-ring",
+          "position": [
+            6,
+            -31
+          ],
+          "radius": 6,
+          "color": "#b1b6df"
+        }
+      ],
+      "entrances": [
+        {
+          "to": "waterside",
+          "position": {
+            "x": -37,
+            "z": 31
+          },
+          "lookAt": {
+            "x": -24,
+            "z": 28
+          }
+        },
+        {
+          "to": "highlands",
+          "position": {
+            "x": -36,
+            "z": -23
+          },
+          "lookAt": {
+            "x": -34,
+            "z": 5
+          }
+        }
+      ],
+      "specialBindings": [
+        {
+          "speciesId": 151,
+          "position": [
+            -20,
+            7
+          ]
+        },
+        {
+          "speciesId": 145,
+          "position": [
+            26,
+            0
+          ]
+        },
+        {
+          "speciesId": 137,
+          "position": [
+            12,
+            -13
+          ]
+        },
+        {
+          "speciesId": 150,
+          "position": [
+            6,
+            -33
+          ]
+        }
+      ],
+      "budget": {
+        "maxActiveWild": 8,
+        "ambientParticleBudget": 60
+      },
+      "digSites": [],
+      "interiorPending": false,
+      "pendingSpecies": [],
+      "structures": [
+        {
+          "id": "courtyard-west",
+          "kind": "wall",
+          "position": [
+            -30,
+            1.5,
+            9
+          ],
+          "size": [
+            0.8,
+            3,
+            17
+          ],
+          "color": "#777f78"
+        },
+        {
+          "id": "courtyard-north",
+          "kind": "wall",
+          "position": [
+            -22,
+            1.2,
+            0
+          ],
+          "size": [
+            16,
+            2.4,
+            0.8
+          ],
+          "color": "#777f78"
+        },
+        {
+          "id": "courtyard-broken",
+          "kind": "wall",
+          "position": [
+            -11,
+            1,
+            18
+          ],
+          "size": [
+            5,
+            2,
+            0.9
+          ],
+          "color": "#777f78"
+        },
+        {
+          "id": "generator-base",
+          "kind": "floor",
+          "position": [
+            23,
+            0.05,
+            13
+          ],
+          "size": [
+            17,
+            0.1,
+            13
+          ],
+          "color": "#879492"
+        },
+        {
+          "id": "lab-west",
+          "kind": "wall",
+          "position": [
+            -8,
+            2.5,
+            -23
+          ],
+          "size": [
+            1,
+            5,
+            34
+          ],
+          "color": "#657c83"
+        },
+        {
+          "id": "lab-east",
+          "kind": "wall",
+          "position": [
+            20,
+            2.5,
+            -23
+          ],
+          "size": [
+            1,
+            5,
+            34
+          ],
+          "color": "#657c83"
+        },
+        {
+          "id": "lab-north",
+          "kind": "wall",
+          "position": [
+            6,
+            2.5,
+            -40
+          ],
+          "size": [
+            28,
+            5,
+            1
+          ],
+          "color": "#657c83"
+        },
+        {
+          "id": "lab-front-left",
+          "kind": "wall",
+          "position": [
+            -3,
+            2.5,
+            -6
+          ],
+          "size": [
+            10,
+            5,
+            1
+          ],
+          "color": "#7f969b"
+        },
+        {
+          "id": "lab-front-right",
+          "kind": "wall",
+          "position": [
+            13,
+            2.5,
+            -6
+          ],
+          "size": [
+            14,
+            5,
+            1
+          ],
+          "color": "#7f969b"
+        },
+        {
+          "id": "lab-shell-roof",
+          "kind": "roof",
+          "position": [
+            6,
+            5.2,
+            -23
+          ],
+          "size": [
+            29,
+            0.4,
+            35
+          ],
+          "color": "#586f78",
+          "cutawayZone": [
+            -8,
+            -40,
+            20,
+            -6
+          ]
+        },
+        {
+          "id": "complex-lab-door",
+          "kind": "door",
+          "position": [
+            4,
+            2,
+            -6
+          ],
+          "size": [
+            4,
+            4,
+            0.6
+          ],
+          "color": "#385e69",
+          "requirements": {
+            "caughtCount": 100
+          },
+          "pending": false,
+          "allowLegacyLab": true
+        },
+        {
+          "id": "generator-housing-a",
+          "kind": "decor",
+          "position": [
+            19,
+            1.2,
+            17
+          ],
+          "size": [
+            2.1,
+            2.2,
+            2.1
+          ],
+          "color": "#586d73",
+          "metalness": 0.6
+        },
+        {
+          "id": "generator-housing-b",
+          "kind": "decor",
+          "position": [
+            28,
+            1,
+            15
+          ],
+          "size": [
+            2,
+            1.8,
+            2
+          ],
+          "color": "#526469",
+          "metalness": 0.6,
+          "rotation": 0.2
+        },
+        {
+          "id": "broken-conduit",
+          "kind": "decor",
+          "position": [
+            23,
+            0.6,
+            17
+          ],
+          "size": [
+            5.5,
+            0.3,
+            0.35
+          ],
+          "color": "#9a7962",
+          "metalness": 0.5
+        },
+        {
+          "id": "control-strip",
+          "kind": "decor",
+          "position": [
+            19,
+            1.6,
+            15.9
+          ],
+          "size": [
+            1.4,
+            0.3,
+            0.08
+          ],
+          "color": "#aadbd3"
+        },
+        {
+          "id": "research-floor",
+          "kind": "floor",
+          "position": [
+            6,
+            0,
+            -13
+          ],
+          "size": [
+            26,
+            0.2,
+            14
+          ],
+          "color": "#a1b4b9",
+          "roughness": 0.65
+        },
+        {
+          "id": "corridor-floor",
+          "kind": "floor",
+          "position": [
+            6,
+            0,
+            -22
+          ],
+          "size": [
+            8,
+            0.2,
+            4
+          ],
+          "color": "#7e969f"
+        },
+        {
+          "id": "containment-floor",
+          "kind": "floor",
+          "position": [
+            6,
+            0,
+            -31.5
+          ],
+          "size": [
+            26,
+            0.2,
+            15
+          ],
+          "color": "#657f8d"
+        },
+        {
+          "id": "research-partition-left",
+          "kind": "wall",
+          "position": [
+            -3,
+            2,
+            -20
+          ],
+          "size": [
+            10,
+            4,
+            0.6
+          ],
+          "color": "#708892"
+        },
+        {
+          "id": "research-partition-right",
+          "kind": "wall",
+          "position": [
+            15,
+            2,
+            -20
+          ],
+          "size": [
+            10,
+            4,
+            0.6
+          ],
+          "color": "#708892"
+        },
+        {
+          "id": "corridor-left",
+          "kind": "wall",
+          "position": [
+            2,
+            2,
+            -22
+          ],
+          "size": [
+            0.6,
+            4,
+            4
+          ],
+          "color": "#708892"
+        },
+        {
+          "id": "corridor-right",
+          "kind": "wall",
+          "position": [
+            10,
+            2,
+            -22
+          ],
+          "size": [
+            0.6,
+            4,
+            4
+          ],
+          "color": "#708892"
+        },
+        {
+          "id": "arena-divider-left",
+          "kind": "wall",
+          "position": [
+            -3,
+            2,
+            -24
+          ],
+          "size": [
+            10,
+            4,
+            0.6
+          ],
+          "color": "#708892"
+        },
+        {
+          "id": "arena-divider-right",
+          "kind": "wall",
+          "position": [
+            15,
+            2,
+            -24
+          ],
+          "size": [
+            10,
+            4,
+            0.6
+          ],
+          "color": "#708892"
+        },
+        {
+          "id": "research-console",
+          "kind": "wall",
+          "position": [
+            15,
+            0.7,
+            -13
+          ],
+          "size": [
+            3,
+            1.2,
+            1.5
+          ],
+          "color": "#466673",
+          "metalness": 0.5
+        },
+        {
+          "id": "console-screen",
+          "kind": "decor",
+          "position": [
+            15,
+            1.4,
+            -13.2
+          ],
+          "size": [
+            2,
+            0.1,
+            0.8
+          ],
+          "color": "#a4d9d6"
+        },
+        {
+          "id": "lab-front-lintel",
+          "kind": "decor",
+          "position": [
+            4,
+            4.5,
+            -6
+          ],
+          "size": [
+            4,
+            1,
+            0.8
+          ],
+          "color": "#a0b8c0"
+        }
+      ],
+      "labDoor": {
+        "id": "complex-lab-door",
+        "position": [
+          4,
+          -6
+        ],
+        "interaction": [
+          4,
+          -4
+        ],
+        "outside": [
+          4,
+          -3
+        ],
+        "inside": [
+          4,
+          -9
+        ],
+        "requirements": {
+          "caughtCount": 100
+        },
+        "pending": false,
+        "allowLegacyLab": true
+      },
+      "localLights": [
+        {
+          "position": [
+            24,
+            3,
+            11
+          ],
+          "color": "#86b9e5",
+          "intensity": 6,
+          "distance": 12
+        },
+        {
+          "position": [
+            4,
+            3,
+            -12
+          ],
+          "color": "#b8e7ec",
+          "intensity": 10,
+          "distance": 17
+        },
+        {
+          "position": [
+            6,
+            3,
+            -22
+          ],
+          "color": "#85bad8",
+          "intensity": 5,
+          "distance": 10
+        },
+        {
+          "position": [
+            6,
+            3,
+            -31
+          ],
+          "color": "#ae9ad7",
+          "intensity": 12,
+          "distance": 17
+        }
+      ]
+    }
+  },
+  "worldId": "kanto-five-v1"
+}

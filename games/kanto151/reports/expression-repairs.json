@@ -1,0 +1,90 @@
+{
+  "rawSourceChanged": false,
+  "interpretation": "Neutral zero for malformed NaN offsets; correct ath.sin function typo; insert implied multiplication only where operator omitted. Riding query inputs are neutral outside corresponding browser movement controls.",
+  "repairs": [
+    {
+      "file": "bedrock/pokemon/animations/0003_venusaur/venusaur.animation.json",
+      "location": "root.animations.animation.venusaur.sleep.bones.leg_front_left.position[0]",
+      "original": "NaN-math.sin(q.anim_time*90*1-45)*0.05",
+      "interpreted": "0-math.sin(q.anim_time*90*1-45)*0.05"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0006_charizard/charizard.animation.json",
+      "location": "root.animations.animation.charizard.ride_air_fly.bones.forearm_right.rotation[2]",
+      "original": "30-12.5*q.r.pitch_change(0)30*(-1*q.r.yaw_change(0))",
+      "interpreted": "30-12.5*q.r.pitch_change(0)*30*(-1*q.r.yaw_change(0))"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0018_pidgeot/pidgeot.animation.json",
+      "location": "root.animations.animation.pidgeot.ride_air_fly.bones.head.rotation[0]",
+      "original": "-math.clamp(q.r.pitch_change(0),0,1)*5math.clamp(q.r.pitch_change(0),-1,0)*20-math.clamp(q.r.input_forward(5),-1,0)*30",
+      "interpreted": "-math.clamp(q.r.pitch_change(0),0,1)*5*math.clamp(q.r.pitch_change(0),-1,0)*20-math.clamp(q.r.input_forward(5),-1,0)*30"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0018_pidgeot/pidgeot.animation.json",
+      "location": "root.animations.animation.pidgeot.ride_air_glide.bones.head.rotation[0]",
+      "original": "-math.clamp(q.r.pitch_change(0),0,1)*5math.clamp(q.r.pitch_change(0),-1,0)*20-math.clamp(q.r.input_forward(5),-1,0)*30",
+      "interpreted": "-math.clamp(q.r.pitch_change(0),0,1)*5*math.clamp(q.r.pitch_change(0),-1,0)*20-math.clamp(q.r.input_forward(5),-1,0)*30"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0029_nidoranf/nidoranf.animation.json",
+      "location": "root.animations.animation.nidoranf.shoulder_right.bones.ear_right.rotation[1]",
+      "original": "NaN-math.cos(q.anim_time*90*4-210)*3",
+      "interpreted": "0-math.cos(q.anim_time*90*4-210)*3"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0029_nidoranf/nidoranf.animation.json",
+      "location": "root.animations.animation.nidoranf.shoulder_right.bones.whisker_top_right.rotation[2]",
+      "original": "NaN-math.sin(q.anim_time*90*4-210)*2",
+      "interpreted": "0-math.sin(q.anim_time*90*4-210)*2"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0029_nidoranf/nidoranf.animation.json",
+      "location": "root.animations.animation.nidoranf.shoulder_right.bones.whisker_bottom_right.rotation[2]",
+      "original": "NaN-math.sin(q.anim_time*90*4-180)*2",
+      "interpreted": "0-math.sin(q.anim_time*90*4-180)*2"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0032_nidoranm/nidoranm.animation.json",
+      "location": "root.animations.animation.nidoranm.shoulder_right.bones.torso.rotation[2]",
+      "original": "NaN-math.sin(q.anim_time*90*2-90)",
+      "interpreted": "0-math.sin(q.anim_time*90*2-90)"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0032_nidoranm/nidoranm.animation.json",
+      "location": "root.animations.animation.nidoranm.shoulder_right.bones.head.rotation[2]",
+      "original": "NaN-math.sin(q.anim_time*90*2-150)",
+      "interpreted": "0-math.sin(q.anim_time*90*2-150)"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0032_nidoranm/nidoranm.animation.json",
+      "location": "root.animations.animation.nidoranm.shoulder_right.bones.ear_right.rotation[2]",
+      "original": "NaN-math.sin(q.anim_time*90*4-120)*3",
+      "interpreted": "0-math.sin(q.anim_time*90*4-120)*3"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0063_abra/abra.animation.json",
+      "location": "root.animations.animation.abra.cry.bones.ear_left.rotation.0.1667[1]",
+      "original": "NaN-(math.random(0,10))",
+      "interpreted": "0-(math.random(0,10))"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0096_drowzee/drowzee.animation.json",
+      "location": "root.animations.animation.drowzee.ground_run.bones.arm_left.rotation.0.5[0]",
+      "original": "-18.4733+ath.sin(q.anim_time*90*4+75)*20",
+      "interpreted": "-18.4733+math.sin(q.anim_time*90*4+75)*20"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0128_tauros/tauros_paldean_aqua.animation.json",
+      "location": "root.animations.animation.tauros_paldean_aqua.ground_run.bones.tail_right.rotation[1]",
+      "original": "NaN-math.sin(q.anim_time*90*2-33*3+180)*1+5",
+      "interpreted": "0-math.sin(q.anim_time*90*2-33*3+180)*1+5"
+    },
+    {
+      "file": "bedrock/pokemon/animations/0128_tauros/tauros_paldean_blaze.animation.json",
+      "location": "root.animations.animation.tauros_paldean_blaze.ride_jump.bones.mane_right.rotation[1]",
+      "original": "NaN-math.sin(q.anim_time*90*20-180)*2",
+      "interpreted": "0-math.sin(q.anim_time*90*20-180)*2"
+    }
+  ]
+}

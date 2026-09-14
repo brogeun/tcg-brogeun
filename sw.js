@@ -48,7 +48,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
 
   // Game modules must come from the same release, not stale-while-revalidate mixtures.
-  if (url.origin === location.origin && url.pathname.startsWith('/games/volleyball/')) {
+  if (url.origin === location.origin && (url.pathname.startsWith('/games/volleyball/') || url.pathname.startsWith('/games/kanto151/'))) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }

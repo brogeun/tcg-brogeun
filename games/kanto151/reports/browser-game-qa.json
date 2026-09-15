@@ -1,0 +1,2527 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "startedAt": "2026-09-13T15:56:39.301Z",
+  "fixtures": [
+    "Contact/asset fixtures now move obligate swimmers to actual water and place the test player on a nearby legal surf/land tile. Species habitat availability and movement are independently checked by the nine-request geometry suite.",
+    "The child page is explicitly qa=1; execution requires qaMode=true, reset newSave, and isolated in-memory persistence supplied by Game.",
+    "Automatic gameplay simulation is paused with panel=qa-controller. The harness advances Game.step in 0.05-second increments; the actual renderer and UI loop remain active.",
+    "Encounter RNG results are seeded by setting capture.success after a real throw. Capture flight, transition, shakes, registration and cleanup still execute normally.",
+    "Progression counts/items/boss prerequisites are seeded to test each gate independently. Player level/HP and encounter positions are seeded to keep combat bounded.",
+    "The 151-species pass spawns each real model, casts its authored basic action, verifies damage, switches its real normal/shiny texture, and runs a physical capture. This is not natural acquisition-path playthrough evidence.",
+    "Capture UI is exercised before the bulk pass. Bulk capture previews are counted instead of opening 151 extra WebGL contexts; bulk core capture/registration and completion presentation still run.",
+    "No persistent browser storage or save export is used. Game-internal writes go only to the QA memory adapter."
+  ],
+  "tests": [
+    {
+      "name": "Default release builds only five finished authored regions",
+      "passed": true,
+      "milliseconds": 0
+    },
+    {
+      "name": "Starter #1 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 2062,
+      "details": {
+        "meshes": 37,
+        "size": [
+          0.9904128486996114,
+          1.2644914504991691,
+          1.4953820399116644
+        ]
+      }
+    },
+    {
+      "name": "Starter #4 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 1537,
+      "details": {
+        "meshes": 52,
+        "size": [
+          1.4435310756643207,
+          1.6807669965705574,
+          2.072404976497751
+        ]
+      }
+    },
+    {
+      "name": "Starter #7 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 2574,
+      "details": {
+        "meshes": 21,
+        "size": [
+          1.5294541083928697,
+          1.5189422652539735,
+          1.4117009075341542
+        ]
+      }
+    },
+    {
+      "name": "Starter #25 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 2031,
+      "details": {
+        "meshes": 104,
+        "size": [
+          1.777616819236305,
+          2.2229167529503147,
+          1.9232141359598884
+        ]
+      }
+    },
+    {
+      "name": "All 14 legacy region saves migrate into the five actual safe entries without identity loss",
+      "passed": true,
+      "milliseconds": 5185,
+      "details": [
+        {
+          "old": "camp",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "grassland",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "forest",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "safari",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "lake",
+          "id": "waterside",
+          "position": [
+            -18,
+            0.030770794414990657,
+            28
+          ]
+        },
+        {
+          "old": "coast",
+          "id": "waterside",
+          "position": [
+            -18,
+            0.030770794414990657,
+            28
+          ]
+        },
+        {
+          "old": "wetland",
+          "id": "waterside",
+          "position": [
+            -18,
+            0.030770794414990657,
+            28
+          ]
+        },
+        {
+          "old": "mountain",
+          "id": "highlands",
+          "position": [
+            -22,
+            0,
+            31
+          ]
+        },
+        {
+          "old": "cave",
+          "id": "highlands",
+          "position": [
+            -22,
+            0,
+            31
+          ]
+        },
+        {
+          "old": "frozen",
+          "id": "highlands",
+          "position": [
+            -22,
+            0,
+            31
+          ]
+        },
+        {
+          "old": "volcano",
+          "id": "caldera",
+          "position": [
+            -22,
+            -0.0002553691444421857,
+            22
+          ]
+        },
+        {
+          "old": "ruins",
+          "id": "complex",
+          "position": [
+            -24,
+            0,
+            28
+          ]
+        },
+        {
+          "old": "powerplant",
+          "id": "complex",
+          "position": [
+            -24,
+            0,
+            28
+          ]
+        },
+        {
+          "old": "laboratory",
+          "id": "complex",
+          "position": [
+            -24,
+            0,
+            28
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Minimap uses crisp pixels, visible player markers and working zoom controls",
+      "passed": true,
+      "milliseconds": 86,
+      "details": {
+        "cssSize": "148",
+        "player": [
+          74,
+          74
+        ],
+        "scale": 1.9636363636363638,
+        "legend": "내 위치목적지+회복식수",
+        "combatCardsClear": true
+      }
+    },
+    {
+      "name": "Camera keeps its chosen direction around scenery and when combat targets change",
+      "passed": true,
+      "milliseconds": 15,
+      "details": {
+        "clearDegrees": -2.3812692192497138e-12,
+        "blockedDegrees": -2.0514024122828143e-23,
+        "combatDegrees": -8.412139682040848e-36,
+        "clearDistance": 21.000000000007134,
+        "obstructedDistance": 4.581692304988805
+      }
+    },
+    {
+      "name": "Movement, dodge, finite camera and collision boundaries",
+      "passed": true,
+      "milliseconds": 20
+    },
+    {
+      "name": "Actual basic attack, status move, throw arc and failed capture restoration",
+      "passed": true,
+      "milliseconds": 3121,
+      "details": {
+        "hpBefore": 300,
+        "hpAfter": 1,
+        "status": "sleep"
+      }
+    },
+    {
+      "name": "Capture registration UI, party switch and stone evolution retain UID",
+      "passed": true,
+      "milliseconds": 4774
+    },
+    {
+      "name": "Stored partner evolution presents both real models and preserves the active partner",
+      "passed": true,
+      "milliseconds": 1244
+    },
+    {
+      "name": "Move learning waits for a player choice, supports decline and remembers selected slots",
+      "passed": true,
+      "milliseconds": 1827,
+      "details": {
+        "declined": 73,
+        "selected": [
+          73,
+          45
+        ],
+        "pendingStored": 145,
+        "pausedDuringChoice": true
+      }
+    },
+    {
+      "name": "Thirty hero signatures create finite layered effects",
+      "passed": true,
+      "milliseconds": 20035,
+      "details": {
+        "heroes": [
+          3,
+          6,
+          9,
+          25,
+          26,
+          38,
+          59,
+          65,
+          68,
+          94,
+          95,
+          123,
+          125,
+          126,
+          127,
+          128,
+          130,
+          131,
+          133,
+          134,
+          135,
+          136,
+          142,
+          143,
+          144,
+          145,
+          146,
+          149,
+          150,
+          151
+        ]
+      }
+    },
+    {
+      "name": "Region verdant: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 2884,
+      "details": {
+        "id": "verdant",
+        "worldObjects": 108,
+        "naturalActors": 8
+      }
+    },
+    {
+      "name": "Region waterside: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 2921,
+      "details": {
+        "id": "waterside",
+        "worldObjects": 81,
+        "naturalActors": 8
+      }
+    },
+    {
+      "name": "Region highlands: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 3010,
+      "details": {
+        "id": "highlands",
+        "worldObjects": 101,
+        "naturalActors": 7
+      }
+    },
+    {
+      "name": "Region caldera: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 2120,
+      "details": {
+        "id": "caldera",
+        "worldObjects": 55,
+        "naturalActors": 6
+      }
+    },
+    {
+      "name": "Region complex: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 2858,
+      "details": {
+        "id": "complex",
+        "worldObjects": 114,
+        "naturalActors": 6
+      }
+    },
+    {
+      "name": "Mew requires 150 records, Mewtwo and the actual three-stone puzzle",
+      "passed": true,
+      "milliseconds": 1479
+    },
+    {
+      "name": "All 151: real model, basic action, normal/shiny texture and physical seeded capture",
+      "passed": true,
+      "milliseconds": 202240,
+      "details": {
+        "captured": 151,
+        "shinyCaptured": 75,
+        "presentations": 151
+      }
+    },
+    {
+      "name": "No resource errors, rejected promises or lost WebGL context",
+      "passed": true,
+      "milliseconds": 117,
+      "details": {
+        "resources": {
+          "species": 24,
+          "active": 1,
+          "pending": 0,
+          "errors": [],
+          "expressionWarnings": []
+        },
+        "rendererMemory": {
+          "geometries": 1468,
+          "textures": 97
+        },
+        "rendererFrame": {
+          "frame": 953,
+          "calls": 216,
+          "triangles": 158459,
+          "points": 235,
+          "lines": 0
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "species": [
+    {
+      "id": 1,
+      "name": "이상해씨",
+      "passed": true,
+      "shiny": false,
+      "meshes": 37,
+      "size": [
+        1.3120631828979905,
+        1.1672228773838484,
+        1.5073711925155182
+      ]
+    },
+    {
+      "id": 2,
+      "name": "이상해풀",
+      "passed": true,
+      "shiny": true,
+      "meshes": 49,
+      "size": [
+        2.1585422624147275,
+        1.7350841037722684,
+        2.2095006298251443
+      ]
+    },
+    {
+      "id": 3,
+      "name": "이상해꽃",
+      "passed": true,
+      "shiny": false,
+      "meshes": 121,
+      "size": [
+        3.9302920782043254,
+        2.9160083313852088,
+        4.158528291200728
+      ]
+    },
+    {
+      "id": 4,
+      "name": "파이리",
+      "passed": true,
+      "shiny": true,
+      "meshes": 52,
+      "size": [
+        1.3071069762846395,
+        1.5514772276035913,
+        1.8771818597451002
+      ]
+    },
+    {
+      "id": 5,
+      "name": "리자드",
+      "passed": true,
+      "shiny": false,
+      "meshes": 66,
+      "size": [
+        1.633174278983419,
+        2.237753791993023,
+        2.431781520317849
+      ]
+    },
+    {
+      "id": 6,
+      "name": "리자몽",
+      "passed": true,
+      "shiny": true,
+      "meshes": 182,
+      "size": [
+        3.908497216460408,
+        3.4217356474705607,
+        5.694627758142589
+      ]
+    },
+    {
+      "id": 7,
+      "name": "꼬부기",
+      "passed": true,
+      "shiny": false,
+      "meshes": 21,
+      "size": [
+        1.2389679472895687,
+        1.4021005525421293,
+        1.2802952113525015
+      ]
+    },
+    {
+      "id": 8,
+      "name": "어니부기",
+      "passed": true,
+      "shiny": true,
+      "meshes": 26,
+      "size": [
+        1.7436215340214174,
+        2.310377110975807,
+        2.099258280045774
+      ]
+    },
+    {
+      "id": 9,
+      "name": "거북왕",
+      "passed": true,
+      "shiny": false,
+      "meshes": 48,
+      "size": [
+        4.01298274697063,
+        3.6569906537849777,
+        3.9896526103029797
+      ]
+    },
+    {
+      "id": 10,
+      "name": "캐터피",
+      "passed": true,
+      "shiny": true,
+      "meshes": 16,
+      "size": [
+        1.723586762341437,
+        0.7471579670906067,
+        2.3066380609860895
+      ]
+    },
+    {
+      "id": 11,
+      "name": "단데기",
+      "passed": true,
+      "shiny": false,
+      "meshes": 7,
+      "size": [
+        0.7505667532829079,
+        1.1416183590888977,
+        1.5827403321009514
+      ]
+    },
+    {
+      "id": 12,
+      "name": "버터플",
+      "passed": true,
+      "shiny": true,
+      "meshes": 15,
+      "size": [
+        2.5833020237444533,
+        2.192526856153054,
+        1.404524472422632
+      ]
+    },
+    {
+      "id": 13,
+      "name": "뿔충이",
+      "passed": true,
+      "shiny": false,
+      "meshes": 19,
+      "size": [
+        1.9805837606582493,
+        1.3627286148958346,
+        1.1370571195375012
+      ]
+    },
+    {
+      "id": 14,
+      "name": "딱충이",
+      "passed": true,
+      "shiny": true,
+      "meshes": 9,
+      "size": [
+        0.7655795800100257,
+        1.2806090963095358,
+        0.6974141591733272
+      ]
+    },
+    {
+      "id": 15,
+      "name": "독침붕",
+      "passed": true,
+      "shiny": false,
+      "meshes": 25,
+      "size": [
+        2.3539214916570974,
+        2.0408720306208337,
+        2.067645025300382
+      ]
+    },
+    {
+      "id": 16,
+      "name": "구구",
+      "passed": true,
+      "shiny": true,
+      "meshes": 54,
+      "size": [
+        0.7251667533548629,
+        1.0647477744596399,
+        1.280817325690374
+      ]
+    },
+    {
+      "id": 17,
+      "name": "피죤",
+      "passed": true,
+      "shiny": false,
+      "meshes": 61,
+      "size": [
+        1.75961707700479,
+        1.423799793277982,
+        0.7390117412587314
+      ]
+    },
+    {
+      "id": 18,
+      "name": "피죤투",
+      "passed": true,
+      "shiny": true,
+      "meshes": 89,
+      "size": [
+        3.0437893514283036,
+        2.3648462146356133,
+        1.225614446088267
+      ]
+    },
+    {
+      "id": 19,
+      "name": "꼬렛",
+      "passed": true,
+      "shiny": false,
+      "meshes": 31,
+      "size": [
+        1.1410373094094375,
+        1.5106726438016627,
+        1.4386613998313091
+      ]
+    },
+    {
+      "id": 20,
+      "name": "레트라",
+      "passed": true,
+      "shiny": true,
+      "meshes": 40,
+      "size": [
+        3.009429907982981,
+        1.5850877185814218,
+        1.5062335462993275
+      ]
+    },
+    {
+      "id": 21,
+      "name": "깨비참",
+      "passed": true,
+      "shiny": false,
+      "meshes": 57,
+      "size": [
+        0.7248332060158853,
+        1.2553862238662417,
+        1.4443002305493833
+      ]
+    },
+    {
+      "id": 22,
+      "name": "깨비드릴조",
+      "passed": true,
+      "shiny": true,
+      "meshes": 105,
+      "size": [
+        5.346359202677744,
+        2.870526366377419,
+        1.8809632545541763
+      ]
+    },
+    {
+      "id": 23,
+      "name": "아보",
+      "passed": true,
+      "shiny": false,
+      "meshes": 17,
+      "size": [
+        1.599163816814156,
+        0.5729453333024435,
+        5.4949394115903605
+      ]
+    },
+    {
+      "id": 24,
+      "name": "아보크",
+      "passed": true,
+      "shiny": true,
+      "meshes": 70,
+      "size": [
+        5.554999769057936,
+        2.886745362755526,
+        3.418003125127686
+      ]
+    },
+    {
+      "id": 25,
+      "name": "피카츄",
+      "passed": true,
+      "shiny": false,
+      "meshes": 104,
+      "size": [
+        1.662763935615101,
+        2.0519231565695204,
+        1.804667364058246
+      ]
+    },
+    {
+      "id": 26,
+      "name": "라이츄",
+      "passed": true,
+      "shiny": true,
+      "meshes": 126,
+      "size": [
+        1.6444705623221292,
+        2.023041404240494,
+        2.5202473460951875
+      ]
+    },
+    {
+      "id": 27,
+      "name": "모래두지",
+      "passed": true,
+      "shiny": false,
+      "meshes": 34,
+      "size": [
+        1.4863533188387053,
+        1.380472916599229,
+        1.3612929813794974
+      ]
+    },
+    {
+      "id": 28,
+      "name": "고지",
+      "passed": true,
+      "shiny": true,
+      "meshes": 73,
+      "size": [
+        1.6325069025498424,
+        1.944989620313469,
+        1.964247801722645
+      ]
+    },
+    {
+      "id": 29,
+      "name": "니드런♀",
+      "passed": true,
+      "shiny": false,
+      "meshes": 25,
+      "size": [
+        1.1925623592096315,
+        1.2634343274396376,
+        1.4288999101003963
+      ]
+    },
+    {
+      "id": 30,
+      "name": "니드리나",
+      "passed": true,
+      "shiny": true,
+      "meshes": 33,
+      "size": [
+        0.9582126826689569,
+        1.5172428098747865,
+        1.555665664898708
+      ]
+    },
+    {
+      "id": 31,
+      "name": "니드퀸",
+      "passed": true,
+      "shiny": false,
+      "meshes": 35,
+      "size": [
+        2.2371597590365564,
+        2.4187389818156104,
+        2.3924604290669906
+      ]
+    },
+    {
+      "id": 32,
+      "name": "니드런♂",
+      "passed": true,
+      "shiny": true,
+      "meshes": 23,
+      "size": [
+        1.5891688040344538,
+        1.4033581683194525,
+        1.094049136023453
+      ]
+    },
+    {
+      "id": 33,
+      "name": "니드리노",
+      "passed": true,
+      "shiny": false,
+      "meshes": 22,
+      "size": [
+        2.080830835225268,
+        1.5035623160105926,
+        1.5429630600750333
+      ]
+    },
+    {
+      "id": 34,
+      "name": "니드킹",
+      "passed": true,
+      "shiny": true,
+      "meshes": 60,
+      "size": [
+        3.7946275147403736,
+        2.9823594584825575,
+        2.702934150751033
+      ]
+    },
+    {
+      "id": 35,
+      "name": "삐삐",
+      "passed": true,
+      "shiny": false,
+      "meshes": 46,
+      "size": [
+        1.8480090471236728,
+        1.673972333363391,
+        2.1020571485882416
+      ]
+    },
+    {
+      "id": 36,
+      "name": "픽시",
+      "passed": true,
+      "shiny": true,
+      "meshes": 47,
+      "size": [
+        2.489101945458729,
+        2.1457618509254965,
+        2.525208746284677
+      ]
+    },
+    {
+      "id": 37,
+      "name": "식스테일",
+      "passed": true,
+      "shiny": false,
+      "meshes": 57,
+      "size": [
+        1.6545950794472322,
+        1.4664149123292531,
+        1.9012305677440091
+      ]
+    },
+    {
+      "id": 38,
+      "name": "나인테일",
+      "passed": true,
+      "shiny": true,
+      "meshes": 121,
+      "size": [
+        4.631360865639645,
+        2.872215233557725,
+        4.664852972716278
+      ]
+    },
+    {
+      "id": 39,
+      "name": "푸린",
+      "passed": true,
+      "shiny": false,
+      "meshes": 44,
+      "size": [
+        1.1736251561130406,
+        1.2998926845626089,
+        1.2315972167417408
+      ]
+    },
+    {
+      "id": 40,
+      "name": "푸크린",
+      "passed": true,
+      "shiny": true,
+      "meshes": 46,
+      "size": [
+        1.7873905510943997,
+        2.5666521064942738,
+        1.7579578618432103
+      ]
+    },
+    {
+      "id": 41,
+      "name": "주뱃",
+      "passed": true,
+      "shiny": false,
+      "meshes": 38,
+      "size": [
+        2.35438168938238,
+        1.556689322804625,
+        1.8887298279999811
+      ]
+    },
+    {
+      "id": 42,
+      "name": "골뱃",
+      "passed": true,
+      "shiny": true,
+      "meshes": 46,
+      "size": [
+        1.034371298333283,
+        1.957766903781089,
+        6.150560625225875
+      ]
+    },
+    {
+      "id": 43,
+      "name": "뚜벅쵸",
+      "passed": true,
+      "shiny": false,
+      "meshes": 23,
+      "size": [
+        1.078687162160089,
+        1.4818058990246141,
+        0.8745550494513497
+      ]
+    },
+    {
+      "id": 44,
+      "name": "냄새꼬",
+      "passed": true,
+      "shiny": true,
+      "meshes": 27,
+      "size": [
+        1.1973031615655894,
+        1.0694818936732278,
+        1.309879417368216
+      ]
+    },
+    {
+      "id": 45,
+      "name": "라플레시아",
+      "passed": true,
+      "shiny": false,
+      "meshes": 16,
+      "size": [
+        2.2979600062891983,
+        1.3016113147183563,
+        2.3432585143454494
+      ]
+    },
+    {
+      "id": 46,
+      "name": "파라스",
+      "passed": true,
+      "shiny": true,
+      "meshes": 16,
+      "size": [
+        1.6800367847665134,
+        0.9364926871005135,
+        1.6445834018370729
+      ]
+    },
+    {
+      "id": 47,
+      "name": "파라섹트",
+      "passed": true,
+      "shiny": false,
+      "meshes": 27,
+      "size": [
+        2.219319343841655,
+        1.7998960842537433,
+        2.0203269406487463
+      ]
+    },
+    {
+      "id": 48,
+      "name": "콘팡",
+      "passed": true,
+      "shiny": true,
+      "meshes": 60,
+      "size": [
+        1.2190433328635,
+        1.7308107840922538,
+        1.2311639809380175
+      ]
+    },
+    {
+      "id": 49,
+      "name": "도나리",
+      "passed": true,
+      "shiny": false,
+      "meshes": 32,
+      "size": [
+        2.302794744994812,
+        2.78564241013272,
+        2.023968622420872
+      ]
+    },
+    {
+      "id": 50,
+      "name": "디그다",
+      "passed": true,
+      "shiny": true,
+      "meshes": 18,
+      "size": [
+        1.1650556868151742,
+        0.9157500207424162,
+        1.1650556868151742
+      ]
+    },
+    {
+      "id": 51,
+      "name": "닥트리오",
+      "passed": true,
+      "shiny": false,
+      "meshes": 53,
+      "size": [
+        1.8265513824562682,
+        1.3695315211014523,
+        1.8578744381587562
+      ]
+    },
+    {
+      "id": 52,
+      "name": "나옹",
+      "passed": true,
+      "shiny": true,
+      "meshes": 31,
+      "size": [
+        1.3255422569463147,
+        1.782410036763037,
+        1.2866282764311698
+      ]
+    },
+    {
+      "id": 53,
+      "name": "페르시온",
+      "passed": true,
+      "shiny": false,
+      "meshes": 47,
+      "size": [
+        2.4444368914280425,
+        2.002396509871151,
+        1.940687747923655
+      ]
+    },
+    {
+      "id": 54,
+      "name": "고라파덕",
+      "passed": true,
+      "shiny": true,
+      "meshes": 22,
+      "size": [
+        1.3198904678592025,
+        1.4539542064292006,
+        1.404615117677043
+      ]
+    },
+    {
+      "id": 55,
+      "name": "골덕",
+      "passed": true,
+      "shiny": false,
+      "meshes": 78,
+      "size": [
+        1.780970087560206,
+        2.2240023160937263,
+        1.4199223010387243
+      ]
+    },
+    {
+      "id": 56,
+      "name": "망키",
+      "passed": true,
+      "shiny": true,
+      "meshes": 43,
+      "size": [
+        1.489692042690452,
+        1.8526120189863498,
+        1.5249956025972295
+      ]
+    },
+    {
+      "id": 57,
+      "name": "성원숭",
+      "passed": true,
+      "shiny": false,
+      "meshes": 34,
+      "size": [
+        1.578444017846359,
+        1.6802338523835842,
+        1.6260084432049586
+      ]
+    },
+    {
+      "id": 58,
+      "name": "가디",
+      "passed": true,
+      "shiny": true,
+      "meshes": 42,
+      "size": [
+        2.2031101322547406,
+        1.742193629805682,
+        1.0879038363762064
+      ]
+    },
+    {
+      "id": 59,
+      "name": "윈디",
+      "passed": true,
+      "shiny": false,
+      "meshes": 103,
+      "size": [
+        3.959017465580591,
+        3.0866493738237635,
+        3.402176546841567
+      ]
+    },
+    {
+      "id": 60,
+      "name": "발챙이",
+      "passed": true,
+      "shiny": true,
+      "meshes": 14,
+      "size": [
+        1.5257847344113888,
+        0.9194914133659218,
+        1.2755051279585903
+      ]
+    },
+    {
+      "id": 61,
+      "name": "슈륙챙이",
+      "passed": true,
+      "shiny": false,
+      "meshes": 38,
+      "size": [
+        2.241883175352347,
+        1.478441551408985,
+        1.2234162582009516
+      ]
+    },
+    {
+      "id": 62,
+      "name": "강챙이",
+      "passed": true,
+      "shiny": true,
+      "meshes": 47,
+      "size": [
+        1.3504050292709648,
+        2.1255392274247376,
+        3.022013539571817
+      ]
+    },
+    {
+      "id": 63,
+      "name": "캐이시",
+      "passed": true,
+      "shiny": false,
+      "meshes": 46,
+      "size": [
+        1.6902073019815587,
+        1.3336534525248558,
+        1.3357947118433309
+      ]
+    },
+    {
+      "id": 64,
+      "name": "윤겔라",
+      "passed": true,
+      "shiny": true,
+      "meshes": 57,
+      "size": [
+        2.4728466539479452,
+        2.2274308638014455,
+        1.8775561194764219
+      ]
+    },
+    {
+      "id": 65,
+      "name": "후딘",
+      "passed": true,
+      "shiny": false,
+      "meshes": 63,
+      "size": [
+        2.236541442630186,
+        2.8494647213426663,
+        1.4885607707961457
+      ]
+    },
+    {
+      "id": 66,
+      "name": "알통몬",
+      "passed": true,
+      "shiny": true,
+      "meshes": 41,
+      "size": [
+        1.163668585425881,
+        1.7646389389015444,
+        1.1586088909478525
+      ]
+    },
+    {
+      "id": 67,
+      "name": "근육몬",
+      "passed": true,
+      "shiny": false,
+      "meshes": 42,
+      "size": [
+        1.0420784340664193,
+        2.212193641061155,
+        1.7734214539484574
+      ]
+    },
+    {
+      "id": 68,
+      "name": "괴력몬",
+      "passed": true,
+      "shiny": true,
+      "meshes": 70,
+      "size": [
+        2.3724518731908035,
+        2.422647535310782,
+        1.2154506006462045
+      ]
+    },
+    {
+      "id": 69,
+      "name": "모다피",
+      "passed": true,
+      "shiny": false,
+      "meshes": 30,
+      "size": [
+        1.922074290567169,
+        1.6149462525825495,
+        1.1072104400077114
+      ]
+    },
+    {
+      "id": 70,
+      "name": "우츠동",
+      "passed": true,
+      "shiny": true,
+      "meshes": 19,
+      "size": [
+        2.182043641690923,
+        1.222312140177544,
+        1.3228757075974542
+      ]
+    },
+    {
+      "id": 71,
+      "name": "우츠보트",
+      "passed": true,
+      "shiny": false,
+      "meshes": 36,
+      "size": [
+        4.3797983067713835,
+        3.0450649851349194,
+        4.653879177101548
+      ]
+    },
+    {
+      "id": 72,
+      "name": "왕눈해",
+      "passed": true,
+      "shiny": true,
+      "meshes": 36,
+      "size": [
+        1.4960898640157136,
+        2.1197198104289825,
+        1.5269033654453148
+      ]
+    },
+    {
+      "id": 73,
+      "name": "독파리",
+      "passed": true,
+      "shiny": false,
+      "meshes": 122,
+      "size": [
+        3.2850271020009543,
+        2.900842724667913,
+        3.628545670103538
+      ]
+    },
+    {
+      "id": 74,
+      "name": "꼬마돌",
+      "passed": true,
+      "shiny": true,
+      "meshes": 37,
+      "size": [
+        2.238742398946938,
+        0.612478050209484,
+        1.1508070501846515
+      ]
+    },
+    {
+      "id": 75,
+      "name": "데구리",
+      "passed": true,
+      "shiny": false,
+      "meshes": 59,
+      "size": [
+        2.263919675301421,
+        1.4430339299900605,
+        1.4668879628144467
+      ]
+    },
+    {
+      "id": 76,
+      "name": "딱구리",
+      "passed": true,
+      "shiny": true,
+      "meshes": 50,
+      "size": [
+        2.643527234486769,
+        2.1511073236398617,
+        2.6845536456571244
+      ]
+    },
+    {
+      "id": 77,
+      "name": "포니타",
+      "passed": true,
+      "shiny": false,
+      "meshes": 74,
+      "size": [
+        1.86955939669462,
+        1.9784838368617181,
+        1.6490957166526226
+      ]
+    },
+    {
+      "id": 78,
+      "name": "날쌩마",
+      "passed": true,
+      "shiny": true,
+      "meshes": 86,
+      "size": [
+        3.170469027853593,
+        2.8303141009438924,
+        1.0418727338910019
+      ]
+    },
+    {
+      "id": 79,
+      "name": "야돈",
+      "passed": true,
+      "shiny": false,
+      "meshes": 23,
+      "size": [
+        1.543231050215158,
+        1.6070790282389984,
+        2.22708419945765
+      ]
+    },
+    {
+      "id": 80,
+      "name": "야도란",
+      "passed": true,
+      "shiny": true,
+      "meshes": 40,
+      "size": [
+        1.787881952837844,
+        2.138553569257015,
+        3.2473024646136603
+      ]
+    },
+    {
+      "id": 81,
+      "name": "코일",
+      "passed": true,
+      "shiny": false,
+      "meshes": 13,
+      "size": [
+        1.029411867656882,
+        0.8883746979108976,
+        1.5282850570333721
+      ]
+    },
+    {
+      "id": 82,
+      "name": "레어코일",
+      "passed": true,
+      "shiny": true,
+      "meshes": 37,
+      "size": [
+        1.5624017721307712,
+        1.9397467599777842,
+        2.2026738661511747
+      ]
+    },
+    {
+      "id": 83,
+      "name": "파오리",
+      "passed": true,
+      "shiny": false,
+      "meshes": 37,
+      "size": [
+        1.2661282742607312,
+        1.467339634294322,
+        1.182097960314561
+      ]
+    },
+    {
+      "id": 84,
+      "name": "두두",
+      "passed": true,
+      "shiny": true,
+      "meshes": 31,
+      "size": [
+        1.5493426647486488,
+        1.8709501422953048,
+        1.4588059915172176
+      ]
+    },
+    {
+      "id": 85,
+      "name": "두트리오",
+      "passed": true,
+      "shiny": false,
+      "meshes": 57,
+      "size": [
+        2.1493204444794305,
+        2.575966616458226,
+        2.1482502160252146
+      ]
+    },
+    {
+      "id": 86,
+      "name": "쥬쥬",
+      "passed": true,
+      "shiny": true,
+      "meshes": 39,
+      "size": [
+        2.6915448227480914,
+        1.4754424300406515,
+        2.270404778892285
+      ]
+    },
+    {
+      "id": 87,
+      "name": "쥬레곤",
+      "passed": true,
+      "shiny": false,
+      "meshes": 35,
+      "size": [
+        6.770835830685295,
+        2.5449680647427493,
+        4.3873002539136365
+      ]
+    },
+    {
+      "id": 88,
+      "name": "질퍽이",
+      "passed": true,
+      "shiny": true,
+      "meshes": 46,
+      "size": [
+        2.6534137694497617,
+        1.6275487977861467,
+        2.3309005006788146
+      ]
+    },
+    {
+      "id": 89,
+      "name": "질뻐기",
+      "passed": true,
+      "shiny": false,
+      "meshes": 48,
+      "size": [
+        3.3476121395070226,
+        2.011359110805802,
+        2.4884137478775905
+      ]
+    },
+    {
+      "id": 90,
+      "name": "셀러",
+      "passed": true,
+      "shiny": true,
+      "meshes": 26,
+      "size": [
+        1.129604512538219,
+        0.8747209512738618,
+        1.6538753498386898
+      ]
+    },
+    {
+      "id": 91,
+      "name": "파르셀",
+      "passed": true,
+      "shiny": false,
+      "meshes": 44,
+      "size": [
+        3.170688476182397,
+        2.9766021470866653,
+        3.148726678398643
+      ]
+    },
+    {
+      "id": 92,
+      "name": "고오스",
+      "passed": true,
+      "shiny": true,
+      "meshes": 24,
+      "size": [
+        0.9385388521651317,
+        0.8670857829385403,
+        1.4587386439485064
+      ]
+    },
+    {
+      "id": 93,
+      "name": "고우스트",
+      "passed": true,
+      "shiny": false,
+      "meshes": 54,
+      "size": [
+        2.7413643408875523,
+        2.1051925547169517,
+        2.798660171222463
+      ]
+    },
+    {
+      "id": 94,
+      "name": "팬텀",
+      "passed": true,
+      "shiny": true,
+      "meshes": 100,
+      "size": [
+        2.4098800513098144,
+        3.0131290323562463,
+        3.0253824786209043
+      ]
+    },
+    {
+      "id": 95,
+      "name": "롱스톤",
+      "passed": true,
+      "shiny": false,
+      "meshes": 29,
+      "size": [
+        6.609456542035351,
+        5.248341776625227,
+        2.1912583733031354
+      ]
+    },
+    {
+      "id": 96,
+      "name": "슬리프",
+      "passed": true,
+      "shiny": true,
+      "meshes": 40,
+      "size": [
+        1.3725427033233362,
+        1.6993913500008224,
+        1.2492331574211484
+      ]
+    },
+    {
+      "id": 97,
+      "name": "슬리퍼",
+      "passed": true,
+      "shiny": false,
+      "meshes": 64,
+      "size": [
+        1.8850218845096762,
+        2.4085942739602735,
+        1.2009870610063844
+      ]
+    },
+    {
+      "id": 98,
+      "name": "크랩",
+      "passed": true,
+      "shiny": true,
+      "meshes": 29,
+      "size": [
+        1.4214293092410077,
+        0.8334642737386524,
+        1.8943145610920675
+      ]
+    },
+    {
+      "id": 99,
+      "name": "킹크랩",
+      "passed": true,
+      "shiny": false,
+      "meshes": 30,
+      "size": [
+        4.6302903198182035,
+        3.382316943247192,
+        3.6083508856133992
+      ]
+    },
+    {
+      "id": 100,
+      "name": "찌리리공",
+      "passed": true,
+      "shiny": true,
+      "meshes": 7,
+      "size": [
+        1.0592356130716523,
+        0.827635324160545,
+        1.0366718146600977
+      ]
+    },
+    {
+      "id": 101,
+      "name": "붐볼",
+      "passed": true,
+      "shiny": false,
+      "meshes": 11,
+      "size": [
+        2.0278851918730627,
+        1.5670996229610195,
+        2.075734080522709
+      ]
+    },
+    {
+      "id": 102,
+      "name": "아라리",
+      "passed": true,
+      "shiny": true,
+      "meshes": 37,
+      "size": [
+        1.6349330086691873,
+        0.551460016809283,
+        1.5724117133689388
+      ]
+    },
+    {
+      "id": 103,
+      "name": "나시",
+      "passed": true,
+      "shiny": false,
+      "meshes": 71,
+      "size": [
+        6.293806621944468,
+        5.351805474555316,
+        6.676497341707738
+      ]
+    },
+    {
+      "id": 104,
+      "name": "탕구리",
+      "passed": true,
+      "shiny": true,
+      "meshes": 21,
+      "size": [
+        1.1873755937879755,
+        1.1673226046628626,
+        1.11304249414796
+      ]
+    },
+    {
+      "id": 105,
+      "name": "텅구리",
+      "passed": true,
+      "shiny": false,
+      "meshes": 30,
+      "size": [
+        2.0764282999881796,
+        1.6852103891603196,
+        1.7082829214931436
+      ]
+    },
+    {
+      "id": 106,
+      "name": "시라소몬",
+      "passed": true,
+      "shiny": true,
+      "meshes": 28,
+      "size": [
+        1.4966739985977746,
+        1.9518058336581041,
+        0.8598277327905466
+      ]
+    },
+    {
+      "id": 107,
+      "name": "홍수몬",
+      "passed": true,
+      "shiny": false,
+      "meshes": 27,
+      "size": [
+        1.7478292203604102,
+        2.3576719848647154,
+        0.8953795810182648
+      ]
+    },
+    {
+      "id": 108,
+      "name": "내루미",
+      "passed": true,
+      "shiny": true,
+      "meshes": 31,
+      "size": [
+        2.7833101777706974,
+        1.8708254612038273,
+        1.7207924757655153
+      ]
+    },
+    {
+      "id": 109,
+      "name": "또가스",
+      "passed": true,
+      "shiny": false,
+      "meshes": 35,
+      "size": [
+        1.4870087557722793,
+        1.3854385185912286,
+        1.4838958928033286
+      ]
+    },
+    {
+      "id": 110,
+      "name": "또도가스",
+      "passed": true,
+      "shiny": true,
+      "meshes": 62,
+      "size": [
+        1.454268146909346,
+        1.5212248569115654,
+        2.106189508855662
+      ]
+    },
+    {
+      "id": 111,
+      "name": "뿔카노",
+      "passed": true,
+      "shiny": false,
+      "meshes": 38,
+      "size": [
+        3.405579150445205,
+        1.91688518366113,
+        2.426777578442043
+      ]
+    },
+    {
+      "id": 112,
+      "name": "코뿌리",
+      "passed": true,
+      "shiny": true,
+      "meshes": 47,
+      "size": [
+        4.7297415305518795,
+        3.0421608118634684,
+        2.738893183031852
+      ]
+    },
+    {
+      "id": 113,
+      "name": "럭키",
+      "passed": true,
+      "shiny": false,
+      "meshes": 30,
+      "size": [
+        2.1829106496157538,
+        1.6610247157169136,
+        2.163865556694648
+      ]
+    },
+    {
+      "id": 114,
+      "name": "덩쿠리",
+      "passed": true,
+      "shiny": true,
+      "meshes": 4,
+      "size": [
+        0.9519484405495895,
+        0.88125,
+        1.1830067695716195
+      ]
+    },
+    {
+      "id": 115,
+      "name": "캥카",
+      "passed": true,
+      "shiny": false,
+      "meshes": 101,
+      "size": [
+        4.527928658450821,
+        4.068064960351652,
+        4.885918431607293
+      ]
+    },
+    {
+      "id": 116,
+      "name": "쏘드라",
+      "passed": true,
+      "shiny": true,
+      "meshes": 24,
+      "size": [
+        1.4010829925322088,
+        1.4362062794999664,
+        1.2251140943979646
+      ]
+    },
+    {
+      "id": 117,
+      "name": "시드라",
+      "passed": true,
+      "shiny": false,
+      "meshes": 28,
+      "size": [
+        2.503253967837635,
+        2.1050946839193907,
+        2.5846239459756593
+      ]
+    },
+    {
+      "id": 118,
+      "name": "콘치",
+      "passed": true,
+      "shiny": true,
+      "meshes": 40,
+      "size": [
+        2.776758993860251,
+        1.010125959113796,
+        2.7836692204107187
+      ]
+    },
+    {
+      "id": 119,
+      "name": "왕콘치",
+      "passed": true,
+      "shiny": false,
+      "meshes": 27,
+      "size": [
+        3.0845816188816397,
+        2.3878273156613066,
+        3.242772482649861
+      ]
+    },
+    {
+      "id": 120,
+      "name": "별가사리",
+      "passed": true,
+      "shiny": true,
+      "meshes": 26,
+      "size": [
+        1.5889489606441969,
+        1.481665952700781,
+        0.6259891487939573
+      ]
+    },
+    {
+      "id": 121,
+      "name": "아쿠스타",
+      "passed": true,
+      "shiny": false,
+      "meshes": 48,
+      "size": [
+        1.1645378607113086,
+        2.163687422349335,
+        2.2958529257891245
+      ]
+    },
+    {
+      "id": 122,
+      "name": "마임맨",
+      "passed": true,
+      "shiny": true,
+      "meshes": 68,
+      "size": [
+        0.9541840767713334,
+        2.810341086516748,
+        2.3115052525529016
+      ]
+    },
+    {
+      "id": 123,
+      "name": "스라크",
+      "passed": true,
+      "shiny": false,
+      "meshes": 50,
+      "size": [
+        3.621455250827628,
+        3.985530356609863,
+        4.597277121610101
+      ]
+    },
+    {
+      "id": 124,
+      "name": "루주라",
+      "passed": true,
+      "shiny": true,
+      "meshes": 92,
+      "size": [
+        3.324096565290505,
+        2.4650377479158396,
+        3.3199885150876245
+      ]
+    },
+    {
+      "id": 125,
+      "name": "에레브",
+      "passed": true,
+      "shiny": false,
+      "meshes": 59,
+      "size": [
+        2.0996172182358603,
+        2.1614213136714198,
+        2.145933819126692
+      ]
+    },
+    {
+      "id": 126,
+      "name": "마그마",
+      "passed": true,
+      "shiny": true,
+      "meshes": 120,
+      "size": [
+        2.2349884454033346,
+        2.452118276069677,
+        1.9987135299043457
+      ]
+    },
+    {
+      "id": 127,
+      "name": "쁘사이저",
+      "passed": true,
+      "shiny": false,
+      "meshes": 55,
+      "size": [
+        1.6677348253872508,
+        2.8256267207201224,
+        2.5419151015407113
+      ]
+    },
+    {
+      "id": 128,
+      "name": "켄타로스",
+      "passed": true,
+      "shiny": true,
+      "meshes": 48,
+      "size": [
+        4.061665120975766,
+        2.115826378955785,
+        1.9595619378712392
+      ]
+    },
+    {
+      "id": 129,
+      "name": "잉어킹",
+      "passed": true,
+      "shiny": false,
+      "meshes": 29,
+      "size": [
+        1.8036537066175646,
+        1.2676628406932666,
+        1.5929755405040824
+      ]
+    },
+    {
+      "id": 130,
+      "name": "갸라도스",
+      "passed": true,
+      "shiny": true,
+      "meshes": 82,
+      "size": [
+        6.20914811543732,
+        4.380480895655605,
+        4.8064236901704955
+      ]
+    },
+    {
+      "id": 131,
+      "name": "라프라스",
+      "passed": true,
+      "shiny": false,
+      "meshes": 40,
+      "size": [
+        3.9559058346713387,
+        3.5910489637841505,
+        5.061284979930784
+      ]
+    },
+    {
+      "id": 132,
+      "name": "메타몽",
+      "passed": true,
+      "shiny": true,
+      "meshes": 17,
+      "size": [
+        1.0107656150756168,
+        0.7934317061690481,
+        0.7660693348370042
+      ]
+    },
+    {
+      "id": 133,
+      "name": "이브이",
+      "passed": true,
+      "shiny": false,
+      "meshes": 57,
+      "size": [
+        1.9002754255554577,
+        1.6966905032375301,
+        1.684844039558958
+      ]
+    },
+    {
+      "id": 134,
+      "name": "샤미드",
+      "passed": true,
+      "shiny": true,
+      "meshes": 60,
+      "size": [
+        4.007497432471424,
+        2.021036104586354,
+        2.138011594080284
+      ]
+    },
+    {
+      "id": 135,
+      "name": "쥬피썬더",
+      "passed": true,
+      "shiny": false,
+      "meshes": 61,
+      "size": [
+        1.9085562982376634,
+        2.1916411316312914,
+        2.0088126050593367
+      ]
+    },
+    {
+      "id": 136,
+      "name": "부스터",
+      "passed": true,
+      "shiny": true,
+      "meshes": 79,
+      "size": [
+        1.7508359217146099,
+        2.3561138836075313,
+        3.841313130219942
+      ]
+    },
+    {
+      "id": 137,
+      "name": "폴리곤",
+      "passed": true,
+      "shiny": false,
+      "meshes": 31,
+      "size": [
+        1.881348946643346,
+        1.4403015460507151,
+        1.1392028485349996
+      ]
+    },
+    {
+      "id": 138,
+      "name": "암나이트",
+      "passed": true,
+      "shiny": true,
+      "meshes": 20,
+      "size": [
+        1.1642508895974304,
+        0.993591829186434,
+        0.9804161152233375
+      ]
+    },
+    {
+      "id": 139,
+      "name": "암스타",
+      "passed": true,
+      "shiny": false,
+      "meshes": 37,
+      "size": [
+        1.666570678646996,
+        1.6643116339355128,
+        1.811145157572951
+      ]
+    },
+    {
+      "id": 140,
+      "name": "투구",
+      "passed": true,
+      "shiny": true,
+      "meshes": 11,
+      "size": [
+        0.8923980620654102,
+        0.42002683579231226,
+        0.9567354876914083
+      ]
+    },
+    {
+      "id": 141,
+      "name": "투구푸스",
+      "passed": true,
+      "shiny": false,
+      "meshes": 33,
+      "size": [
+        1.8563520352047962,
+        2.506283665726222,
+        1.9654515467512708
+      ]
+    },
+    {
+      "id": 142,
+      "name": "프테라",
+      "passed": true,
+      "shiny": true,
+      "meshes": 122,
+      "size": [
+        6.509491893110914,
+        1.7238818794095931,
+        4.5043347499829345
+      ]
+    },
+    {
+      "id": 143,
+      "name": "잠만보",
+      "passed": true,
+      "shiny": false,
+      "meshes": 48,
+      "size": [
+        3.9896285827366045,
+        4.304773195381769,
+        3.5564906478873253
+      ]
+    },
+    {
+      "id": 144,
+      "name": "프리져",
+      "passed": true,
+      "shiny": true,
+      "meshes": 103,
+      "size": [
+        5.437174972960947,
+        6.458522886088042,
+        8.806968737866894
+      ]
+    },
+    {
+      "id": 145,
+      "name": "썬더",
+      "passed": true,
+      "shiny": false,
+      "meshes": 97,
+      "size": [
+        9.493695729992881,
+        4.692679998271386,
+        6.27241204344327
+      ]
+    },
+    {
+      "id": 146,
+      "name": "파이어",
+      "passed": true,
+      "shiny": true,
+      "meshes": 198,
+      "size": [
+        9.494118899042567,
+        9.789427900200813,
+        7.458532379058168
+      ]
+    },
+    {
+      "id": 147,
+      "name": "미뇽",
+      "passed": true,
+      "shiny": false,
+      "meshes": 32,
+      "size": [
+        1.9832307777515048,
+        2.239442865752202,
+        2.5361144310907626
+      ]
+    },
+    {
+      "id": 148,
+      "name": "신뇽",
+      "passed": true,
+      "shiny": true,
+      "meshes": 96,
+      "size": [
+        2.820541742224962,
+        3.3475256415351002,
+        2.60197471210578
+      ]
+    },
+    {
+      "id": 149,
+      "name": "망나뇽",
+      "passed": true,
+      "shiny": false,
+      "meshes": 72,
+      "size": [
+        4.6028114904667845,
+        4.243049885837687,
+        3.43206883024141
+      ]
+    },
+    {
+      "id": 150,
+      "name": "뮤츠",
+      "passed": true,
+      "shiny": true,
+      "meshes": 78,
+      "size": [
+        4.298243623922197,
+        4.732915344128895,
+        3.570372355236665
+      ]
+    },
+    {
+      "id": 151,
+      "name": "뮤",
+      "passed": true,
+      "shiny": false,
+      "meshes": 53,
+      "size": [
+        2.026236689313399,
+        3.5464948831196406,
+        2.897839315549824
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "verdant",
+      "worldObjects": 108,
+      "naturalActors": 8
+    },
+    {
+      "id": "waterside",
+      "worldObjects": 81,
+      "naturalActors": 8
+    },
+    {
+      "id": "highlands",
+      "worldObjects": 101,
+      "naturalActors": 7
+    },
+    {
+      "id": "caldera",
+      "worldObjects": 55,
+      "naturalActors": 6
+    },
+    {
+      "id": "complex",
+      "worldObjects": 114,
+      "naturalActors": 6
+    }
+  ],
+  "passed": 22,
+  "failed": 0,
+  "finishedAt": "2026-09-13T16:01:08.706Z",
+  "diagnostics": {
+    "phase": "playing",
+    "region": "waterside",
+    "caught": 151,
+    "speciesTested": 151,
+    "regionsTested": 5,
+    "resources": {
+      "species": 24,
+      "active": 1,
+      "pending": 0,
+      "errors": [],
+      "expressionWarnings": []
+    },
+    "rendererMemory": {
+      "geometries": 1468,
+      "textures": 97
+    }
+  },
+  "sourceSha256": {
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
+    "src/checkpoints.mjs": "24c98cca162b2c06090d58f08aa5fa705aec5586d1aba7e0613b3a53fb575d25",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/core.mjs": "0296fc9abe63b86202b4b34571c52f36bc7bd8ba1b68154ac15e5d07de484185",
+    "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
+    "src/expedition.mjs": "564e9e62575297c44f05012219057df210299828feae1cf0955ddcef42d2b8ff",
+    "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/game.mjs": "ff5b442fbeec86535994ea4e471f62502fd51c70811c0213ca47006b602286d0",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/interactions.mjs": "9a62033549a4b09b131368083451eb7f0bbedcda8c57885912bcb1b40691eb90",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/navigation.mjs": "7ee06660cc1f7c3ad038407caaad7e6f7d9fdd814d03d07a0afa676d05e4ddc5",
+    "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
+    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/ui.mjs": "768d173006a60cf4c69736409b9ba38cf20b3bbc5fbe59b13bcbc97deba09f72",
+    "src/world.mjs": "678006e8145dab1189441b14b95e5a2133a526f555b1473a1e341f21d71d7e5b",
+    "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/locale-messages.json": "3a90d89b22241b4937e4cd98d40bf5393dbe3892d0eadd31f09ac42e3323a837",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
+    "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "style.css": "7867254a2d4d5e1be23b0a4934b6e347c656268223ef8fc36b62c47f48eb897b",
+    "index.html": "b1acfa62b8ff1ef43248de4229687668f6888b1170abe676562a43e02b06cdb5",
+    "scripts/browser-suite.mjs": "d0286a68ac6f110accc8b9d731ec0c734ffc7024eabc25e3c0832f3d3e01dba5",
+    "scripts/nine-browser-suite.mjs": "f5a96f44a711e8ba6877c0dd3553f140fcb0c7c3631fd2764423e148ae6c392a"
+  },
+  "fullSuiteSourceSha256": {
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
+    "src/checkpoints.mjs": "243bf5336ad2cc8ab74416fc3d298b1c2a663d7fdfff42ba78a7f1c7508052b7",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/core.mjs": "e6a23e765587dd06c87b3d2176d75cbdb8fe3d2651e2bbf618743b7ac0daf53f",
+    "src/ecology.mjs": "2d8e021ce6ba4648edab8578eb0cb89788436c7c769ba54759da8fd8a03f8a78",
+    "src/expedition.mjs": "4e224ff42dd75805070dc1f53c1e0d85cb185ea2a488c74b4114f8861f7a0d78",
+    "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/game.mjs": "e53bcd2e4fdeda585b0ed28adc5cb2fb667dccd22adb04819ca1386bf6702ec9",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/interactions.mjs": "eaae3d35ffa128f97f083b3f95d41e05ed4c171a184aa0bd90e77d5ff4f30408",
+    "src/lighting.mjs": "5f5d82158ec651cacb51ada2f26171050cb9ad74a4b3e17f6102964aedc9c665",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/navigation.mjs": "b3da6d83d99a4320ca625c0d59cbf979397db7ff260fb3d159804c191d255a60",
+    "src/objectives.mjs": "fc57c9cc9caed624ff8602fca8b2c8bc36026030fc4bdd31f36de32ece56f5a0",
+    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/region-world.mjs": "3c3b3fb4954ffa7b263148d296d078dd0226b69f96a6a744a8cf00136c1f5a00",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/ui.mjs": "657e8fc4912f8e1079327ebe345d50ff42661cec9e78dc1ded5e21f93dd39c8a",
+    "src/world.mjs": "e4270dd9d336e5f589f65cb71418081d475ce65be56b1eb0b29a46252398e3f0",
+    "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/locale-messages.json": "93196eea146f469ba82cd37a8750d6416646c6f53b183debae4e448928427314",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
+    "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "style.css": "ec5e580a2cf39f5862395bf94fee55899f29387b7950dd6cf6cb7343a184bab6",
+    "index.html": "91116ae6a4ef99639fb8da3020a472565077f6b62ffe67d85c391ea309490165"
+  },
+  "fullSuiteReport": "reports/nine/full-browser.json",
+  "focusedFollowUps": [
+    {
+      "report": "reports/nine/focused-browser.json",
+      "passed": 20,
+      "scope": "Re-ran all gameplay/region/migration integration cases, excluding unchanged 151-asset and 30-signature bulk checks. Original input hashes retained in that report."
+    },
+    {
+      "report": "reports/nine/runtime-browser.json",
+      "passed": 6,
+      "scope": "Latest full rollback, first/repeated death, five stations, failed writes, camp UID transaction, live five-region habitat movement, actual cooldowns including compact choice card."
+    },
+    {
+      "report": "reports/nine/native-input.json",
+      "passed": 24,
+      "scope": "Last result per name: keyboard/click/touch at 1000x720, 390x844, 360x640; save, camp comparison/cancel/apply/search/model and control nonoverlap."
+    },
+    {
+      "report": "reports/nine/native-extra.json",
+      "passed": 12,
+      "scope": "Real keys/clicks for movement, water, consumed berry removal, legal Clefairy Pound re-learning, Pound/Tackle timed reuse, objective text, pause, camp sorting."
+    },
+    {
+      "report": "reports/nine/lighting-summary.json",
+      "scope": "Actual matched baseline/final six-condition screen sequences; renderer values and contact sheet."
+    },
+    {
+      "report": "reports/nine/lighting-quality.json",
+      "scope": "Actual high/auto/low quality changes preserve illumination and enabled shadows."
+    },
+    {
+      "report": "reports/nine/objective-final.json",
+      "scope": "Actual final browser objective and HUD for missing rod and insufficient coins."
+    },
+    {
+      "report": "reports/nine/unit-tests.txt",
+      "passed": 206,
+      "scope": "Final source core/runtime/five-world tests, including all authored spawn legality and recommendation prerequisites."
+    }
+  ],
+  "coverageUpdatedAt": "2026-09-15T12:41:41.543923+00:00",
+  "coverageMethod": "Historical full 151-species suite + recorded incremental current-source gameplay and native touch checks. See readabilityFollowUp; original source evidence retained.",
+  "supplyFollowUps": [
+    {
+      "report": "reports/supply/unit-tests.txt",
+      "passed": 225,
+      "scope": "Full core, runtime and five-world tests, including legacy provision defaults, original archive, old checkpoints, invalid records and transactional actions."
+    },
+    {
+      "report": "reports/supply/focused-browser.json",
+      "passed": 20,
+      "scope": "Current five-region gameplay/migration/camera/capture/evolution/moves/boss/Mew integration. Unchanged 151-asset and 30-signature sweeps excluded."
+    },
+    {
+      "report": "reports/supply/functional-browser.json",
+      "passed": 22,
+      "scope": "Actual source and tree interactions, serialized page reload, rock-smash unlock, canteen/rations, starvation rollback and failed writes."
+    },
+    {
+      "report": "reports/supply/mobile-browser.json",
+      "passed": 12,
+      "scope": "390x844 and 360x640 native touch, control nonoverlap, water/bag use, normal-clock source/camp walking."
+    },
+    {
+      "report": "reports/supply/pacing-browser.json",
+      "scope": "Normal Game.tick and authored walking speed: early landmark round trip and 948 active seconds in caldera with no source, two canteen and two ration uses."
+    }
+  ],
+  "previousNineCoverage": "../.qa-supply-20260914/baseline/reports/browser-game-qa.json",
+  "mobileReleaseFollowUps": {
+    "generatedAt": "2026-09-13T22:43:51.327885+00:00",
+    "sourceSha256": {
+      "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+      "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
+      "src/checkpoints.mjs": "24c98cca162b2c06090d58f08aa5fa705aec5586d1aba7e0613b3a53fb575d25",
+      "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+      "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+      "src/core.mjs": "0ec48ba271c3e28eb55cafb9a3f0b6767a399ceabb581dd067f823f31806f0f4",
+      "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
+      "src/expedition.mjs": "43c6aeba054df0174c915d698bd7638ab117d247ea16c5ed9509dd08591912f1",
+      "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+      "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+      "src/game.mjs": "f21991dc786a665dff91d85965464560de61206c646c02dd0165082ec27cebfb",
+      "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+      "src/interactions.mjs": "a338d2dbbad83d5abf461610f5dbb059da4bd02ef6c02b7087edbef562f2d280",
+      "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+      "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+      "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+      "src/navigation.mjs": "cd39c62476d6ac541a6ecff790868b2de85f9b6f904079f8de537b642c0b4b6d",
+      "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
+      "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+      "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+      "src/region-world.mjs": "74e8db13324432d1289fd4fefc988c01f7065f87c2bba13c309cc0d3b5d20c08",
+      "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+      "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+      "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+      "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+      "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+      "src/ui.mjs": "4e73a62feff86e40bda13c6575b8a6c8a1e0227b36338aa96587d996e4469953",
+      "src/world.mjs": "678006e8145dab1189441b14b95e5a2133a526f555b1473a1e341f21d71d7e5b",
+      "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
+      "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+      "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+      "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
+      "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+      "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+      "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+      "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+      "data/locale-messages.json": "d33644c7d76151313e6d181ee088d1c1b383079cd8bb1188d61ea2c63b447ed7",
+      "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+      "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+      "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+      "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+      "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+      "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+      "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+      "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+      "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+      "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
+      "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
+      "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+      "style.css": "360aadfa9ecec4b72fbf7ee5bd16a37f96459cea3f8b00bcd10dbb2e81f375a1",
+      "index.html": "2b33919b3e96bb20d96b5c86ea7bb7e8be0575bb96923cd6c564c5e57fd5655f",
+      "scripts/browser-suite.mjs": "d0286a68ac6f110accc8b9d731ec0c734ffc7024eabc25e3c0832f3d3e01dba5",
+      "scripts/nine-browser-suite.mjs": "f5a96f44a711e8ba6877c0dd3553f140fcb0c7c3631fd2764423e148ae6c392a"
+    },
+    "evidence": [
+      "reports/mobile-release/browser.json",
+      "reports/mobile-release/extra-browser.json",
+      "reports/mobile-release/focused-browser.json",
+      "reports/mobile-release/unit-tests.txt"
+    ],
+    "scope": "59 native touch/layout/input checks across six viewports and 20 current gameplay integration checks; historical 151 asset evidence unchanged."
+  },
+  "readabilityFollowUp": {
+    "verifiedAt": "2026-09-15T12:41:41.543923+00:00",
+    "evidence": [
+      {
+        "report": "reports/readability-20260915/browser-checks.json",
+        "passed": 21,
+        "scope": "Native map, mobile field action, actual short normal-clock camp route, supplies, cache reload, checkpoint starvation rollback."
+      },
+      {
+        "report": "reports/readability-20260915/focused-browser.json",
+        "passed": 20,
+        "scope": "Current five-region combat/capture/evolution/move/legacy-save regression; unchanged 151-asset sweep excluded."
+      },
+      {
+        "report": "reports/readability-20260915/unit-tests.txt",
+        "passed": 231,
+        "scope": "Core/runtime/five-world including overlap, ball grants, FPS, preservation and all acquisition paths."
+      }
+    ],
+    "scope": "Incremental current implementation verification. Historical 151-species asset/browser evidence retained; assets/importer/species/moves/biomes/compositions unchanged."
+  }
+}

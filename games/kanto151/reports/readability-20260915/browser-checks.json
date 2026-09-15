@@ -1,0 +1,265 @@
+{
+  "status": "passed",
+  "passed": 21,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "mobile locked ability names families and actual dex requirement without clipping",
+      "passed": true,
+      "detail": {
+        "text": "◇ 풀베기 사용\n덩굴 속 샛길 · 이상해씨·뚜벅쵸·모다피 계열 중 1종 포획 또는 도감 10종 등록 (현재 1종)\n지도(M) → 필드 능력에서 사용법을 확인하세요.",
+        "h": 112,
+        "sh": 112,
+        "overlap": false
+      }
+    },
+    {
+      "name": "1000x720 atlas readable full width and 44px input targets",
+      "passed": true,
+      "detail": {
+        "width": 665,
+        "panel": 703,
+        "nonoverlap": true,
+        "playerClear": true,
+        "unique": true,
+        "buttons": true,
+        "noOverflow": true
+      }
+    },
+    {
+      "name": "561x557 atlas readable full width and 44px input targets",
+      "passed": true,
+      "detail": {
+        "width": 509,
+        "panel": 535,
+        "nonoverlap": true,
+        "playerClear": true,
+        "unique": true,
+        "buttons": true,
+        "noOverflow": true
+      }
+    },
+    {
+      "name": "390x844 atlas readable full width and 44px input targets",
+      "passed": true,
+      "detail": {
+        "width": 338,
+        "panel": 364,
+        "nonoverlap": true,
+        "playerClear": true,
+        "unique": true,
+        "buttons": true,
+        "noOverflow": true
+      }
+    },
+    {
+      "name": "844x390 atlas readable full width and 44px input targets",
+      "passed": true,
+      "detail": {
+        "width": 665,
+        "panel": 703,
+        "nonoverlap": true,
+        "playerClear": true,
+        "unique": true,
+        "buttons": true,
+        "noOverflow": true
+      }
+    },
+    {
+      "name": "touch clustered marker opens explicit location choices",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "touch chooses companion camp and shows action",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "map zoom actual scale changes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "all six field abilities show requirements and no TM usage",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "family capture registration automatically unlocks field action",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "ordinary mobile action starts cut",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "cut clears obstacle and preserves battle move slots",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "new game ball quantity reduced",
+      "passed": true,
+      "detail": {
+        "start": 12,
+        "automaticFirstLandmark": 1
+      }
+    },
+    {
+      "name": "cache gives one ball and waits 300 active seconds",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "repeated cache input cannot add more balls",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "save reload and region rebuild retain cache wait",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "existing inventory preserved and repeat rest only tops up to three",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "normal-speed camp meadow return route has adequate supplies",
+      "passed": true,
+      "detail": {
+        "pos": [
+          0.009757113842465638,
+          23.826200586414778
+        ],
+        "hunger": 98.56786125000377,
+        "thirst": 97.88772375000447,
+        "water": 2,
+        "food": 2,
+        "wallSeconds": 9.44,
+        "outbound": true,
+        "returned": true
+      }
+    },
+    {
+      "name": "E at save station creates explicit checkpoint",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "survival death restores supplies inventory claims roster and money together",
+      "passed": true,
+      "detail": {
+        "inventory": {
+          "poke-ball": 9,
+          "great-ball": 2,
+          "potion": 9,
+          "revive": 3,
+          "fishing-rod": 1,
+          "apple": 0,
+          "ration": 2,
+          "canteen": 2,
+          "ultra-ball": 0,
+          "rare-candy": 2
+        },
+        "expected": {
+          "poke-ball": 9,
+          "great-ball": 2,
+          "potion": 9,
+          "revive": 3,
+          "fishing-rod": 1,
+          "apple": 0,
+          "ration": 2,
+          "canteen": 2,
+          "ultra-ball": 0,
+          "rare-candy": 2
+        },
+        "coins": 900,
+        "expectedCoins": 900,
+        "claims": {
+          "verdant-camp": 301.1938
+        },
+        "expectedClaims": {
+          "verdant-camp": 301.1938
+        },
+        "collection": [
+          "5d0c8784-4169-4efb-a2dd-bba811f3a502"
+        ],
+        "expectedCollection": [
+          "5d0c8784-4169-4efb-a2dd-bba811f3a502"
+        ],
+        "party": [
+          "5d0c8784-4169-4efb-a2dd-bba811f3a502"
+        ],
+        "expectedParty": [
+          "5d0c8784-4169-4efb-a2dd-bba811f3a502"
+        ],
+        "hunger": 98.54919837500377,
+        "settings": 0.37
+      }
+    },
+    {
+      "name": "browser runtime no errors",
+      "passed": true,
+      "detail": []
+    }
+  ],
+  "scope": "Isolated memory save; actual keyboard/mouse/touch inputs; scenario seeding explicit. Normal short route uses live clock. Not a full 151-species natural playthrough.",
+  "sourceSha256": {
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
+    "src/checkpoints.mjs": "24c98cca162b2c06090d58f08aa5fa705aec5586d1aba7e0613b3a53fb575d25",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/core.mjs": "0296fc9abe63b86202b4b34571c52f36bc7bd8ba1b68154ac15e5d07de484185",
+    "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
+    "src/expedition.mjs": "564e9e62575297c44f05012219057df210299828feae1cf0955ddcef42d2b8ff",
+    "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/game.mjs": "ff5b442fbeec86535994ea4e471f62502fd51c70811c0213ca47006b602286d0",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/interactions.mjs": "9a62033549a4b09b131368083451eb7f0bbedcda8c57885912bcb1b40691eb90",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/navigation.mjs": "7ee06660cc1f7c3ad038407caaad7e6f7d9fdd814d03d07a0afa676d05e4ddc5",
+    "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
+    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/ui.mjs": "768d173006a60cf4c69736409b9ba38cf20b3bbc5fbe59b13bcbc97deba09f72",
+    "src/world.mjs": "678006e8145dab1189441b14b95e5a2133a526f555b1473a1e341f21d71d7e5b",
+    "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/locale-messages.json": "3a90d89b22241b4937e4cd98d40bf5393dbe3892d0eadd31f09ac42e3323a837",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
+    "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "index.html": "b1acfa62b8ff1ef43248de4229687668f6888b1170abe676562a43e02b06cdb5",
+    "style.css": "7867254a2d4d5e1be23b0a4934b6e347c656268223ef8fc36b62c47f48eb897b"
+  }
+}

@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "startedAt": "2026-09-15T12:40:01.316Z",
+  "fixtures": [
+    "Contact/asset fixtures now move obligate swimmers to actual water and place the test player on a nearby legal surf/land tile. Species habitat availability and movement are independently checked by the nine-request geometry suite.",
+    "The child page is explicitly qa=1; execution requires qaMode=true, reset newSave, and isolated in-memory persistence supplied by Game.",
+    "Automatic gameplay simulation is paused with panel=qa-controller. The harness advances Game.step in 0.05-second increments; the actual renderer and UI loop remain active.",
+    "Encounter RNG results are seeded by setting capture.success after a real throw. Capture flight, transition, shakes, registration and cleanup still execute normally.",
+    "Progression counts/items/boss prerequisites are seeded to test each gate independently. Player level/HP and encounter positions are seeded to keep combat bounded.",
+    "The 151-species pass spawns each real model, casts its authored basic action, verifies damage, switches its real normal/shiny texture, and runs a physical capture. This is not natural acquisition-path playthrough evidence.",
+    "Capture UI is exercised before the bulk pass. Bulk capture previews are counted instead of opening 151 extra WebGL contexts; bulk core capture/registration and completion presentation still run.",
+    "No persistent browser storage or save export is used. Game-internal writes go only to the QA memory adapter."
+  ],
+  "tests": [
+    {
+      "name": "Default release builds only five finished authored regions",
+      "passed": true,
+      "milliseconds": 0
+    },
+    {
+      "name": "Starter #1 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 420,
+      "details": {
+        "meshes": 37,
+        "size": [
+          0.9904128486996114,
+          1.2644914504991691,
+          1.4953820399116644
+        ]
+      }
+    },
+    {
+      "name": "Starter #4 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 282,
+      "details": {
+        "meshes": 52,
+        "size": [
+          1.4435310756643207,
+          1.6807669965705574,
+          2.072404976497751
+        ]
+      }
+    },
+    {
+      "name": "Starter #7 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 258,
+      "details": {
+        "meshes": 21,
+        "size": [
+          1.5294541083928697,
+          1.5189422652539735,
+          1.4117009075341542
+        ]
+      }
+    },
+    {
+      "name": "Starter #25 creates a real playable partner",
+      "passed": true,
+      "milliseconds": 269,
+      "details": {
+        "meshes": 104,
+        "size": [
+          1.777616819236305,
+          2.2229167529503147,
+          1.9232141359598884
+        ]
+      }
+    },
+    {
+      "name": "All 14 legacy region saves migrate into the five actual safe entries without identity loss",
+      "passed": true,
+      "milliseconds": 3095,
+      "details": [
+        {
+          "old": "camp",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "grassland",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "forest",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "safari",
+          "id": "verdant",
+          "position": [
+            0,
+            0.023350105774746634,
+            26
+          ]
+        },
+        {
+          "old": "lake",
+          "id": "waterside",
+          "position": [
+            -18,
+            0.030770794414990657,
+            28
+          ]
+        },
+        {
+          "old": "coast",
+          "id": "waterside",
+          "position": [
+            -18,
+            0.030770794414990657,
+            28
+          ]
+        },
+        {
+          "old": "wetland",
+          "id": "waterside",
+          "position": [
+            -18,
+            0.030770794414990657,
+            28
+          ]
+        },
+        {
+          "old": "mountain",
+          "id": "highlands",
+          "position": [
+            -22,
+            0,
+            31
+          ]
+        },
+        {
+          "old": "cave",
+          "id": "highlands",
+          "position": [
+            -22,
+            0,
+            31
+          ]
+        },
+        {
+          "old": "frozen",
+          "id": "highlands",
+          "position": [
+            -22,
+            0,
+            31
+          ]
+        },
+        {
+          "old": "volcano",
+          "id": "caldera",
+          "position": [
+            -22,
+            -0.0002553691444421857,
+            22
+          ]
+        },
+        {
+          "old": "ruins",
+          "id": "complex",
+          "position": [
+            -24,
+            0,
+            28
+          ]
+        },
+        {
+          "old": "powerplant",
+          "id": "complex",
+          "position": [
+            -24,
+            0,
+            28
+          ]
+        },
+        {
+          "old": "laboratory",
+          "id": "complex",
+          "position": [
+            -24,
+            0,
+            28
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Minimap uses crisp pixels, visible player markers and working zoom controls",
+      "passed": true,
+      "milliseconds": 32,
+      "details": {
+        "cssSize": "148",
+        "player": [
+          74,
+          74
+        ],
+        "scale": 1.9636363636363638,
+        "legend": "내 위치목적지+회복식수",
+        "combatCardsClear": true
+      }
+    },
+    {
+      "name": "Camera keeps its chosen direction around scenery and when combat targets change",
+      "passed": true,
+      "milliseconds": 12,
+      "details": {
+        "clearDegrees": -1.8532041052838118e-11,
+        "blockedDegrees": -1.5964878482865503e-22,
+        "combatDegrees": -6.546681772457532e-35,
+        "clearDistance": 21.000000000005482,
+        "obstructedDistance": 4.581692304988805
+      }
+    },
+    {
+      "name": "Movement, dodge, finite camera and collision boundaries",
+      "passed": true,
+      "milliseconds": 10
+    },
+    {
+      "name": "Actual basic attack, status move, throw arc and failed capture restoration",
+      "passed": true,
+      "milliseconds": 45,
+      "details": {
+        "hpBefore": 300,
+        "hpAfter": 1,
+        "status": "sleep"
+      }
+    },
+    {
+      "name": "Capture registration UI, party switch and stone evolution retain UID",
+      "passed": true,
+      "milliseconds": 378
+    },
+    {
+      "name": "Stored partner evolution presents both real models and preserves the active partner",
+      "passed": true,
+      "milliseconds": 145
+    },
+    {
+      "name": "Move learning waits for a player choice, supports decline and remembers selected slots",
+      "passed": true,
+      "milliseconds": 354,
+      "details": {
+        "declined": 73,
+        "selected": [
+          73,
+          45
+        ],
+        "pendingStored": 145,
+        "pausedDuringChoice": true
+      }
+    },
+    {
+      "name": "Region verdant: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 427,
+      "details": {
+        "id": "verdant",
+        "worldObjects": 119,
+        "naturalActors": 8
+      }
+    },
+    {
+      "name": "Region waterside: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 884,
+      "details": {
+        "id": "waterside",
+        "worldObjects": 92,
+        "naturalActors": 8
+      }
+    },
+    {
+      "name": "Region highlands: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 1220,
+      "details": {
+        "id": "highlands",
+        "worldObjects": 100,
+        "naturalActors": 8
+      }
+    },
+    {
+      "name": "Region caldera: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 679,
+      "details": {
+        "id": "caldera",
+        "worldObjects": 50,
+        "naturalActors": 6
+      }
+    },
+    {
+      "name": "Region complex: actual build, actors and special gates",
+      "passed": true,
+      "milliseconds": 1407,
+      "details": {
+        "id": "complex",
+        "worldObjects": 109,
+        "naturalActors": 6
+      }
+    },
+    {
+      "name": "Mew requires 150 records, Mewtwo and the actual three-stone puzzle",
+      "passed": true,
+      "milliseconds": 338
+    },
+    {
+      "name": "No resource errors, rejected promises or lost WebGL context",
+      "passed": true,
+      "milliseconds": 104,
+      "details": {
+        "resources": {
+          "species": 24,
+          "active": 2,
+          "pending": 0,
+          "errors": [],
+          "expressionWarnings": []
+        },
+        "rendererMemory": {
+          "geometries": 673,
+          "textures": 60
+        },
+        "rendererFrame": {
+          "frame": 395,
+          "calls": 140,
+          "triangles": 143628,
+          "points": 180,
+          "lines": 0
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "species": [],
+  "regions": [
+    {
+      "id": "verdant",
+      "worldObjects": 119,
+      "naturalActors": 8
+    },
+    {
+      "id": "waterside",
+      "worldObjects": 92,
+      "naturalActors": 8
+    },
+    {
+      "id": "highlands",
+      "worldObjects": 100,
+      "naturalActors": 8
+    },
+    {
+      "id": "caldera",
+      "worldObjects": 50,
+      "naturalActors": 6
+    },
+    {
+      "id": "complex",
+      "worldObjects": 109,
+      "naturalActors": 6
+    }
+  ],
+  "passed": 20,
+  "failed": 0,
+  "finishedAt": "2026-09-15T12:40:12.076Z",
+  "diagnostics": {
+    "phase": "playing",
+    "region": "complex",
+    "caught": 150,
+    "speciesTested": 0,
+    "regionsTested": 5,
+    "resources": {
+      "species": 24,
+      "active": 2,
+      "pending": 0,
+      "errors": [],
+      "expressionWarnings": []
+    },
+    "rendererMemory": {
+      "geometries": 673,
+      "textures": 60
+    }
+  },
+  "sourceSha256": {
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
+    "src/checkpoints.mjs": "24c98cca162b2c06090d58f08aa5fa705aec5586d1aba7e0613b3a53fb575d25",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/core.mjs": "0296fc9abe63b86202b4b34571c52f36bc7bd8ba1b68154ac15e5d07de484185",
+    "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
+    "src/expedition.mjs": "564e9e62575297c44f05012219057df210299828feae1cf0955ddcef42d2b8ff",
+    "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/game.mjs": "ff5b442fbeec86535994ea4e471f62502fd51c70811c0213ca47006b602286d0",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/interactions.mjs": "9a62033549a4b09b131368083451eb7f0bbedcda8c57885912bcb1b40691eb90",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/navigation.mjs": "7ee06660cc1f7c3ad038407caaad7e6f7d9fdd814d03d07a0afa676d05e4ddc5",
+    "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
+    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/ui.mjs": "768d173006a60cf4c69736409b9ba38cf20b3bbc5fbe59b13bcbc97deba09f72",
+    "src/world.mjs": "678006e8145dab1189441b14b95e5a2133a526f555b1473a1e341f21d71d7e5b",
+    "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/locale-messages.json": "3a90d89b22241b4937e4cd98d40bf5393dbe3892d0eadd31f09ac42e3323a837",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
+    "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "style.css": "7867254a2d4d5e1be23b0a4934b6e347c656268223ef8fc36b62c47f48eb897b",
+    "index.html": "b1acfa62b8ff1ef43248de4229687668f6888b1170abe676562a43e02b06cdb5"
+  }
+}

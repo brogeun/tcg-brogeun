@@ -297,3 +297,39 @@ html,body,button,input,select{font-family:"Malgun Gothic","Apple SD Gothic Neo",
 @media(pointer:coarse){.expedition-status{width:204px;flex:0 0 204px;align-items:center}.expedition-status>button{flex:0 0 44px;width:44px;min-width:44px}.expedition-status>button:first-child{width:106px;min-width:106px;flex:0 0 106px;display:flex;flex-direction:column;justify-content:center;gap:0}.expedition-status b{margin:0}.expedition-status button span{letter-spacing:0}}
 
 @media(pointer:coarse){.touch-pad button:first-child{grid-column:2}.touch-pad button:nth-child(2){grid-column:1}.touch-pad button:nth-child(3){grid-column:2}.touch-pad button:nth-child(4){grid-column:3}#journal-button b{font-size:18px;line-height:20px}#journal-button span{font-size:9px;line-height:12px;margin:0}}
+
+/* Readable atlas: map owns the full panel width, names live in touchable rows. */
+#panel .atlas-readable{display:grid;gap:16px;font-size:14px;line-height:1.6}
+#panel .atlas-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+#panel .atlas-toolbar>b{font-size:16px;color:#f1f8ef}
+#panel .atlas-toolbar>div{display:flex;gap:5px;flex-shrink:0}
+#panel .atlas-toolbar button{min-width:44px;min-height:44px;padding:8px;font-size:15px}
+#panel #atlas-canvas{width:100%;height:clamp(240px,44vh,340px);background:#10272e;touch-action:manipulation}
+#panel .atlas-help{margin:9px 0 14px;font-size:12px;color:#d4e5df;line-height:1.6}
+#panel .atlas-selection-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:8px 0;color:#e5f0e8}
+#panel .atlas-selection-heading button{min-height:40px;font-size:13px}
+#panel .atlas-point-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#panel .atlas-point-list button{display:flex;align-items:center;gap:9px;min-height:46px;text-align:left;padding:9px 10px;font-size:13px;background:#25454b;border:1px solid #54756f;color:#f1f7ef;line-height:1.5}
+#panel .atlas-point-list button>span{font-size:18px;min-width:22px;text-align:center;color:#ffe6a0}
+#panel .atlas-point-list button[aria-pressed=true]{background:#395d52;border-color:#e3eab0;box-shadow:inset 3px 0 #e3eab0}
+#panel .atlas-place-detail{margin-top:10px;padding:13px;border:1px solid #bdd497;background:#203e3d;border-radius:9px}
+#panel .atlas-place-detail p{font-size:13px;margin:8px 0;color:#e0ece2}
+#panel .atlas-place-detail small{font-size:12px;color:#c4d6cc}
+#panel .atlas-place-detail button{min-height:44px;font-size:14px}
+#panel .atlas-goal-summary{padding:14px;background:#263f42;border:1px solid #526a63;border-radius:10px}
+#panel .atlas-goal-summary h2{font-size:18px;margin:7px 0}
+#panel .atlas-goal-summary p{font-size:13px;color:#e0e9de;line-height:1.65}
+#panel .atlas-guide{border:1px solid #536e67;border-radius:10px;padding:0 12px;background:#1c373c}
+#panel .atlas-guide summary{cursor:pointer;font-size:14px;color:#eff4df;min-height:48px;display:list-item;align-content:center;padding:12px 0}
+#panel .field-guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding-bottom:12px}
+#panel .field-guide{padding:12px;border:1px solid #678375;border-radius:8px;background:#27454a}
+#panel .field-guide h3{font-size:15px;line-height:1.6;margin:0;color:#eef4e4}
+#panel .field-guide h3 small{font-size:12px;color:#e5c692}
+#panel .field-guide p,#panel .field-guide>small{display:block;font-size:13px;line-height:1.7;margin:8px 0;color:#dce8de}
+#panel .field-guide.learned h3 small{color:#bfeaaf}
+#panel .atlas-readable .atlas-regions{padding-bottom:12px}
+@media(max-width:600px){#panel .atlas-point-list,#panel .field-guide-grid{grid-template-columns:1fr}#panel .atlas-toolbar>b{font-size:14px}#panel #atlas-canvas{height:280px}}
+@media(max-height:480px){#panel #atlas-canvas{height:230px;min-height:230px}}
+
+@media(pointer:coarse) and (min-height:481px){#context.field-capability{max-height:166px}#context.field-capability small{font-size:11px;line-height:1.45}}
+@media(pointer:coarse) and (max-height:480px){#context.field-capability{max-height:98px}}

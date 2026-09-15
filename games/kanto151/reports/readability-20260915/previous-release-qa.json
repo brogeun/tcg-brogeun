@@ -1,0 +1,381 @@
+{
+  "status": "passed",
+  "validationScope": "current source, actual mobile and gameplay tests, completed local dist execution",
+  "generatedAt": "2026-09-13T22:46:32.280067+00:00",
+  "sourceSha256": {
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
+    "src/checkpoints.mjs": "24c98cca162b2c06090d58f08aa5fa705aec5586d1aba7e0613b3a53fb575d25",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/core.mjs": "0ec48ba271c3e28eb55cafb9a3f0b6767a399ceabb581dd067f823f31806f0f4",
+    "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
+    "src/expedition.mjs": "43c6aeba054df0174c915d698bd7638ab117d247ea16c5ed9509dd08591912f1",
+    "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/game.mjs": "f21991dc786a665dff91d85965464560de61206c646c02dd0165082ec27cebfb",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/interactions.mjs": "a338d2dbbad83d5abf461610f5dbb059da4bd02ef6c02b7087edbef562f2d280",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/navigation.mjs": "cd39c62476d6ac541a6ecff790868b2de85f9b6f904079f8de537b642c0b4b6d",
+    "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
+    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/region-world.mjs": "74e8db13324432d1289fd4fefc988c01f7065f87c2bba13c309cc0d3b5d20c08",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/ui.mjs": "4e73a62feff86e40bda13c6575b8a6c8a1e0227b36338aa96587d996e4469953",
+    "src/world.mjs": "678006e8145dab1189441b14b95e5a2133a526f555b1473a1e341f21d71d7e5b",
+    "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/locale-messages.json": "d33644c7d76151313e6d181ee088d1c1b383079cd8bb1188d61ea2c63b447ed7",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
+    "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "style.css": "360aadfa9ecec4b72fbf7ee5bd16a37f96459cea3f8b00bcd10dbb2e81f375a1",
+    "index.html": "2b33919b3e96bb20d96b5c86ea7bb7e8be0575bb96923cd6c564c5e57fd5655f",
+    "scripts/browser-suite.mjs": "d0286a68ac6f110accc8b9d731ec0c734ffc7024eabc25e3c0832f3d3e01dba5",
+    "scripts/nine-browser-suite.mjs": "f5a96f44a711e8ba6877c0dd3553f140fcb0c7c3631fd2764423e148ae6c392a"
+  },
+  "checks": {
+    "browser": true,
+    "mobile": true,
+    "imports": true,
+    "pacing": true,
+    "natural": true,
+    "geometry": true,
+    "identityPreserved": true,
+    "noLegacyFiles": true,
+    "locale": true,
+    "brightness": true,
+    "survival": true,
+    "checkpoints": true,
+    "deathRollback": true,
+    "interactions": true,
+    "campSwap": true,
+    "ecology": true,
+    "cooldowns": true,
+    "objectives": true,
+    "dist": true,
+    "portableSupplies": true,
+    "sourceDistribution": true,
+    "persistentHarvest": true
+  },
+  "matrix": [
+    {
+      "id": "verdant",
+      "region": "verdant",
+      "x": 3,
+      "z": 26,
+      "safe": true,
+      "repaired": true,
+      "repairedPosition": [
+        0,
+        26
+      ]
+    },
+    {
+      "id": "waterside",
+      "region": "waterside",
+      "x": -15,
+      "z": 28,
+      "safe": true,
+      "repaired": true,
+      "repairedPosition": [
+        -18,
+        28
+      ]
+    },
+    {
+      "id": "highlands",
+      "region": "highlands",
+      "x": -19,
+      "z": 31,
+      "safe": true,
+      "repaired": true,
+      "repairedPosition": [
+        -22,
+        31
+      ]
+    },
+    {
+      "id": "caldera",
+      "region": "caldera",
+      "x": -19,
+      "z": 22,
+      "safe": true,
+      "repaired": true,
+      "repairedPosition": [
+        -22,
+        22
+      ]
+    },
+    {
+      "id": "complex",
+      "region": "complex",
+      "x": -21,
+      "z": 28,
+      "safe": true,
+      "repaired": true,
+      "repairedPosition": [
+        -24,
+        28
+      ]
+    }
+  ],
+  "summary": {
+    "unitTests": 225,
+    "fullBrowserCases": 22,
+    "focusedBrowserCases": 20,
+    "newRuntimeCases": 6,
+    "distinctNativeInputChecks": 24,
+    "additionalNativeInputChecks": 12,
+    "speciesRendered": 151,
+    "regionsRendered": 5,
+    "touchViewports": [
+      [
+        390,
+        844
+      ],
+      [
+        360,
+        640
+      ]
+    ],
+    "distBrowserChecks": 11,
+    "currentFocusedBrowserCases": 20,
+    "supplyFunctionalCases": 22,
+    "supplyMobileCases": 12,
+    "supplyPacingSeconds": 948.046499999707,
+    "distSourceFilesMatched": 51,
+    "mobileReleaseTouchChecks": 59,
+    "mobileReleaseViewports": [
+      [
+        360,
+        640
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        844,
+        390
+      ],
+      [
+        768,
+        1024
+      ],
+      [
+        1024,
+        768
+      ],
+      [
+        740,
+        360
+      ]
+    ]
+  },
+  "items": [
+    {
+      "number": 1,
+      "name": "밝기 반복 변화",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 2,
+      "name": "생존 소모 1.25배",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 3,
+      "name": "생존 고갈 사망 전체 복귀",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 4,
+      "name": "5지역 명시적 저장대",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 5,
+      "name": "상호작용 대상과 행동 안내",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 6,
+      "name": "파트너·캠프 개체 교체",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 7,
+      "name": "생태에 맞는 야생 분포",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 8,
+      "name": "기술 재사용 시간",
+      "implementation": "complete",
+      "localVerification": "passed"
+    },
+    {
+      "number": 9,
+      "name": "낮은 수집 허들 목표 추천",
+      "implementation": "complete",
+      "localVerification": "passed"
+    }
+  ],
+  "evidence": [
+    {
+      "report": "reports/nine/focused-browser.json",
+      "passed": 20,
+      "scope": "Re-ran all gameplay/region/migration integration cases, excluding unchanged 151-asset and 30-signature bulk checks. Original input hashes retained in that report."
+    },
+    {
+      "report": "reports/nine/runtime-browser.json",
+      "passed": 6,
+      "scope": "Latest full rollback, first/repeated death, five stations, failed writes, camp UID transaction, live five-region habitat movement, actual cooldowns including compact choice card."
+    },
+    {
+      "report": "reports/nine/native-input.json",
+      "passed": 24,
+      "scope": "Last result per name: keyboard/click/touch at 1000x720, 390x844, 360x640; save, camp comparison/cancel/apply/search/model and control nonoverlap."
+    },
+    {
+      "report": "reports/nine/native-extra.json",
+      "passed": 12,
+      "scope": "Real keys/clicks for movement, water, consumed berry removal, legal Clefairy Pound re-learning, Pound/Tackle timed reuse, objective text, pause, camp sorting."
+    },
+    {
+      "report": "reports/nine/lighting-summary.json",
+      "scope": "Actual matched baseline/final six-condition screen sequences; renderer values and contact sheet."
+    },
+    {
+      "report": "reports/nine/lighting-quality.json",
+      "scope": "Actual high/auto/low quality changes preserve illumination and enabled shadows."
+    },
+    {
+      "report": "reports/nine/objective-final.json",
+      "scope": "Actual final browser objective and HUD for missing rod and insufficient coins."
+    },
+    {
+      "report": "reports/nine/unit-tests.txt",
+      "passed": 206,
+      "scope": "Final source core/runtime/five-world tests, including all authored spawn legality and recommendation prerequisites."
+    },
+    {
+      "report": "reports/nine/dist-browser.json",
+      "passed": 5,
+      "scope": "Actual built entry startup through normal buttons, native E checkpoint, Game.step starvation and full rollback, continue, move settings; 50 runtime/data files match source."
+    }
+  ],
+  "preservation": {
+    "baseline": "../.qa-nine-20260913/baseline",
+    "originalReports": "../.qa-nine-20260913/previous-reports",
+    "userSavesAccessed": false,
+    "zipExtractedOrOverwritten": false,
+    "speciesMovesBiomesAndManifestUnchanged": true
+  },
+  "limitations": [
+    "The 151-species browser run uses seeded physical captures and does not represent a natural full campaign. Acquisition conditions, evolution reachability and authored spawn terrain were separately validated.",
+    "Touch was tested with actual browser touch events and device-size emulation, not physical phones. User GPU and long-session thermal behavior were not tested.",
+    "Normal-input checks use memory-only QA fixtures for location/progress; no actual user saves or user browser were accessed.",
+    "No deployment, push, commit or external publication.",
+    "Supply pacing removes combat actors to isolate resources, seeds region access and uses existing walkTo on authored paths. It is a measured repeated-route circuit, not a natural late-game campaign.",
+    "natural=true denotes short ordinary-input checks. The new normal-clock supply route measurement covers 948 active seconds, with combat removed and region access seeded; it is not a full natural campaign."
+  ],
+  "supplyEvidence": [
+    {
+      "report": "reports/supply/unit-tests.txt",
+      "passed": 225,
+      "scope": "Full core, runtime and five-world tests, including legacy provision defaults, original archive, old checkpoints, invalid records and transactional actions."
+    },
+    {
+      "report": "reports/supply/focused-browser.json",
+      "passed": 20,
+      "scope": "Current five-region gameplay/migration/camera/capture/evolution/moves/boss/Mew integration. Unchanged 151-asset and 30-signature sweeps excluded."
+    },
+    {
+      "report": "reports/supply/functional-browser.json",
+      "passed": 22,
+      "scope": "Actual source and tree interactions, serialized page reload, rock-smash unlock, canteen/rations, starvation rollback and failed writes."
+    },
+    {
+      "report": "reports/supply/mobile-browser.json",
+      "passed": 12,
+      "scope": "390x844 and 360x640 native touch, control nonoverlap, water/bag use, normal-clock source/camp walking."
+    },
+    {
+      "report": "reports/supply/pacing-browser.json",
+      "scope": "Normal Game.tick and authored walking speed: early landmark round trip and 948 active seconds in caldera with no source, two canteen and two ration uses."
+    },
+    {
+      "report": "reports/supply/dist-browser.json",
+      "passed": 8,
+      "scope": "Actual built startup, native E checkpoint, full starvation rollback/settings, continue, cooldown settings, separate source actions and persistent apple attempt; 51 runtime/data files match source."
+    }
+  ],
+  "supplyScope": "Refinement of survival/provisions within the existing nine improvements. Two base sources + one rock-smash-gated highland source, six existing apple trees, 2-charge canteen, capped timed camp food. Same gauges, inventory, save and full rollback.",
+  "balance": {
+    "appleChance": 0.3,
+    "treeRespawnActiveSeconds": 180,
+    "canteenCapacity": 2,
+    "canteenRecovery": 40,
+    "appleRecovery": 25,
+    "rationRecovery": 35,
+    "campFoodLimit": 2,
+    "campRefillActiveSeconds": 480,
+    "survivalMultiplier": 1.25,
+    "existingFieldBerryRecovery": 42,
+    "capacityChangedAfterPacing": false
+  },
+  "mobileReleaseEvidence": [
+    {
+      "report": "reports/mobile-release/browser.json",
+      "passed": 56
+    },
+    {
+      "report": "reports/mobile-release/extra-browser.json",
+      "passed": 3
+    },
+    {
+      "report": "reports/mobile-release/focused-browser.json",
+      "passed": 20
+    },
+    {
+      "report": "reports/mobile-release/unit-tests.txt",
+      "passed": 225
+    },
+    {
+      "report": "reports/mobile-release/dist-browser.json",
+      "passed": 11
+    }
+  ]
+}

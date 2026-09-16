@@ -1345,6 +1345,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         </button>
         <div class="slide-actions-top">
           <button type="button" class="slide-icon-btn card-favorite" id="slideWatchBtn" aria-label="즐겨찾기 추가" aria-pressed="false"></button>
+          <button type="button" class="slide-icon-btn" id="slideBackBtn" onclick="backFromSlidePanel()" title="이전 목록으로" aria-label="이전 목록으로 돌아가기">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
+          </button>
           <button type="button" class="slide-icon-btn" id="slideShareBtn" title="공유" aria-label="공유">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.4M8.2 13.2l7.6 4.4"/></svg>
           </button>
@@ -2597,6 +2600,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20260916-shared-detail2"></script>
+<script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
 <script src="/assets/price-expanded.js?v=20260916-shared-detail2"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
@@ -5680,8 +5684,10 @@ function changePricePage(d) {
  * 별도 페이지 (#price/{id}) 는 그대로 유지 — URL 공유 시 활용
  * ───────────────────────────────────────────────────────────── */
 let CURRENT_SLIDE_ID = null;
+let SLIDE_RETURN_SET = null;
 
 window.openSlidePanel = async function(productId) {
+  SLIDE_RETURN_SET = location.hash === '#cardinfo' && _LAST_OPENED_SET ? {..._LAST_OPENED_SET} : null;
   CURRENT_SLIDE_ID = String(productId);
   document.getElementById('slideWatchBtn').dataset.watchId = String(productId);
   CardFavorites.sync();
@@ -5714,6 +5720,13 @@ window.closeSlidePanel = function() {
   if (panel) { panel.classList.remove('show'); panel.setAttribute('aria-hidden', 'true'); }
   document.body.style.overflow = '';
   CURRENT_SLIDE_ID = null;
+  SLIDE_RETURN_SET = null;
+};
+
+window.backFromSlidePanel = function() {
+  const previousSet = SLIDE_RETURN_SET;
+  closeSlidePanel();
+  if (previousSet) return reopenLastSet(previousSet);
 };
 
 async function renderSlidePanel(productId) {
@@ -7071,7 +7084,7 @@ function renderCardInfo() {
 let CI_PANEL_REQUEST = 0;
 const CI_CARD_PAGE_SIZE = 18;
 const ciIcon = name => `<i data-lucide="${name}"></i>`;
-window.openSetGrid = async function(setCode, setName, externalUrl) {
+window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {}) {
   const request = ++CI_PANEL_REQUEST;
   const brand = CARDINFO.onepiece.some(s => s.code === setCode) ? 'onepiece' : 'pokemon';
   const set = CARDINFO[brand].find(s => s.code === setCode);
@@ -7094,11 +7107,16 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
     <nav id="ciPanelPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동" hidden></nav>`, 'wide');
   const modal = document.getElementById('anyModal');
   modal.classList.add('ci-panel');
+  if (viewState.expanded) modal.classList.add('ci-expanded');
+  document.getElementById('ciExpand').setAttribute('aria-pressed', String(!!viewState.expanded));
+  const scrollArea = modal.querySelector('.ci-panel-scroll');
+  scrollArea.addEventListener('scroll', () => { viewState.scrollTop = scrollArea.scrollTop; }, {passive:true});
   modal._ciOpener = opener;
   const panel = modal.querySelector('.modal-box');
   panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-labelledby', 'ciPanelTitle');
   document.getElementById('ciExpand').onclick = e => {
     const expanded = modal.classList.toggle('ci-expanded');
+    viewState.expanded = expanded;
     e.currentTarget.setAttribute('aria-pressed', String(expanded));
   };
   document.getElementById('ciShare').onclick = async () => {
@@ -7152,9 +7170,10 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
       document.getElementById('setGridContent').innerHTML = '<div style="padding:40px; text-align:center; color:var(--ink-sub)">카드 없음</div>';
       return;
     }
-    let page = 1;
     const pageCount = Math.ceil(cards.length / CI_CARD_PAGE_SIZE);
+    let page = Math.max(1, Math.min(pageCount, Number(viewState.page) || 1));
     const renderPage = () => {
+    viewState.page = page;
     document.getElementById('setGridContent').innerHTML = `
       <div class="ci-panel-summary">총 ${cards.filter(c=>!c.isBundle).length} 카드 수록${cards.some(c=>c.isBundle)?' · 묶음 시세 별도 포함':''} <span>카드를 클릭하여 시세를 확인해보세요 · ${page} / ${pageCount} 페이지</span></div>
       <div class="set-card-grid">
@@ -7214,11 +7233,13 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
       const btn = e.target.closest('button[data-page]');
       if (!btn || btn.disabled) return;
       page = Math.max(1, Math.min(pageCount, Number(btn.dataset.page)));
+      viewState.scrollTop = 0;
       renderPage();
       modal.querySelector('.ci-panel-scroll').scrollTop = 0;
       modal.querySelector('.set-card-item')?.focus({preventScroll:true});
     };
     renderPage();
+    scrollArea.scrollTop = Math.max(0, Number(viewState.scrollTop) || 0);
   } catch (e) {
     if (request === CI_PANEL_REQUEST && document.getElementById('setGridContent')) document.getElementById('setGridContent').innerHTML = '<div style="padding:40px; text-align:center; color:#dc2626">카드를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.</div>';
   }
@@ -7336,9 +7357,9 @@ window.gotoBoxPriceFromSet = async function(code) {
 // 마지막 연 박스 정보 (뒤로가기 용)
 let _LAST_OPENED_SET = null;
 const _origOpenSetGrid = window.openSetGrid;
-window.openSetGrid = function(setCode, setName, externalUrl) {
-  _LAST_OPENED_SET = {setCode, setName, externalUrl};
-  return _origOpenSetGrid(setCode, setName, externalUrl);
+window.openSetGrid = function(setCode, setName, externalUrl, restore = {}) {
+  _LAST_OPENED_SET = {setCode, setName, externalUrl, page:restore.page || 1, scrollTop:restore.scrollTop || 0, expanded:!!restore.expanded};
+  return _origOpenSetGrid(setCode, setName, externalUrl, _LAST_OPENED_SET);
 };
 
 // 그리드 카드 클릭 → SNKRDUNK 매칭 있으면 시세 페이지, 없으면 정보만 표시
@@ -7468,11 +7489,11 @@ document.addEventListener('click', async e => {
 });
 
 // 박스로 돌아가기
-window.reopenLastSet = function() {
-  if (!_LAST_OPENED_SET) { closeAnyModal(); return; }
-  const {setCode, setName, externalUrl} = _LAST_OPENED_SET;
+window.reopenLastSet = function(previousSet = _LAST_OPENED_SET) {
+  if (!previousSet) { closeAnyModal(); return; }
+  const {setCode, setName, externalUrl} = previousSet;
   closeAnyModal();
-  setTimeout(() => openSetGrid(setCode, setName, externalUrl), 100);
+  return openSetGrid(setCode, setName, externalUrl, previousSet);
 };
 document.addEventListener('click', e => {
   const tab = e.target.closest('#ciTabs .tab');

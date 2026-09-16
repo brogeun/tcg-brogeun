@@ -29,25 +29,20 @@
         nameLower:p.name.toLowerCase(),_productKind:p.kind,_brand:'pokemon',_grade:p.kind==='card'?'raw':undefined};
     });
   }
-  function render(p) {
-    if(!p)return '<p style="padding:24px">연결된 상품 정보를 불러오지 못했습니다. 잠시 후 다시 선택해 주세요.</p>';
-    const preferred=p.grades.find(g=>g.key==='raw'&&g.lowestAsk)||p.grades.find(g=>g.lowestAsk);
+  // Supplement the shared detail, never create a second product/image layout.
+  function renderSupplement(p) {
+    if(!p)return '';
     const yen=v=>Number.isSafeInteger(v)&&v>0?'¥'+v.toLocaleString('ko-KR'):'출품 없음';
     const won=v=>Number.isSafeInteger(v)&&v>0?fmtKrw(v,'JPY'):'—';
     const stamp=new Date(p.fetchedAt);
     const stale=!Number.isFinite(stamp.getTime())||Date.now()-stamp.getTime()>48*3600000;
-    return `<img src="${esc(p.thumbnailUrl)}" alt="${esc(p.name)}" style="display:block;max-width:min(80%,260px);max-height:350px;object-fit:contain;margin:0 auto 16px" referrerpolicy="no-referrer">
-      <h3 style="font-size:16px;line-height:1.5;overflow-wrap:anywhere">${esc(p.name)}</h3>
+    return `<div class="am-market-note">
       ${/2 Piece Set/i.test(p.name)?'<p style="color:#a16207">2장 묶음 상품 가격입니다. 개별 카드 1장 가격이 아닙니다.</p>':''}
-      <p style="margin:12px 0 4px">${esc(preferred?.label || '현재')} 판매가</p>
-      <strong style="font-size:26px">${yen(preferred?.lowestAsk)}</strong>
-      <div>${won(preferred?.lowestAsk)}</div>
       <p style="font-size:12px;color:#888">${stale?'갱신 지연 · 마지막 수집':'수집'} ${Number.isFinite(stamp.getTime())?stamp.toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'확인 필요'} KST</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;text-align:left;margin:16px 0">
-      ${p.grades.map(g=>`<div style="padding:10px;border:1px solid #ddd;border-radius:10px"><span style="font-size:12px;color:#666">${esc(g.label)}</span><br><strong style="font-size:14px">${yen(g.lowestAsk)}</strong>${g.lowestAsk?`<div style="font-size:11px;color:#888">${won(g.lowestAsk)}</div>`:''}</div>`).join('')}</div>
-      <p style="font-size:12px;color:#888">등급별 판매 등록가입니다. 배송비·수수료는 포함하지 않으며, 원화는 사이트 공통 환율로 환산합니다.</p>
-      <a class="btn" href="${esc(p.sourceUrl)}" target="_blank" rel="noopener noreferrer">스니덩 원문 보기 ↗</a>
-      <a class="btn" href="#price/${esc(p.id)}" onclick="closeAnyModal();go('price/${esc(p.id)}');return false">상세 시세 · 포트폴리오 →</a>`;
+      <details><summary style="cursor:pointer;font-size:12px">전체 등급 · 엔화 가격 보기</summary>
+      <table class="slide-grade-table px-table"><thead><tr><th>등급</th><th>엔화</th><th>원화</th></tr></thead><tbody>
+      ${p.grades.map(g=>`<tr><td>${esc(g.label)}</td><td>${yen(g.lowestAsk)}</td><td>${won(g.lowestAsk)}</td></tr>`).join('')}</tbody></table></details>
+      <p style="font-size:12px;color:#888">등급별 판매 등록가입니다. 배송비·수수료는 포함하지 않으며, 원화는 사이트 공통 환율로 환산합니다.</p></div>`;
   }
   let request=0;
   document.addEventListener('click',async event=>{
@@ -62,13 +57,14 @@
     const rows=ids.map(product).filter(Boolean);
     const name=item.dataset.cardName || '';
     closeAnyModal();
-    openAnyModal(`<div class="modal-head"><h3>30주년 카드 시세</h3><button class="modal-close" aria-label="닫기" onclick="closeAnyModal()">✕</button></div>
+    if(rows.length===1){await window.openSlidePanel(String(rows[0].id));return;}
+    openAnyModal(`<div class="modal-head"><h3>카드 상품 선택</h3><button class="modal-close" aria-label="닫기" onclick="closeAnyModal()">✕</button></div>
       <div class="modal-body" style="padding:20px;text-align:center">
         <button class="btn" onclick="reopenLastSet()" style="margin-bottom:16px">← 수록 카드로</button>
         ${rows.length>1?`<p>같은 번호의 상품입니다. 이미지와 버전을 확인해 선택해 주세요.</p><div id="amChoices">${rows.map(p=>`<button class="btn" data-am-id="${esc(p.id)}" style="white-space:normal;margin:4px">${esc(p.name)}</button>`).join('')}</div>`:''}
-        <div id="amContent">${rows.length===1?render(rows[0]):rows.length?'상품을 선택해 주세요.':`<h3>${esc(name)}</h3><p>번호·버전이 일치하는 스니덩 상품 연결을 확인 중입니다.</p><p style="font-size:12px;color:#888">거래가 없다는 뜻은 아닙니다. 확인되지 않은 다른 카드의 가격은 표시하지 않습니다.</p>`}</div>
+        <div id="amContent">${rows.length?'상품을 선택해 주세요.':`<h3>${esc(name)}</h3><p>번호·버전이 일치하는 스니덩 상품 연결을 확인 중입니다.</p><p style="font-size:12px;color:#888">거래가 없다는 뜻은 아닙니다. 확인되지 않은 다른 카드의 가격은 표시하지 않습니다.</p>`}</div>
       </div>`);
-    document.querySelectorAll('[data-am-id]').forEach(btn=>btn.onclick=()=>{document.getElementById('amContent').innerHTML=render(product(btn.dataset.amId));});
+    document.querySelectorAll('[data-am-id]').forEach(btn=>btn.onclick=()=>{closeAnyModal();window.openSlidePanel(btn.dataset.amId);});
   },true);
-  window.AnniversaryMarket={load,product,products,quote,gradeQuote,render};
+  window.AnniversaryMarket={load,product,products,quote,gradeQuote,renderSupplement};
 })();

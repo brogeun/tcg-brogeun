@@ -130,6 +130,7 @@
       </section></div></article>`;
     panel.querySelector('[data-px-back]').onclick=back;
     const nav=window._DETAIL_NAV;
+    if (anniversary) panel.querySelector('.px-price-box').insertAdjacentHTML('beforeend', window.AnniversaryMarket.renderSupplement(anniversary));
     const idx=nav?.list?.indexOf(String(id)) ?? -1;
     if (idx>=0) {
       const node=panel.querySelector('.px-nav');
@@ -149,13 +150,14 @@
       if (!current()) return;
       const q=values[state.grade];
       panel.querySelector('#pxLabel').textContent=keys.find(([k])=>k===state.grade)[1]+' 기준';
-      panel.querySelector('#pxCurrent').textContent=krw(q);
-      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || '가격 데이터 없음');
+      const display=q=>q?krw(q):anniversary?'출품 없음':'—';
+      panel.querySelector('#pxCurrent').textContent=display(q);
+      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || (anniversary?'수집 시점 출품 없음':'가격 데이터 없음'));
       const portfolio=panel.querySelector('#pxPortfolio');
       portfolio.disabled=state.grade.startsWith('bgs');
       portfolio.title=portfolio.disabled?'BGS는 시세 참고용입니다. 현재 포트폴리오는 PSA 10·PSA 9·A급·박스 등급을 지원합니다.':'선택한 등급으로 포트폴리오 추가';
-      panel.querySelectorAll('[data-px-grade]').forEach(btn=>{const key=btn.dataset.pxGrade;btn.setAttribute('aria-pressed',String(key===state.grade));btn.querySelector('.px-grade-price').textContent=krw(values[key]);});
-      panel.querySelector('#pxGradeRows').innerHTML=keys.map(([key,label])=>`<tr class="${key===state.grade?'is-selected':''}"><td>${label}</td><td>${krw(values[key])}</td><td>${changeHTML(change7(history,key+'_price'))}</td></tr>`).join('');
+      panel.querySelectorAll('[data-px-grade]').forEach(btn=>{const key=btn.dataset.pxGrade;btn.setAttribute('aria-pressed',String(key===state.grade));btn.querySelector('.px-grade-price').textContent=display(values[key]);});
+      panel.querySelector('#pxGradeRows').innerHTML=keys.map(([key,label])=>`<tr class="${key===state.grade?'is-selected':''}"><td>${label}</td><td>${display(values[key])}</td><td>${changeHTML(change7(history,key+'_price'))}</td></tr>`).join('');
       draw();
     }
     panel.querySelectorAll('[data-px-grade]').forEach(btn=>btn.onclick=()=>{state.grade=btn.dataset.pxGrade;update();});

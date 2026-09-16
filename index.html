@@ -2596,8 +2596,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
-<script src="/assets/anniversary-market.js?v=20260916-1"></script>
-<script src="/assets/price-expanded.js?v=20260916-anniversary1"></script>
+<script src="/assets/anniversary-market.js?v=20260916-shared-detail2"></script>
+<script src="/assets/price-expanded.js?v=20260916-shared-detail2"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -5720,7 +5720,7 @@ async function renderSlidePanel(productId) {
   await FX_READY;
   await window.AnniversaryMarket?.load();
   // 1. product 메타 — 기존 showPriceDetailPanel 과 동일한 fallback chain
-  let product = null;
+  let product = window.AnniversaryMarket?.products().find(p=>p.id===String(productId)) || null;
   // HOME_TOP_CACHE 우선
   for (const brand of ['pokemon', 'onepiece']) {
     const list = HOME_TOP_CACHE[brand];
@@ -5899,7 +5899,7 @@ async function renderSlidePanel(productId) {
   imgWrap.innerHTML = image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
 
   // body — 박스 / 카드 구분 렌더
-  const fmtChip = (val) => val ? `₩${val.toLocaleString()}` : '—';
+  const fmtChip = (val) => val ? `₩${val.toLocaleString()}` : anniversaryProduct ? '출품 없음' : '—';
   const body = document.getElementById('slideBody');
   const gradeRowHTML = isBox ? '' : `
     <!-- 등급 4개 칩 (카드만) -->
@@ -6003,6 +6003,7 @@ async function renderSlidePanel(productId) {
   `;
 
   // 등급 칩 클릭 → slide-price-val 업데이트
+  if (anniversaryProduct) body.querySelector('.slide-price-box').insertAdjacentHTML('beforeend', AnniversaryMarket.renderSupplement(anniversaryProduct));
   body.querySelectorAll('.slide-grade-chip').forEach(chip => {
     chip.addEventListener('click', () => {
       body.querySelectorAll('.slide-grade-chip').forEach(c => c.classList.remove('active'));
@@ -6018,7 +6019,8 @@ async function renderSlidePanel(productId) {
       };
       const [val, label] = map[g] || [null, ''];
       document.getElementById('slidePriceVal').textContent = fmtChip(val);
-      document.getElementById('slidePriceSub').textContent = label;
+      body.querySelector('.slide-price-label').textContent = label;
+      document.getElementById('slidePriceSub').textContent = anniversaryProduct ? 'SNKRDUNK · 수집 시점 출품가' : label;
       if (history && history.length >= 2) drawSlideChart(history, isBox, g);
     });
   });
@@ -6041,6 +6043,8 @@ async function renderSlidePanel(productId) {
   // 차트 — 박스는 box_price, 카드는 psa10_price 기준
   if (history && history.length >= 2) {
     drawSlideChart(history, isBox, preferTopRaw ? 'raw' : 'psa10');
+  } else {
+    body.querySelector('.slide-chart-wrap').innerHTML = '<div class="px-empty">아직 누적된 거래 내역이 없습니다.</div>';
   }
   // 정보 테이블 타입 표시 — isBox 기반
   const typeCell = body.querySelector('.slide-info-table tr:first-child td:last-child');

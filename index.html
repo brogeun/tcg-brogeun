@@ -2595,8 +2595,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
-<script src="/assets/home-market.js?v=20260913-1"></script>
-<script src="/assets/price-expanded.js?v=20260913-quotes1"></script>
+<script src="/assets/home-market.js?v=20260916-1"></script>
+<script src="/assets/anniversary-market.js?v=20260916-1"></script>
+<script src="/assets/price-expanded.js?v=20260916-anniversary1"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -3041,7 +3042,9 @@ function _homeProductKind(name) {
 }
 
 function _homePriceRowHTML(p, i) {
-  const price = HomeMarket.quote(p)?.value;
+  const homeQuote = HomeMarket.quote(p);
+  const price = homeQuote?.value;
+  const currency = homeQuote?.currency || p.currency;
   const change = HOME_TRADE_CHANGES[String(p.id)];
   const changeText = change ? `거래가 ${Math.abs(change.percent)<.05?'변동 없음':`${change.percent>0?'▲ +':'▼ '}${change.percent.toFixed(1)}%`}` : change === undefined ? '거래 변동 확인 중…' : '비교할 거래 이력 없음';
   const changeTitle = change ? `${change.from} → ${change.to} · 직전 거래일 대비 (출품가 변동률 아님)` : '같은 등급의 거래일이 2개 이상 있어야 계산할 수 있습니다';
@@ -3066,8 +3069,8 @@ function _homePriceRowHTML(p, i) {
       <div class="price-pack mo-home-only" title="${escapeHtml(setLabel)}">${escapeHtml(setLabel)}</div>
     </div>
     <div class="price-right">
-      <div class="price-val">${fmtKrw(price, p.currency)}</div>
-      <div class="price-orig">${fmtOrig(price, p.currency)}</div>
+      <div class="price-val">${fmtKrw(price, currency)}</div>
+      <div class="price-orig">${fmtOrig(price, currency)}</div>
       <span class="mo-home-change" title="${escapeHtml(changeTitle)}">${changeText}</span>
     </div>
   </a>`;
@@ -3510,6 +3513,7 @@ async function initHome2() {
     try {
       const products = await loadHomeTop(brand);
       await FX_READY;
+      await window.AnniversaryMarket?.load();
       renderHomeTopRow(brand);
       void loadHomeTradeChanges(products).then(() => renderHomeTopRow(brand));
     } catch (e) {
@@ -3624,6 +3628,7 @@ async function loadCardsDetail() {
 /* ─────────── 상품 상세 패널 (Phase 2 + 3) ─────────── */
 async function showPriceDetailPanel(productId) {
   await FX_READY;
+  await window.AnniversaryMarket?.load();
   const panel = document.getElementById('priceDetailPanel');
   if (!panel) return;
   panel.dataset.productId = String(productId);
@@ -3692,6 +3697,8 @@ async function showPriceDetailPanel(productId) {
     }
   }
 
+  const anniversaryProduct = window.AnniversaryMarket?.products().find(p=>p.id===String(productId));
+  if (anniversaryProduct) product = {...product,...anniversaryProduct};
   if (panel.dataset.productId !== String(productId)) return;
   if (window.renderExpandedPriceDetail) {
     await window.renderExpandedPriceDetail(productId, product, panel);
@@ -4861,6 +4868,8 @@ async function loadCardSearchData() {
     }
   }
   _ALL_CARDS_INDEX = [...cardItems, ...boxItems];
+  await window.AnniversaryMarket?.load();
+  _ALL_CARDS_INDEX = [...new Map([..._ALL_CARDS_INDEX,...(window.AnniversaryMarket?.products() || [])].map(p=>[String(p.id),p])).values()];
   console.log(`[search] 카드 ${cardItems.length} + 박스 ${boxItems.length} 인덱싱`);
   // search-aliases.json 로딩
   try {
@@ -5709,6 +5718,7 @@ window.closeSlidePanel = function() {
 
 async function renderSlidePanel(productId) {
   await FX_READY;
+  await window.AnniversaryMarket?.load();
   // 1. product 메타 — 기존 showPriceDetailPanel 과 동일한 fallback chain
   let product = null;
   // HOME_TOP_CACHE 우선
@@ -5750,6 +5760,8 @@ async function renderSlidePanel(productId) {
     } catch (e) { console.warn('[slide] card index fallback fail:', e); }
   }
   // 가격 파일에 임시 이름(Card #ID)만 있어도 실제 카드 메타로 상세명을 복원한다.
+  const anniversaryProduct = window.AnniversaryMarket?.products().find(p=>p.id===String(productId));
+  if (anniversaryProduct) product = {...product,...anniversaryProduct};
   if (product) await enrichPriceProductMetadata([product], PRICE_CAT);
   // 2. history 받기 — 등급별 가격
   let history = null;
@@ -5789,7 +5801,7 @@ async function renderSlidePanel(productId) {
   // 출처 파일 기반 판별 — [코드] 패턴 없는 카드(예: DON!! 카드)도 card 파일 출신이면 카드로
   const isCardBySrc = product && product._src && /-card$/.test(product._src);
   const isBoxBySrc = product && product._src && (/-box$/.test(product._src) || /^manual-boxes/.test(product._src));
-  const isBox = (isCardByPN || isCardByName || isCardBySrc) ? false : (isBoxBySrc ? true : (hasCardGrade ? false : (hasBoxData ? true : true)));
+  const isBox = anniversaryProduct ? anniversaryProduct.kind === 'box' : (isCardByPN || isCardByName || isCardBySrc) ? false : (isBoxBySrc ? true : (hasCardGrade ? false : (hasBoxData ? true : true)));
   const catalogInfo = window.PriceProductInfo ? await PriceProductInfo.get(product, brand, isBox) : {sets:[]};
   if (String(CURRENT_SLIDE_ID) !== String(productId)) return;
   if (catalogInfo.sets.length) pack = catalogInfo.sets.map(PriceProductInfo.label).join(' / ');
@@ -5848,12 +5860,18 @@ async function renderSlidePanel(productId) {
     }
   }
   const topListing = product?._isTop10 ? HomeMarket.quote(product) : null;
-  const preferTopRaw = !isBox && !!topListing;
-  if (preferTopRaw) { rawJpy = topListing.value; rawCur = topListing.currency; }
+  const preferTopRaw = !isBox && (!!topListing || !!anniversaryProduct);
+  if (topListing) { rawJpy = topListing.value; rawCur = topListing.currency; }
+  if (anniversaryProduct && !isBox) {
+    rawJpy = window.AnniversaryMarket.gradeQuote(productId,'raw')?.value ?? null;
+    psa10Jpy = window.AnniversaryMarket.gradeQuote(productId,'psa10')?.value ?? null;
+    psa9Jpy = window.AnniversaryMarket.gradeQuote(productId,'psa9')?.value ?? null;
+    rawCur = psa10Cur = psa9Cur = 'JPY';
+  }
   // BGS 가격 — history 에서만 (SNKRDUNK 가 거래 적어 차트 불안정 → 가격만 표시)
-  const bgs10BlJpy = pickLatestPrice('bgs10_bl_price');
-  const bgs10GlJpy = pickLatestPrice('bgs10_gl_price');
-  const bgs95Jpy   = pickLatestPrice('bgs95_price');
+  const bgs10BlJpy = anniversaryProduct ? window.AnniversaryMarket.gradeQuote(productId,'bgs10_bl')?.value ?? null : pickLatestPrice('bgs10_bl_price');
+  const bgs10GlJpy = anniversaryProduct ? window.AnniversaryMarket.gradeQuote(productId,'bgs10_gl')?.value ?? null : pickLatestPrice('bgs10_gl_price');
+  const bgs95Jpy   = anniversaryProduct ? window.AnniversaryMarket.gradeQuote(productId,'bgs95')?.value ?? null : pickLatestPrice('bgs95_price');
   const _conv = (val, cur) => {
     if (val == null) return null;
     if (cur === 'KRW') return Math.floor(val);
@@ -6779,6 +6797,8 @@ const CARDINFO_SOURCE = {
 const CARDINFO = {
   pokemon: [
     // ─── Mega Scarlet & Violet Era ───
+    {code:"M6a", name:"30주년 셀레브레이션 (30th Celebration)", release:"2026.09.16", boxId:"881421", image:"https://cdn.snkrdunk.com/upload_bg_removed/7a7d351b-02f9-44d5-b08e-c4bce2e0a6a9.webp", url:"https://www.tcgcollector.com/sets/11823/30th-celebration?setCardCountMode=anyCardVariant"},
+    {code:"MF", name:"30주년 프리미엄 덱 세트 에브이·블래키 (30th Celebration Premium Deck Set: Espeon & Umbreon)", release:"2026.09.16", boxId:"881423", image:"https://cdn.snkrdunk.com/upload_bg_removed/f08973d8-723a-400b-8371-800d5913779f.webp", url:"https://www.tcgcollector.com/sets/11822/30th-celebration-premium-deck-set-espeon-and-umbreon?setCardCountMode=anyCardVariant"},
     {code:"M6", name:"스톰 에메랄다 (Storm Emeralda)", release:"2026.07.31", boxId:"846048", imageVersion:"20260901", imageScale:1.1, url:"https://www.tcgcollector.com/sets/11929/storm-emeralda?setCardCountMode=anyCardVariant"},
     {code:"M5", name:"어비스아이 (Abyss Eye)", release:"2026.05.22", boxId:"806644", url:"https://www.tcgcollector.com/sets/11810/abyss-eye?setCardCountMode=anyCardVariant"},
     {code:"M4", name:"닌자 스페너 (Ninja Spinner)", release:"2026.03.13", boxId:"762693", url:"https://www.tcgcollector.com/sets/11800/ninja-spinner?setCardCountMode=anyCardVariant"},
@@ -7008,9 +7028,9 @@ function renderCardInfo() {
     // S 시리즈 webp 는 소문자 파일명 (s12a.webp), SV 시리즈는 대문자 그대로
     const isSwordShield = /^S[0-9]/.test(s.code) && !s.code.startsWith('SV');
     const webpName = isSwordShield ? s.code[0].toLowerCase() + s.code.slice(1) : s.code;
-    const imgSrcBase = isLegacyBox2
+    const imgSrcBase = s.image || (isLegacyBox2
       ? `images/box2/${s.code}.webp`
-      : isNewWebp ? `images/box/${webpName}.webp` : `images/sets/${s.code}.jpg`;
+      : isNewWebp ? `images/box/${webpName}.webp` : `images/sets/${s.code}.jpg`);
     const imgSrc = s.imageVersion ? `${imgSrcBase}?v=${s.imageVersion}` : imgSrcBase;
     const imgClass = (isNewWebp || isLegacyBox2) ? 'set-tile-img is-webp' : 'set-tile-img';
     const imgStyle = s.imageScale ? `style="transform:scale(${s.imageScale})"` : '';
@@ -7132,12 +7152,12 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
     const pageCount = Math.ceil(cards.length / CI_CARD_PAGE_SIZE);
     const renderPage = () => {
     document.getElementById('setGridContent').innerHTML = `
-      <div class="ci-panel-summary">총 ${cards.length} 카드 수록 <span>카드를 클릭하여 시세를 확인해보세요 · ${page} / ${pageCount} 페이지</span></div>
+      <div class="ci-panel-summary">총 ${cards.filter(c=>!c.isBundle).length} 카드 수록${cards.some(c=>c.isBundle)?' · 묶음 시세 별도 포함':''} <span>카드를 클릭하여 시세를 확인해보세요 · ${page} / ${pageCount} 페이지</span></div>
       <div class="set-card-grid">
         ${cards.slice((page - 1) * CI_CARD_PAGE_SIZE, page * CI_CARD_PAGE_SIZE).map(c => {
           // baseNumber 우선 (variant 없는 base) — 매칭에 사용. 없으면 number 에서 추출
           const num = (c.number || '').split('/')[0].trim();
-          const baseNum = (c.baseNumber || num.split('_')[0] || '').trim();
+          const baseNum = c.unprintedNumber ? '' : (c.baseNumber || num.split('_')[0] || '').trim();
           // 카드의 진짜 set (재록 카드는 다른 set, 예: OP-15 박스에 OP14-005 재록)
           const cardSetCode = (c.setCode || setCode).toUpperCase();
           // SNKRDUNK 검색용 — 카드의 실제 setCode + base number
@@ -7169,12 +7189,13 @@ window.openSetGrid = async function(setCode, setName, externalUrl) {
           return `
           <div class="set-card-item" role="button" tabindex="0" aria-label="${escapeHtml(c.name || displayNum)} 시세 보기"
                data-card-name="${escapeHtml(c.name || '')}"
+               ${['M6a','MF'].includes(setCode) ? `data-anniversary-ids="${escapeHtml(JSON.stringify(c.marketIds || []))}"` : ''}
                data-card-search="${escapeHtml(searchKey)}"
                data-card-variant="${escapeHtml(variantSuffix)}">
             <div class="set-card-img" style="background:#f3f4f6">
-              ${primarySrc ? `<img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer" ${onerrorAttr}>` : ''}
+              ${primarySrc ? `<img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(c.name || '')}" loading="lazy" referrerpolicy="no-referrer" ${onerrorAttr}>` : `<span style="padding:12px;text-align:center;font-size:12px;color:var(--ink-sub)">${escapeHtml(c.name || displayNum)}<br>이미지 준비 중</span>`}
             </div>
-            <div class="set-card-num">${escapeHtml(displayNum)}</div>
+            <div class="set-card-num">${escapeHtml(displayNum)}${c.versionLabel ? `<br>${escapeHtml(c.versionLabel)}` : ''}</div>
           </div>`;
         }).join('')}
       </div>`;

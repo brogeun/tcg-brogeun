@@ -64,6 +64,8 @@ UA = (
 )
 
 POKEMON_SETS = [
+    ("M6a", "30주년 셀레브레이션", "https://www.tcgcollector.com/sets/11823/30th-celebration"),
+    ("MF", "30주년 프리미엄 덱 세트 에브이·블래키", "https://www.tcgcollector.com/sets/11822/30th-celebration-premium-deck-set-espeon-and-umbreon"),
     ("M6", "스톰 에메랄다", "https://www.tcgcollector.com/sets/11929/storm-emeralda"),
     ("M5", "어비스아이", "https://www.tcgcollector.com/sets/11810/abyss-eye"),
     ("M4", "닌자 스페너", "https://www.tcgcollector.com/sets/11800/ninja-spinner"),
@@ -289,6 +291,9 @@ def scroll_to_bottom(driver, max_iter=20, sleep=1.0):
 
 def scrape_pokemon_set(driver, code: str, name: str, url: str) -> dict:
     """tcgcollector — .card-image-grid-item 직접 매칭 (SR/HR/SAR 까지 전부)"""
+    if code in {'M6a', 'MF'}:
+        from fetch_anniversary_sets import fetch_sets
+        return fetch_sets()[code]
     # 옵션:
     #   displayAs=images — 카드 이미지 그리드
     #   pageSize=300 — 한 페이지에 300개까지 (default 30 → SR/HR 잘림)

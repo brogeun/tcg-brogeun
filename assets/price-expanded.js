@@ -103,8 +103,10 @@
     const listing = HomeMarket.quote(product);
     if (box && listing) values.box = listing;
     if (!box && product._isTop10 && listing) values.raw = listing;
+    const anniversary = window.AnniversaryMarket?.product(id);
+    if (anniversary) for (const [key] of keys) values[key] = window.AnniversaryMarket.gradeQuote(id,key);
     // A general ungraded product price must never be labelled PSA 10.
-    const state={grade:box?'box':product._isTop10 && listing?'raw':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
+    const state={grade:box?'box':anniversary || product._isTop10 && listing?'raw':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
     const extURL=(()=>{try{const u=new URL(product.url || `https://snkrdunk.com/apparels/${id}`);return u.protocol==='https:' && /(^|\.)snkrdunk\.com$/.test(u.hostname)?u.href:`https://snkrdunk.com/apparels/${id}`;}catch{return `https://snkrdunk.com/apparels/${id}`;}})();
     panel.innerHTML=`<article class="px-detail" data-product-kind="${box?'box':'card'}">${head()}
       <section class="px-summary" aria-label="상품 기본 정보">
@@ -161,7 +163,7 @@
     // Align action buttons with the summary text on desktop, spanning both columns on mobile.
     update(); observer?.disconnect();observer=new ResizeObserver(draw);observer.observe(panel.querySelector('#pxChart'));
     // Static data renders immediately; live current asks update only this still-active product.
-    if (!box) {
+    if (!box && !anniversary) {
       const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}`);
       if (!current() || !live?.ok) return;
       for (const [key] of keys) {if(key==='raw' && product._isTop10 && listing)continue;const q=quote(live.grades?.[key]);if(q)values[key]=q;}

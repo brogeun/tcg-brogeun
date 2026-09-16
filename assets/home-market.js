@@ -3,6 +3,7 @@
   const positive = v => v != null && Number.isFinite(Number(v)) && Number(v) > 0;
   const histories = new Map();
   function quote(product) {
+    if (window.AnniversaryMarket?.product(product?.id)) return window.AnniversaryMarket.quote(product);
     const value = [product?.lastPrice, product?.lowestAsk].find(positive);
     return value == null ? null : {value:Number(value), currency:product.currency || 'JPY', source:'수집 시점 출품가'};
   }

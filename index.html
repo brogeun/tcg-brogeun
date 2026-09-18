@@ -1773,6 +1773,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <div class="hub-secondary-tabs" id="shopBrandTabs" style="margin:0">
             <button type="button" class="tab active" data-shop-brand="pokemon"><span class="hub-brand-filter"><span class="hub-brand-dot"></span>포켓몬</span></button>
             <button type="button" class="tab" data-shop-brand="onepiece"><span class="hub-brand-filter"><span class="hub-brand-dot" style="background:#CC2244"></span>원피스</span></button>
+            <button type="button" class="tab" data-shop-brand="riftbound"><span class="hub-brand-filter"><span class="hub-brand-dot" style="background:#7C3AED"></span>리프트바운드</span></button>
           </div>
           <div id="shopSrc" style="font-size:11px; color:var(--ink-sub)"></div>
         </div>
@@ -6420,6 +6421,13 @@ loadNews();
 // image = images/market/{영문지역}.JPG (사용자 업로드 로고)
 const SHOPS = {
   pokemon: [
+    {name: "포켓몬 카드샵 카드웨이브 강릉",
+     image: "images/market/gangneung-official.jpg",
+     imageFit: "contain",
+     addr: "강원특별자치도 강릉시 솔올로 40, 3층",
+     hours: "수·금 12:00~21:00 / 화·목·토·일 12:00~19:00 (월 휴무)",
+     source: "https://pokemonkorea.co.kr/pokemon_cardshop/menu809",
+     map: "https://map.naver.com/v5/search/" + encodeURIComponent("카드웨이브 강릉 솔올로 40")},
     {name: "포켓몬 카드샵 용산",
      image: "images/market/yongsan.JPG",
      addr: "서울시 용산구 한강대로23길 55 아이파크몰 리빙파크 8F",
@@ -6659,31 +6667,59 @@ const SHOPS = {
   ]
 };
 
+// 2026-09-18: 공식 판매 안내와 사용자 제공 지점 목록 대조.
+// PC방 운영시간은 지점 공식 페이지 기준이며, 카드 판매 가능 시간과는 다를 수 있다.
+SHOPS.riftbound = [
+  {name:"옵티멈존 강남 1호점", addr:"서울 강남구 강남대로94길 10 (역삼동) 지하 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/29"},
+  {name:"옵티멈존 산본역점", addr:"경기 군포시 산본로323번길 10-6 (산본동, 산본플라자) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/11"},
+  {name:"옵티멈존 신촌점", addr:"서울 서대문구 명물길 23 (창천동, 큐비드빌딩) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/3"},
+  {name:"옵티멈존 강남 2호점", addr:"서울 서초구 서초대로78길 44 (서초동, 서초나산스위트) 지하 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/18"},
+  {name:"옵티멈존 방배역점", addr:"서울 서초구 방배로 83 (방배동, 방배센트럴빌딩) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/25"},
+  {name:"옵티멈존 서울대입구역점", addr:"서울 관악구 남부순환로 1808 (봉천동, 관악센츄리타워) 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/54"},
+  {name:"오즈보드게임 구래점", addr:"경기 김포시 김포한강9로 80 (구래동) 4층"},
+  {name:"오즈보드게임 노원점", addr:"서울 노원구 노해로81길 12-15 (상계동) 4층"},
+  {name:"오즈보드게임 고대점", addr:"서울 성북구 고려대로24길 51 (안암동5가, 0830) 지하 102호"},
+  {name:"오즈보드게임 서현점", addr:"경기 성남시 분당구 분당로53번길 21 (서현동, 산호프라자) 지하 1층"},
+  {name:"오즈보드게임 성신여대점", addr:"서울 성북구 동소문로20가길 12 (동선동1가) 지하 101호"}
+].map(s => ({
+  ...s,
+  image: "images/market/riftbound-banner.png",
+  imageFit: "contain",
+  hours: s.hours || "영업시간 미확인 · 방문 전 지도 또는 매장에 확인해 주세요",
+  note: s.hours ? "매장 운영시간 기준 · 카드 판매 시간과 재고는 방문 전 확인해 주세요." : "공개된 공식 영업시간을 확인하지 못했습니다.",
+  source: s.source || "https://zetpl.com/riftbound",
+  map: "https://map.naver.com/v5/search/" + encodeURIComponent(s.name + " " + s.addr)
+}));
+const SHOP_BRAND_LABEL = {pokemon:"포켓몬", onepiece:"원피스", riftbound:"리프트바운드"};
+
 // 공식매장 출처 (정보 허브 → 공식매장 페이지 우상단)
 const SHOP_SOURCE = {
   pokemon:  { label: "출처: pokemonkorea.co.kr",   url: "https://pokemonkorea.co.kr/pokemon_cardshop" },
   onepiece: { label: "출처: onepiece-cardgame.kr", url: "https://onepiece-cardgame.kr/shoplist.do" },
+  riftbound: { label: "공식 판매 안내 · 매장별 재고 확인", url: "https://zetpl.com/riftbound" },
 };
 
 let SHOP_BRAND = 'pokemon';
 function renderShops() {
   const list = SHOPS[SHOP_BRAND] || [];
+  // 설치형 앱에서는 새 WebView 대신 기존 외부 HTTPS 이동 경로를 사용한다.
+  const linkTarget = window.Capacitor?.isNativePlatform?.() ? '_self' : '_blank';
   const container = document.getElementById('shopList');
   // 출처 링크 갱신
   const srcEl = document.getElementById('shopSrc');
   const src = SHOP_SOURCE[SHOP_BRAND];
   if (srcEl && src) {
-    srcEl.innerHTML = `<a href="${src.url}" target="_blank" rel="noopener" style="color:var(--ink-sub); text-decoration:underline">${src.label}</a>`;
+    srcEl.innerHTML = `<a href="${src.url}" target="${linkTarget}" rel="noopener noreferrer" style="color:var(--ink-sub); text-decoration:underline">${src.label}</a>`;
   }
   if (!list.length) {
-    container.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="store"></i><div>${SHOP_BRAND === 'pokemon' ? '포켓몬' : '원피스'} 공식 매장 정보가 곧 추가됩니다</div></div></div>`;
+    container.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="store"></i><div>${SHOP_BRAND_LABEL[SHOP_BRAND] || ''} 공식 매장 정보가 곧 추가됩니다</div></div></div>`;
     return;
   }
   container.innerHTML = list.map(s => {
     // 원피스 로고는 contain (전체 보이게), 포켓몬 매장 사진은 cover (꽉 채움)
     const isOpLogo = (s.image || '').includes('onepiece-logo');
-    const fitMode = isOpLogo ? 'contain' : 'cover';
-    const bgColor = isOpLogo ? '#fafafa' : '#000';
+    const fitMode = s.imageFit || (isOpLogo ? 'contain' : 'cover');
+    const bgColor = fitMode === 'contain' ? '#fafafa' : '#000';
     const padding = isOpLogo ? '14px' : '0';
     return `
     <div class="card" style="padding:0; display:block; overflow:hidden">
@@ -6702,13 +6738,15 @@ function renderShops() {
         </div>
         <div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:start; margin-bottom:5px; font-size:11px; line-height:1.5">
           <span style="text-align:center">🪪</span>
-          <span style="color:#374151">${SHOP_BRAND === 'pokemon' ? '포켓몬 카드 공식 상품' : '원피스 카드 공식 상품'}</span>
+          <span style="color:#374151">${SHOP_BRAND_LABEL[SHOP_BRAND]} 카드 공식 상품</span>
         </div>
         ${s.phone ? `<div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:center; margin-bottom:9px; font-size:11px; line-height:1.5">
           <span style="text-align:center">📞</span>
           <span style="color:#374151">${s.phone}</span>
         </div>` : '<div style="margin-bottom:9px"></div>'}
-        <a href="${s.map}" target="_blank" rel="noopener noreferrer"
+        ${s.note ? `<div style="font-size:11px; color:var(--ink-sub); line-height:1.5; margin-bottom:8px">${s.note}</div>` : ''}
+        ${s.source ? `<a href="${s.source}" target="${linkTarget}" rel="noopener noreferrer" style="display:inline-block; font-size:11px; color:var(--ink-sub); margin-bottom:9px; text-decoration:underline">공식 안내 확인 ↗</a>` : ''}
+        <a href="${s.map}" target="${linkTarget}" rel="noopener noreferrer"
            class="btn primary"
            style="display:block; text-align:center; padding:7px 10px; font-size:12px; text-decoration:none">🗺 네이버지도 열기</a>
       </div>

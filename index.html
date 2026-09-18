@@ -6814,6 +6814,7 @@ const CARDINFO_SOURCE = {
 const CARDINFO = {
   pokemon: [
     // ─── Mega Scarlet & Violet Era ───
+    {code:"FURBOX", displayCode:"FUTURISTIC BOX", name:"30주년 셀러브레이션 퓨처리스틱 박스 (30th Celebration Futuristic Box)", release:"2026.09.16", boxId:"881424", image:"https://cdn.snkrdunk.com/upload_bg_removed/48938562-0474-4a00-be30-65bd635ead8b.webp?size=l", url:"https://www.30th.pokemon-card.com/product/furbox"},
     {code:"M6a", name:"30주년 셀레브레이션 (30th Celebration)", release:"2026.09.16", boxId:"881421", image:"https://cdn.snkrdunk.com/upload_bg_removed/7a7d351b-02f9-44d5-b08e-c4bce2e0a6a9.webp", url:"https://www.tcgcollector.com/sets/11823/30th-celebration?setCardCountMode=anyCardVariant"},
     {code:"MF", name:"30주년 프리미엄 덱 세트 에브이·블래키 (30th Celebration Premium Deck Set: Espeon & Umbreon)", release:"2026.09.16", boxId:"881423", image:"https://cdn.snkrdunk.com/upload_bg_removed/f08973d8-723a-400b-8371-800d5913779f.webp", url:"https://www.tcgcollector.com/sets/11822/30th-celebration-premium-deck-set-espeon-and-umbreon?setCardCountMode=anyCardVariant"},
     {code:"M6", name:"스톰 에메랄다 (Storm Emeralda)", release:"2026.07.31", boxId:"846048", imageVersion:"20260901", imageScale:1.1, url:"https://www.tcgcollector.com/sets/11929/storm-emeralda?setCardCountMode=anyCardVariant"},
@@ -7186,7 +7187,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
           // SNKRDUNK 검색용 — 카드의 실제 setCode + base number
           const searchKey = baseNum ? `${cardSetCode} ${baseNum}` : (c.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
           // 카드 번호 표시: 다른 set 의 재록이면 "OP14-005" 형태, 같은 set 이면 "001" 또는 "001_P1"
-          const displayNum = (cardSetCode !== setCode.toUpperCase())
+          const displayNum = (cardSetCode !== setCode.toUpperCase() && !String(c.number || '').toUpperCase().endsWith(`/${cardSetCode}`))
             ? `${cardSetCode}-${c.number || ''}`
             : (c.number || '');
           // variant suffix (p1, p2 등) 별도 저장 — SNKRDUNK 의 -P / -SP / -SPC 매칭용

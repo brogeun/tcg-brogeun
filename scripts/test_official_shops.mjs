@@ -37,6 +37,7 @@ for (const shop of [gangneung, ...shops.riftbound]) {
 }
 assert.equal(gangneung.map, 'https://m.place.naver.com/place/2022221043/home');
 assert.equal(gangneung.imageCrop, 'shop-logo');
+assert.equal(gangneung.phone, '070-8680-8510');
 const verifiedPlaces = [
   ['옵티멈존 강남 1호점','1064489588','강남대로94길 10'],
   ['옵티멈존 산본역점','1545573674','산본로323번길 10-6'],
@@ -61,12 +62,15 @@ for (const [name,id,road] of verifiedPlaces) {
 assert.ok(!shops.riftbound.some(s=>['4221493829','2047966109'].includes(s.naverPlaceId)));
 vm.runInContext('renderShops()',context);
 assert.match(elements.shopList.innerHTML,/object-position:center top; transform:scale\(1\.035\)/);
+assert.match(elements.shopList.innerHTML,/href="tel:07086808510"/);
 for (const [brand, count] of [['pokemon',12],['onepiece',23],['riftbound',11]]) {
   assert.ok(html.includes('data-shop-brand="'+brand+'"'));
   vm.runInContext('SHOP_BRAND='+JSON.stringify(brand)+';renderShops()', context);
   assert.equal((elements.shopList.innerHTML.match(/🗺 네이버지도 열기/g)||[]).length, count);
   assert.match(elements.shopList.innerHTML, /target="_blank"/);
   assert.ok(!elements.shopList.innerHTML.includes('undefined'));
+  assert.ok(!elements.shopList.innerHTML.includes('공식 안내 확인'));
+  assert.equal((elements.shopList.innerHTML.match(/class="shop-contact"/g)||[]).length,count);
 }
 assert.match(elements.shopList.innerHTML, /리프트바운드 카드 공식 상품/);
 assert.ok(!elements.shopList.innerHTML.includes('원피스 카드 공식 상품'));

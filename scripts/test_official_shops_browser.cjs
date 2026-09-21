@@ -15,7 +15,7 @@ const output=path.join(root,'debug','official-shops-fix');fs.mkdirSync(output,{r
    if(u.hostname==='shops.test'&&/^\/images\/market\/[\w.-]+$/.test(u.pathname))return route.fulfill({path:path.join(root,u.pathname.slice(1))});
    return route.abort();
   });
-  for(const width of [960,390])for(const brand of ['pokemon','riftbound']){
+  for(const width of [960,720,390])for(const brand of ['pokemon','onepiece','riftbound']){
    await page.setViewportSize({width,height:850});vm.runInContext(`SHOP_BRAND='${brand}';renderShops()`,ctx);
    await page.setContent(`<html><head><base href="http://shops.test/">${styles}</head><body><main style="padding:16px;width:100%;box-sizing:border-box"><div id="shopList" class="grid auto-shop">${nodes.shopList.innerHTML}</div></main></body></html>`);
    await page.locator('#shopList img').evaluateAll(imgs=>Promise.all(imgs.map(i=>i.decode())));
@@ -24,7 +24,10 @@ const output=path.join(root,'debug','official-shops-fix');fs.mkdirSync(output,{r
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow');
    const links=await page.locator('#shopList a.btn').evaluateAll(xs=>xs.map(x=>x.href));
    if(brand==='riftbound'){assert.equal(new Set(links).size,11);for(const u of links)assert.match(u,/^https:\/\/m\.place\.naver\.com\/place\/\d+\/home$/);}
-   else {const crop=await page.locator('#shopList img').first().evaluate(i=>({fit:getComputedStyle(i).objectFit,pos:getComputedStyle(i).objectPosition}));assert.equal(crop.fit,'cover');assert.equal(crop.pos,'50% 0%');}
+   else if(brand==='pokemon'){const crop=await page.locator('#shopList img').first().evaluate(i=>({fit:getComputedStyle(i).objectFit,pos:getComputedStyle(i).objectPosition}));assert.equal(crop.fit,'cover');assert.equal(crop.pos,'50% 0%');assert.equal(await page.locator('#shopList .card').first().locator('a[href="tel:07086808510"]').count(),1);}
+   assert.equal(await page.getByText('공식 안내 확인',{exact:false}).count(),0);
+   const rows=await page.locator('#shopList .card').evaluateAll(cards=>cards.map(c=>{const r=c.getBoundingClientRect(),b=c.querySelector('a.btn').getBoundingClientRect(),p=c.querySelector('.shop-contact').getBoundingClientRect();return {top:Math.round(r.top),bottom:r.bottom,button:b.top,phone:p.top,gap:r.bottom-b.bottom};}));
+   for(const r of rows){assert(Math.abs(r.gap-12)<1.1,'uniform bottom inset');for(const peer of rows.filter(p=>p.top===r.top)){assert(Math.abs(peer.button-r.button)<1,'aligned map buttons per row');assert(Math.abs(peer.phone-r.phone)<1,'aligned contact rows');}}
    await page.screenshot({path:path.join(output,`${brand}-${width}.png`)});
    if(brand==='pokemon'&&width===390)await page.locator('#shopList .card').first().screenshot({path:path.join(output,'gangneung-mobile.png')});
    console.log('PASS browser',brand,width,'frames',frames.length,'links',links.length);

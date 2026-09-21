@@ -6428,6 +6428,7 @@ const SHOPS = {
      imageCrop: "shop-logo",
      addr: "강원특별자치도 강릉시 솔올로 40, 3층",
      hours: "수·금 12:00~21:00 / 화·목·토·일 12:00~19:00 (월 휴무)",
+     phone: "070-8680-8510",
      source: "https://pokemonkorea.co.kr/pokemon_cardshop/menu809",
      mapName: "카드웨이브강릉",
      map: "https://m.place.naver.com/place/2022221043/home"},
@@ -6730,18 +6731,18 @@ function renderShops() {
       ? 'width:100%; height:100%; object-fit:cover; object-position:center top; transform:scale(1.035); transform-origin:center top; display:block'
       : `max-width:100%; max-height:100%; width:auto; height:auto; object-fit:${fitMode}; display:block`;
     return `
-    <div class="card" style="padding:0; display:block; overflow:hidden">
+    <div class="card" style="padding:0; display:flex; flex-direction:column; overflow:hidden">
       <!-- 공식 포스터 이미지 -->
-      ${s.image ? `<div style="background:${bgColor}; aspect-ratio:16/10; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:${padding}">
+      ${s.image ? `<div style="background:${bgColor}; aspect-ratio:16/10; flex-shrink:0; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:${padding}">
         <img src="${s.image}" alt="${s.name}" style="${imageStyle}"
              onerror="this.parentElement.style.aspectRatio='auto'; this.parentElement.style.padding='20px'; this.parentElement.style.background='#000'; this.outerHTML='<div style=\\'color:#fff;text-align:center;font-size:13px;font-weight:700\\'>🃏 ${s.name}</div>'">
       </div>` : ''}
       <!-- 정보 영역 -->
-      <div style="padding:11px 13px">
+      <div class="shop-details" style="padding:11px 13px; display:flex; flex-direction:column; flex:1">
         <div style="font-size:13px; font-weight:800; margin-bottom:3px; color:#111; line-height:1.3">${s.name}</div>
-        <div style="font-size:11px; color:var(--ink-sub); margin-bottom:9px; line-height:1.5">${s.addr}</div>
+        <div class="shop-address" style="font-size:11px; color:var(--ink-sub); min-height:33px; margin-bottom:9px; line-height:1.5">${s.addr}</div>
         ${s.mapName && SHOP_BRAND === 'riftbound' ? `<div style="font-size:11px; color:var(--ink-sub); line-height:1.5; margin-bottom:9px">지도 등록명: ${s.mapName}</div>` : ''}
-        <div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:start; margin-bottom:5px; font-size:11px; line-height:1.5">
+        <div class="shop-hours" style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:start; min-height:33px; margin-bottom:5px; font-size:11px; line-height:1.5">
           <span style="text-align:center">🕐</span>
           <span style="color:#374151">${s.hours}</span>
         </div>
@@ -6749,15 +6750,17 @@ function renderShops() {
           <span style="text-align:center">🪪</span>
           <span style="color:#374151">${SHOP_BRAND_LABEL[SHOP_BRAND]} 카드 공식 상품</span>
         </div>
-        ${s.phone ? `<div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:center; margin-bottom:9px; font-size:11px; line-height:1.5">
-          <span style="text-align:center">📞</span>
-          <span style="color:#374151">${s.phone}</span>
-        </div>` : '<div style="margin-bottom:9px"></div>'}
         ${s.note ? `<div style="font-size:11px; color:var(--ink-sub); line-height:1.5; margin-bottom:8px">${s.note}</div>` : ''}
-        ${s.source ? `<a href="${s.source}" target="${linkTarget}" rel="noopener noreferrer" style="display:inline-block; font-size:11px; color:var(--ink-sub); margin-bottom:9px; text-decoration:underline">공식 안내 확인 ↗</a>` : ''}
+        <div class="shop-footer" style="margin-top:auto; padding-top:4px">
+        <div class="shop-contact" ${s.phone ? '' : 'aria-hidden="true"'} style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:center; min-height:16.5px; margin-bottom:9px; font-size:11px; line-height:1.5">
+        ${s.phone ? `
+          <span style="text-align:center">📞</span>
+          <a href="tel:${s.phone.replace(/[^\d+]/g, '')}" aria-label="${s.name} 전화 ${s.phone}" style="color:#374151; text-decoration:none">${s.phone}</a>
+        ` : ''}</div>
         <a href="${s.map}" target="${linkTarget}" rel="noopener noreferrer"
            class="btn primary"
            style="display:block; text-align:center; padding:7px 10px; font-size:12px; text-decoration:none">🗺 네이버지도 열기</a>
+        </div>
       </div>
     </div>`;
   }).join('');

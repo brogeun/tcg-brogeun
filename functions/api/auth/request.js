@@ -1,6 +1,6 @@
 /**
  * POST /api/auth/request
- * Body: { email }
+ * Body: { email, app?: boolean, appChallenge?: string }
  * → magic link 생성 + Resend 로 메일 발송
  */
 import { sendEmail, magicLinkEmail } from '../../_shared/email.js';
@@ -23,6 +23,12 @@ export async function onRequestPost({ request, env }) {
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return badRequest('올바른 이메일을 입력해주세요');
   }
+
+  const isApp = body.app === true;
+  if (isApp && (typeof body.appChallenge !== 'string' || !/^[a-f0-9]{64}$/.test(body.appChallenge))) {
+    return badRequest('앱 로그인 검증값이 필요합니다. 앱에서 다시 요청해주세요.');
+  }
+  if (isApp && !env.ADMIN_KV) return serverError('ADMIN_KV not bound');
 
   // 너무 잦은 요청 방지 — 같은 이메일로 1분 내 5회 초과 시 차단
   // expires_at = 생성시각 + 15분. 1분 내 생성된 토큰의 expires_at 는 14분 후보다 미래.
@@ -49,7 +55,15 @@ export async function onRequestPost({ request, env }) {
     return serverError(`DB 저장 실패: ${e.message || e}`);
   }
 
-  const loginUrl = `${env.APP_URL.replace(/\/$/, '')}/api/auth/verify?token=${token}`;
+  if (isApp) {
+    try {
+      await env.ADMIN_KV.put(`email_app:${token}`, body.appChallenge, { expirationTtl: 900 });
+    } catch (e) {
+      return serverError('앱 로그인 요청을 저장하지 못했습니다. 다시 시도해주세요.');
+    }
+  }
+
+  const loginUrl = `${env.APP_URL.replace(/\/$/, '')}/api/auth/verify?token=${token}${isApp ? '&app=1' : ''}`;
   const mail = magicLinkEmail(loginUrl);
 
   try {

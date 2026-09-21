@@ -10253,10 +10253,19 @@ async function submitLogin() {
   msg.style.color = '#666560';
   msg.textContent = '로그인 링크를 보내고 있어요.';
   try {
+    const isApp = !!window.Capacitor?.isNativePlatform?.();
+    let appChallenge;
+    if (isApp) {
+      // 원본은 앱에만 보관하고 이메일/앱 복귀 링크에는 전달하지 않는다.
+      const verifier = Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('tcghub_email_verifier', verifier);
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+      appChallenge = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+    }
     const r = await fetch('/api/auth/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, app: isApp, appChallenge }),
     });
     const d = await r.json();
     if (r.ok && d.ok) {
@@ -10672,7 +10681,8 @@ async function startKakaoLogin() {
   const Browser = window.Capacitor?.Plugins?.Browser;
   if (!App || typeof App.addListener !== 'function') return;
 
-  App.addListener('appUrlOpen', async (event) => {
+  let emailLoginPending = false;
+  async function handleAppUrl(event) {
     try {
       const url = event?.url || '';
       if (!url.startsWith('kr.tcghub.app://')) return;
@@ -10682,6 +10692,32 @@ async function startKakaoLogin() {
       const u = new URL(url.replace('kr.tcghub.app://', 'https://placeholder.local/'));
       const path = u.pathname.replace(/^\//, '');
       const code = u.searchParams.get('code');
+
+      if (path === 'email-callback') {
+        const verifier = localStorage.getItem('tcghub_email_verifier');
+        if (!verifier || emailLoginPending) return;
+        emailLoginPending = true;
+        try {
+          const r = await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ verifier }),
+            credentials: 'include',
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.ok) {
+            showToast(data.message || '이메일 로그인에 실패했습니다. 다시 시도해주세요.', 'error');
+            return;
+          }
+          localStorage.removeItem('tcghub_email_verifier');
+          window.location.href = '/?login=success';
+        } catch (err) {
+          showToast('네트워크 오류가 발생했어요. 앱 열기 버튼을 다시 눌러주세요.', 'error');
+        } finally {
+          emailLoginPending = false;
+        }
+        return;
+      }
 
       if (path === 'kakao-callback' && code) {
         // 임시 코드 → 진짜 세션 교환
@@ -10702,7 +10738,14 @@ async function startKakaoLogin() {
     } catch (err) {
       console.error('appUrlOpen handler error:', err);
     }
-  });
+  }
+  App.addListener('appUrlOpen', handleAppUrl);
+  // 앱이 종료된 상태에서 링크로 시작한 경우도 처리한다.
+  if (typeof App.getLaunchUrl === 'function') {
+    App.getLaunchUrl().then(event => {
+      if (event?.url === 'kr.tcghub.app://email-callback') return handleAppUrl(event);
+    }).catch(err => console.warn('App launch URL check failed:', err));
+  }
 })();
 
 // 클릭/Enter 위임

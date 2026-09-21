@@ -6424,11 +6424,13 @@ const SHOPS = {
   pokemon: [
     {name: "포켓몬 카드샵 카드웨이브 강릉",
      image: "images/market/gangneung-official.jpg",
-     imageFit: "contain",
+     imageFit: "cover",
+     imageCrop: "shop-logo",
      addr: "강원특별자치도 강릉시 솔올로 40, 3층",
      hours: "수·금 12:00~21:00 / 화·목·토·일 12:00~19:00 (월 휴무)",
      source: "https://pokemonkorea.co.kr/pokemon_cardshop/menu809",
-     map: "https://map.naver.com/v5/search/" + encodeURIComponent("카드웨이브 강릉 솔올로 40")},
+     mapName: "카드웨이브강릉",
+     map: "https://m.place.naver.com/place/2022221043/home"},
     {name: "포켓몬 카드샵 용산",
      image: "images/market/yongsan.JPG",
      addr: "서울시 용산구 한강대로23길 55 아이파크몰 리빙파크 8F",
@@ -6671,17 +6673,17 @@ const SHOPS = {
 // 2026-09-18: 공식 판매 안내와 사용자 제공 지점 목록 대조.
 // PC방 운영시간은 지점 공식 페이지 기준이며, 카드 판매 가능 시간과는 다를 수 있다.
 SHOPS.riftbound = [
-  {name:"옵티멈존 강남 1호점", addr:"서울 강남구 강남대로94길 10 (역삼동) 지하 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/29"},
-  {name:"옵티멈존 산본역점", addr:"경기 군포시 산본로323번길 10-6 (산본동, 산본플라자) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/11"},
-  {name:"옵티멈존 신촌점", addr:"서울 서대문구 명물길 23 (창천동, 큐비드빌딩) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/3"},
-  {name:"옵티멈존 강남 2호점", addr:"서울 서초구 서초대로78길 44 (서초동, 서초나산스위트) 지하 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/18"},
-  {name:"옵티멈존 방배역점", addr:"서울 서초구 방배로 83 (방배동, 방배센트럴빌딩) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/25"},
-  {name:"옵티멈존 서울대입구역점", addr:"서울 관악구 남부순환로 1808 (봉천동, 관악센츄리타워) 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/54"},
-  {name:"오즈보드게임 구래점", addr:"경기 김포시 김포한강9로 80 (구래동) 4층"},
-  {name:"오즈보드게임 노원점", addr:"서울 노원구 노해로81길 12-15 (상계동) 4층"},
-  {name:"오즈보드게임 고대점", addr:"서울 성북구 고려대로24길 51 (안암동5가, 0830) 지하 102호"},
-  {name:"오즈보드게임 서현점", addr:"경기 성남시 분당구 분당로53번길 21 (서현동, 산호프라자) 지하 1층"},
-  {name:"오즈보드게임 성신여대점", addr:"서울 성북구 동소문로20가길 12 (동선동1가) 지하 101호"}
+  {name:"옵티멈존 강남 1호점", addr:"서울 강남구 강남대로94길 10 (역삼동) 지하 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/29", naverPlaceId:"1064489588", mapName:"오즈PC방 강남역점"},
+  {name:"옵티멈존 산본역점", addr:"경기 군포시 산본로323번길 10-6 (산본동, 산본플라자) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/11", naverPlaceId:"1545573674", mapName:"옵티멈존PC카페 산본역점"},
+  {name:"옵티멈존 신촌점", addr:"서울 서대문구 명물길 23 (창천동, 큐비드빌딩) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/3", naverPlaceId:"1912135247", mapName:"옵티멈존PC카페 신촌역점"},
+  {name:"옵티멈존 강남 2호점", addr:"서울 서초구 서초대로78길 44 (서초동, 서초나산스위트) 지하 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/18", naverPlaceId:"2030875583", mapName:"옵티멈존PC카페 강남역점"},
+  {name:"옵티멈존 방배역점", addr:"서울 서초구 방배로 83 (방배동, 방배센트럴빌딩) 지하 1층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/25", naverPlaceId:"1051340093", mapName:"옵티멈존 PC카페 방배역점"},
+  {name:"옵티멈존 서울대입구역점", addr:"서울 관악구 남부순환로 1808 (봉천동, 관악센츄리타워) 2층", hours:"연중무휴 24시간", source:"https://zetpl.com/find-store/54", naverPlaceId:"2145901241", mapName:"옵티멈존PC카페 서울대입구역점"},
+  {name:"오즈보드게임 구래점", addr:"경기 김포시 김포한강9로 80 (구래동) 4층 401·402·403호", naverPlaceId:"2008779906", mapName:"오즈보드게임카페 구래역점"},
+  {name:"오즈보드게임 노원점", addr:"서울 노원구 노해로81길 12-15 (상계동) 4층", naverPlaceId:"2085925033", mapName:"오즈보드게임카페 노원역점"},
+  {name:"오즈보드게임 고대점", addr:"서울 성북구 고려대로24길 51 (안암동5가, 0830) 지하 102호", naverPlaceId:"2077232291", mapName:"오즈보드게임카페 고대점"},
+  {name:"오즈보드게임 서현점", addr:"경기 성남시 분당구 분당로53번길 21 (서현동, 산호프라자) 지하 1층", naverPlaceId:"2045982777", mapName:"오즈보드게임카페 서현"},
+  {name:"오즈보드게임 성신여대점", addr:"서울 성북구 동소문로20가길 12 (동선동1가) 지하 101호", naverPlaceId:"2043674790", mapName:"오즈보드게임카페 성신여대점"}
 ].map(s => ({
   ...s,
   image: "images/market/riftbound-banner.png",
@@ -6689,7 +6691,8 @@ SHOPS.riftbound = [
   hours: s.hours || "영업시간 미확인 · 방문 전 지도 또는 매장에 확인해 주세요",
   note: s.hours ? "매장 운영시간 기준 · 카드 판매 시간과 재고는 방문 전 확인해 주세요." : "공개된 공식 영업시간을 확인하지 못했습니다.",
   source: s.source || "https://zetpl.com/riftbound",
-  map: "https://map.naver.com/v5/search/" + encodeURIComponent(s.name + " " + s.addr)
+  // 이름 검색이 아닌 주소·층수까지 대조한 네이버 매장 고유번호로 직접 연다.
+  map: `https://m.place.naver.com/place/${s.naverPlaceId}/home`
 }));
 const SHOP_BRAND_LABEL = {pokemon:"포켓몬", onepiece:"원피스", riftbound:"리프트바운드"};
 
@@ -6722,17 +6725,22 @@ function renderShops() {
     const fitMode = s.imageFit || (isOpLogo ? 'contain' : 'cover');
     const bgColor = fitMode === 'contain' ? '#fafafa' : '#000';
     const padding = isOpLogo ? '14px' : '0';
+    // 강릉 공식 포스터의 위쪽 로고만 16:10 썸네일로 표시한다. 하단 안내문은 제외.
+    const imageStyle = s.imageCrop === 'shop-logo'
+      ? 'width:100%; height:100%; object-fit:cover; object-position:center top; transform:scale(1.035); transform-origin:center top; display:block'
+      : `max-width:100%; max-height:100%; width:auto; height:auto; object-fit:${fitMode}; display:block`;
     return `
     <div class="card" style="padding:0; display:block; overflow:hidden">
       <!-- 공식 포스터 이미지 -->
       ${s.image ? `<div style="background:${bgColor}; aspect-ratio:16/10; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:${padding}">
-        <img src="${s.image}" alt="${s.name}" style="max-width:100%; max-height:100%; width:auto; height:auto; object-fit:${fitMode}; display:block"
+        <img src="${s.image}" alt="${s.name}" style="${imageStyle}"
              onerror="this.parentElement.style.aspectRatio='auto'; this.parentElement.style.padding='20px'; this.parentElement.style.background='#000'; this.outerHTML='<div style=\\'color:#fff;text-align:center;font-size:13px;font-weight:700\\'>🃏 ${s.name}</div>'">
       </div>` : ''}
       <!-- 정보 영역 -->
       <div style="padding:11px 13px">
         <div style="font-size:13px; font-weight:800; margin-bottom:3px; color:#111; line-height:1.3">${s.name}</div>
         <div style="font-size:11px; color:var(--ink-sub); margin-bottom:9px; line-height:1.5">${s.addr}</div>
+        ${s.mapName && SHOP_BRAND === 'riftbound' ? `<div style="font-size:11px; color:var(--ink-sub); line-height:1.5; margin-bottom:9px">지도 등록명: ${s.mapName}</div>` : ''}
         <div style="display:grid; grid-template-columns:18px 1fr; gap:6px; align-items:start; margin-bottom:5px; font-size:11px; line-height:1.5">
           <span style="text-align:center">🕐</span>
           <span style="color:#374151">${s.hours}</span>

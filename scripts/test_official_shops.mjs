@@ -28,12 +28,39 @@ for (const [name, id] of Object.entries(expected)) {
 for (const shop of [gangneung, ...shops.riftbound]) {
   assert.ok(existsSync(new URL(shop.image, root)), shop.image);
   const url = new URL(shop.map);
-  assert.equal(url.hostname, 'map.naver.com');
+  assert.equal(url.hostname, 'm.place.naver.com');
   assert.equal(url.protocol, 'https:');
-  assert.ok(decodeURIComponent(url.pathname).includes(shop.name.replace('포켓몬 카드샵 ', '')));
-  assert.equal(shop.imageFit, 'contain');
+  assert.match(url.pathname, /^\/place\/\d+\/home$/);
+  assert.ok(!url.href.includes('/search'));
+  assert.equal(shop.imageFit, shop===gangneung ? 'cover' : 'contain');
   assert.ok(!('stock' in shop));
 }
+assert.equal(gangneung.map, 'https://m.place.naver.com/place/2022221043/home');
+assert.equal(gangneung.imageCrop, 'shop-logo');
+const verifiedPlaces = [
+  ['옵티멈존 강남 1호점','1064489588','강남대로94길 10'],
+  ['옵티멈존 산본역점','1545573674','산본로323번길 10-6'],
+  ['옵티멈존 신촌점','1912135247','명물길 23'],
+  ['옵티멈존 강남 2호점','2030875583','서초대로78길 44'],
+  ['옵티멈존 방배역점','1051340093','방배로 83'],
+  ['옵티멈존 서울대입구역점','2145901241','남부순환로 1808'],
+  ['오즈보드게임 구래점','2008779906','김포한강9로 80'],
+  ['오즈보드게임 노원점','2085925033','노해로81길 12-15'],
+  ['오즈보드게임 고대점','2077232291','고려대로24길 51'],
+  ['오즈보드게임 서현점','2045982777','분당로53번길 21'],
+  ['오즈보드게임 성신여대점','2043674790','동소문로20가길 12']
+];
+assert.equal(new Set(shops.riftbound.map(s=>s.naverPlaceId)).size,11);
+for (const [name,id,road] of verifiedPlaces) {
+  const shop=shops.riftbound.find(s=>s.name===name);
+  assert.equal(shop.map, `https://m.place.naver.com/place/${id}/home`);
+  assert.ok(shop.addr.includes(road));
+  assert.ok(shop.mapName);
+}
+// 같은 건물의 PC방으로 잘못 연결되지 않아야 한다.
+assert.ok(!shops.riftbound.some(s=>['4221493829','2047966109'].includes(s.naverPlaceId)));
+vm.runInContext('renderShops()',context);
+assert.match(elements.shopList.innerHTML,/object-position:center top; transform:scale\(1\.035\)/);
 for (const [brand, count] of [['pokemon',12],['onepiece',23],['riftbound',11]]) {
   assert.ok(html.includes('data-shop-brand="'+brand+'"'));
   vm.runInContext('SHOP_BRAND='+JSON.stringify(brand)+';renderShops()', context);

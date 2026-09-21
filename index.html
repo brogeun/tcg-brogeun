@@ -2600,9 +2600,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
-<script src="/assets/anniversary-market.js?v=20260916-shared-detail2"></script>
+<script src="/assets/anniversary-market.js?v=20260918-furbox-market1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20260916-shared-detail2"></script>
+<script src="/assets/price-expanded.js?v=furbox1-20260916-shared-detail2"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -5874,6 +5874,7 @@ async function renderSlidePanel(productId) {
     }
   }
   const topListing = product?._isTop10 ? HomeMarket.quote(product) : null;
+  const rawLabel = window.AnniversaryMarket?.rawLabel(anniversaryProduct) || 'A급(미개봉)';
   const preferTopRaw = !isBox && (!!topListing || !!anniversaryProduct);
   if (topListing) { rawJpy = topListing.value; rawCur = topListing.currency; }
   if (anniversaryProduct && !isBox) {
@@ -5927,7 +5928,7 @@ async function renderSlidePanel(productId) {
         <div class="gc-val">${fmtChip(psa9Price)}</div>
       </button>
       <button type="button" class="slide-grade-chip" data-grade="raw">
-        <div class="gc-label">A급(미개봉)</div>
+        <div class="gc-label">${rawLabel}</div>
         <div class="gc-val">${fmtChip(rawPrice)}</div>
       </button>
     </div>`;
@@ -5972,7 +5973,7 @@ async function renderSlidePanel(productId) {
       <tr><td>PSA 10</td><td>${fmtChip(psa10Price)}</td><td>${changeHtml(changeFor('psa10_price'))}</td></tr>
       <tr><td>PSA 9</td><td>${fmtChip(psa9Price)}</td><td>${changeHtml(changeFor('psa9_price'))}</td></tr>
       ${bgs95Price ? `<tr><td>BGS 9.5</td><td>${fmtChip(bgs95Price)}</td><td>${changeHtml(changeFor('bgs95_price'))}</td></tr>` : ''}
-      <tr><td>A급 (RAW)</td><td>${fmtChip(rawPrice)}</td><td>${changeHtml(changeFor('raw_price'))}</td></tr>`;
+      <tr><td>${rawLabel}</td><td>${fmtChip(rawPrice)}</td><td>${changeHtml(changeFor('raw_price'))}</td></tr>`;
   body.innerHTML = `
     <div class="slide-action-row">
       <button type="button" class="slide-btn-primary" id="slideAddPortfolio">포트폴리오 추가</button>
@@ -5980,7 +5981,7 @@ async function renderSlidePanel(productId) {
     </div>
 
     <div class="slide-price-box">
-      <div class="slide-price-label">${isBox ? '박스' : (preferTopRaw ? 'A급' : psa10Price ? 'PSA 10' : 'A급')} 기준</div>
+      <div class="slide-price-label">${isBox ? '박스' : (preferTopRaw ? rawLabel : psa10Price ? 'PSA 10' : rawLabel)} 기준</div>
       <div class="slide-price-val" id="slidePriceVal">${fmtChip(mainPrice)}</div>
       <div class="slide-price-sub" id="slidePriceSub">${isBox && HomeMarket.quote(product) || preferTopRaw ? 'SNKRDUNK · 수집 시점 출품가' : mainLabel}</div>
       ${gradeRowHTML}
@@ -6026,7 +6027,7 @@ async function renderSlidePanel(productId) {
       const map = {
         psa10:    [psa10Price,    'PSA 10 기준'],
         psa9:     [psa9Price,     'PSA 9 기준'],
-        raw:      [rawPrice,      'A급(미개봉) 기준'],
+        raw:      [rawPrice,      rawLabel+' 기준'],
         bgs10_bl: [bgs10BlPrice,  'BGS 10 Black Label 기준 (거래 적어 참고용)'],
         bgs10_gl: [bgs10GlPrice,  'BGS 10 Gold Label 기준 (거래 적어 참고용)'],
         bgs95:    [bgs95Price,    'BGS 9.5 기준 (거래 적어 참고용)'],
@@ -7251,7 +7252,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
           return `
           <div class="set-card-item" role="button" tabindex="0" aria-label="${escapeHtml(c.name || displayNum)} 시세 보기"
                data-card-name="${escapeHtml(c.name || '')}"
-               ${['M6a','MF'].includes(setCode) ? `data-anniversary-ids="${escapeHtml(JSON.stringify(c.marketIds || []))}"` : ''}
+               ${['M6a','MF','FURBOX'].includes(setCode) ? `data-anniversary-ids="${escapeHtml(JSON.stringify(c.marketIds || []))}"` : ''}
                data-card-search="${escapeHtml(searchKey)}"
                data-card-variant="${escapeHtml(variantSuffix)}">
             <div class="set-card-img" style="background:#f3f4f6">
@@ -7517,11 +7518,11 @@ document.addEventListener('click', async e => {
         ${cardImage ? `<img src="${escapeHtml(cardImage)}" alt="${escapeHtml(cardName)}" style="max-width:280px; max-height:380px; width:auto; height:auto; border-radius:8px; margin:0 auto 18px; display:block" referrerpolicy="no-referrer">` : ''}
         <div style="font-size:15px; font-weight:700; color:#111; margin-bottom:8px; line-height:1.4">${escapeHtml(cardName)}</div>
         <div style="font-size:13px; color:var(--ink-sub); margin-bottom:16px">
-          📭 SNKRDUNK 거래 데이터 없음
+          SNKRDUNK 상품 연결 확인 중
         </div>
         <div style="font-size:11px; color:var(--ink-mute); line-height:1.6">
-          이 카드는 SNKRDUNK 에서 거래되지 않거나<br>
-          데이터가 아직 수집되지 않았습니다.
+          이 카드의 시세 상품 연결을 아직 확인하지 못했습니다.<br>
+          실제 거래가 없다는 뜻은 아닙니다.
         </div>
       </div>`);
   }

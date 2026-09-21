@@ -92,7 +92,7 @@
     const pack=decode(sets.map(PriceProductInfo.label).join(' / ') || product.set_name || product.pack || '');
     const release=sets.length ? sets.map(s=>`${sets.length>1?s.code+' · ':''}${s.release || '카드정보에 발매일 미등록'}`).join(' / ')
       : product.release_date || product.releaseDate || '카드정보에 발매일 미등록';
-    const keys=box?[['box','박스']]:grades;
+    const keys=box?[['box','박스']]:grades.map(([key,label])=>[key,key==='raw'&&product.packaging?window.AnniversaryMarket.rawLabel(product):label]);
     const values={};
     const staticGrades=detail?.cards?.[id]?.grades || {};
     for (const [key] of keys) {

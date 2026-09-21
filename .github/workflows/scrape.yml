@@ -72,8 +72,18 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
+      - name: Update Futuristic Box promo prices and complete public sales history
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        continue-on-error: true # Collector retains previous snapshot if any product fails.
+        run: python scripts/sync_futuristic_market.py
+        env:
+          PYTHONUNBUFFERED: "1"
+
       - name: Validate anniversary catalogues
         run: node scripts/test_anniversary_sets.mjs
+
+      - name: Validate Futuristic Box market links
+        run: node scripts/test_futuristic_market.mjs
 
       - name: Commit JSON updates (if any)
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')

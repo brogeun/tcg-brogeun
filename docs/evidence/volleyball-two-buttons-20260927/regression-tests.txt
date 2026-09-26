@@ -1,0 +1,32 @@
+PASS: gameplay, delayed AI, score-independent perception, unchanged controls, opposing blocks, contact cooldown and legacy rules
+{"rulesVersion":6,"difficulty":"easy","strategy":"follow","scores":["7-0","7-4","7-5","4-7","7-4","2-7","7-3","6-7"],"wins":5,"meanPoints":5.88,"meanSeconds":121}
+{"rulesVersion":6,"difficulty":"easy","strategy":"mobile","scores":["7-2","7-3","7-0","7-1","7-2","7-1","7-0","7-0"],"wins":8,"meanPoints":7,"meanSeconds":127}
+{"rulesVersion":6,"difficulty":"easy","strategy":"practiced","scores":["7-1","7-0","7-0","7-0","7-0","7-0","7-0","7-0"],"wins":8,"meanPoints":7,"meanSeconds":142}
+{"rulesVersion":6,"difficulty":"easy","strategy":"touch","scores":["7-0","7-0","7-0","7-0","7-0","7-0","7-1","7-3"],"wins":8,"meanPoints":7,"meanSeconds":119}
+{"rulesVersion":6,"difficulty":"easy","strategy":"touch-skilled","scores":["7-0","7-0","7-0","7-0","7-0","7-0","7-0","7-0"],"wins":8,"meanPoints":7,"meanSeconds":91}
+{"rulesVersion":6,"difficulty":"easy","strategy":"idle","score":"1-7","seconds":47}
+{"rulesVersion":6,"difficulty":"normal","strategy":"follow","scores":["0-7","0-7","0-7","3-7","3-7","4-7","0-7","1-7"],"wins":0,"meanPoints":1.38,"meanSeconds":74}
+{"rulesVersion":6,"difficulty":"normal","strategy":"mobile","scores":["3-7","7-5","7-3","7-2","7-1","7-5","7-4","7-5"],"wins":7,"meanPoints":6.5,"meanSeconds":187}
+{"rulesVersion":6,"difficulty":"normal","strategy":"practiced","scores":["7-2","7-0","7-1","7-4","7-1","7-0","7-3","7-0"],"wins":8,"meanPoints":7,"meanSeconds":182}
+{"rulesVersion":6,"difficulty":"normal","strategy":"touch","scores":["4-7","7-5","5-7","4-7","6-7","4-7","7-5","5-7"],"wins":2,"meanPoints":5.25,"meanSeconds":221}
+{"rulesVersion":6,"difficulty":"normal","strategy":"touch-skilled","scores":["7-5","7-0","7-3","7-0","7-2","7-1","7-2","7-3"],"wins":8,"meanPoints":7,"meanSeconds":280}
+{"rulesVersion":6,"difficulty":"normal","strategy":"idle","score":"0-7","seconds":47}
+{"rulesVersion":6,"difficulty":"hard","strategy":"follow","scores":["0-7","0-7","1-7","0-7","0-7","0-7","0-7","0-7"],"wins":0,"meanPoints":0.13,"meanSeconds":66}
+{"rulesVersion":6,"difficulty":"hard","strategy":"mobile","scores":["3-7","3-7","7-5","4-7","7-3","5-7","4-7","4-7"],"wins":2,"meanPoints":4.63,"meanSeconds":180}
+{"rulesVersion":6,"difficulty":"hard","strategy":"practiced","scores":["7-1","7-2","7-2","7-0","7-0","7-0","7-0","7-1"],"wins":8,"meanPoints":7,"meanSeconds":179}
+{"rulesVersion":6,"difficulty":"hard","strategy":"touch","scores":["5-7","0-7","4-7","0-7","0-7","5-7","0-7","3-7"],"wins":0,"meanPoints":2.13,"meanSeconds":145}
+{"rulesVersion":6,"difficulty":"hard","strategy":"touch-skilled","scores":["7-6","7-4","4-7","3-7","6-7","7-4","1-7","5-7"],"wins":3,"meanPoints":5,"meanSeconds":418}
+{"rulesVersion":6,"difficulty":"hard","strategy":"idle","score":"0-7","seconds":38}
+PASS: 120 fixed player runs including actual touch combos, difficulty ordering, normal scoring, idle sanity and replay parity
+PASS: atlas failure keeps PMD slide, slow backdrop stays non-blocking, retry restores art, logical court/DPR resizing
+PASS: player-only stats, full rallies, match timer, frozen/cancelable resume countdown
+PASS: browser chrome resize preserves gameplay, width and rotation pause, hidden-page and transition guards, native/fallback entry, canceled requests, refused-exit recovery
+PASS: options dialog owns Escape while fullscreen remains open
+(node:15264) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/pc/Desktop/TCG%20project/.kanto-work/tcghub-kanto-release-20260914/functions/api/games/volleyball.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\pc\Desktop\TCG project\.kanto-work\tcghub-kanto-release-20260914\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+easy: 5634 replay ticks verified in 2.1ms
+normal: 5638 replay ticks verified in 2.0ms
+hard: 4532 replay ticks verified in 1.5ms
+PASS: migration, three modes, current and legacy replays, session version binding, ownership, timing, idempotency, public privacy, personal bests, sorting, indexed queries, account deletion

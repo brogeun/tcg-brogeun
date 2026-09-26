@@ -1,6 +1,7 @@
 import { FLOOR, R } from './engine.mjs?v=8';
 
 export const ACTION_BUFFER_SECONDS = .12;
+export const JUMP_DOUBLE_TAP_SECONDS = .35;
 const KEY_ACTIONS = Object.freeze({
   ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
   ArrowUp: 'jump', KeyW: 'jump', Space: 'spike',
@@ -8,7 +9,7 @@ const KEY_ACTIONS = Object.freeze({
 });
 export const GAME_KEYS = Object.freeze(Object.keys(KEY_ACTIONS));
 const ACTIONS = ['jump', 'slide', 'spike'];
-const BUTTON_ACTIONS = [...ACTIONS, 'attack'];
+const BUTTON_ACTIONS = [...ACTIONS, 'attack', 'jumpTap'];
 const DIRECTIONS = ['left', 'right'];
 const emptyInput = () => ({ left: false, right: false, jump: false, spike: false, slide: false });
 
@@ -36,6 +37,7 @@ export class VolleyballControls {
   #bufferSeconds;
   #unbind = null;
   #combo = null;
+  #jumpTap = null;
   #swipes = new Map();
   #unbindSwipe = null;
   #swipeFeedback = () => {};
@@ -52,6 +54,23 @@ export class VolleyballControls {
   }
 
   #request(action, source, wasHeld) {
+    if (action === 'jumpTap') {
+      if (wasHeld) return;
+      const request = { until: this.#time + this.#bufferSeconds, source };
+      if (this.#jumpTap && this.#jumpTap.until >= this.#time) {
+        // The first tap already jumps; upgrade that same jump on the second.
+        // This also handles two taps received between simulation ticks.
+        const jump = this.#pending.get('jump');
+        if (jump?.source === this.#jumpTap.source) this.#pending.delete('jump');
+        this.#pending.set('attack', { ...request, jumpFollowup: true });
+        this.#jumpTap = null;
+      } else {
+        this.#pending.set('jump', request);
+        this.#jumpTap = { until: this.#time + JUMP_DOUBLE_TAP_SECONDS, source };
+      }
+      return;
+    }
+    if (action === 'slide' && !wasHeld) this.#jumpTap = null;
     if (!wasHeld && BUTTON_ACTIONS.includes(action)) {
       this.#pending.set(action, { until: this.#time + this.#bufferSeconds, source });
     }
@@ -80,7 +99,7 @@ export class VolleyballControls {
     const captured = [...this.#touches.entries()];
     this.#keys.clear(); this.#touches.clear(); this.#pending.clear();
     this.#swipes.clear(); this.#swipeFeedback('');
-    this.#time = 0; this.#combo = null;
+    this.#time = 0; this.#combo = null; this.#jumpTap = null;
     this.#paint();
     for (const [, touch] of captured) {
       try {
@@ -97,8 +116,15 @@ export class VolleyballControls {
       if (request.until <= this.#time + 1e-9) this.#pending.delete(action);
     }
     const p = match.players[0];
+    if (this.#jumpTap) {
+      if (this.#jumpTap.player && this.#jumpTap.player !== p) {
+        this.#pending.delete('jump'); this.#jumpTap = null;
+      } else this.#jumpTap.player = p;
+    }
     if (!['serve', 'playing'].includes(match.phase)) {
       this.#pending.delete('attack'); this.#combo = null;
+      if (this.#jumpTap) this.#pending.delete('jump');
+      this.#jumpTap = null;
     }
     if (this.#combo && (this.#combo.player !== p || this.#combo.until <= this.#time + 1e-9)) this.#combo = null;
     if (['serve', 'playing', 'point'].includes(match.phase)) {
@@ -109,7 +135,9 @@ export class VolleyballControls {
         if (attack) {
           // One explicit attack press becomes one jump/strike sequence. An
           // airborne press is a manual strike and never queues another jump.
-          this.#combo = { ...attack, player: p, stage: grounded ? 'jump' : 'spike' };
+          this.#combo = { ...attack, player: p,
+            until: attack.jumpFollowup ? this.#time + 1.1 : attack.until,
+            stage: grounded ? 'jump' : attack.jumpFollowup && p.vy < 0 ? 'rise' : 'spike' };
           this.#pending.delete('attack');
         }
         if (this.#combo?.stage === 'rise' && grounded) this.#combo = null;
@@ -162,6 +190,7 @@ export class VolleyballControls {
     const cancelSource = source => {
       for (const [action, request] of this.#pending) if (request.source === source) this.#pending.delete(action);
       if (this.#combo?.source === source) this.#combo = null;
+      if (this.#jumpTap?.source === source) this.#jumpTap = null;
     };
     const release = (source, cancelled = false) => {
       const touch = this.#touches.get(source);
@@ -216,6 +245,12 @@ export class VolleyballControls {
       return true;
     };
     const ignoresPointer = event => touchEvents && event.pointerType === 'touch';
+    for (const button of this.#buttons) listen(button, 'click', event => {
+      // Keyboard/assistive activation has no preceding pointer contact.
+      if (event.detail === 0 && isActive() && BUTTON_ACTIONS.includes(button.dataset.control)) {
+        this.#request(button.dataset.control, `activate:${button.dataset.control}`, false);
+      }
+    });
     for (const target of [...this.#buttons, ...groups]) {
       listen(target, 'pointerdown', event => {
         if (ignoresPointer(event)) return;
@@ -267,7 +302,7 @@ export class VolleyballControls {
   // Gestures feed the same intent/buffer as keys and buttons. Engine and replay
   // receive only the already accepted input bits, regardless of input device.
   bindSwipeSurface(surface, { document: doc = globalThis.document, isActive = () => true,
-    onGesture = () => {}, touchEvents = 'ontouchstart' in (doc?.defaultView ?? {}) } = {}) {
+    onGesture = () => {}, verticalActions = true, touchEvents = 'ontouchstart' in (doc?.defaultView ?? {}) } = {}) {
     this.#unbindSwipe?.(); this.#swipeFeedback = onGesture;
     const removers = [], listen = (owner, type, fn, options) => {
       owner?.addEventListener(type, fn, options);
@@ -298,7 +333,7 @@ export class VolleyballControls {
       const touch = this.#touches.get(source);
       if (vertical) {
         touch.action = null;
-        if (!contact.fired) {
+        if (verticalActions && !contact.fired) {
           const action = dy < 0 ? 'attack' : 'slide';
           contact.fired = true; this.#request(action, source, false); onGesture(action);
         }

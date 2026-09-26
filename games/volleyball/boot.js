@@ -17,7 +17,7 @@
     start.onclick = () => location.reload();
   };
   const timer = setTimeout(failure, 15000);
-  import('./game.js?v=17').then(() => clearTimeout(timer)).catch(error => {
+  import('./game.js?v=18').then(() => clearTimeout(timer)).catch(error => {
     clearTimeout(timer); console.error('Volleyball startup failed:', error); failure();
   });
 })();

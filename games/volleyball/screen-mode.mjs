@@ -80,7 +80,7 @@ export function initScreenMode({ arena, button, onPause }) {
     onPause(); update();
   });
   document.addEventListener('keydown', event => {
-    if (expanded && event.code === 'Escape') {
+    if (expanded && event.code === 'Escape' && !document.querySelector?.('dialog[open]')) {
       event.preventDefault(); event.stopImmediatePropagation(); void exit();
     }
   }, true);

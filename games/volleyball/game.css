@@ -85,13 +85,38 @@ body{background:radial-gradient(ellipse at 6% 0,#e0f4ee 0,transparent 43%),radia
 .character{color:#18383f}.character:disabled strong{color:#49625f}.character[aria-pressed=true]:disabled strong{color:#187769}
 @media(max-width:600px){.arena:not(.expanded) .overlay-card{padding:11px 16px}.arena:not(.expanded) .overlay-card h2{font-size:22px;margin:5px 0}.arena:not(.expanded) .overlay-card p{font-size:12px;margin:0 0 10px;line-height:1.4}.arena:not(.expanded) .overlay-card .eyebrow{font-size:9px}.arena:not(.expanded) .primary{min-height:40px;padding:9px 22px}.arena:not(.expanded) .overlay.is-result .overlay-card{padding:8px}.arena:not(.expanded) .overlay.is-result h2{font-size:20px;margin:0}.arena:not(.expanded) .overlay.is-result p{margin:0}}
 
-/* Swipe on the court; large pads are an optional fallback. */
-body.swipe-mode:not(.button-controls) .touch-controls{display:none}
-body.swipe-mode.button-controls .touch-controls{display:flex}
+/* Swipe movement and two visible action buttons; arrows are optional. */
+body.swipe-mode .touch-controls{display:flex}
+body.swipe-mode:not(.button-controls) .movement-pad{display:none}
 #court{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .swipe-help{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:max-content;max-width:95%;padding:4px 9px;background:#11323bca;color:#e6f5df;border-radius:12px;font-size:11px;line-height:1.4;pointer-events:none;z-index:1;text-align:center}
 .swipe-instruction{display:block!important;font-size:12px;line-height:1.65;background:#eaf5f0;border-radius:8px;padding:10px!important}
-body.swipe-mode:not(.button-controls) .arena.expanded #court{inset:0;width:100%;height:100%}
+body.swipe-mode .arena.expanded #court{inset:0;width:100%;height:100%}
 #control-mode{min-height:40px;white-space:nowrap}
 @media(max-width:600px){.swipe-help{font-size:10px;padding:3px 7px}.court-actions{gap:5px}#control-mode{min-height:44px}.arena.expanded .swipe-help{bottom:8px}}
 @media(orientation:portrait){body.swipe-mode .arena.expanded .touch-controls{display:none}}
+
+/* Two action buttons stay at the edge, outside the ordinary court. */
+body.swipe-mode .touch-controls{justify-content:flex-end;padding:8px 12px;gap:10px;background:#12313c}
+body.swipe-mode .arena:not(.expanded) .action-pad{display:flex;flex:0 0 auto;max-width:none;gap:8px}
+body.swipe-mode .action-pad button{width:106px;min-width:0;height:54px;padding:0 8px;font-size:14px}
+body.swipe-mode .action-pad [data-control=jumpTap] small{font-size:10px;white-space:nowrap}
+body.swipe-mode.button-controls .touch-controls{justify-content:space-between}
+body.swipe-mode .arena.expanded .touch-controls{padding:0;background:transparent;bottom:calc(56px + env(safe-area-inset-bottom))}
+body.swipe-mode .arena.expanded .action-pad{display:flex;flex-wrap:nowrap;max-width:none;gap:8px}
+body.swipe-mode .arena.expanded .action-pad button{width:90px;height:56px}
+.court-footer{gap:6px}.court-actions{flex:1;width:auto;flex-wrap:nowrap;gap:6px}
+.court-footer .court-actions button{min-height:44px;margin-left:0;white-space:nowrap}
+.game-options{width:min(360px,calc(100vw - 28px));max-height:calc(100dvh - 28px);box-sizing:border-box;margin:auto;padding:20px;border:1px solid #b8d6cf;border-radius:18px;background:#f7fcf9;color:#18383f;box-shadow:0 22px 80px #051c3266;overscroll-behavior:contain}
+.game-options::backdrop{background:#061d2c99}
+.options-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.options-heading h2{font-size:20px;margin:0}
+.game-options button{min-height:44px;border:1px solid #bdd7d0;border-radius:10px;padding:8px 12px;color:#1b514f;background:white;font:inherit;font-size:14px}
+.game-options>button{display:block;width:100%;margin-top:12px;text-align:left}
+.game-options #close-options{width:44px;font-size:25px;line-height:1}
+.game-options p{font-size:12px;line-height:1.6;color:#52706e;margin:10px 0 16px}
+.game-options .music-volume{display:flex!important;gap:10px;color:#18383f;margin:0;padding:10px 0;font-size:14px}
+.game-options .music-volume input{flex:1;min-width:0;width:100%;min-height:44px}
+.game-options .options-help{padding:10px;margin:12px 0 0;background:#e5f3ec;border-radius:8px}
+.game-options #restart{margin-top:16px}
+@media(max-width:600px){.court-footer>span{font-size:10px}.court-actions{gap:4px}.court-footer .court-actions button{padding:6px 8px}#expand{min-width:0}.court-footer{padding:5px 10px}.game-options{padding:16px}}
+@media(max-width:380px){body.swipe-mode .action-pad button{width:90px}body.swipe-mode.button-controls .action-pad{gap:4px}body.swipe-mode.button-controls .action-pad button{width:82px}body.swipe-mode .arena:not(.expanded) .movement-pad button{min-width:40px}}

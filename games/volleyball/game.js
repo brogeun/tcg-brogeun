@@ -1,13 +1,14 @@
 import { Match, CHARACTERS, DIFFICULTIES, FLOOR, R } from './engine.mjs?v=8';
 import { encodeInput, MAX_TICKS, MAX_CHANGES, RULES_VERSION } from './replay.mjs?v=8';
 import { initLeaderboard, lockRanking, prepareRankedMatch, submitRankedMatch } from './leaderboard.js?v=8';
-import { initScreenMode } from './screen-mode.mjs?v=3';
+import { initScreenMode } from './screen-mode.mjs?v=4';
 import { CourtRenderer } from './renderer.mjs?v=3';
-import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=6';
+import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=7';
 import { MatchFeedback, ResumeCountdown } from './feedback.mjs?v=1';
 
 const $ = id => document.getElementById(id);
 const canvas = $('court'), controls = new VolleyballControls();
+const optionsDialog = $('game-options');
 const countdown = new ResumeCountdown();
 let feedback = new MatchFeedback();
 const particles = [], trail = [];
@@ -18,6 +19,7 @@ let musicVolume = 35;
 try {
   const saved = localStorage.getItem('tcghub-volleyball-volume');
   if (saved !== null && Number.isFinite(Number(saved))) musicVolume = Math.max(0, Math.min(100, Number(saved)));
+  soundEnabled = localStorage.getItem('tcghub-volleyball-sound') !== 'off';
 } catch {}
 function applyMusicVolume(value) {
   musicVolume = Number(value);
@@ -27,6 +29,8 @@ function applyMusicVolume(value) {
   $('music-volume-value').textContent = `${musicVolume}%`;
 }
 applyMusicVolume(musicVolume);
+$('sound').textContent = soundEnabled ? 'BGM 켜짐' : 'BGM 꺼짐';
+$('sound').setAttribute('aria-pressed', String(soundEnabled));
 $('music-volume').addEventListener('input', event => {
   applyMusicVolume(event.target.value);
   try { localStorage.setItem('tcghub-volleyball-volume', String(musicVolume)); } catch {}
@@ -88,7 +92,7 @@ async function newMatch() {
   clearInput(); countdown.cancel(); feedback = new MatchFeedback(); particles.length = 0; trail.length = 0; messageTime = 0; $('rally-message').textContent = '';
   match = new Match(options);
   match.start(); $('overlay').hidden = true; accumulator = 0; updateUI(); canvas.focus({ preventScroll: true });
-  if (!screenMode.canPlay() || document.hidden) pause();
+  if (optionsDialog.open || !screenMode.canPlay() || document.hidden) pause();
 }
 function pause() {
   stopMusic(); countdown.cancel();
@@ -96,23 +100,24 @@ function pause() {
   match.pause(); clearInput(); overlay('TIME OUT', '잠깐, 쉬어가기', '준비가 되면 경기를 이어가세요.', '계속하기'); updateUI();
 }
 function resume() {
-  if (match.phase !== 'paused' || countdown.active || !screenMode.canPlay() || document.hidden) return;
+  if (optionsDialog.open || match.phase !== 'paused' || countdown.active || !screenMode.canPlay() || document.hidden) return;
   clearInput(); accumulator = 0; countdown.start();
   overlay('GET READY', countdown.label, '곧 경기가 이어집니다', '계속하기');
   $('overlay').classList.add('is-countdown'); $('start').hidden = true; updateUI();
 }
 function finishResume() {
-  if (!screenMode.canPlay() || document.hidden || match.phase !== 'paused') { pause(); return; }
+  if (optionsDialog.open || !screenMode.canPlay() || document.hidden || match.phase !== 'paused') { pause(); return; }
   match.resume(); playMusic(); clearInput(); accumulator = 0; $('overlay').hidden = true;
   updateUI(); canvas.focus({ preventScroll: true });
 }
 $('start').addEventListener('click', () => {
-  if (!loaded || starting || !screenMode.canPlay()) return;
+  if (optionsDialog.open || !loaded || starting || !screenMode.canPlay()) return;
   if (match.phase === 'paused') resume();
   else { playMusic(); newMatch(); }
 });
 $('pause').addEventListener('click', () => match.phase === 'paused' && !countdown.active ? resume() : pause());
 $('restart').addEventListener('click', () => {
+  optionsDialog.close();
   stopMusic(); countdown.cancel(); feedback = new MatchFeedback();
   rankedSession = null; replay = null;
   clearInput(); particles.length = 0; trail.length = 0;
@@ -122,12 +127,12 @@ $('restart').addEventListener('click', () => {
 });
 $('sound').addEventListener('click', () => {
   soundEnabled = !soundEnabled;
+  try { localStorage.setItem('tcghub-volleyball-sound', soundEnabled ? 'on' : 'off'); } catch {}
   $('sound').textContent = soundEnabled ? 'BGM 켜짐' : 'BGM 꺼짐';
   $('sound').setAttribute('aria-pressed', String(soundEnabled));
   $('sound').title = soundEnabled ? '우리는 모두 친구 · 경기 중 반복 재생' : '배경음악 켜기';
   if (soundEnabled && match.phase !== 'paused') playMusic();
   else stopMusic();
-  if (['playing', 'serve', 'point'].includes(match.phase)) canvas.focus({ preventScroll: true });
 });
 document.querySelectorAll('[data-character]').forEach(button => button.addEventListener('click', () => {
   selection = button.dataset.character;
@@ -137,6 +142,7 @@ document.querySelectorAll('[data-character]').forEach(button => button.addEventL
 $('opponent').addEventListener('change', () => { match.characters[1] = $('opponent').value; updateUI(); });
 $('difficulty').addEventListener('change', () => { match.difficulty = $('difficulty').value; updateUI(); });
 window.addEventListener('keydown', event => {
+  if (optionsDialog.open) return;
   if (!isGameInputTarget(event.target)) return;
   if (event.code === 'KeyP' || event.code === 'Escape') {
     if (!event.repeat) match.phase === 'paused' && !countdown.active ? resume() : pause();
@@ -152,24 +158,40 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 controls.bindTouchControls(document.querySelectorAll('[data-control]'), { document,
   isActive: () => ['playing', 'serve', 'point'].includes(match.phase) && !starting });
 
+$('options').addEventListener('click', () => {
+  if (optionsDialog.open) return;
+  pause(); clearInput(); optionsDialog.showModal();
+  $('options').setAttribute('aria-expanded', 'true');
+});
+$('close-options').addEventListener('click', () => optionsDialog.close());
+optionsDialog.addEventListener('cancel', event => { event.preventDefault(); optionsDialog.close(); });
+optionsDialog.addEventListener('close', () => {
+  clearInput(); $('options').setAttribute('aria-expanded', 'false');
+  $('options').focus({ preventScroll: true });
+});
+optionsDialog.addEventListener('click', event => {
+  if (event.target !== optionsDialog) return;
+  const r = optionsDialog.getBoundingClientRect();
+  if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) optionsDialog.close();
+});
 document.body.classList.add('swipe-mode');
-controls.bindSwipeSurface(canvas, { document,
+controls.bindSwipeSurface(canvas, { document, verticalActions: false,
   isActive: () => ['playing', 'serve', 'point'].includes(match.phase) && !starting,
-  onGesture: action => { $('gesture-status').textContent = ({ left: '← 이동', right: '이동 →', attack: '↑ 점프 공격', slide: '↓ 슬라이딩' })[action] || '좌우 끌기 이동 · 위로 공격 · 아래로 슬라이딩'; }
+  onGesture: action => { $('gesture-status').textContent = ({ left: '← 이동', right: '이동 →', attack: '↑ 점프 공격', slide: '↓ 슬라이딩' })[action] || '좌우 끌기 이동 · 점프 1번 / 스파이크 2번'; }
 });
 $('control-mode').onclick = () => {
   clearInput(); const open = document.body.classList.toggle('button-controls');
   $('control-mode').setAttribute('aria-expanded', String(open));
-  $('control-mode').textContent = open ? '버튼 접기' : '버튼 조작';
+  $('control-mode').textContent = open ? '방향 버튼 숨기기' : '방향 버튼 표시';
   if (['playing', 'serve', 'point'].includes(match.phase)) canvas.focus({ preventScroll: true });
 };
 
-const skillButtons = ['slide', 'attack'].map(name => document.querySelector(`[data-control="${name}"]`));
+const skillButtons = ['slide', 'jumpTap'].map(name => document.querySelector(`[data-control="${name}"]`));
 function updateSkillFeedback() {
   const p = match.players[0];
   for (const button of skillButtons) {
     const slide = button.dataset.control === 'slide', cooldown = slide ? p.slideCooldown : p.cooldown;
-    const label = cooldown > .01 ? `${cooldown.toFixed(1)}초` : slide ? '준비' : p.y < FLOOR - R - 15 ? '스파이크' : '점프 + 스파이크';
+    const label = cooldown > .01 ? `${cooldown.toFixed(1)}초` : slide ? '준비' : '2번: 스파이크';
     const detail = button.querySelector('small');
     if (detail.textContent !== label) detail.textContent = label;
     button.style.setProperty('--cooldown', `${Math.min(100, cooldown / (slide ? .85 : .5) * 100)}%`);
@@ -215,7 +237,7 @@ function frame(time) {
   const dt = Math.min((time - (lastTime || time)) / 1000, .05); lastTime = time;
   const resuming = countdown.active;
   if (resuming) {
-    if (!screenMode.canPlay() || document.hidden) pause();
+    if (optionsDialog.open || !screenMode.canPlay() || document.hidden) pause();
     else if (countdown.step(dt)) finishResume();
     else $('overlay-title').textContent = countdown.label;
   }

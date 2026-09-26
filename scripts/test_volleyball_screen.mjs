@@ -111,3 +111,15 @@ for (const options of [{}, { native: true }, { native: true, rejected: true }]) 
 }
 
 console.log('PASS: browser chrome resize preserves gameplay, width and rotation pause, hidden-page and transition guards, native/fallback entry, canceled requests, refused-exit recovery');
+
+{
+  const test = setup({ native: true });
+  await test.button.emit('click');
+  test.document.querySelector = selector => selector === 'dialog[open]' ? { open: true } : null;
+  await test.document.emit('keydown', { code: 'Escape', preventDefault() { throw new Error('modal Escape must belong to dialog'); }, stopImmediatePropagation() {} });
+  assert.equal(test.arena.classList.contains('expanded'), true, 'modal Escape preserves fullscreen');
+  test.document.querySelector = () => null;
+  await test.document.emit('keydown', { code: 'Escape', preventDefault() {}, stopImmediatePropagation() {} });
+  assert.equal(test.arena.classList.contains('expanded'), false, 'Escape still closes fullscreen after dialog is closed');
+}
+console.log('PASS: options dialog owns Escape while fullscreen remains open');

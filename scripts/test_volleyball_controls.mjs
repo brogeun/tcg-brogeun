@@ -570,3 +570,99 @@ test('inactive court gestures do nothing; height-only resizing preserves a held 
 test('native compatibility pointer events cannot duplicate a court swipe', () => {
  const {controls,doc,court}=swipeSetup(()=>true,true),m=game();court.fire('pointerdown',{pointerType:'touch'});doc.fire('pointermove',{pointerType:'touch',clientY:-50});assert.equal(tick(controls,m).jump,false);
 });
+
+
+const jumpPad = native => touchSetup(() => true, { touchEvents: native }, ['left', 'right', 'jumpTap', 'slide']);
+function pressJump(setup, native, release = true) {
+  const button = setup.buttons[2], point = touchPoint(8, button);
+  if (native) {
+    fireTouch(button, 'touchstart', [point]);
+    if (release) fireTouch(setup.doc, 'touchend', [point], []);
+  } else {
+    button.fire('pointerdown', { pointerId: 8 });
+    if (release) setup.doc.fire('pointerup', { pointerId: 8 });
+  }
+}
+function runBits(controls, match, n = 140) {
+  return Array.from({ length: n }, () => tick(controls, match));
+}
+test('one jump-button tap immediately jumps without any automatic spike', () => {
+  for (const native of [true, false]) {
+    const t = jumpPad(native), m = game(); pressJump(t, native);
+    assert.equal(tick(t.controls, m).jump, true);
+    const bits = runBits(t.controls, m);
+    assert.ok(bits.every(i => !i.jump && !i.spike));
+  }
+});
+test('a double tap upgrades the same jump to exactly one high strike', () => {
+  for (const native of [true, false]) for (const gap of [0, 1, 16, 41]) {
+    const t = jumpPad(native), m = game(); pressJump(t, native);
+    const bits = runBits(t.controls, m, gap); pressJump(t, native);
+    bits.push(...runBits(t.controls, m));
+    assert.equal(bits.filter(i => i.jump).length, 1, `gap ${gap}`);
+    assert.equal(bits.filter(i => i.spike).length, 1, `gap ${gap}`);
+  }
+});
+test('slow second tap and a held jump button never turn into a spike', () => {
+  for (const held of [true, false]) {
+    const t = jumpPad(true), m = game(); pressJump(t, true, !held);
+    const bits = runBits(t.controls, m, 44);
+    if (!held) pressJump(t, true);
+    bits.push(...runBits(t.controls, m, 240));
+    assert.equal(bits.filter(i => i.spike).length, 0);
+    assert.equal(bits.filter(i => i.jump).length, 1);
+  }
+});
+test('jump cancellation, clear and blur remove the first tap and its pending input', () => {
+  for (const ending of ['cancel', 'clear', 'blur']) {
+    const t = jumpPad(true), m = game();pressJump(t, true, false);
+    if (ending === 'cancel') fireTouch(t.doc, 'touchcancel', [touchPoint(8,t.buttons[2])], []);
+    if (ending === 'clear') t.controls.clear();
+    if (ending === 'blur') t.doc.defaultView.fire('blur');
+    assert.equal(tick(t.controls,m).jump,false);
+    pressJump(t,true);
+    const bits=runBits(t.controls,m);assert.equal(bits.filter(i=>i.jump).length,1);assert.equal(bits.filter(i=>i.spike).length,0);
+  }
+});
+test('canceling the second contact cancels the armed strike without canceling another thumb', () => {
+  const t=jumpPad(true),m=game();const moving=touchPoint(1,t.buttons[1]);fireTouch(t.buttons[1],'touchstart',[moving]);
+  pressJump(t,true);tick(t.controls,m);pressJump(t,true,false);tick(t.controls,m);
+  fireTouch(t.doc,'touchcancel',[touchPoint(8,t.buttons[2])],[moving]);
+  for(const i of runBits(t.controls,m)){assert.equal(i.spike,false);assert.equal(i.right,true);}
+});
+test('point and reset transitions cannot carry a first tap to the next rally', () => {
+  for(const reset of ['point','reset']) {
+    const t=jumpPad(true),m=game();pressJump(t,true);tick(t.controls,m);
+    if(reset==='point'){m.phase='point';m.timer=DT;}else{m.resetRally();m.timer=10;}
+    tick(t.controls,m);pressJump(t,true);
+    assert.ok(runBits(t.controls,m).every(i=>!i.spike));
+  }
+});
+test('a jump double tap does not bypass spike cooldown and slide resets the tap pair', () => {
+  for(const slide of [true,false]) {
+    const t=jumpPad(true),m=game();m.players[0].cooldown=2;pressJump(t,true);tick(t.controls,m);
+    if(slide){const point=touchPoint(9,t.buttons[3]);fireTouch(t.buttons[3],'touchstart',[point]);fireTouch(t.doc,'touchend',[point],[]);}
+    pressJump(t,true);assert.ok(runBits(t.controls,m,180).every(i=>!i.spike));
+  }
+});
+test('jump button keyboard activation supports single and double press without duplicate clicks', () => {
+  const t=jumpPad(false),m=game(),button=t.buttons[2];button.fire('click',{detail:0});tick(t.controls,m);
+  button.fire('click',{detail:0});button.fire('click',{detail:1});
+  assert.equal(runBits(t.controls,m).filter(i=>i.spike).length,1);
+});
+test('movement-only court disables vertical actions while preserving horizontal steering', () => {
+  const controls=new VolleyballControls(),doc=new Surface(),court=new Button('court',0),m=game();doc.defaultView=new Surface();
+  controls.bindSwipeSurface(court,{document:doc,verticalActions:false,touchEvents:false});
+  court.fire('pointerdown');doc.fire('pointermove',{clientY:-90});assert.equal(encodeInput(tick(controls,m)),0);
+  doc.fire('pointermove',{clientY:90});assert.equal(encodeInput(tick(controls,m)),0);
+  doc.fire('pointermove',{clientX:90,clientY:15});assert.equal(tick(controls,m).right,true);
+});
+test('movement and jump double tap replay exactly through unchanged engine bits', () => {
+  const t=jumpPad(true),live=game(),replayed=game();t.controls.keyDown('KeyD');
+  for(let frame=0;frame<230;frame++) {
+    if(frame===0||frame===15)pressJump(t,true);
+    if(frame===25)t.controls.keyUp('KeyD');
+    const input=t.controls.sample(live,DT);live.step(DT,input);replayed.step(DT,decodeInput(encodeInput(input)));
+  }
+  assert.deepEqual(live,replayed);
+});

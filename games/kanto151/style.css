@@ -333,3 +333,20 @@ html,body,button,input,select{font-family:"Malgun Gothic","Apple SD Gothic Neo",
 
 @media(pointer:coarse) and (min-height:481px){#context.field-capability{max-height:166px}#context.field-capability small{font-size:11px;line-height:1.45}}
 @media(pointer:coarse) and (max-height:480px){#context.field-capability{max-height:98px}}
+
+/* Single-partner camera preview and swipe controls. */
+#starter .starter-head{margin:22px 16px 0;pointer-events:none}#starter .starter-head h1{font-size:28px;margin:10px 0}#starter .starter-head p{font-size:13px;margin:8px 0}
+#starter-preview{pointer-events:auto;position:absolute;top:145px;bottom:238px;left:6%;right:6%;touch-action:none;user-select:none}
+#starter-preview>button{position:absolute;top:calc(50% - 26px);width:52px;height:52px;border-radius:50%;background:#15343be8;border:1px solid #c6dec4;font-size:34px;z-index:2}#starter-prev{left:0}#starter-next{right:0}
+#starter-swipe-hint{position:absolute;bottom:0;left:0;right:0;text-align:center;font-size:12px;color:#f3f5d7;text-shadow:0 2px 4px #10282d;pointer-events:none}
+#starter #starter-cards{left:50%;right:auto;bottom:100px;width:min(620px,calc(100vw - 36px));transform:translateX(-50%);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+#starter .starter-card{min-height:78px;padding:10px;text-align:center;transform:none}#starter .starter-card b{font-size:17px;margin:8px 0 0}#starter .starter-card small{font-size:11px}#starter .starter-card p{display:none}
+#starter .starter-footer{left:6%;right:6%;bottom:25px;justify-content:center;gap:20px}#starter .starter-footer>span{display:block;font-size:13px;color:#ebf1d6}#starter .starter-footer .primary{min-height:48px;padding:12px 25px}
+#touch-stick{position:fixed;width:100px;height:100px;transform:translate(-50%,-50%);border:2px solid #d9eed280;border-radius:50%;background:#14343855;pointer-events:none;z-index:12}#touch-stick i{position:absolute;left:50%;top:50%;width:38px;height:38px;transform:translate(-50%,-50%);border-radius:50%;background:#e2efc7c9;box-shadow:0 2px 8px #112f3960}
+#swipe-move-hint{display:none;pointer-events:none}
+@media(pointer:coarse){#touch-controls .touch-pad{display:none}#swipe-move-hint{display:block;position:absolute;left:var(--edge-left);bottom:calc(var(--edge-bottom) + 212px);width:174px;font-size:12px;line-height:1.6;color:#eaf3dc;text-shadow:0 2px 4px #10272e}#swipe-move-hint small{font-size:10px;color:#d7e8de}}
+@media(max-width:600px){#starter .starter-head{margin-top:24px}#starter .starter-head h1{font-size:24px}#starter .starter-head p{display:block;font-size:12px}#starter-preview{top:155px;bottom:210px;left:5%;right:5%}#starter #starter-cards{bottom:105px;gap:6px}#starter .starter-card{padding:9px 3px;min-height:70px}#starter .starter-card b{font-size:14px}#starter .starter-footer{bottom:32px}#starter-preview>button{width:44px;height:44px;font-size:28px}}
+@media(max-height:480px){#starter .starter-head{margin:8px 10px}#starter .starter-head h1{font-size:20px;margin:4px}#starter .starter-head .eyebrow,#starter .starter-head p{display:none}#starter-preview{top:48px;bottom:138px;left:15%;right:15%}#starter #starter-cards{bottom:65px;width:min(530px,calc(100vw - 36px))}#starter .starter-card{padding:5px;min-height:48px}#starter .starter-card b{font-size:14px;margin:2px}#starter .starter-card small{display:none}#starter .starter-footer{bottom:9px}#starter .starter-footer .primary{min-height:44px;padding:8px 18px}#starter-preview>button{top:calc(50% - 22px);width:44px;height:44px}#starter-swipe-hint{font-size:10px;bottom:-3px}}
+@media(pointer:coarse) and (max-height:480px){#swipe-move-hint{bottom:calc(var(--edge-bottom) + 25px);left:var(--edge-left);width:158px}}
+
+@media(pointer:coarse) and (min-height:481px){#touch-interact{left:auto;right:0;width:132px;max-width:132px}}

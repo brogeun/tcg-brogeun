@@ -31,7 +31,7 @@ export function updateFieldAction(g,dt){
  const a=g.fieldAction;if(!a)return false;
  if(g.regionEpoch!==a.epoch||g.player!==a.actor){cancelFieldAction(g,'region');return false;}
  if(g.player.hp<a.hp||g.player.recoil||g.player.hp<=0){cancelFieldAction(g,'damage');return false;}
- if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].some(k=>g.keys.has(k))){cancelFieldAction(g);return false;}
+ if(Math.hypot(g.touchMove?.x||0,g.touchMove?.z||0)>.1||['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].some(k=>g.keys.has(k))){cancelFieldAction(g);return false;}
  a.time+=dt;const f=Math.min(1,a.time/a.duration),ease=f*f*(3-2*f),p=g.player;
  g.world.previewShortcut?.(a.shortcut,a.snapshot,ease);
  if(a.travel){let distance=ease*a.length;for(let i=0;i<a.segments.length;i++){if(distance<=a.segments[i]||i===a.segments.length-1){p.model.position.copy(a.points[i]).lerp(a.points[i+1],a.segments[i]?Math.min(1,distance/a.segments[i]):1);p.model.rotation.y=Math.atan2(a.points[i+1].x-a.points[i].x,a.points[i+1].z-a.points[i].z);break;}distance-=a.segments[i];}}

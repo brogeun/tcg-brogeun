@@ -84,3 +84,14 @@ body{background:radial-gradient(ellipse at 6% 0,#e0f4ee 0,transparent 43%),radia
 @media(max-width:380px){.heading h1{font-size:27px}.beta{font-size:8px}.scorebar .score{min-width:83px;padding-inline:8px;font-size:22px}.setup{padding:12px}.character-portrait{width:65px;height:65px}}
 .character{color:#18383f}.character:disabled strong{color:#49625f}.character[aria-pressed=true]:disabled strong{color:#187769}
 @media(max-width:600px){.arena:not(.expanded) .overlay-card{padding:11px 16px}.arena:not(.expanded) .overlay-card h2{font-size:22px;margin:5px 0}.arena:not(.expanded) .overlay-card p{font-size:12px;margin:0 0 10px;line-height:1.4}.arena:not(.expanded) .overlay-card .eyebrow{font-size:9px}.arena:not(.expanded) .primary{min-height:40px;padding:9px 22px}.arena:not(.expanded) .overlay.is-result .overlay-card{padding:8px}.arena:not(.expanded) .overlay.is-result h2{font-size:20px;margin:0}.arena:not(.expanded) .overlay.is-result p{margin:0}}
+
+/* Swipe on the court; large pads are an optional fallback. */
+body.swipe-mode:not(.button-controls) .touch-controls{display:none}
+body.swipe-mode.button-controls .touch-controls{display:flex}
+#court{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.swipe-help{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:max-content;max-width:95%;padding:4px 9px;background:#11323bca;color:#e6f5df;border-radius:12px;font-size:11px;line-height:1.4;pointer-events:none;z-index:1;text-align:center}
+.swipe-instruction{display:block!important;font-size:12px;line-height:1.65;background:#eaf5f0;border-radius:8px;padding:10px!important}
+body.swipe-mode:not(.button-controls) .arena.expanded #court{inset:0;width:100%;height:100%}
+#control-mode{min-height:40px;white-space:nowrap}
+@media(max-width:600px){.swipe-help{font-size:10px;padding:3px 7px}.court-actions{gap:5px}#control-mode{min-height:44px}.arena.expanded .swipe-help{bottom:8px}}
+@media(orientation:portrait){body.swipe-mode .arena.expanded .touch-controls{display:none}}

@@ -520,3 +520,53 @@ test('native movement and jump-attack bits replay exactly without controller ass
   assert.equal(sampledChanges.filter(bits => bits & 8).length, 1);
   assert.deepEqual(live, replayed);
 });
+
+function swipeSetup(active = () => true, native = false) {
+  const controls = new VolleyballControls(), doc = new Surface(), court = new Button('court', 0);
+  doc.defaultView = new Surface(); doc.defaultView.innerWidth = 844;
+  const unbind = controls.bindSwipeSurface(court, { document: doc, isActive: active, touchEvents: native });
+  return { controls, doc, court, unbind };
+}
+test('court swipe deadzone, reverse and release reuse keyboard movement without sticky input', () => {
+  const { controls, doc, court } = swipeSetup(), m = game();
+  court.fire('pointerdown');doc.fire('pointermove',{clientX:18});assert.equal(tick(controls,m).right,false);
+  doc.fire('pointermove',{clientX:45});assert.equal(tick(controls,m).right,true);
+  doc.fire('pointermove',{clientX:-20});assert.equal(tick(controls,m).left,true);
+  controls.keyDown('KeyD');doc.fire('pointerup');assert.equal(tick(controls,m).right,true);
+  controls.keyUp('KeyD');assert.equal(tick(controls,m).right,false);
+});
+test('up swipe queues exactly one jump and strike and normal release retains the combo', () => {
+  const { controls, doc, court } = swipeSetup(), m=game();court.fire('pointerdown');
+  doc.fire('pointermove',{clientY:-40});doc.fire('pointermove',{clientY:-70});doc.fire('pointerup');
+  let jumps=0,strikes=0;for(let i=0;i<145;i++){const input=tick(controls,m);jumps+=+input.jump;strikes+=+input.spike;}
+  assert.equal(jumps,1);assert.equal(strikes,1);
+});
+test('down swipe slides once and diagonal movement does not accidentally attack', () => {
+  const {controls,doc,court}=swipeSetup(),m=game();court.fire('pointerdown');
+  doc.fire('pointermove',{clientX:90,clientY:-25});let i=tick(controls,m);assert.equal(i.right,true);assert.equal(i.jump,false);
+  doc.fire('pointerup');court.fire('pointerdown');doc.fire('pointermove',{clientY:55});i=tick(controls,m);assert.equal(i.slide,true);assert.equal(i.jump,false);
+  for(let j=0;j<150;j++){doc.fire('pointermove',{clientY:65});assert.equal(tick(controls,m).slide,false);}
+});
+test('native two-finger swipe keeps movement when the attack finger lifts', () => {
+  const {controls,doc,court}=swipeSetup(()=>true,true),m=game();
+  fireTouch(court,'touchstart',[touchPoint(1,court)]);fireTouch(doc,'touchmove',[touchPoint(1,court,{clientX:50})]);
+  fireTouch(court,'touchstart',[touchPoint(2,court,{clientX:200})]);fireTouch(doc,'touchmove',[touchPoint(2,court,{clientX:200,clientY:-35})]);
+  let i=tick(controls,m);assert.equal(i.right,true);assert.equal(i.jump,true);
+  fireTouch(doc,'touchend',[touchPoint(2,court)], [touchPoint(1,court)]);assert.equal(tick(controls,m).right,true);
+  fireTouch(doc,'touchcancel',[touchPoint(1,court)],[]);assert.equal(tick(controls,m).right,false);
+});
+test('gesture cancellation removes pending attacks and each reset releases all captured contacts', () => {
+  for(const reset of ['pointercancel','blur','visibilitychange','resize','clear','unbind']){
+    const {controls,doc,court,unbind}=swipeSetup(),m=game();court.fire('pointerdown');doc.fire('pointermove',{clientY:-40});
+    if(reset==='pointercancel')doc.fire(reset);else if(reset==='blur')doc.defaultView.fire(reset);else if(reset==='visibilitychange'){doc.hidden=true;doc.fire(reset);}else if(reset==='resize'){doc.defaultView.innerWidth=390;doc.defaultView.fire(reset);}else if(reset==='clear')controls.clear();else unbind();
+    const i=tick(controls,m);assert.equal(i.jump,false,reset);assert.equal(i.spike,false,reset);assert.equal(court.captures.size,0,reset);
+  }
+});
+test('inactive court gestures do nothing; height-only resizing preserves a held direction', () => {
+  let active=false;const {controls,doc,court}=swipeSetup(()=>active),m=game();court.fire('pointerdown');doc.fire('pointermove',{clientX:60});assert.equal(tick(controls,m).right,false);
+  active=true;court.fire('pointerdown');doc.fire('pointermove',{clientX:60});doc.defaultView.fire('resize');assert.equal(tick(controls,m).right,true);
+  active=false;doc.fire('pointermove',{clientX:70});assert.equal(tick(controls,m).right,false);
+});
+test('native compatibility pointer events cannot duplicate a court swipe', () => {
+ const {controls,doc,court}=swipeSetup(()=>true,true),m=game();court.fire('pointerdown',{pointerType:'touch'});doc.fire('pointermove',{pointerType:'touch',clientY:-50});assert.equal(tick(controls,m).jump,false);
+});

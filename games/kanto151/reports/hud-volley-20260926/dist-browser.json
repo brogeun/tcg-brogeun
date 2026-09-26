@@ -1,0 +1,702 @@
+{
+  "status": "passed",
+  "passed": 34,
+  "failed": 0,
+  "tests": [
+    {
+      "name": "1000x720 default HUD coverage reduced at least 25%",
+      "passed": true,
+      "detail": {
+        "before": 35.5,
+        "after": 10
+      }
+    },
+    {
+      "name": "1000x720 vital bars and game buttons remain in viewport",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "1000x720 minimap can expand and render player",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "1000x720 detail toggle expands and collapses",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "1000x720 compact goal opens full map guidance",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "390x844 default HUD coverage reduced at least 25%",
+      "passed": true,
+      "detail": {
+        "before": 39.3,
+        "after": 24.5
+      }
+    },
+    {
+      "name": "390x844 vital bars and game buttons remain in viewport",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "390x844 minimap can expand and render player",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "390x844 detail toggle expands and collapses",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "390x844 skills open with visible 44px targets",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "390x844 unused skills and duplicate E card fold away",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "390x844 compact goal opens full map guidance",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "360x640 default HUD coverage reduced at least 25%",
+      "passed": true,
+      "detail": {
+        "before": 54.4,
+        "after": 33.3
+      }
+    },
+    {
+      "name": "360x640 vital bars and game buttons remain in viewport",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "360x640 minimap can expand and render player",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "360x640 detail toggle expands and collapses",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "360x640 skills open with visible 44px targets",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "360x640 unused skills and duplicate E card fold away",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "360x640 compact goal opens full map guidance",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "844x390 default HUD coverage reduced at least 25%",
+      "passed": true,
+      "detail": {
+        "before": 42,
+        "after": 24.4
+      }
+    },
+    {
+      "name": "844x390 vital bars and game buttons remain in viewport",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "844x390 minimap can expand and render player",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "844x390 detail toggle expands and collapses",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "844x390 skills open with visible 44px targets",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "844x390 unused skills and duplicate E card fold away",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "844x390 compact goal opens full map guidance",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "central two-finger move and view gestures remain available",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "low food and water stay visible in compact view",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "mobile station shows one named action",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "compact mobile save action still writes explicit checkpoint",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no nearby target removes empty interaction button",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "notifications capped and region banner no longer full screen",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "all built runtime and data match tested source",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "no browser runtime errors",
+      "passed": true,
+      "detail": []
+    }
+  ],
+  "coverage": {
+    "1000x720": {
+      "coveragePercent": 10,
+      "boxes": [
+        {
+          "id": "hud-details",
+          "x": 873.953125,
+          "y": 12,
+          "w": 68.734375,
+          "h": 40
+        },
+        {
+          "id": "",
+          "x": 948.6875,
+          "y": 12,
+          "w": 39.3125,
+          "h": 40
+        },
+        {
+          "id": "survival-status",
+          "x": 12,
+          "y": 12,
+          "w": 146,
+          "h": 87
+        },
+        {
+          "id": "compass",
+          "x": 12,
+          "y": 102,
+          "w": 162.78125,
+          "h": 40
+        },
+        {
+          "id": "minimap-wrap is-collapsed",
+          "x": 866,
+          "y": 62,
+          "w": 122,
+          "h": 77
+        },
+        {
+          "id": "partner-card",
+          "x": 20,
+          "y": 571,
+          "w": 190,
+          "h": 83
+        },
+        {
+          "id": "move",
+          "x": 758,
+          "y": 594,
+          "w": 72,
+          "h": 60
+        },
+        {
+          "id": "move",
+          "x": 838,
+          "y": 594,
+          "w": 72,
+          "h": 60
+        },
+        {
+          "id": "throw-button",
+          "x": 920,
+          "y": 594,
+          "w": 60,
+          "h": 60
+        },
+        {
+          "id": "",
+          "x": 32,
+          "y": 679,
+          "w": 55.484375,
+          "h": 23
+        },
+        {
+          "id": "",
+          "x": 100.484375,
+          "y": 679,
+          "w": 55.609375,
+          "h": 23
+        },
+        {
+          "id": "",
+          "x": 169.09375,
+          "y": 679,
+          "w": 53.453125,
+          "h": 23
+        },
+        {
+          "id": "",
+          "x": 235.546875,
+          "y": 679,
+          "w": 58.859375,
+          "h": 23
+        },
+        {
+          "id": "context",
+          "x": 446.953125,
+          "y": 524,
+          "w": 106.09375,
+          "h": 48
+        }
+      ]
+    },
+    "390x844": {
+      "coveragePercent": 24.5,
+      "boxes": [
+        {
+          "id": "hud-details",
+          "x": 174,
+          "y": 16,
+          "w": 64,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 244,
+          "y": 16,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "survival-status",
+          "x": 12,
+          "y": 12,
+          "w": 146,
+          "h": 81
+        },
+        {
+          "id": "compass",
+          "x": 12,
+          "y": 99,
+          "w": 210,
+          "h": 36
+        },
+        {
+          "id": "minimap-wrap is-collapsed",
+          "x": 256,
+          "y": 62,
+          "w": 122,
+          "h": 77
+        },
+        {
+          "id": "partner-card",
+          "x": 12,
+          "y": 727,
+          "w": 160,
+          "h": 60
+        },
+        {
+          "id": "throw-button",
+          "x": 324,
+          "y": 739,
+          "w": 54,
+          "h": 48
+        },
+        {
+          "id": "",
+          "x": 12,
+          "y": 792,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 64,
+          "y": 792,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 116,
+          "y": 792,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 168,
+          "y": 792,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "touch-interact",
+          "x": 12,
+          "y": 630.609375,
+          "w": 366,
+          "h": 49.390625
+        },
+        {
+          "id": "touch-attack",
+          "x": 183.421875,
+          "y": 688,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "touch-lock",
+          "x": 232.421875,
+          "y": 688,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "touch-skills",
+          "x": 281.421875,
+          "y": 688,
+          "w": 47.578125,
+          "h": 44
+        },
+        {
+          "id": "touch-dodge",
+          "x": 334,
+          "y": 688,
+          "w": 44,
+          "h": 44
+        }
+      ]
+    },
+    "360x640": {
+      "coveragePercent": 33.3,
+      "boxes": [
+        {
+          "id": "hud-details",
+          "x": 144,
+          "y": 16,
+          "w": 64,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 214,
+          "y": 16,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "survival-status",
+          "x": 12,
+          "y": 12,
+          "w": 146,
+          "h": 81
+        },
+        {
+          "id": "compass",
+          "x": 12,
+          "y": 99,
+          "w": 180,
+          "h": 36
+        },
+        {
+          "id": "minimap-wrap is-collapsed",
+          "x": 226,
+          "y": 62,
+          "w": 122,
+          "h": 77
+        },
+        {
+          "id": "partner-card",
+          "x": 12,
+          "y": 523,
+          "w": 160,
+          "h": 60
+        },
+        {
+          "id": "throw-button",
+          "x": 294,
+          "y": 535,
+          "w": 54,
+          "h": 48
+        },
+        {
+          "id": "",
+          "x": 12,
+          "y": 588,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 64,
+          "y": 588,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 116,
+          "y": 588,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 168,
+          "y": 588,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "touch-interact",
+          "x": 12,
+          "y": 426.609375,
+          "w": 336,
+          "h": 49.390625
+        },
+        {
+          "id": "touch-attack",
+          "x": 153.421875,
+          "y": 484,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "touch-lock",
+          "x": 202.421875,
+          "y": 484,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "touch-skills",
+          "x": 251.421875,
+          "y": 484,
+          "w": 47.578125,
+          "h": 44
+        },
+        {
+          "id": "touch-dodge",
+          "x": 304,
+          "y": 484,
+          "w": 44,
+          "h": 44
+        }
+      ]
+    },
+    "844x390": {
+      "coveragePercent": 24.4,
+      "boxes": [
+        {
+          "id": "hud-details",
+          "x": 628,
+          "y": 12,
+          "w": 64,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 698,
+          "y": 12,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "survival-status",
+          "x": 12,
+          "y": 12,
+          "w": 146,
+          "h": 81
+        },
+        {
+          "id": "compass",
+          "x": 12,
+          "y": 100,
+          "w": 150,
+          "h": 36
+        },
+        {
+          "id": "minimap-wrap is-collapsed",
+          "x": 710,
+          "y": 62,
+          "w": 122,
+          "h": 73
+        },
+        {
+          "id": "partner-card",
+          "x": 12,
+          "y": 314,
+          "w": 160,
+          "h": 64
+        },
+        {
+          "id": "throw-button",
+          "x": 778,
+          "y": 330,
+          "w": 54,
+          "h": 48
+        },
+        {
+          "id": "",
+          "x": 182,
+          "y": 338,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 234,
+          "y": 338,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 286,
+          "y": 338,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "",
+          "x": 338,
+          "y": 338,
+          "w": 48,
+          "h": 44
+        },
+        {
+          "id": "touch-interact",
+          "x": 192,
+          "y": 272.609375,
+          "w": 414,
+          "h": 49.390625
+        },
+        {
+          "id": "touch-attack",
+          "x": 637.421875,
+          "y": 278,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "touch-lock",
+          "x": 686.421875,
+          "y": 278,
+          "w": 44,
+          "h": 44
+        },
+        {
+          "id": "touch-skills",
+          "x": 735.421875,
+          "y": 278,
+          "w": 47.578125,
+          "h": 44
+        },
+        {
+          "id": "touch-dodge",
+          "x": 788,
+          "y": 278,
+          "w": 44,
+          "h": 44
+        }
+      ]
+    }
+  },
+  "sourceSha256": {
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
+    "src/checkpoints.mjs": "f805b5005fd14a0ab0d39112b2846816867d622edc57f56ec544cb54a1cd73af",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/core.mjs": "52038f2d5a52af05062185d50974dd6abbb7dde0d29a97113bbf3904ac28ad65",
+    "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
+    "src/expedition.mjs": "564e9e62575297c44f05012219057df210299828feae1cf0955ddcef42d2b8ff",
+    "src/field-actions.mjs": "cfef994105543161a4db6d2c76e1b5903b241dbfe4e787355a93d30c9163184a",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/game.mjs": "e51f90381ebd692461ca6aa8c4c107bf99c8d53f76f0ce1fa0d2a9f4dab0b400",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/interactions.mjs": "23c5c35cb76f3c2c06fd8a5fe8bd9ac41e6464c94159540f6c0fb6ceeb9c8c73",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/navigation.mjs": "3b00f10c3566782cc75be07b621a9be61df82fd98378e9d4352ce1b915f8e329",
+    "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
+    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+    "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/touch-steering.mjs": "0dda65c617d31ec108fb67c06b9cfafa1dfdc11c85e1126a2e495a265b52cb5c",
+    "src/ui.mjs": "315afb1a4baba3d2747657856c6693f2911203ac16b7c6d2aa78cdb1f4f20f93",
+    "src/world.mjs": "c9bd0e8b0e3791eaa3bbcb59b2944e7a899614db6fdba4d94c7772a72ab20b48",
+    "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "fbf099611d4316c5cd2e30bdb236de1bacc306c74ecb3b8b5f9422c2f6220083",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/locale-messages.json": "3a90d89b22241b4937e4cd98d40bf5393dbe3892d0eadd31f09ac42e3323a837",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
+    "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "index.html": "cba1a171392e2199565a1c160847cac308ecf7c3de318bb4c1ec142f01ba8da9",
+    "style.css": "b55d9383b1e2e393f43910c15757170c697e289c76020652c00c56b3169e27bb",
+    "scripts/browser-suite.mjs": "b3cdb6b3b27329b203f477b41159a239a62b35d5b5e51c5e05f9e75973467f43"
+  },
+  "scope": "Native browser inputs, isolated in-memory save, four viewport sizes. Coverage is sampled union of visible HUD bounding boxes, not exact opaque pixels."
+}

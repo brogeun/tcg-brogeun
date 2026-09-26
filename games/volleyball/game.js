@@ -3,7 +3,7 @@ import { encodeInput, MAX_TICKS, MAX_CHANGES, RULES_VERSION } from './replay.mjs
 import { initLeaderboard, lockRanking, prepareRankedMatch, submitRankedMatch } from './leaderboard.js?v=8';
 import { initScreenMode } from './screen-mode.mjs?v=3';
 import { CourtRenderer } from './renderer.mjs?v=3';
-import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=5';
+import { VolleyballControls, GAME_KEYS, isGameInputTarget } from './controls.mjs?v=6';
 import { MatchFeedback, ResumeCountdown } from './feedback.mjs?v=1';
 
 const $ = id => document.getElementById(id);
@@ -151,6 +151,18 @@ window.addEventListener('blur', pause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
 controls.bindTouchControls(document.querySelectorAll('[data-control]'), { document,
   isActive: () => ['playing', 'serve', 'point'].includes(match.phase) && !starting });
+
+document.body.classList.add('swipe-mode');
+controls.bindSwipeSurface(canvas, { document,
+  isActive: () => ['playing', 'serve', 'point'].includes(match.phase) && !starting,
+  onGesture: action => { $('gesture-status').textContent = ({ left: '← 이동', right: '이동 →', attack: '↑ 점프 공격', slide: '↓ 슬라이딩' })[action] || '좌우 끌기 이동 · 위로 공격 · 아래로 슬라이딩'; }
+});
+$('control-mode').onclick = () => {
+  clearInput(); const open = document.body.classList.toggle('button-controls');
+  $('control-mode').setAttribute('aria-expanded', String(open));
+  $('control-mode').textContent = open ? '버튼 접기' : '버튼 조작';
+  if (['playing', 'serve', 'point'].includes(match.phase)) canvas.focus({ preventScroll: true });
+};
 
 const skillButtons = ['slide', 'attack'].map(name => document.querySelector(`[data-control="${name}"]`));
 function updateSkillFeedback() {

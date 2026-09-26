@@ -36,6 +36,9 @@ export class VolleyballControls {
   #bufferSeconds;
   #unbind = null;
   #combo = null;
+  #swipes = new Map();
+  #unbindSwipe = null;
+  #swipeFeedback = () => {};
 
   constructor({ bufferSeconds = ACTION_BUFFER_SECONDS } = {}) {
     if (!Number.isFinite(bufferSeconds) || bufferSeconds <= 0) throw new RangeError('bufferSeconds must be positive');
@@ -76,6 +79,7 @@ export class VolleyballControls {
   clear() {
     const captured = [...this.#touches.entries()];
     this.#keys.clear(); this.#touches.clear(); this.#pending.clear();
+    this.#swipes.clear(); this.#swipeFeedback('');
     this.#time = 0; this.#combo = null;
     this.#paint();
     for (const [, touch] of captured) {
@@ -258,5 +262,87 @@ export class VolleyballControls {
     };
     this.#unbind = unbind;
     return unbind;
+  }
+
+  // Gestures feed the same intent/buffer as keys and buttons. Engine and replay
+  // receive only the already accepted input bits, regardless of input device.
+  bindSwipeSurface(surface, { document: doc = globalThis.document, isActive = () => true,
+    onGesture = () => {}, touchEvents = 'ontouchstart' in (doc?.defaultView ?? {}) } = {}) {
+    this.#unbindSwipe?.(); this.#swipeFeedback = onGesture;
+    const removers = [], listen = (owner, type, fn, options) => {
+      owner?.addEventListener(type, fn, options);
+      removers.push(() => owner?.removeEventListener(type, fn, options));
+    };
+    const finish = (source, cancelled = false) => {
+      const contact = this.#swipes.get(source); if (!contact) return;
+      this.#swipes.delete(source); this.#touches.delete(source);
+      if (cancelled) {
+        for (const [action, request] of this.#pending) if (request.source === source) this.#pending.delete(action);
+        if (this.#combo?.source === source) this.#combo = null;
+      }
+      if (contact.pointerId !== undefined && surface.hasPointerCapture?.(contact.pointerId)) surface.releasePointerCapture(contact.pointerId);
+      this.#paint(); if (!this.#swipes.size) onGesture('');
+    };
+    const begin = (source, point, pointerId) => {
+      if (!isActive() || this.#swipes.has(source)) return false;
+      this.#swipes.set(source, { x: point.clientX, y: point.clientY, fired: false, pointerId });
+      this.#touches.set(source, { action: null, owner: surface, pointerId });
+      if (pointerId !== undefined) { try { surface.setPointerCapture(pointerId); } catch {} }
+      return true;
+    };
+    const move = (source, point) => {
+      const contact = this.#swipes.get(source); if (!contact) return false;
+      if (!isActive()) { finish(source, true); return true; }
+      const dx = point.clientX - contact.x, dy = point.clientY - contact.y;
+      const vertical = Math.abs(dy) >= 30 && Math.abs(dy) > Math.abs(dx) * .9;
+      const touch = this.#touches.get(source);
+      if (vertical) {
+        touch.action = null;
+        if (!contact.fired) {
+          const action = dy < 0 ? 'attack' : 'slide';
+          contact.fired = true; this.#request(action, source, false); onGesture(action);
+        }
+      } else {
+        touch.action = Math.abs(dx) >= 12 ? dx < 0 ? 'left' : 'right' : null;
+        onGesture(touch.action || '');
+      }
+      this.#paint(); return true;
+    };
+    const ignore = e => touchEvents && e.pointerType === 'touch';
+    listen(surface, 'pointerdown', e => {
+      if (!ignore(e) && (e.button === undefined || e.button === 0) && begin('swipe:pointer:' + e.pointerId, e, e.pointerId)) e.preventDefault();
+    });
+    listen(doc, 'pointermove', e => { if (!ignore(e) && move('swipe:pointer:' + e.pointerId, e)) e.preventDefault(); });
+    listen(doc, 'pointerup', e => { if (!ignore(e)) finish('swipe:pointer:' + e.pointerId); });
+    listen(doc, 'pointercancel', e => { if (!ignore(e)) finish('swipe:pointer:' + e.pointerId, true); });
+    listen(surface, 'lostpointercapture', e => { if (!ignore(e)) finish('swipe:pointer:' + e.pointerId, true); });
+    if (touchEvents) {
+      listen(surface, 'touchstart', e => {
+        let owned = false; for (const t of Array.from(e.changedTouches || [])) owned = begin('swipe:touch:' + t.identifier, t) || owned;
+        if (owned && e.cancelable !== false) e.preventDefault();
+      }, { passive: false });
+      listen(doc, 'touchmove', e => {
+        let owned = false; for (const t of Array.from(e.changedTouches || [])) owned = move('swipe:touch:' + t.identifier, t) || owned;
+        if (owned && e.cancelable !== false) e.preventDefault();
+      }, { passive: false });
+      for (const type of ['touchend', 'touchcancel']) listen(doc, type, e => {
+        let owned = false; for (const t of Array.from(e.changedTouches || [])) {
+          const source = 'swipe:touch:' + t.identifier; owned = this.#swipes.has(source) || owned; finish(source, type === 'touchcancel');
+        }
+        if (owned && e.cancelable !== false) e.preventDefault();
+      }, { passive: false });
+    }
+    listen(surface, 'contextmenu', e => e.preventDefault());
+    listen(doc?.defaultView, 'blur', () => this.clear());
+    listen(doc, 'visibilitychange', () => { if (doc.hidden) this.clear(); });
+    let width = doc?.defaultView?.innerWidth;
+    listen(doc?.defaultView, 'resize', () => { const next = doc?.defaultView?.innerWidth; if (next !== width) { width = next; this.clear(); } });
+    const unbind = () => {
+      if (this.#unbindSwipe !== unbind) return;
+      removers.forEach(remove => remove());
+      for (const source of [...this.#swipes.keys()]) finish(source, true);
+      this.#swipeFeedback = () => {}; this.#unbindSwipe = null;
+    };
+    this.#unbindSwipe = unbind; return unbind;
   }
 }

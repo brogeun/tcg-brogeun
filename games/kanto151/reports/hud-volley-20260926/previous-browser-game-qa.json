@@ -2279,7 +2279,7 @@
     "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
     "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
     "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
-    "src/navigation.mjs": "3b00f10c3566782cc75be07b621a9be61df82fd98378e9d4352ce1b915f8e329",
+    "src/navigation.mjs": "7ee06660cc1f7c3ad038407caaad7e6f7d9fdd814d03d07a0afa676d05e4ddc5",
     "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
     "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
     "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
@@ -2289,7 +2289,7 @@
     "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
     "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
     "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
-    "src/ui.mjs": "315afb1a4baba3d2747657856c6693f2911203ac16b7c6d2aa78cdb1f4f20f93",
+    "src/ui.mjs": "268857a56a18c8f7868c404e5955823eb2ff7a6befe1bd72be975c81990c2915",
     "src/world.mjs": "c9bd0e8b0e3791eaa3bbcb59b2944e7a899614db6fdba4d94c7772a72ab20b48",
     "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
     "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
@@ -2312,9 +2312,9 @@
     "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
     "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
     "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
-    "style.css": "b55d9383b1e2e393f43910c15757170c697e289c76020652c00c56b3169e27bb",
-    "index.html": "cba1a171392e2199565a1c160847cac308ecf7c3de318bb4c1ec142f01ba8da9",
-    "scripts/browser-suite.mjs": "b3cdb6b3b27329b203f477b41159a239a62b35d5b5e51c5e05f9e75973467f43",
+    "style.css": "1020da419dca6b9a87864c9b96b88f4c3ad054d74e5d189313d8ab41dff8532a",
+    "index.html": "2b7a951a0078102bbcbf024611a134a975e6ed15538cbb050a967ba002febff6",
+    "scripts/browser-suite.mjs": "d0286a68ac6f110accc8b9d731ec0c734ffc7024eabc25e3c0832f3d3e01dba5",
     "scripts/nine-browser-suite.mjs": "f5a96f44a711e8ba6877c0dd3553f140fcb0c7c3631fd2764423e148ae6c392a",
     "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
     "src/touch-steering.mjs": "0dda65c617d31ec108fb67c06b9cfafa1dfdc11c85e1126a2e495a265b52cb5c"
@@ -2411,8 +2411,8 @@
       "scope": "Final source core/runtime/five-world tests, including all authored spawn legality and recommendation prerequisites."
     }
   ],
-  "coverageUpdatedAt": "2026-09-26T14:06:12.275453+00:00",
-  "coverageMethod": "Historical unchanged asset evidence plus current HUD native 33 checks and five-region focused 20 checks. See compactHudFollowUp and archived previous report.",
+  "coverageUpdatedAt": "2026-09-26T13:18:33.492237+00:00",
+  "coverageMethod": "Historical unchanged asset evidence plus current 244 unit tests, 20 focused five-region regressions and 40 native input/rare-save checks. Refer to archived previous report and starterSwipeFollowUp for scope.",
   "supplyFollowUps": [
     {
       "report": "reports/supply/unit-tests.txt",
@@ -2534,13 +2534,5 @@
     "regressionPassed": 20,
     "unitTests": 244,
     "scope": "Current starter camera, portrait/landscape native two-finger input, four rare habitats, serialization and death rollback. Prior 151-species render results are historical and were not rerun; the unchanged asset importer is retained. Current unit tests recheck 151-species reachability; native E checks spawn all four changed rare species. Timer/random branches use isolated fixtures; no personal save is read."
-  },
-  "compactHudFollowUp": {
-    "date": "2026-09-26T14:06:12.275453+00:00",
-    "native": "reports/hud-volley-20260926/kanto-browser.json",
-    "nativePassed": 33,
-    "regression": "reports/hud-volley-20260926/focused-browser.json",
-    "regressionPassed": 20,
-    "scope": "Current HUD presentation, four viewports, native mobile two-finger movement, action visibility, warnings, explicit save and minimap/detail controls. Five-region focused combat/capture/evolution/legacy-save checks rerun. Assets/data unchanged; prior 151-species full rendering evidence remains historical."
   }
 }

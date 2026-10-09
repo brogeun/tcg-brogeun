@@ -9,6 +9,15 @@ export const LEASE_MS = 120000;
 // Successful lookup freshness only; this does not restrict submission frequency.
 const CACHE_MS = 24 * 60 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
+// Only transport/interruption failures can start another bounded batch on an explicit retry.
+// Card identity, parsing, grade and ownership decisions must keep their review state.
+const RETRYABLE_ERRORS = new Set([
+  'temporary_error', 'worker_interrupted', 'source_network_error', 'browser_navigation_error',
+  'worker_internal_error', 'source_unavailable', 'source_http_error', 'maintenance_or_redirect',
+  'unexpected_content_type', 'psa_api_unavailable', 'psa_api_http_error',
+  'psa_api_population_unavailable', 'psa_api_retry_information_invalid',
+  'psa_api_rate_limited', 'provider_cooldown',
+]);
 const text = (value, max = 250) => String(value ?? '').trim().slice(0, max);
 const numberOrNull = value => {
   if (value === null || value === undefined || value === '') return null;
@@ -77,11 +86,15 @@ function numericToken(value) {
 }
 export function matchCard(record, card) {
   if (!card?.name || !record.subject || !record.card_number) return { ok: false, reason: 'card_metadata_incomplete' };
-  const code = String(card.code || card.product_number || '');
+  const code = String(card.code || card.product_number || '').trim();
   // Internal catalogue slugs (pkmn-tcg-123) are NOT printed card numbers.
   const printableCode = /^(?:pkmn|pokemon|onepiece)-/i.test(code) ? '' : code;
   const brackets = [...String(card.name).matchAll(/\[([^\]]+)\]/g)].map(m => m[1]).join(' ');
-  const candidates = `${printableCode} ${brackets}`.match(/[A-Za-z]{1,6}\d{1,4}[-/]\d{1,4}|\b\d{1,4}(?:\/\d{1,4})?\b/g) || [];
+  const printedNumbers = value => value.match(/\b[A-Za-z]{1,6}\d{1,4}[-/]\d{1,4}\b|\b[A-Za-z]{1,6}\d{3,8}\b|\b\d{1,4}(?:\/\d{1,4})?\b/g) || [];
+  const explicitNumbers = printedNumbers(printableCode);
+  // A conflicting explicit printed code cannot be rescued by a number in the title.
+  const candidates = explicitNumbers.length ? explicitNumbers : printedNumbers(brackets);
+  if (!candidates.length) return { ok: false, reason: 'card_metadata_incomplete' };
   const target = numericToken(record.card_number);
   const numberMatch = candidates.some(c => numericToken(c) === target || (/^\d/.test(c) && numericToken(c.split('/')[0]) === target));
   if (!target || !numberMatch) return { ok: false, reason: 'card_number_mismatch' };
@@ -176,13 +189,21 @@ async function setRequestState(env, id, status, error = null, message = null) {
   await env.DB.prepare('UPDATE cert_registration_requests SET status=?, error=?, message=?, updated_at=? WHERE id=?')
     .bind(status, error, message || MESSAGES[status], Date.now(), id).run();
 }
+function canRetryRequest(row, job) {
+  return row.status === 'needs_review' && job && ((RETRYABLE_ERRORS.has(row.error)
+    && (ACTIVE_REQUEST_STATES.includes(job.status) || job.status === 'complete'
+      || (job.status === 'needs_review' && RETRYABLE_ERRORS.has(job.last_error))))
+    || (row.error === 'registration_error' && job.status === 'complete'));
+}
 export function requestView(row, job = null) {
   let status = row.status;
   if (ACTIVE_REQUEST_STATES.includes(status) && job && ['pending','processing','retry_wait'].includes(job.status)) status = job.status;
   return {
     ok: status === 'registered', status, request_id: row.id, id: row.certificate_id || undefined,
     provider: row.provider, cert_number: row.cert_number, card_id: row.card_id, holding_id: row.holding_id,
-    error: row.error || undefined, message: ACTIVE_REQUEST_STATES.includes(status) ? MESSAGES[status] : (row.message || MESSAGES[status]),
+    error: row.error || undefined, message: ACTIVE_REQUEST_STATES.includes(status) ? MESSAGES[status]
+      : canRetryRequest(row,job) ? '일시적으로 조회 또는 저장을 마치지 못했습니다. 잠시 후 인증번호를 다시 등록해주세요.'
+      : (row.message || MESSAGES[status]),
     retry_after_seconds: ACTIVE_REQUEST_STATES.includes(status) ? 10 : undefined,
     updated_at: row.updated_at,
   };
@@ -200,7 +221,7 @@ function certTable(provider) { return provider === 'psa' ? 'psa_certs' : 'bgs_ce
 export async function getRequest(env, id, userId) {
   const row = await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=? AND user_id=?').bind(id, userId).first();
   if (!row) return null;
-  const job = await env.DB.prepare('SELECT status,next_attempt_at FROM cert_lookup_jobs WHERE provider=? AND cert_number=?').bind(row.provider, row.cert_number).first();
+  const job = await env.DB.prepare('SELECT status,next_attempt_at,last_error FROM cert_lookup_jobs WHERE provider=? AND cert_number=?').bind(row.provider, row.cert_number).first();
   return requestView(row, job);
 }
 
@@ -231,21 +252,43 @@ export async function submitCertificate({ request, env, user }, provider) {
   const prior = await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE user_id=? AND provider=? AND cert_number=?').bind(user.id, provider, certNumber).first();
   if (prior) {
     if (prior.card_id !== cardId || String(prior.holding_id ?? '') !== String(holdingId ?? '')) return jsonResponse({ ok: false, error: 'request_conflict', message: '같은 인증번호의 기존 요청을 먼저 확인해주세요.' }, 409);
-    const view = await getRequest(env, prior.id, user.id);
-    return jsonResponse(view, ACTIVE_REQUEST_STATES.includes(view.status) ? 202 : 200);
+    const job = body.retry === true && prior.status === 'needs_review'
+      ? await env.DB.prepare('SELECT * FROM cert_lookup_jobs WHERE provider=? AND cert_number=?').bind(provider,certNumber).first() : null;
+    if (!canRetryRequest(prior,job)) {
+      const view = await getRequest(env, prior.id, user.id);
+      return jsonResponse(view, ACTIVE_REQUEST_STATES.includes(view.status) ? 202 : 200);
+    }
   }
   const now = Date.now();
   // PSA and BGS submissions have no per-user, per-minute, or per-cert count quota.
   // Duplicate lookups still share one job; ownership checks and source backoff remain.
   let meta;
   try { meta = await lookupCardMeta(env, cardId, new URL(request.url).origin); } catch { meta = null; }
-  if (!meta) return jsonResponse({ ok: false, error: 'lookup_failed', message: '카드 정보를 읽을 수 없습니다. 아직 조회 요청을 생성하지 않았습니다.' }, 503);
-  const id = crypto.randomUUID();
-  await env.DB.prepare(`INSERT OR IGNORE INTO cert_registration_requests
-    (id,user_id,provider,cert_number,card_id,holding_id,card_meta,status,message,created_at,updated_at)
-    VALUES (?,?,?,?,?,?,?,'pending',?,?,?)`).bind(id,user.id,provider,certNumber,cardId,holdingId,JSON.stringify(meta),MESSAGES.pending,now,now).run();
+  if (!meta) return jsonResponse({ ok: false, error: 'lookup_failed', message: '카드 정보를 읽을 수 없습니다. 잠시 후 다시 시도해주세요.' }, 503);
+  if (prior) {
+    const retryErrors = [...RETRYABLE_ERRORS];
+    await env.DB.batch([
+      // Reset only an exhausted shared job, never another worker's active lease or source pause.
+      env.DB.prepare(`UPDATE cert_lookup_jobs SET status='pending',attempts=0,
+        next_attempt_at=MAX(next_attempt_at,?),lease_token=NULL,lease_until=NULL,last_error=NULL,updated_at=?
+        WHERE provider=? AND cert_number=? AND status='needs_review'
+          AND last_error IN (${retryErrors.map(() => '?').join(',')})
+          AND EXISTS (SELECT 1 FROM cert_registration_requests WHERE id=? AND user_id=? AND status='needs_review' AND error=?)`)
+        .bind(now,now,provider,certNumber,...retryErrors,prior.id,user.id,prior.error),
+      // Polling POSTs cannot reach this path. Only this user's unchanged failed request is resumed.
+      env.DB.prepare(`UPDATE cert_registration_requests SET status='pending',error=NULL,message=?,card_meta=?,updated_at=?
+        WHERE id=? AND user_id=? AND status='needs_review' AND error=?
+          AND EXISTS (SELECT 1 FROM cert_lookup_jobs WHERE provider=? AND cert_number=? AND status IN ('pending','processing','retry_wait','complete'))`)
+        .bind(MESSAGES.pending,JSON.stringify(meta),now,prior.id,user.id,prior.error,provider,certNumber),
+    ]);
+  } else {
+    await env.DB.prepare(`INSERT OR IGNORE INTO cert_registration_requests
+      (id,user_id,provider,cert_number,card_id,holding_id,card_meta,status,message,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,'pending',?,?,?)`).bind(crypto.randomUUID(),user.id,provider,certNumber,cardId,holdingId,JSON.stringify(meta),MESSAGES.pending,now,now).run();
+  }
   const row = await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE user_id=? AND provider=? AND cert_number=?').bind(user.id,provider,certNumber).first();
   if (row.card_id !== cardId || String(row.holding_id ?? '') !== String(holdingId ?? '')) return jsonResponse({ok:false,error:'request_conflict',message:'동시에 다른 보유 항목으로 접수된 요청이 있습니다.'},409);
+  if (!ACTIVE_REQUEST_STATES.includes(row.status)) return jsonResponse(await getRequest(env,row.id,user.id));
   const cache = await env.DB.prepare('SELECT * FROM cert_lookup_cache WHERE provider=? AND cert_number=? AND fetched_at>?').bind(provider,certNumber,now-CACHE_MS).first();
   if (cache) {
     try { await finalizeRequest(env, row, normalizeRecord(JSON.parse(cache.data), provider, certNumber)); }
@@ -334,7 +377,8 @@ export async function claimJob(env, now = Date.now()) {
   // Worker death expires its lease. Expired leases also count toward the retry budget.
   await env.DB.prepare(`UPDATE cert_lookup_jobs SET status='needs_review',last_error='worker_interrupted',lease_token=NULL,lease_until=NULL,updated_at=?
     WHERE status='processing' AND lease_until<=? AND attempts>=?`).bind(now,now,MAX_ATTEMPTS).run();
-  await env.DB.prepare(`UPDATE cert_registration_requests SET status='needs_review',error='worker_interrupted',message=?,updated_at=?
+  await env.DB.prepare(`UPDATE cert_registration_requests SET status='needs_review',
+    error=(SELECT j.last_error FROM cert_lookup_jobs j WHERE j.provider=cert_registration_requests.provider AND j.cert_number=cert_registration_requests.cert_number),message=?,updated_at=?
     WHERE status IN ('pending','processing','retry_wait') AND EXISTS (SELECT 1 FROM cert_lookup_jobs j WHERE j.provider=cert_registration_requests.provider
       AND j.cert_number=cert_registration_requests.cert_number AND j.status='needs_review')`).bind(MESSAGES.needs_review,now).run();
   const token = crypto.randomUUID();
@@ -384,13 +428,20 @@ export async function completeJob(env, body, now = Date.now()) {
     ]);
     return {status:200,data:{ok:true,status:'not_found'}};
   }
-  const exhausted = job.attempts >= MAX_ATTEMPTS || outcome === 'parse_error';
-  const status = exhausted ? 'needs_review' : 'retry_wait';
+  const providerCooldown = outcome === 'blocked' && errorCode === 'provider_cooldown';
+  const rateLimited = outcome === 'blocked' && errorCode === 'psa_api_rate_limited';
   const requestedDelay = Number(body.retry_after_seconds);
-  const delay = Math.max(outcome==='blocked'?1800000:Math.min(7200000,300000*(2**Math.max(0,job.attempts-1))),
-    Number.isFinite(requestedDelay) && requestedDelay>0 ? requestedDelay*1000 : 0);
+  const requestedMs = Number.isSafeInteger(Math.ceil(requestedDelay * 1000)) && requestedDelay > 0 ? Math.ceil(requestedDelay * 1000) : 0;
+  if (providerCooldown && !requestedMs) return {status:400,data:{ok:false,error:'invalid_retry_delay'}};
+  // Claiming provisionally consumes an attempt in case the worker dies. A confirmed source
+  // wait is not a failed lookup, so refund only that claim, preserving earlier failures.
+  const attempts = providerCooldown || rateLimited ? Math.max(0,job.attempts - 1) : job.attempts;
+  const exhausted = (!(providerCooldown || rateLimited) && attempts >= MAX_ATTEMPTS) || outcome === 'parse_error';
+  const status = exhausted ? 'needs_review' : 'retry_wait';
+  const delay = providerCooldown ? Math.max(1000,requestedMs)
+    : Math.max(outcome==='blocked'?1800000:Math.min(7200000,300000*(2**Math.max(0,attempts-1))),requestedMs);
   const statements = [
-    env.DB.prepare('UPDATE cert_lookup_jobs SET status=?,last_error=?,next_attempt_at=?,lease_until=NULL,updated_at=? WHERE id=?').bind(status,errorCode,now+delay,now,job.id),
+    env.DB.prepare('UPDATE cert_lookup_jobs SET status=?,attempts=?,last_error=?,next_attempt_at=?,lease_until=NULL,updated_at=? WHERE id=?').bind(status,attempts,errorCode,now+delay,now,job.id),
     env.DB.prepare("UPDATE cert_registration_requests SET status=?,error=?,message=?,updated_at=? WHERE provider=? AND cert_number=? AND status IN ('pending','processing','retry_wait')").bind(status,errorCode,MESSAGES[status],now,job.provider,job.cert_number),
   ];
   if (outcome==='blocked') statements.push(env.DB.prepare(`INSERT INTO cert_worker_state(name,paused_until,last_error) VALUES (?,?,?)

@@ -362,7 +362,9 @@ test('legacy BGS public route has no submission quota and still rejects duplicat
     if(url.origin==='https://beckett.com' && url.pathname==='/api/grading/lookup') {
       lookupCalls++;
       assert.equal(url.searchParams.get('category'),'BGS');
-      return new Response(JSON.stringify({item_id:url.searchParams.get('serialNumber'),final_grade:'9.5',label:'gold',player_name:'NAMI',card_key:'OP07051',set_name:'ONE PIECE OP07',pop_report:'1234',fgB100:'2',fg100:'30',fg95:'1202'}));
+      const response=new Response(JSON.stringify({item_id:url.searchParams.get('serialNumber'),final_grade:'9.5',label:'gold',player_name:'NAMI',card_key:'OP07051',set_name:'ONE PIECE OP07',pop_report:'1234',fgB100:'2',fg100:'30',fg95:'1202'}),{headers:{'Content-Type':'application/json; charset=utf-8'}});
+      Object.defineProperty(response,'url',{value:url.href});
+      return response;
     }
     assert.equal(url.href,'https://example.test/data/cards-meta-index.json','unexpected outbound request');
     return new Response(JSON.stringify({'22222':{name:'Nami SR[OP07-051]',code:'OP07-051'}}));
@@ -389,4 +391,245 @@ test('legacy BGS public route has no submission quota and still rejects duplicat
   assert.equal(otherDuplicate.http,409);assert.equal(otherDuplicate.error,'already_registered');
   assert.equal(lookupCalls,25,'duplicate certs must not trigger another external lookup');
   assert.equal((await env.DB.prepare("SELECT user_id FROM bgs_certs WHERE cert_number='50000000'").first()).user_id,1);
+});
+
+
+function fakeClock(t) {
+  let now=Date.now();
+  t.mock.method(Date,'now',()=>now);
+  return {get now(){return now;},set(value){now=value;},advance(ms){now+=ms;}};
+}
+async function jobState(env,cert='23483296') {
+  return env.DB.prepare("SELECT * FROM cert_lookup_jobs WHERE provider='psa' AND cert_number=?").bind(cert).first();
+}
+async function failBatch(env,clock,error='source_network_error') {
+  let job;
+  for(let attempt=1;attempt<=3;attempt++) {
+    job=await claimJob(env);assert.ok(job);assert.equal(job.attempts,attempt);
+    const answer=await finish(env,job,null,{outcome:'temporary_error',error_code:error});
+    assert.equal(answer.data.status,attempt===3?'needs_review':'retry_wait');
+    clock.set((await jobState(env)).next_attempt_at);
+  }
+  return job;
+}
+
+test('compact printed codes match exactly and explicit conflicts cannot use bracket fallback',()=>{
+  const rec={subject:'NAMI',brand:'ONE PIECE OP07',card_number:'OP07051',variety:'',year:'2024'};
+  for(const code of ['OP07051','OP07-051']) {
+    assert.equal(matchCard(rec,{name:'Nami SR',code,brand:'onepiece'}).ok,true);
+    assert.equal(matchCard({...rec,card_number:'OP07-051'},{name:'Nami SR',code,brand:'onepiece'}).ok,true);
+  }
+  for(const code of ['OP07052','OP07-052','OP07-51','OP0751']) {
+    assert.deepEqual(matchCard(rec,{name:'Nami SR[OP07-051]',code,brand:'onepiece'}),{ok:false,reason:'card_number_mismatch'});
+  }
+  assert.deepEqual(matchCard(rec,{name:'Nami SR',code:'onepiece-123',brand:'onepiece'}),{ok:false,reason:'card_metadata_incomplete'});
+  assert.equal(matchCard(rec,{name:'Nami SR[OP07051]',code:'onepiece-123',brand:'onepiece'}).ok,true);
+  assert.equal(matchCard({...rec,card_number:'OP07052'},{name:'Nami SR[OP07051]',code:'',brand:'onepiece'}).ok,false);
+});
+
+test('one-second synthetic cooldown preserves the deadline and refunds only the current claim',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const req=await submit(env);
+  await env.DB.prepare('UPDATE cert_lookup_jobs SET attempts=2').run();
+  const job=await claimJob(env);assert.equal(job.attempts,3);
+  const answer=await finish(env,job,null,{outcome:'blocked',error_code:'provider_cooldown',retry_after_seconds:1});
+  assert.equal(answer.data.status,'retry_wait');assert.equal(answer.data.retry_after_seconds,1);
+  const saved=await jobState(env);assert.equal(saved.attempts,2);assert.equal(saved.next_attempt_at,clock.now+1000);
+  assert.equal((await env.DB.prepare("SELECT paused_until FROM cert_worker_state WHERE name='psa'").first()).paused_until,clock.now+1000);
+  assert.equal((await getRequest(env,req.request_id,1)).status,'retry_wait');
+  clock.advance(999);assert.equal(await claimJob(env),null);
+  clock.advance(1);const next=await claimJob(env);assert.equal(next.attempts,3);
+  await finish(env,next,record());assert.equal((await getRequest(env,req.request_id,1)).status,'registered');
+});
+
+test('synthetic cooldown cannot shorten another job provider pause or consume attempts repeatedly',async t=>{
+  const clock=fakeClock(t);const env=await fixture();await submit(env);
+  const job=await claimJob(env);const deadline=clock.now+10000;
+  await env.DB.prepare("INSERT INTO cert_worker_state(name,paused_until) VALUES ('psa',?)").bind(deadline).run();
+  await finish(env,job,null,{outcome:'blocked',error_code:'provider_cooldown',retry_after_seconds:1});
+  assert.equal((await env.DB.prepare("SELECT paused_until FROM cert_worker_state WHERE name='psa'").first()).paused_until,deadline);
+  clock.advance(1000);assert.equal(await claimJob(env),null);
+  clock.set(deadline);
+  for(let i=0;i<5;i++) {
+    const claimed=await claimJob(env);assert.equal(claimed.attempts,1);
+    await finish(env,claimed,null,{outcome:'blocked',error_code:'provider_cooldown',retry_after_seconds:1});
+    assert.equal((await jobState(env)).attempts,0);
+    clock.advance(1000);
+  }
+  assert.ok(await claimJob(env));
+});
+
+test('synthetic cooldown requires a valid remaining delay and does not mutate the leased job on rejection',async t=>{
+  fakeClock(t);const env=await fixture();await submit(env);const job=await claimJob(env);const before=await jobState(env);
+  for(const retry_after_seconds of [undefined,0,-1,'invalid',Infinity]) {
+    const response=await finish(env,job,null,{outcome:'blocked',error_code:'provider_cooldown',retry_after_seconds});
+    assert.equal(response.status,400);assert.equal(response.data.error,'invalid_retry_delay');
+    assert.deepEqual(await jobState(env),before);
+  }
+});
+
+test('actual PSA429 retains minimum and long Retry-After without exhausting earlier failures',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const req=await submit(env);
+  await env.DB.prepare('UPDATE cert_lookup_jobs SET attempts=2').run();
+  for(const seconds of [1,10800,1,1,1]) {
+    const job=await claimJob(env);assert.equal(job.attempts,3);
+    const outcome={outcome:'blocked',error_code:'psa_api_rate_limited',retry_after_seconds:seconds};
+    const answer=await finish(env,job,null,outcome);const delay=Math.max(1800,seconds);
+    assert.equal(answer.data.status,'retry_wait');assert.equal(answer.data.retry_after_seconds,delay);
+    assert.equal((await jobState(env)).attempts,2);assert.equal((await jobState(env)).next_attempt_at,clock.now+delay*1000);
+    assert.equal((await finish(env,job,null,outcome)).status,409,'an acknowledgement retry must not refund twice');
+    assert.equal((await getRequest(env,req.request_id,1)).status,'retry_wait');
+    clock.advance(delay*1000-1);assert.equal(await claimJob(env),null);clock.advance(1);
+  }
+  const final=await claimJob(env);await finish(env,final,record());
+  assert.equal((await getRequest(env,req.request_id,1)).status,'registered');
+});
+
+test('three temporary failures stay terminal until an explicit retry starts another bounded batch',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const req=await submit(env);await failBatch(env,clock);
+  assert.equal(await claimJob(env),null);
+  const before=await jobState(env);
+  for(const retry of [undefined,false,'true']) {
+    const answer=await submit(env,{retry});assert.equal(answer.status,'needs_review');assert.equal(answer.request_id,req.request_id);
+    assert.deepEqual(await jobState(env),before);
+  }
+  const resumed=await submit(env,{retry:true});assert.equal(resumed.http,202);assert.equal(resumed.request_id,req.request_id);
+  assert.equal((await jobState(env)).attempts,0);
+  await failBatch(env,clock);assert.equal(await claimJob(env),null);
+  assert.equal((await submit(env)).status,'needs_review','ordinary polling must not reopen the second batch');
+  await submit(env,{retry:true});const job=await claimJob(env);await finish(env,job,record());
+  assert.equal((await getRequest(env,req.request_id,1)).status,'registered');
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM cert_lookup_jobs').first()).n,1);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM cert_registration_requests').first()).n,1);
+});
+
+test('expired worker leases recover only through explicit resubmission and stale results remain rejected',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const req=await submit(env);let stale;
+  for(let i=1;i<=3;i++) {
+    stale=await claimJob(env);assert.equal(stale.attempts,i);clock.advance(LEASE_MS+1);
+  }
+  assert.equal(await claimJob(env),null);
+  const failed=await getRequest(env,req.request_id,1);assert.equal(failed.status,'needs_review');assert.equal(failed.error,'worker_interrupted');
+  await submit(env,{retry:true});const resumed=await claimJob(env);assert.equal(resumed.attempts,1);
+  assert.equal((await finish(env,stale,record())).status,409);
+  await finish(env,resumed,record());assert.equal((await getRequest(env,req.request_id,1)).status,'registered');
+});
+
+test('retry keeps another user terminal request unchanged and never resets an active shared lease',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const first=await submit(env);const second=await submit(env,{holding_id:2},2);
+  await failBatch(env,clock);
+  const otherBefore=await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(second.request_id).first();
+  await submit(env,{retry:true});const job=await claimJob(env);const leasedBefore=await jobState(env);
+  await submit(env,{retry:true});assert.deepEqual(await jobState(env),leasedBefore);
+  assert.deepEqual(await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(second.request_id).first(),otherBefore);
+  await finish(env,job,record());assert.equal((await getRequest(env,first.request_id,1)).status,'registered');
+  assert.deepEqual(await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(second.request_id).first(),otherBefore);
+  assert.equal((await submit(env,{holding_id:2,retry:true},2)).http,409);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM psa_certs').first()).n,1);
+});
+
+test('retry cannot change the requested card or holding and preserves a future provider deadline',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const req=await submit(env);await failBatch(env,clock);
+  assert.equal((await submit(env,{holding_id:3,retry:true})).http,409);
+  assert.equal((await submit(env,{card_id:'22222',holding_id:undefined,retry:true})).http,409);
+  const deadline=clock.now+60000;
+  await env.DB.prepare("INSERT INTO cert_worker_state(name,paused_until) VALUES ('psa',?)").bind(deadline).run();
+  const resumed=await submit(env,{retry:true});assert.equal(resumed.http,202);assert.equal(resumed.request_id,req.request_id);
+  assert.equal(await claimJob(env),null);clock.set(deadline);assert.ok(await claimJob(env));
+});
+
+test('a request stopped by the former three-rate-limit budget can recover without bypassing its pause',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const req=await submit(env);const deadline=clock.now+3600000;
+  await env.DB.prepare("UPDATE cert_lookup_jobs SET status='needs_review',attempts=3,last_error='psa_api_rate_limited',next_attempt_at=?").bind(deadline).run();
+  await env.DB.prepare("UPDATE cert_registration_requests SET status='needs_review',error='psa_api_rate_limited'").run();
+  await env.DB.prepare("INSERT INTO cert_worker_state(name,paused_until) VALUES ('psa',?)").bind(deadline).run();
+  assert.equal((await submit(env,{retry:true})).http,202);assert.equal((await jobState(env)).attempts,0);
+  assert.equal((await jobState(env)).next_attempt_at,deadline);assert.equal(await claimJob(env),null);
+  clock.set(deadline);const job=await claimJob(env);await finish(env,job,record());
+  assert.equal((await getRequest(env,req.request_id,1)).status,'registered');
+});
+
+test('explicit retry does not reopen card, parse, grade, not-found or rejected decisions',async t=>{
+  fakeClock(t);
+  for(const scenario of ['parse','wrong_cert','wrong_card','wrong_name','grade','not_found','rejected']) {
+    const env=await fixture();const req=await submit(env);const job=await claimJob(env);
+    if(scenario==='rejected') await env.DB.prepare('DELETE FROM holdings WHERE id=1').run();
+    const rec=scenario==='parse'?{...record(),grade_text:''}:scenario==='wrong_cert'?record('24031556'):
+      scenario==='wrong_card'?{...record(),card_number:'4'}:scenario==='wrong_name'?{...record(),subject:'PIKACHU'}:
+      scenario==='grade'?record('23483296','NM-MT 8'):record();
+    await finish(env,job,rec,scenario==='not_found'?{outcome:'not_found'}:{});
+    const rowBefore=await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(req.request_id).first();
+    const jobBefore=await jobState(env);assert.ok(['needs_review','not_found','rejected'].includes(rowBefore.status),scenario);
+    await submit(env,{retry:true});
+    assert.equal((await getRequest(env,req.request_id,1)).message,rowBefore.message,scenario+' review guidance must be preserved');
+    assert.deepEqual(await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(req.request_id).first(),rowBefore,scenario);
+    assert.deepEqual(await jobState(env),jobBefore,scenario);
+    assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM psa_certs').first()).n,0,scenario);
+  }
+});
+
+test('cached successful lookup safely recovers a transient finalization failure on explicit retry',async t=>{
+  fakeClock(t);const env=await fixture();const req=await submit(env);const job=await claimJob(env);
+  const batch=env.DB.batch.bind(env.DB);
+  env.DB.batch=async statements=>{
+    if(statements.some(s=>s.sql.includes('INSERT OR IGNORE INTO psa_certs'))) throw new Error('offline simulated storage outage');
+    return batch(statements);
+  };
+  await finish(env,job,{...record(),pop_total:1234,pop_higher:0});env.DB.batch=batch;
+  assert.equal((await getRequest(env,req.request_id,1)).error,'registration_error');
+  assert.equal((await getRequest(env,req.request_id,1)).message,'일시적으로 조회 또는 저장을 마치지 못했습니다. 잠시 후 인증번호를 다시 등록해주세요.');
+  const cachedJob=await jobState(env);assert.equal(cachedJob.status,'complete');
+  assert.equal((await submit(env)).status,'needs_review');
+  const answer=await submit(env,{retry:true});assert.equal(answer.status,'registered');
+  assert.deepEqual(await jobState(env),cachedJob,'cache reuse must not perform another lookup');
+  assert.equal((await env.DB.prepare('SELECT psa_total_pop FROM psa_certs').first()).psa_total_pop,1234);
+  assert.equal(await claimJob(env),null);
+});
+
+test('cached recovery still applies fresh card metadata and does not turn mismatch into approval',async t=>{
+  fakeClock(t);const env=await fixture();const req=await submit(env);const job=await claimJob(env);
+  const batch=env.DB.batch.bind(env.DB);
+  env.DB.batch=async statements=>{
+    if(statements.some(s=>s.sql.includes('INSERT OR IGNORE INTO psa_certs'))) throw new Error('offline simulated storage outage');
+    return batch(statements);
+  };
+  await finish(env,job,record());env.DB.batch=batch;
+  env.ASSETS.fetch=async()=>new Response(JSON.stringify({'91103':{...card,name:'Pikachu HR[S-P 104]'}}));
+  assert.equal((await submit(env,{retry:true})).error,'card_subject_mismatch');
+  assert.equal((await getRequest(env,req.request_id,1)).status,'needs_review');
+  env.ASSETS.fetch=async()=>new Response(JSON.stringify({'91103':card}));
+  assert.equal((await submit(env,{retry:true})).error,'card_subject_mismatch');
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM psa_certs').first()).n,0);
+});
+
+test('review propagation preserves the actual parse reason instead of inventing an interruption',async t=>{
+  fakeClock(t);const env=await fixture();const req=await submit(env);
+  await env.DB.prepare("UPDATE cert_lookup_jobs SET status='needs_review',last_error='incomplete_record',attempts=3").run();
+  assert.equal(await claimJob(env),null);
+  assert.equal((await getRequest(env,req.request_id,1)).error,'incomplete_record');
+  assert.equal((await submit(env,{retry:true})).status,'needs_review');assert.equal(await claimJob(env),null);
+});
+
+
+test('recoverable terminal failures explain manual resubmission without restarting ordinary polling',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const req=await submit(env);await failBatch(env,clock);
+  const before=await jobState(env);
+  const message='일시적으로 조회 또는 저장을 마치지 못했습니다. 잠시 후 인증번호를 다시 등록해주세요.';
+  assert.equal((await getRequest(env,req.request_id,1)).message,message);
+  const polled=await submit(env);assert.equal(polled.status,'needs_review');assert.equal(polled.message,message);
+  assert.deepEqual(await jobState(env),before);
+  const resumed=await submit(env,{retry:true});assert.equal(resumed.http,202);
+  assert.notEqual(resumed.message,message,'active requests must retain their progress guidance');
+});
+
+test('a later shared parse failure removes retry guidance without changing another user saved review',async t=>{
+  const clock=fakeClock(t);const env=await fixture();const first=await submit(env);await submit(env,{holding_id:2},2);
+  await failBatch(env,clock);
+  const before=await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(first.request_id).first();
+  assert.match((await getRequest(env,first.request_id,1)).message,/다시 등록/);
+  await submit(env,{holding_id:2,retry:true},2);const job=await claimJob(env);
+  await finish(env,job,{...record(),grade_text:''});
+  const view=await getRequest(env,first.request_id,1);assert.equal(view.status,'needs_review');
+  assert.equal(view.message,before.message,'the remaining parse review must not promise a disallowed retry');
+  assert.deepEqual(await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(first.request_id).first(),before);
+  assert.equal((await submit(env,{retry:true})).message,before.message);
 });

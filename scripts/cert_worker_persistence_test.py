@@ -109,7 +109,7 @@ def fake_loop(queue_times, *, provider="psa", mode="api", saved=None, outcomes=N
         stack.enter_context(patch.object(runtime, "LOG", MagicMock()))
         stack.enter_context(patch.object(runtime, "configure_logging", Mock()))
         stack.enter_context(patch.object(runtime, "acquire_lock", return_value=lock))
-        stack.enter_context(patch.object(runtime, "saved_psa_retry_deadline", return_value=saved))
+        saved_reader = stack.enter_context(patch.object(runtime, "saved_psa_retry_deadline", return_value=saved))
         stack.enter_context(patch.object(runtime, "time", clock))
         stack.enter_context(patch.object(runtime, "ChromeReader", return_value=chrome))
         stack.enter_context(patch.object(runtime, "validate_job", return_value=True))
@@ -119,7 +119,8 @@ def fake_loop(queue_times, *, provider="psa", mode="api", saved=None, outcomes=N
         acknowledgement_mock = stack.enter_context(patch.object(runtime, "post_result", side_effect=ack))
         yield SimpleNamespace(api=api, source=source, psa_source=psa_source, lock=lock, chrome=chrome,
                               clock=clock, reader=reader, bgs_reader=bgs_reader, persistence=persistence,
-                              ack=acknowledgement_mock, acknowledged=acknowledged, events=events)
+                              ack=acknowledgement_mock, acknowledged=acknowledged, events=events,
+                              saved_reader=saved_reader)
 
 
 class PersistenceTests(unittest.TestCase):
@@ -220,6 +221,67 @@ class RuntimePersistenceTests(unittest.TestCase):
             self.assertEqual(fake.acknowledged[1]["error_code"], "provider_cooldown")
             self.assertEqual(fake.acknowledged[1]["retry_after_seconds"], 3601)
             self.assertEqual(fake.acknowledged[2]["outcome"], "success")
+
+    def test_new_saved_deadline_between_jobs_prevents_lookup_until_its_expiry(self):
+        deadline = NOW + timedelta(seconds=20)
+        with fake_loop([0, 1, 20], outcomes=[SUCCESS, SUCCESS]) as fake:
+            fake.saved_reader.side_effect = [None, None, deadline, deadline]
+            self.assertEqual(runtime.run(), 0)
+            self.assertEqual(fake.reader.call_count, 2)
+            self.assertEqual(fake.saved_reader.call_count, 4)
+            self.assertEqual(fake.acknowledged[0]["outcome"], "success")
+            self.assertEqual(fake.acknowledged[1]["error_code"], "provider_cooldown")
+            self.assertEqual(fake.acknowledged[1]["retry_after_seconds"], 20)
+            self.assertEqual(fake.acknowledged[2]["outcome"], "success")
+            fake.persistence.assert_not_called()
+
+    def test_shorter_report_never_shortens_an_existing_in_memory_deadline(self):
+        initial = NOW + timedelta(seconds=20)
+        shorter = NOW + timedelta(seconds=10)
+        with fake_loop([0, 10, 20]) as fake:
+            fake.saved_reader.side_effect = [initial, shorter, shorter, shorter]
+            self.assertEqual(runtime.run(), 0)
+            self.assertEqual([outcome.get("retry_after_seconds") for outcome in fake.acknowledged[:-1]], [21, 11])
+            self.assertEqual(fake.acknowledged[-1]["outcome"], "success")
+            fake.reader.assert_called_once()
+            fake.persistence.assert_not_called()
+
+    def test_invalid_saved_report_between_jobs_reports_then_stops_without_psa_lookup(self):
+        failures = [ValueError("fixture invalid report"), OSError("fixture inaccessible report"),
+                    UnicodeError("fixture malformed encoding"), TypeError("fixture invalid type"),
+                    OverflowError("fixture invalid timestamp")]
+        for error in failures:
+            with self.subTest(error=type(error).__name__), fake_loop([0, 1, 2], outcomes=[SUCCESS]) as fake:
+                fake.saved_reader.side_effect = [None, None, error]
+                self.assertEqual(runtime.run(), 2)
+                fake.reader.assert_called_once()
+                self.assertEqual(fake.api.post.call_count, 2)
+                self.assertEqual(fake.events, ["lookup", "ack", "ack"])
+                self.assertEqual(fake.acknowledged[-1]["outcome"], "temporary_error")
+                self.assertEqual(fake.acknowledged[-1]["error_code"], "psa_api_retry_information_invalid")
+                fake.persistence.assert_not_called()
+                fake.lock.close.assert_called_once()
+                for session in (fake.api, fake.source, fake.psa_source):
+                    session.close.assert_called_once()
+
+    def test_invalid_saved_report_after_claim_never_starts_first_psa_lookup(self):
+        with fake_loop([0, 1]) as fake:
+            fake.saved_reader.side_effect = [None, ValueError("fixture invalid report")]
+            self.assertEqual(runtime.run(), 2)
+            fake.reader.assert_not_called()
+            fake.api.post.assert_called_once()
+            fake.ack.assert_called_once()
+            fake.persistence.assert_not_called()
+            fake.clock.sleep.assert_not_called()
+
+    def test_saved_deadline_refresh_does_not_block_bgs_or_browser_jobs(self):
+        for provider, mode, expected_reads in (("bgs", "api", 1), ("psa", "browser", 0)):
+            with self.subTest(provider=provider, mode=mode), fake_loop([0], provider=provider, mode=mode) as fake:
+                fake.saved_reader.side_effect = [NOW + timedelta(seconds=3600)]
+                self.assertEqual(runtime.run(), 0)
+                self.assertEqual(fake.saved_reader.call_count, expected_reads)
+                self.assertEqual(fake.acknowledged[0]["outcome"], "success")
+                fake.persistence.assert_not_called()
 
     def test_non_rate_limit_psa_outcomes_do_not_write_cooldown(self):
         cases = [(SUCCESS, 0), ({"outcome": "not_found"}, 0),

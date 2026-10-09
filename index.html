@@ -9625,7 +9625,7 @@ async function removeHoldingApi(id) {
 /**
  * PSA Cert# 등록 — 보유카드 인라인
  * 1) 입력란에서 cert# 가져옴
- * 2) /api/psa/cert POST → 서버에서 PSA API 호출 + 카드 매칭 검증
+ * 2) /api/psa/cert POST → 요청 접수 후 공식 조회 + 카드 매칭 검증
  * 3) 성공 → 새로고침
  * 4) 검증 실패 → 사유 토스트 (카드 불일치, 등급 불일치 등)
  */
@@ -9637,7 +9637,7 @@ window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
     showToast('Cert# 를 6자리 이상 입력해주세요', 'error'); return;
   }
   inp.disabled = true;
-  const payload = { cert_number, card_id: cardId, holding_id: holdingId, expected_grade: expectedGrade };
+  const payload = { cert_number, card_id: cardId, holding_id: holdingId, expected_grade: expectedGrade, retry: true };
 
   const postCert = () => fetch('/api/psa/cert', {
     method: 'POST', credentials: 'include',
@@ -9666,8 +9666,8 @@ window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
     const data = await r.json().catch(() => ({}));
     if (r.ok && data.ok) { onSuccess(data); return; }
     if (r.status === 202 || data.status === 'pending') {
-      // 캐시에 없음 → 대기열 등록됨. 워커가 PSA 페이지를 받아올 때까지 폴링.
-      pollPsaCert(cert_number, postCert, onSuccess, onFail, () => { inp.disabled = false; });
+      // 접수된 요청의 상태만 확인합니다. 상태 확인은 재등록하지 않습니다.
+      pollPsaCert(cert_number, data.request_id, onSuccess, onFail, () => { inp.disabled = false; });
       return;
     }
     onFail(r, data);
@@ -9677,31 +9677,61 @@ window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
   }
 };
 
-/** 대기중 PSA 조회 폴링 — 로딩 팝업 띄우고 5초마다 재조회 (최대 ~3분) */
-function pollPsaCert(certNumber, postCert, onSuccess, onFail, onCancel) {
+/** 접수된 PSA 요청 상태를 5초마다 확인합니다. 화면 대기는 최대 3분입니다. */
+function pollPsaCert(certNumber, requestId, onSuccess, onFail, onCancel) {
+  const savedMessage = '요청은 저장되어 있습니다. 잠시 후 다시 확인해주세요.';
+  if (typeof requestId !== 'string' || !requestId.trim()) {
+    onFail({ status: 503 }, { message: savedMessage }); return;
+  }
+  window.__psaCancelPolling?.();
   showPsaCertPopup(certNumber);
-  let tries = 0;
-  const MAX = 36; // 5초 × 36 = 3분
+  let ended = false, inFlight = false;
+  const stop = () => {
+    if (ended) return false;
+    ended = true;
+    clearInterval(timer); clearTimeout(deadlineTimer);
+    window.__psaPopupCancelled = false;
+    if (window.__psaCancelPolling === cancel) window.__psaCancelPolling = null;
+    return true;
+  };
+  const cancel = () => {
+    if (!stop()) return;
+    closePsaCertPopup(); onCancel && onCancel();
+  };
+  window.__psaCancelPolling = cancel;
+  const deadlineTimer = setTimeout(() => {
+    if (!stop()) return;
+    closePsaCertPopup(); showToast(savedMessage, 'info');
+    onCancel && onCancel();
+  }, 180000);
   const timer = setInterval(async () => {
-    if (window.__psaPopupCancelled) {
-      clearInterval(timer); window.__psaPopupCancelled = false;
-      closePsaCertPopup(); onCancel && onCancel(); return;
-    }
-    tries++;
+    if (ended) return;
+    if (window.__psaPopupCancelled) { cancel(); return; }
+    if (inFlight) return;
+    inFlight = true;
     try {
-      const r = await postCert();
+      const r = await fetch(`/api/certifications/status?id=${encodeURIComponent(requestId)}`, {
+        method: 'GET', credentials: 'include', cache: 'no-store',
+      });
       const data = await r.json().catch(() => ({}));
-      if (r.ok && data.ok) { clearInterval(timer); onSuccess(data); return; }
-      if (r.status === 202 || data.status === 'pending') {
-        if (tries >= MAX) {
-          clearInterval(timer); closePsaCertPopup();
-          showToast('PSA 정보를 받아오지 못했어요. 잠시 후 다시 시도해주세요.', 'error');
-          onCancel && onCancel();
-        }
-        return; // 계속 대기
+      if (ended) return;
+      if (window.__psaPopupCancelled) { cancel(); return; }
+      if (r.status >= 500) return;
+      if (r.ok && data.ok === true && data.status === 'registered') {
+        if (stop()) onSuccess(data);
+        return;
       }
-      clearInterval(timer); onFail(r, data); // 불일치/없음 등 확정 응답
-    } catch (e) { /* 일시 오류 — 다음 폴링에서 재시도 */ }
+      if (r.ok && ['pending', 'processing', 'retry_wait'].includes(data.status)) return;
+      const messages = {
+        needs_review: '자동 확인을 완료하지 못했습니다. 요청은 저장되어 있으며 관리자 확인이 필요합니다.',
+        rejected: '현재 보유 카드에 이 인증번호를 연결할 수 없습니다.',
+        not_found: '공식 조회에서 이 인증번호의 기록을 찾지 못했습니다. 가품 판정은 아닙니다.',
+      };
+      if (!r.ok || messages[data.status]) {
+        if (stop()) onFail(r, { ...data, message: data.message || messages[data.status] || savedMessage });
+      }
+    } catch (e) { /* 일시 오류도 3분 종료 타이머를 유지합니다. */ }
+    finally { inFlight = false; }
   }, 5000);
 }
 
@@ -9716,7 +9746,7 @@ function showPsaCertPopup(certNumber) {
       <div style="width:46px;height:46px;margin:0 auto 16px;border:4px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:psaSpin .9s linear infinite"></div>
       <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:6px">PSA 인증 확인 중</div>
       <div style="font-size:12.5px;color:#64748b;line-height:1.5">Cert# ${escapeHtml(String(certNumber))} 정보를 PSA에서<br>받아오고 있어요. 잠시만 기다려주세요…</div>
-      <button onclick="window.__psaPopupCancelled=true" style="margin-top:18px;font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;text-decoration:underline">취소</button>
+      <button onclick="window.__psaPopupCancelled=true;window.__psaCancelPolling?.()" style="margin-top:18px;font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;text-decoration:underline">취소</button>
     </div>`;
   if (!document.getElementById('psaSpinStyle')) {
     const st = document.createElement('style');

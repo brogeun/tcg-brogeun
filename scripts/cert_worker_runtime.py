@@ -404,7 +404,21 @@ def run():
                 time.sleep(POLL_SECONDS)
                 continue
             provider = job["provider"]
-            if pause_until.get(provider, 0) > time.monotonic():
+            cooldown_invalid = False
+            if provider == "psa" and mode == "api":
+                try:
+                    # Another verifier may have saved a longer official wait since startup.
+                    latest_retry_at = saved_psa_retry_deadline()
+                    if latest_retry_at is not None:
+                        remaining = max(0, latest_retry_at.timestamp() - time.time())
+                        if remaining > 0:
+                            pause_until[provider] = max(pause_until.get(provider, 0), time.monotonic() + remaining)
+                except (OSError, UnicodeError, ValueError, TypeError, OverflowError):
+                    LOG.error("psa_api_saved_retry_information_invalid; worker will stop without source lookup")
+                    cooldown_invalid = True
+            if cooldown_invalid:
+                outcome = result("temporary_error", "psa_api_retry_information_invalid", retry_after_seconds=300)
+            elif pause_until.get(provider, 0) > time.monotonic():
                 outcome = result("blocked", "provider_cooldown", retry_after_seconds=int(pause_until[provider] - time.monotonic()) + 1)
             else:
                 try:
@@ -433,7 +447,7 @@ def run():
                 pause_until[provider] = max(pause_until.get(provider, 0), time.monotonic() + delay)
             ack = post_result(api, site, headers, job, outcome)
             LOG.info("job_result provider=%s cert_suffix=%s outcome=%s error=%s ack=%s", provider, job["cert_number"][-4:], outcome["outcome"], outcome.get("error_code", "none"), ack)
-            if ack == "fatal" or persistence_failed:
+            if ack == "fatal" or persistence_failed or cooldown_invalid:
                 return 2
             if outcome.get("error_code") in ("psa_api_token_missing", "psa_api_authentication_required", "psa_api_access_denied"):
                 LOG.error("psa_api_access_required; worker stopped without browser fallback")

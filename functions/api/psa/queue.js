@@ -1,28 +1,17 @@
-/**
- * GET /api/psa/queue  — 대기 중인 cert 번호 목록 (가정용 PC 워커가 폴링)
- * 보호: 헤더 x-psa-worker-key === env.PSA_WORKER_KEY
- */
-export async function onRequestGet({ env, request }) {
-  if (!env.DB) return new Response('D1 not bound', { status: 500 });
-  const key = request.headers.get('x-psa-worker-key') || '';
-  if (!env.PSA_WORKER_KEY || key !== env.PSA_WORKER_KEY) {
-    return new Response('unauthorized', { status: 401 });
-  }
+import { jsonResponse } from '../../_shared/auth.js';
+import { claimJob, isWorker } from '../../_shared/certificates.js';
+export async function onRequestPost({env,request}) {
+  if (!isWorker(request,env)) return jsonResponse({ok:false,error:'unauthorized'},401);
+  if (!env.DB) return jsonResponse({ok:false,error:'database_unavailable'},503);
+  let body; try { body=await request.json(); } catch { return jsonResponse({ok:false,error:'bad_request'},400); }
+  if (body.worker_version!==2) return jsonResponse({ok:false,error:'worker_update_required',message:'PC 조회 프로그램을 v2로 업데이트해주세요.'},426);
   try {
-    await env.DB.prepare(
-      'CREATE TABLE IF NOT EXISTS psa_cert_pending (cert_number TEXT PRIMARY KEY, card_id TEXT, requested_at INTEGER)'
-    ).run();
-    const res = await env.DB.prepare(
-      'SELECT cert_number FROM psa_cert_pending ORDER BY requested_at ASC LIMIT 20'
-    ).all();
-    const certs = (res.results || []).map((r) => r.cert_number);
-    return new Response(JSON.stringify({ ok: true, certs }), {
-      headers: { 'content-type': 'application/json' },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ ok: false, error: String(e && e.message || e) }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
-  }
+    const job=await claimJob(env);
+    if (job) job.lookup_url=job.provider==='psa' ? 'https://www.psacard.com/cert/'+job.cert_number : 'https://www.beckett.com/api/grading/lookup?category=BGS&serialNumber='+job.cert_number;
+    return jsonResponse({ok:true,version:2,jobs:job?[job]:[],retry_after_seconds:20});
+  } catch { return jsonResponse({ok:false,error:'queue_unavailable'},503); }
+}
+export async function onRequestGet({env,request}) {
+  if (!isWorker(request,env)) return jsonResponse({ok:false,error:'unauthorized'},401);
+  return jsonResponse({ok:false,certs:[],error:'worker_update_required',message:'PC 조회 프로그램 v2가 필요합니다.'},426);
 }

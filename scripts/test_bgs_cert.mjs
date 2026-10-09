@@ -12,7 +12,7 @@ const providerCard = {
   pop_report: '1234', fgB100: '0', fg100: '30', fg95: '1204',
 };
 
-async function fixture(t, { card = localCard, bgs = providerCard, catalogue = 'index', providerResponse = {} } = {}) {
+async function fixture(t, { card = localCard, cardId = '22222', cards = null, bgs = providerCard, catalogue = 'index', providerResponse = {} } = {}) {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(`CREATE TABLE bgs_certs (
@@ -46,13 +46,17 @@ async function fixture(t, { card = localCard, bgs = providerCard, catalogue = 'i
       return response;
     }
     assert.equal(url.origin, 'https://example.test', 'unexpected outbound request');
-    assert.ok(['/data/cards-meta-index.json', '/data/all-cards.json', '/data/history/22222.json'].includes(url.pathname));
+    assert.ok(['/data/cards-meta-index.json', '/data/all-cards.json', `/data/history/${cardId}.json`].includes(url.pathname));
     if (!card) return new Response('', { status: 404 });
-    if (catalogue === 'index' && url.pathname.endsWith('cards-meta-index.json')) return Response.json({ '22222': card });
+    const catalogueCards = cards || { [cardId]: card };
+    if (catalogue === 'index' && url.pathname.endsWith('cards-meta-index.json')) return Response.json(catalogueCards);
     if (catalogue === 'all' && url.pathname.endsWith('all-cards.json')) {
-      return Response.json({ details: [{ id: '22222', ...card, productNumber: card.code }] });
+      return Response.json({ details: Object.entries(catalogueCards).map(([id, entry]) => {
+        const { code, ...metadata } = entry;
+        return { id, ...metadata, productNumber: code };
+      }) });
     }
-    if (catalogue === 'history' && url.pathname.endsWith('/22222.json')) {
+    if (catalogue === 'history' && url.pathname.endsWith(`/${cardId}.json`)) {
       return Response.json({ product_name: card.name, product_number: card.code, brand: card.brand });
     }
     return new Response('', { status: 404 });
@@ -63,7 +67,7 @@ async function fixture(t, { card = localCard, bgs = providerCard, catalogue = 'i
     async call({ authenticated = true } = {}) {
       const response = await onRequestPost({ env, request: new Request('https://example.test/api/bgs/cert', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(authenticated ? { Cookie: `session=${session}` } : {}) },
-        body: JSON.stringify({ cert_number: '0016097088', card_id: '22222' }),
+        body: JSON.stringify({ cert_number: '0016097088', card_id: cardId }),
       }) });
       return { http: response.status, ...await response.json() };
     },
@@ -268,3 +272,51 @@ test('BGS partial POP preserves the available counts and clearly marks missing c
   assert.deepEqual(response.cert.pop, { total: 1234, bl10: null, gl10: 30, g95: 1204 });
   assert.doesNotMatch(response.message, /인증 완료|POP 반영/);
 });
+
+
+// Actual catalogue entries: preserve the existing (incorrect) brand value to ensure
+// the printed One Piece number, not an assumed brand cleanup, identifies the family.
+const luffyVariants = {
+  '135437': { name: 'Monkey D Luffy SEC [OP05-119] (Booster Pack Awakening of the New Era)', code: 'OP05-119', brand: 'pokemon' },
+  '135438': { name: 'Monkey D Luffy SEC-P [OP05-119] (Booster Pack Awakening of the New Era)', code: 'OP05-119', brand: 'pokemon' },
+  '135439': { name: 'Monkey.D.Luffy SEC-SP (Comic Parallel) [OP05-119](Booster Pack "Awakening Of The New Era")', code: 'OP05-119', brand: 'pokemon' },
+};
+const luffyRecord = { ...providerCard, player_name: 'MONKEY D LUFFY', card_key: 'OP05119', set_name: 'ONE PIECE AWAKENING OF THE NEW ERA', year: '2023' };
+const explicitLuffyVariants = [['135437', 'Base'], ['135438', 'Parallel'], ['135439', 'Comic Parallel']];
+
+for (const catalogue of ['index', 'all', 'history']) {
+  for (const [cardId, card] of Object.entries(luffyVariants)) {
+    test(`BGS ${catalogue} cannot approve ambiguous OP05-119 variant ${cardId} without edition evidence`, async t => {
+      const f = await fixture(t, { card, cardId, cards: luffyVariants, catalogue, bgs: luffyRecord });
+      const response = await f.call();
+      assert.equal(response.http, 503);
+      assert.equal(response.error, 'card_variant_unconfirmed');
+      assert.match(response.message, /판본|일반판/);
+      assert.doesNotMatch(response.message, /다른 카드/);
+      assert.equal(f.rows().length, 0);
+    });
+  }
+  for (const [cardId, variety] of explicitLuffyVariants) {
+    test(`BGS ${catalogue} registers the matching explicitly identified ${variety} edition only`, async t => {
+      const f = await fixture(t, { card: luffyVariants[cardId], cardId, cards: luffyVariants, catalogue, bgs: { ...luffyRecord, variety } });
+      const response = await f.call();
+      assert.equal(response.http, 200);
+      assert.equal(response.population_verified, true);
+      assert.equal(response.cert.pop.bl10, 0);
+      assert.equal(f.rows().length, 1);
+      assert.equal(f.rows()[0].card_id, cardId);
+    });
+  }
+}
+
+for (const [actualCardId, variety] of explicitLuffyVariants) {
+  for (const cardId of Object.keys(luffyVariants).filter(id => id !== actualCardId)) {
+    test(`BGS explicit ${variety} edition cannot register a different OP05-119 variant ${cardId}`, async t => {
+      const f = await fixture(t, { card: luffyVariants[cardId], cardId, cards: luffyVariants, bgs: { ...luffyRecord, variety } });
+      const response = await f.call();
+      assert.equal(response.http, 422);
+      assert.equal(response.error, 'card_mismatch');
+      assert.equal(f.rows().length, 0);
+    });
+  }
+}

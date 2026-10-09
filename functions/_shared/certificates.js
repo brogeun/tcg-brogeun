@@ -84,6 +84,49 @@ function numericToken(value) {
   // Set-prefixed numbers keep their printed zeroes: OP07-051 and OP07051 agree.
   return (/[a-z]/.test(token) ? token : token.replace(/\b0+(?=\d)/g, '')).replace(/[^a-z0-9]/g, '');
 }
+function onePiecePrintedCode(card) {
+  const code = String(card?.code || card?.product_number || card?.productNumber || '').trim();
+  const pattern = /^(?:(?:OP|ST|EB|PRB)\d{1,3}[-/]?\d{3}|P[-/]?\d{3})$/i;
+  if (pattern.test(code)) return numericToken(code);
+  const bracket = [...String(card?.name || '').matchAll(/\[([^\]]+)\]/g)].map(m => m[1].trim()).find(value => pattern.test(value));
+  return bracket ? numericToken(bracket) : null;
+}
+function isOnePieceCard(card, record = null) {
+  // OP/ST/EB/PRB remain reliable when the index brand is wrong. A bare P promo code
+  // is shared by other games and needs an explicit local or official One Piece name.
+  return /^(?:op|st|eb|prb)\d/.test(onePiecePrintedCode(card) || '')
+    || /\bone[\s_-]*piece\b/i.test(`${card?.brand || ''} ${card?.name || ''} ${record?.brand || ''}`);
+}
+function explicitOnePieceVariant(value, allowBase = false) {
+  const label = text(value,2000);
+  if (/\bmanga\b|\bcomic[\s._-]+parallel\b/i.test(label)) return 'comic';
+  if (/\bparallel\b|\balternat(?:e|ive)[\s._-]*art\b|\balt[\s._-]*art\b/i.test(label)) return 'parallel';
+  // A product/set name containing "Base Set" is not evidence that the card is a base variant.
+  if (allowBase && /^(?:base|regular|standard)(?:\s+(?:card|version|edition))?$/i.test(label)) return 'base';
+  return null;
+}
+function localOnePieceVariant(card) {
+  const named = explicitOnePieceVariant(card?.name);
+  if (named) return named;
+  const name = String(card?.name || '');
+  // Unmapped special editions must not silently become ordinary cards.
+  if (/\b(?:SEC|SR|SSR|UR|UC|C|R|L)-(?:SPC|SP|GSP|RP)\b/i.test(name)) return null;
+  return /\b(?:SEC|SR|SSR|UR|UC|C|R|L)-P\b/i.test(name) ? 'parallel' : 'base';
+}
+export function annotateCardVariants(card, catalogue) {
+  if (!card || typeof card !== 'object') return card;
+  if (!isOnePieceCard(card)) return {...card,variant_ambiguous:false};
+  const code = onePiecePrintedCode(card);
+  const localVariant = localOnePieceVariant(card);
+  // History-only or old metadata has no complete peer list: require explicit source evidence.
+  if (!catalogue || !code || !localVariant) return {...card,variant_ambiguous:true};
+  const peers = Array.isArray(catalogue) ? catalogue : Object.values(catalogue);
+  const variants = new Set([localVariant]);
+  for (const peer of peers) {
+    if (onePiecePrintedCode(peer) === code) variants.add(localOnePieceVariant(peer));
+  }
+  return {...card,variant_ambiguous:variants.size > 1};
+}
 export function matchCard(record, card) {
   if (!card?.name || !record.subject || !record.card_number) return { ok: false, reason: 'card_metadata_incomplete' };
   const code = String(card.code || card.product_number || '').trim();
@@ -105,6 +148,17 @@ export function matchCard(record, card) {
     && /\bpokemon\b/i.test(String(record.brand || '')) && card.brand === 'pokemon';
   const subject = normalizeText(psaPokemon ? String(record.subject).replace(/^FA\//i, '') : record.subject);
   if (subject.length < 3 || !local.includes(subject)) return { ok: false, reason: 'card_subject_mismatch' };
+  if (isOnePieceCard(card,record)) {
+    const localVariant = localOnePieceVariant(card);
+    const fromVariety = explicitOnePieceVariant(record.variety,true);
+    const fromBrand = explicitOnePieceVariant(record.brand);
+    if (fromVariety && fromBrand && fromVariety !== fromBrand) return {ok:false,reason:'card_variant_unconfirmed'};
+    const officialVariant = fromVariety || fromBrand;
+    if (localVariant && officialVariant && localVariant !== officialVariant) return {ok:false,reason:'card_variant_mismatch'};
+    if (!localVariant || (!officialVariant && (!isOnePieceCard(card) || card.variant_ambiguous !== false || localVariant !== 'base'))) {
+      return {ok:false,reason:'card_variant_unconfirmed'};
+    }
+  }
   // Strong edition markers must not disappear into a generic name match.
   const variants = [
     ['masterball', /master\s*ball|マスターボール|마스터볼/i],
@@ -215,7 +269,7 @@ export async function lookupCardMeta(env, cardId, origin) {
   const map = await response.json();
   const card = map?.[cardId];
   if (!card?.name) return null;
-  return { name: text(card.name, 1000), code: text(card.code, 100), brand: text(card.brand, 100) };
+  return annotateCardVariants({ name: text(card.name, 1000), code: text(card.code, 100), brand: text(card.brand, 100) },map);
 }
 function certTable(provider) { return provider === 'psa' ? 'psa_certs' : 'bgs_certs'; }
 export async function getRequest(env, id, userId) {

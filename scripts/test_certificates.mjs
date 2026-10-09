@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { normalizeCert,parseGrade,normalizeRecord,matchCard,ensureCertificateTables,submitCertificate,claimJob,completeJob,getRequest,LEASE_MS } from '../functions/_shared/certificates.js';
+import { normalizeCert,parseGrade,normalizeRecord,matchCard,annotateCardVariants,ensureCertificateTables,submitCertificate,claimJob,completeJob,getRequest,LEASE_MS } from '../functions/_shared/certificates.js';
 import { onRequestPost as acceptResult } from '../functions/api/psa/cache.js';
 import { onRequestGet as statusEndpoint } from '../functions/api/certifications/status.js';
 import { signJwt } from '../functions/_shared/jwt.js';
@@ -101,7 +101,7 @@ test('card matching rejects substring numbers and empty codes',()=>{
   assert.equal(matchCard(rec,{name:'CHARIZARD VMAX',code:''}).ok,false);
 });
 test('set-prefixed card numbers preserve zeroes across separator variants',()=>{
-  const local={name:'Nami SR[OP07-051]',code:'OP07-051',brand:'onepiece'};
+  const local={name:'Nami SR[OP07-051]',code:'OP07-051',brand:'onepiece',variant_ambiguous:false};
   const rec={subject:'NAMI',brand:'ONE PIECE OP07',card_number:'OP07051',variety:'',year:'2024'};
   for(const number of ['OP07-051','OP07051']) assert.equal(matchCard({...rec,card_number:number},local).ok,true,number);
   for(const number of ['OP07-052','OP07052','OP08051','OP07-51','OP0751','051','51']) {
@@ -416,14 +416,14 @@ async function failBatch(env,clock,error='source_network_error') {
 test('compact printed codes match exactly and explicit conflicts cannot use bracket fallback',()=>{
   const rec={subject:'NAMI',brand:'ONE PIECE OP07',card_number:'OP07051',variety:'',year:'2024'};
   for(const code of ['OP07051','OP07-051']) {
-    assert.equal(matchCard(rec,{name:'Nami SR',code,brand:'onepiece'}).ok,true);
-    assert.equal(matchCard({...rec,card_number:'OP07-051'},{name:'Nami SR',code,brand:'onepiece'}).ok,true);
+    assert.equal(matchCard(rec,{name:'Nami SR',code,brand:'onepiece',variant_ambiguous:false}).ok,true);
+    assert.equal(matchCard({...rec,card_number:'OP07-051'},{name:'Nami SR',code,brand:'onepiece',variant_ambiguous:false}).ok,true);
   }
   for(const code of ['OP07052','OP07-052','OP07-51','OP0751']) {
     assert.deepEqual(matchCard(rec,{name:'Nami SR[OP07-051]',code,brand:'onepiece'}),{ok:false,reason:'card_number_mismatch'});
   }
   assert.deepEqual(matchCard(rec,{name:'Nami SR',code:'onepiece-123',brand:'onepiece'}),{ok:false,reason:'card_metadata_incomplete'});
-  assert.equal(matchCard(rec,{name:'Nami SR[OP07051]',code:'onepiece-123',brand:'onepiece'}).ok,true);
+  assert.equal(matchCard(rec,{name:'Nami SR[OP07051]',code:'onepiece-123',brand:'onepiece',variant_ambiguous:false}).ok,true);
   assert.equal(matchCard({...rec,card_number:'OP07052'},{name:'Nami SR[OP07051]',code:'',brand:'onepiece'}).ok,false);
 });
 
@@ -632,4 +632,152 @@ test('a later shared parse failure removes retry guidance without changing anoth
   assert.equal(view.message,before.message,'the remaining parse review must not promise a disallowed retry');
   assert.deepEqual(await env.DB.prepare('SELECT * FROM cert_registration_requests WHERE id=?').bind(first.request_id).first(),before);
   assert.equal((await submit(env,{retry:true})).message,before.message);
+});
+
+
+// Actual local catalogue entries, including their incorrect legacy brand value.
+// Source records below are offline probes, not claimed live PSA/BGS responses.
+const luffyVariants={
+  '135437':{name:'Monkey D Luffy SEC [OP05-119] (Booster Pack Awakening of the New Era)',code:'OP05-119',brand:'pokemon'},
+  '135438':{name:'Monkey D Luffy SEC-P [OP05-119] (Booster Pack Awakening of the New Era)',code:'OP05-119',brand:'pokemon'},
+  '135439':{name:'Monkey.D.Luffy SEC-SP (Comic Parallel) [OP05-119](Booster Pack "Awakening Of The New Era")',code:'OP05-119',brand:'pokemon'},
+};
+const luffyRecord=variety=>({...record(),subject:'MONKEY D LUFFY',brand:'ONE PIECE AWAKENING OF THE NEW ERA',year:'2023',card_number:'OP05-119',variety,pop_total:1234,pop_higher:0});
+const luffyCatalogue=env=>{env.ASSETS.fetch=async()=>Response.json(luffyVariants);return env;};
+
+test('actual One Piece edition peers are annotated despite incorrect brand, without mutating the catalogue',()=>{
+  const before=JSON.stringify(luffyVariants);
+  for(const card of Object.values(luffyVariants)) assert.equal(annotateCardVariants(card,luffyVariants).variant_ambiguous,true);
+  const camel=Object.values(luffyVariants).map(({code,...card})=>({...card,productNumber:code}));
+  assert.equal(annotateCardVariants(luffyVariants['135437'],camel).variant_ambiguous,true);
+  const snake=camel.map(({productNumber,...card})=>({...card,product_number:productNumber}));
+  assert.equal(annotateCardVariants(luffyVariants['135437'],snake).variant_ambiguous,true);
+  assert.equal(JSON.stringify(luffyVariants),before);
+});
+
+test('One Piece ambiguity uses printed set prefixes and complete peer evidence rather than just brand',()=>{
+  for(const code of ['OP05-119','ST01-001','EB01-001','PRB01-001']) {
+    const base={name:`Character SR[${code}]`,code,brand:'pokemon'};
+    const parallel={...base,name:`Character SR-P[${code}]`};
+    assert.equal(annotateCardVariants(base,[base,parallel]).variant_ambiguous,true,code);
+    assert.equal(annotateCardVariants(base,[base,{...parallel,code:'OP99-999',name:'Character SR-P[OP99-999]'}]).variant_ambiguous,false,code);
+  }
+  const named={name:'Character ONE PIECE SR[123]',code:'123',brand:'pokemon'};
+  assert.equal(annotateCardVariants(named,[named]).variant_ambiguous,true,'unknown printed set needs source evidence');
+  assert.equal(annotateCardVariants(card,{1:card}).variant_ambiguous,false,'Pokemon numeric cards keep their existing matching rules');
+});
+
+test('One Piece base, parallel and comic cannot cross-approve and missing editions are unconfirmed',()=>{
+  const labels={'135437':['Base','Regular','Standard edition'],'135438':['Parallel','Alternate Art','Alt. Art'],'135439':['Comic Parallel','Manga']};
+  for(const [id,local] of Object.entries(luffyVariants)) {
+    const annotated=annotateCardVariants(local,luffyVariants);
+    assert.deepEqual(matchCard(luffyRecord(''),annotated),{ok:false,reason:'card_variant_unconfirmed'});
+    for(const [sourceId,variants] of Object.entries(labels)) for(const variant of variants) {
+      const result=matchCard(luffyRecord(variant),annotated);
+      assert.equal(result.ok,id===sourceId,`${id} with ${variant}`);
+      if(id!==sourceId) assert.equal(result.reason,'card_variant_mismatch');
+    }
+  }
+});
+
+test('Base Set in an official set name never proves a base edition and conflicting source markers stay unconfirmed',()=>{
+  const base=annotateCardVariants(luffyVariants['135437'],luffyVariants);
+  const comic=annotateCardVariants(luffyVariants['135439'],luffyVariants);
+  for(const variety of ['', 'Base Set', 'Special Edition']) {
+    assert.deepEqual(matchCard({...luffyRecord(variety),brand:'ONE PIECE BASE SET'},base),{ok:false,reason:'card_variant_unconfirmed'});
+  }
+  assert.equal(matchCard({...luffyRecord(''),brand:'ONE PIECE MANGA'},comic).ok,true);
+  assert.deepEqual(matchCard({...luffyRecord('Base'),brand:'ONE PIECE MANGA'},base),{ok:false,reason:'card_variant_unconfirmed'});
+  const loneBase=annotateCardVariants(luffyVariants['135437'],[luffyVariants['135437']]);
+  assert.deepEqual(matchCard({...luffyRecord('Base'),brand:'ONE PIECE MANGA'},loneBase),{ok:false,reason:'card_variant_unconfirmed'});
+});
+
+test('history-only and pre-annotation One Piece metadata require explicit source editions',()=>{
+  const base=luffyVariants['135437'];
+  assert.equal(annotateCardVariants(base).variant_ambiguous,true);
+  assert.deepEqual(matchCard(luffyRecord(''),base),{ok:false,reason:'card_variant_unconfirmed'});
+  assert.equal(matchCard(luffyRecord('Base'),base).ok,true);
+  const loneBase=annotateCardVariants(base,[base]);
+  assert.equal(loneBase.variant_ambiguous,false);assert.equal(matchCard(luffyRecord(''),loneBase).ok,true);
+  const parallel=luffyVariants['135438'];
+  assert.deepEqual(matchCard(luffyRecord(''),annotateCardVariants(parallel,[parallel])),{ok:false,reason:'card_variant_unconfirmed'});
+});
+
+test('unmapped local special editions cannot fall through as base and exact matching safeguards remain',()=>{
+  const special={...luffyVariants['135437'],name:'Monkey D Luffy SEC-SPC [OP05-119]'};
+  for(const variety of ['Base','Parallel','Manga']) {
+    assert.deepEqual(matchCard(luffyRecord(variety),annotateCardVariants(special,[special])),{ok:false,reason:'card_variant_unconfirmed'});
+  }
+  const local=annotateCardVariants(luffyVariants['135439'],luffyVariants);
+  assert.equal(matchCard({...luffyRecord('Manga'),card_number:'OP05-118'},local).reason,'card_number_mismatch');
+  assert.equal(matchCard({...luffyRecord('Manga'),subject:'NAMI'},local).reason,'card_subject_mismatch');
+  assert.equal(matchCard({...luffyRecord('Manga'),brand:'ONE PIECE FIRST EDITION'},local).reason,'card_variant_mismatch');
+});
+
+test('PSA queued requests persist actual catalogue ambiguity and never register an unknown One Piece edition',async()=>{
+  for(const id of Object.keys(luffyVariants)) {
+    const env=luffyCatalogue(await fixture());const req=await submit(env,{card_id:id,holding_id:undefined});
+    const row=await env.DB.prepare('SELECT card_meta FROM cert_registration_requests WHERE id=?').bind(req.request_id).first();
+    assert.equal(JSON.parse(row.card_meta).variant_ambiguous,true);
+    const job=await claimJob(env);await finish(env,job,luffyRecord(''));
+    const view=await getRequest(env,req.request_id,1);assert.equal(view.status,'needs_review');assert.equal(view.error,'card_variant_unconfirmed');
+    assert.equal((await submit(env,{card_id:id,holding_id:undefined,retry:true})).error,'card_variant_unconfirmed');
+    assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM psa_certs').first()).n,0);
+    assert.equal(await claimJob(env),null);
+  }
+});
+
+test('PSA queued registration accepts only the explicitly matching One Piece edition and preserves POP',async()=>{
+  for(const [id,variety] of [['135437','Base'],['135438','Alternate Art'],['135439','Manga']]) {
+    const env=luffyCatalogue(await fixture());const req=await submit(env,{card_id:id,holding_id:undefined});
+    const job=await claimJob(env);await finish(env,job,luffyRecord(variety));
+    assert.equal((await getRequest(env,req.request_id,1)).status,'registered');
+    const saved=await env.DB.prepare('SELECT card_id,psa_total_pop,psa_pop_higher FROM psa_certs').first();
+    assert.equal(saved.card_id,id);assert.equal(saved.psa_total_pop,1234);assert.equal(saved.psa_pop_higher,0);
+  }
+});
+
+test('cached One Piece results cannot approve a different edition and still enforce exclusive ownership',async()=>{
+  const env=luffyCatalogue(await fixture());
+  await env.DB.prepare('INSERT INTO cert_lookup_cache VALUES (?,?,?,?)').bind('psa','23483296',JSON.stringify(normalizeRecord(luffyRecord('Manga'),'psa','23483296')),Date.now()).run();
+  const base=await submit(env,{card_id:'135437',holding_id:undefined});
+  assert.equal(base.status,'needs_review');assert.equal(base.error,'card_variant_mismatch');
+  const comic=await submit(env,{card_id:'135439',holding_id:undefined},2);assert.equal(comic.status,'registered');
+  const other=await submit(env,{card_id:'135439',holding_id:undefined},3);assert.equal(other.http,409);assert.equal(other.error,'already_registered');
+  assert.equal((await getRequest(env,base.request_id,1)).error,'card_variant_mismatch');
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM cert_lookup_jobs').first()).n,0);
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM psa_certs').first()).n,1);
+});
+
+test('pending requests written before variant annotation cannot bypass the new One Piece guard',async()=>{
+  const env=luffyCatalogue(await fixture());const req=await submit(env,{card_id:'135437',holding_id:undefined});
+  await env.DB.prepare('UPDATE cert_registration_requests SET card_meta=? WHERE id=?').bind(JSON.stringify(luffyVariants['135437']),req.request_id).run();
+  const job=await claimJob(env);await finish(env,job,luffyRecord(''));
+  assert.equal((await getRequest(env,req.request_id,1)).error,'card_variant_unconfirmed');
+  assert.equal((await env.DB.prepare('SELECT COUNT(*) n FROM psa_certs').first()).n,0);
+});
+
+
+test('a bare P promo code does not classify Pokemon as One Piece or add an edition requirement',()=>{
+  for(const [code,card_number] of [['P001','P001'],['P-001','001']]) {
+    const local={name:`Pikachu PROMO[${code}]`,code,brand:'pokemon'};
+    const meta=annotateCardVariants(local,[local,{...local,name:`Pikachu SR-P[${code}]`}]);
+    assert.equal(meta.variant_ambiguous,false,code);
+    const rec={...record(),subject:'PIKACHU',brand:'POKEMON',card_number,variety:''};
+    assert.equal(matchCard(rec,local).ok,true,code+' legacy metadata');
+    assert.equal(matchCard(rec,meta).ok,true,code+' annotated metadata');
+  }
+});
+
+test('P promos require explicit One Piece identity and source-only identification cannot trust an unrelated catalogue annotation',()=>{
+  for(const [code,card_number] of [['P001','P001'],['P-001','001']]) {
+    const local={name:`Character SR[${code}]`,code,brand:'pokemon'};
+    const labelled={...local,brand:'onepiece'};
+    assert.equal(annotateCardVariants(labelled,[labelled,{...labelled,name:`Character SR-P[${code}]`}]).variant_ambiguous,true);
+    const meta=annotateCardVariants(local,[local]);assert.equal(meta.variant_ambiguous,false);
+    const official={...record(),subject:'CHARACTER',card_number,brand:'ONE PIECE',variety:''};
+    assert.deepEqual(matchCard(official,meta),{ok:false,reason:'card_variant_unconfirmed'});
+    assert.equal(matchCard({...official,variety:'Base'},meta).ok,true);
+    assert.equal(matchCard({...official,variety:'Parallel'},meta).reason,'card_variant_mismatch');
+  }
 });

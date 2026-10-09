@@ -8,7 +8,7 @@
  *       구조 변경 시 깨질 수 있으므로 성공 응답은 무조건 D1 캐싱 (기존 데이터 보존).
  */
 import { withAuth, jsonResponse, badRequest, serverError } from '../../_shared/auth.js';
-import { matchCard } from '../../_shared/certificates.js';
+import { annotateCardVariants, matchCard } from '../../_shared/certificates.js';
 
 const BECKETT_LOOKUP = 'https://beckett.com/api/grading/lookup';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
@@ -37,7 +37,7 @@ async function lookupOurCard(env, cardId, origin) {
     if (r0.ok) {
       const data = await r0.json();
       const c = data?.[cardId] || data?.[String(cardId)];
-      if (c && c.name) return { name: c.name, code: c.code, brand: c.brand };
+      if (c && c.name) return annotateCardVariants({ name: c.name, code: c.code, brand: c.brand }, data);
     }
   } catch {}
   // 1) all-cards.json
@@ -47,7 +47,7 @@ async function lookupOurCard(env, cardId, origin) {
       const data = await r.json();
       const items = data.details || data.cards || [];
       const found = items.find(c => String(c.id) === String(cardId));
-      if (found) return { name: found.name, code: found.productNumber || found.code, brand: found.brand };
+      if (found) return annotateCardVariants({ name: found.name, code: found.productNumber || found.code, brand: found.brand }, items);
     }
   } catch {}
   // 2) history 폴백
@@ -56,7 +56,7 @@ async function lookupOurCard(env, cardId, origin) {
     if (r.ok) {
       const data = await r.json();
       if (data && (data.name || data.product_name)) {
-        return { name: data.name || data.product_name, code: data.product_number || data.code, brand: data.brand };
+        return annotateCardVariants({ name: data.name || data.product_name, code: data.product_number || data.code, brand: data.brand });
       }
     }
   } catch {}
@@ -154,6 +154,12 @@ export const onRequestPost = withAuth(async ({ request, env, user }) => {
       return jsonResponse({
         ok: false, error: 'lookup_failed',
         message: `⚠️ 카드 메타 정보를 확인할 수 없습니다 (card_id=${card_id}). 잠시 후 다시 시도해주세요.`,
+      }, 503);
+    }
+    if (match.reason === 'card_variant_unconfirmed') {
+      return jsonResponse({
+        ok: false, error: 'card_variant_unconfirmed',
+        message: '일반판·패러렐·코믹판을 구분할 정보가 부족합니다. 공식 판본 정보를 확인한 뒤 다시 시도해주세요.',
       }, 503);
     }
     if (match.reason === 'card_metadata_incomplete') {

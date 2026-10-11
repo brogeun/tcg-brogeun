@@ -40,7 +40,7 @@ export function updateFieldAction(g,dt){
  if(a.travel&&!g.canStandAt(...a.end)){cancelFieldAction(g,'unsafe');g.notify(t('exp.fieldUnsafe'));return false;}
  g.world.restoreShortcutPreview?.(a.snapshot);g.world.clearShortcut?.(a.shortcut);
  const fresh=!g.expedition.state.shortcuts.includes(a.shortcut.id);
- if(fresh){g.expedition.state.shortcuts.push(a.shortcut.id);g.expedition.state.tokens++;}
+ if(fresh){g.expedition.state.shortcuts.push(a.shortcut.id);g.expedition.state.tokens++;}g.expedition.activity?.('shortcut',a.shortcut.id);
  if(a.travel)p.model.position.set(a.end[0],g.standingHeight(...a.end),a.end[1]);
  p.action=null;p.actionTime=0;g.fieldAction=null;
  g.world.ring(p.model.position,0xc9dfb5,1.4,.5);g.audio.play('success');g.notify(fresh?t('exp.shortcut'):t('exp.fieldArrived'),label(a.shortcut));g.persist();return true;

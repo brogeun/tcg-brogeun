@@ -10,6 +10,8 @@ Specific files, source URLs, SHA-256 hashes and sizes: `reports/asset-provenance
 
 The original geometry, animation JSON and texture bytes are preserved. The original browser adapter converts Bedrock geometry into Three.js buffers, merges cubes per bone, interprets keyframes and arithmetic Molang expressions, normalizes coordinate direction and ground alignment, and loads normal/shiny/emissive/animated texture layers. Expression repairs and neutral substitutes for Minecraft-only inputs are documented in `reports/expression-repairs.json`. Upstream game audio and particle-event references are replaced by this game's own effects.
 
+The 151 small Pokédex images in `assets/dex/` are locally rendered full-body views of those same unmodified Cobblemon models and normal textures. They retain the above asset attribution and license. The offline renderer is `scripts/render-dex-thumbnails.mjs`; generation and image checks are recorded in `reports/dex-images-20261009/thumbnail-generation.json`.
+
 ## Environment
 
 **Quaternius** — [Stylized Nature MegaKit Standard](https://quaternius.com/packs/stylizednaturemegakit.html), free Standard edition from the author's [OpenGameArt upload](https://opengameart.org/content/stylized-nature-megakit). **CC0 1.0**. 68 licensed models converted from glTF to genuine GLB with shared local texture images.
@@ -33,3 +35,7 @@ Original synthesized score, ambience, sound effects, capture cues, evolution and
 Korean and English species, move, type and item names were cross-checked against the pinned PokéAPI localized CSV tables (Korean language 3, English 9). Exact source hashes are in `reports/localization-provenance.json`; authored action descriptions are generated from the actual 325-move runtime mechanics. Original flavor prose was not copied. Reproduction instructions and the reviewed data overlay are in `scripts/pipeline-polish/`.
 
 Fourteen authored region compositions, 43 landmarks, ecology pockets, terrain, traversal, Korean/English expedition prose, hit feedback, signature presentations and procedural audio are original additions. Existing GLB source bytes remain unchanged; regional canopy color preserves texture alpha and luminance in a runtime shader. The changes and test limitations are documented in `reports/POLISH_PASS_02.md`.
+
+## Startup typography
+
+**Pretendard**, Copyright (c) 2021 Kil Hyung-jin — version 1.3.9, **SIL Open Font License 1.1**. The variable font is self-hosted and used only in the startup and partner selection screens. Original license: `licenses/Pretendard-OFL.txt`. Official project: https://github.com/orioncactus/pretendard/tree/v1.3.9.

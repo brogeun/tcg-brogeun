@@ -3,8 +3,8 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const read=n=>readFileSync(new URL('../'+n,import.meta.url),'utf8');
 const data=JSON.parse(read('data/futuristic-market.json'));
-let handler,modal='';
-const context=vm.createContext({window:{},document:{addEventListener:(n,f,c)=>{if(c)handler=f;},querySelectorAll:()=>[]},
+let handler,modal='',opened=null;
+const context=vm.createContext({window:{openSlidePanel:async id=>{opened=id;}},document:{addEventListener:(n,f,c)=>{if(c)handler=f;},querySelectorAll:()=>[]},
   AbortSignal,Date,console,fetch:async url=>({ok:true,json:async()=>JSON.parse(read(url.includes('futuristic-market')?'data/futuristic-market.json':'data/anniversary-market.json'))}),
   fmtKrw:(n,c)=>'KRW '+n,closeAnyModal(){},openAnyModal:h=>{modal=h;}});
 vm.runInContext(read('assets/anniversary-market.js'),context);
@@ -21,11 +21,22 @@ for(const card of catalog.cards){
   assert.equal(history.reduce((n,r)=>n+(r.total_vol||0),0),p.sales.totalCount);
   assert.ok(history.some(r=>r.raw_price>0));assert.ok(history.every(r=>!r.box_price));if(p.packaging==='sealed')assert.ok(history.every(r=>!r.psa10_price));
  }
- const item={dataset:{anniversaryIds:JSON.stringify(card.marketIds),cardName:card.name},isConnected:true};
- await handler({target:{closest:()=>item},preventDefault(){},stopImmediatePropagation(){}});
- assert.ok(modal.includes('개봉 · 등급별 시세'));assert.ok(modal.includes('미개봉 · 1팩'));
- for(const id of card.marketIds)assert.ok(modal.includes('data-am-id="'+id+'"'));
+ const openedId=card.marketIds.find(id=>market.product(id).packaging==='opened');
+ for(const ids of [card.marketIds,[...card.marketIds].reverse()]) {
+  const item={dataset:{anniversaryIds:JSON.stringify(ids),cardName:card.name},isConnected:true};
+  opened=null;modal='';
+  await handler({target:{closest:selector=>selector.includes('set-card-item')?item:null},preventDefault(){},stopImmediatePropagation(){}});
+  assert.equal(opened,String(openedId));assert.equal(modal,'','Open card details without an intermediate choice');
+ }
+ for(const id of card.marketIds) {
+  const p=market.product(id),supplement=market.renderSupplement(p);
+  for(const variantId of card.marketIds)assert.ok(supplement.includes('data-am-variant="'+variantId+'"'));
+  assert.ok(supplement.includes('data-am-variant="'+id+'" aria-pressed="true"'));
+  const variant={dataset:{amVariant:String(id)}};
+  await handler({target:{closest:()=>variant},preventDefault(){},stopImmediatePropagation(){}});
+  assert.equal(opened,String(id));
+ }
 }
 const html=read('index.html');assert.ok(html.includes("['M6a','MF','FURBOX'].includes(setCode)"));assert.ok(!html.includes('📭 SNKRDUNK 거래 데이터 없음'));
 for(const m of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi))if(!/\bsrc=|application\/ld\+json/i.test(m[1])&&m[2].trim())new vm.Script(m[2]);
-console.log('PASS: both cards, four exact products, opened/sealed choices, actual trades, daily volume, no raw-to-PSA10 fallback, inline scripts');
+console.log('PASS: both cards open directly, four exact products, opened/sealed transitions, actual trades, daily volume, no raw-to-PSA10 fallback, inline scripts');

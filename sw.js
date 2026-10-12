@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-v4-googlefix';
+const CACHE_VERSION = 'tcghub-v5-furbox-detail-20261012';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -56,6 +56,12 @@ self.addEventListener('fetch', event => {
   // /api/* — 항상 네트워크 (인증/실시간 데이터)
   if (url.pathname.startsWith('/api/')) {
     return; // 기본 fetch 사용
+  }
+
+  // Chinese daily FX snapshots must not use an older cached rate.
+  if (url.origin === location.origin && url.pathname === '/data/fx-rates.json') {
+    event.respondWith(networkFirst(req, DATA_CACHE));
+    return;
   }
 
   // /data/*.json — stale-while-revalidate

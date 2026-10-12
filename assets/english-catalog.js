@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const VERSION='20260908-en4',cache=new Map(),size=24,cardsPerPage=18;
-  let catalog=null,names={},language='ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',request=0,opener=null;
+  let catalog=null,names={},language=window.ChineseCatalog?.initialLanguage||'ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',request=0,opener=null;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=c=>Number.isSafeInteger(c)&&c>0?'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):null;
   const name=c=>names[c.name]||c.name;
@@ -23,7 +23,7 @@
   function ensureLanguages(){
     document.getElementById('ciLanguageTabs')?.remove();const list=document.getElementById('cardInfoList');if(!list)return;
     let bar=document.getElementById('encLanguages');if(!bar){bar=document.createElement('div');bar.id='encLanguages';bar.className='enc-languages hub-secondary-tabs';list.before(bar);}
-    bar.hidden=CI_TAB!=='pokemon';bar.innerHTML=['ja','en'].map(l=>`<button class="tab ${language===l?'active':''}" type="button" data-enc-language="${l}" aria-pressed="${language===l}">${l==='en'?'영판':'일판'}</button>`).join('');
+    bar.hidden=CI_TAB!=='pokemon';bar.innerHTML=['ja','en','zh-CN'].map(l=>`<button class="tab ${language===l?'active':''}" type="button" data-enc-language="${l}" aria-pressed="${language===l}">${l==='zh-CN'?'중판':l==='en'?'영판':'일판'}</button>`).join('');
   }
   function render(){
     ensureLanguages();const list=document.getElementById('cardInfoList');if(!list)return;list.classList.add('enc-set-list');
@@ -52,6 +52,7 @@
     panel(`${header()}<div class="ci-panel-info">${/^https:\/\/static\.tcgcollector\.com\//.test(active.image||'')?`<img class="ci-panel-thumb" src="${esc(active.image)}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ci-panel-thumb"></div>'}<div class="ci-panel-copy"><span class="ci-brand pokemon">포켓몬 · 영판</span><p>${esc(active.displayCode||active.code)}</p><h3 id="encPanelTitle">${esc(active.name)}</h3><p>발매일: ${esc(active.release||'미정')}</p></div></div><div class="ci-panel-scroll enc-scroll"><div class="ci-panel-summary" id="encCardCount"></div><label class="enc-search">카드 검색<input id="encCardSearch" type="search" placeholder="한글·영문 이름 또는 번호" value="${esc(cardQuery)}"></label><div class="set-card-grid" id="encCardGrid"></div></div><nav id="encCardPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동"></nav>`,'encPanelTitle');setBody();
   }
   async function open(code,keep=false,cardId=null){
+    window.ChineseCatalog?.cancelPending?.();
     const token=++request;opener=document.activeElement;
     try{
       await ready;const set=catalog.sets.find(s=>s.code===code);if(!set||token!==request)return;
@@ -80,8 +81,8 @@
     try{if(navigator.share)await navigator.share({title:currentCard?name(currentCard):active.name,url:url.href});else{await navigator.clipboard.writeText(url.href);showToast('링크를 복사했습니다');}}catch(e){if(e.name!=='AbortError')showToast('링크를 복사하지 못했습니다');}
   }
   const originalRender=renderCardInfo,originalOpen=window.openSetGrid;
-  renderCardInfo=function(){document.getElementById('cardInfoList')?.classList.remove('enc-set-list');if(language==='en'&&CI_TAB==='pokemon')render();else{originalRender();ensureLanguages();}};
-  window.openSetGrid=function(code,...args){if(code.startsWith('EN-'))return open(code);request++;return originalOpen(code,...args);};
+  renderCardInfo=function(){const list=document.getElementById('cardInfoList');if(list){list.classList.remove('enc-set-list');list.dataset.catalogLanguage=CI_TAB==='pokemon'?language:'';}if(language==='zh-CN'&&CI_TAB==='pokemon'){ensureLanguages();window.ChineseCatalog?.render();}else if(language==='en'&&CI_TAB==='pokemon')render();else{originalRender();ensureLanguages();}};
+  window.openSetGrid=function(code,...args){if(code.startsWith('CN-'))return window.ChineseCatalog?.open(code,typeof args[0]==='string'?args[0]:args[1]||null);if(code.startsWith('EN-'))return open(code);request++;window.ChineseCatalog?.cancelPending?.();return originalOpen(code,...args);};
   const ready=Promise.all(['/data/english-catalog.json','/data/english-card-names-ko.json'].map(async url=>{const r=await fetch(url+'?v='+VERSION);if(!r.ok)throw Error();return r.json();})).then(([data,ko])=>{if(data.schemaVersion!==1||!Array.isArray(data.sets)||ko.schemaVersion!==1||!ko.names)throw Error();catalog=data;names=ko.names;return data;});
   document.addEventListener('input',e=>{if(e.target.id==='encCardSearch'){cardQuery=e.target.value;cardPage=1;setBody();}});
   document.addEventListener('click',e=>{
@@ -98,5 +99,5 @@
   },true);
   ensureLanguages();
   ready.then(()=>{renderCardInfo();const query=new URLSearchParams(location.search),code=query.get('set');if(code?.startsWith('EN-')&&location.hash==='#cardinfo'){language='en';CI_TAB='pokemon';renderCardInfo();open(code,false,query.get('card'));}}).catch(()=>{if(language==='en')document.getElementById('cardInfoList').innerHTML='<p>영문판 목록을 불러오지 못했습니다. 새로고침해 주세요.</p>';});
-  window.EnglishCatalog={art,quote,open,name,dailySales,historyHTML};
+  window.EnglishCatalog={art,quote,open,name,dailySales,historyHTML,cancelPending(){request++;}};
 })();

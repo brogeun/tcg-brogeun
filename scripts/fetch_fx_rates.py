@@ -1,6 +1,7 @@
 """Collect the previous KST day's final Hana/Naver daily FX quotes.
 Weekends/holidays use the most recent published trading date. Never mix dates
-or replace a complete snapshot with partial/live data. JPY is quoted per 100.
+or replace a complete snapshot with partial/live data. JPY is quoted per 100;
+USD and CNY are quoted per 1.
 """
 import argparse
 import json
@@ -15,9 +16,10 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT_FILE = ROOT / "data" / "fx-rates.json"
 KST = timezone(timedelta(hours=9))
 UA = "Mozilla/5.0"
+CURRENCIES = ("USD", "JPY", "CNY")
 API_URLS = {
     currency: f"https://api.stock.naver.com/marketindex/exchange/FX_{currency}KRW/prices?page=1&pageSize=60"
-    for currency in ("USD", "JPY")
+    for currency in CURRENCIES
 }
 
 
@@ -62,9 +64,9 @@ def build_snapshot(now=None, fetcher=fetch_daily):
         raise ValueError("Collection time must include a timezone")
     now = now.astimezone(KST)
     target = now.date() - timedelta(days=1)
-    quotes = {c: previous_close(fetcher(c), target) for c in ("USD", "JPY")}
-    if quotes["USD"][0] != quotes["JPY"][0]:
-        raise ValueError("USD and JPY daily close dates differ; keep the previous snapshot")
+    quotes = {c: previous_close(fetcher(c), target) for c in CURRENCIES}
+    if len({quote[0] for quote in quotes.values()}) != 1:
+        raise ValueError("USD, JPY and CNY daily close dates differ; keep the previous snapshot")
     return {
         "updated": now.isoformat(),
         "asOf": quotes["USD"][0].isoformat(),
@@ -75,6 +77,7 @@ def build_snapshot(now=None, fetcher=fetch_daily):
             "USD": round(quotes["USD"][1], 2),
             "JPY": round(quotes["JPY"][1] / 100, 4),
             "JPY_PER_100": round(quotes["JPY"][1], 2),
+            "CNY": round(quotes["CNY"][1], 2),
         },
         "source": "naver-finance",
         "sourceDetail": "hana-bank-daily-close",
@@ -96,10 +99,10 @@ def main(argv=None, now=None, fetcher=fetch_daily, out_file=OUT_FILE):
         return 0
     out_file = Path(out_file)
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    # Replace both currencies together, including when the process is interrupted.
+    # Replace all currencies together, including when the process is interrupted.
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=out_file.parent,
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n", dir=out_file.parent,
                                          prefix=".fx-rates-", suffix=".tmp", delete=False) as handle:
             temporary = Path(handle.name)
             handle.write(serialized)

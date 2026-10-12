@@ -2595,7 +2595,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20260907-slide4">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
-<script src="/assets/anniversary-market.js?v=20260918-furbox-market1"></script>
+<script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
 <script src="/assets/price-expanded.js?v=furbox1-20260916-shared-detail2"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
@@ -2807,51 +2807,83 @@ window.addEventListener('popstate', e => {
 })();
 
 /* ────────────────────────────────────
-   2. 환율 — Naver 금융 (USD/KRW, JPY/KRW)
+   2. 환율 — Naver 금융 (USD/KRW, JPY/KRW, CNY/KRW)
        data/fx-rates.json 으로부터 로드 (매일 04:00 KST GitHub Actions 갱신)
    ──────────────────────────────────── */
-let JPY_KRW = 9.5;     // 기본값 (1 JPY = 9.5 KRW)
-let USD_KRW = 1370;    // 기본값 (1 USD = 1370 KRW)
-let FX_UPDATED = null;
-const FX_READY = (async () => {
-  try {
-    const r = await fetch('/data/fx-rates.json?t=' + Math.floor(Date.now() / 3600000));
-    if (r.ok) {
+let JPY_KRW = 9.5;     // 기존 엔화 기본값
+let USD_KRW = 1370;    // 기존 달러 기본값
+let CNY_KRW = null;    // 위안은 실제 일별 환율이 확인되어야 환산
+let FX_UPDATED = null, FX_AS_OF = null, FX_BASIS = null;
+let fxRequest = null, fxLastAttempt = 0;
+const FX_REFRESH_MS = 60 * 60 * 1000;
+function loadFxRates() {
+  if (fxRequest) return fxRequest;
+  fxLastAttempt = Date.now();
+  fxRequest = (async () => {
+    try {
+      const r = await fetch('/data/fx-rates.json?v=20261011-cny1&t=' + Math.floor(Date.now() / FX_REFRESH_MS), {cache: 'no-store'});
+      if (!r.ok) throw new Error('FX snapshot unavailable');
       const d = await r.json();
-      if (![d.rates?.JPY, d.rates?.USD].every(v => typeof v === 'number' && Number.isFinite(v) && v > 0)) {
-        throw new Error('Incomplete FX snapshot');
+      if (!['JPY', 'USD', 'CNY'].every(c => typeof d.rates?.[c] === 'number' && Number.isFinite(d.rates[c]) && d.rates[c] > 0)
+          || !/^\d{4}-\d{2}-\d{2}$/.test(d.asOf || '')
+          || d.basis !== 'previous-business-day-close') {
+        throw new Error('Incomplete daily FX snapshot');
       }
+      // 세 통화는 같은 기준일 자료에서 함께 교체한다.
       JPY_KRW = d.rates.JPY;
       USD_KRW = d.rates.USD;
+      CNY_KRW = d.rates.CNY;
       FX_UPDATED = d.updated;
-      console.log('[fx] loaded — USD:', USD_KRW, 'JPY:', JPY_KRW, 'updated:', FX_UPDATED);
+      FX_AS_OF = d.asOf;
+      FX_BASIS = d.basis;
+      window.dispatchEvent(new CustomEvent('tcg:fx-updated'));
+      return true;
+    } catch (e) {
+      console.warn('[fx] Daily snapshot unavailable; keeping existing rates:', e);
+      return false;
+    } finally {
+      fxRequest = null;
     }
-  } catch (e) {
-    // Never mix the daily USD snapshot with a different provider's live JPY quote.
-    console.warn('[fx] Daily snapshot unavailable; keeping existing rates:', e);
-  }
-})();
-// 모든 가격 → KRW 단일 표시 (소수점 절사)
-const fmtKrw = (n, cur) => {
-  if (n == null) return '—';
-  const rate = cur === 'USD' ? USD_KRW : (cur === 'KRW' ? 1 : JPY_KRW);
-  return '₩' + Math.floor(n * rate).toLocaleString();
+  })();
+  return fxRequest;
+}
+const FX_READY = loadFxRates();
+const fxRate = cur => cur === 'CNY' ? CNY_KRW : (cur === 'USD' ? USD_KRW : (cur === 'KRW' ? 1 : JPY_KRW));
+// 모든 가격은 표시 직전 현재 공통 환율로 원화 환산하고 소수점을 버린다.
+const toKrw = (n, cur) => {
+  if (n == null || !Number.isFinite(Number(n))) return null;
+  const rate = fxRate(cur);
+  return Number.isFinite(rate) && rate > 0 ? Math.floor(Number(n) * rate) : null;
 };
-// 호환용 (옛날 코드가 아직 fmtYen 호출하는 곳들 — 결국 KRW 표시)
+const fmtKrw = (n, cur) => {
+  const value = toKrw(n, cur);
+  return value == null ? '—' : '₩' + value.toLocaleString('ko-KR');
+};
 const fmtYen = fmtKrw;
-// 원본 통화 표시 ($X or ¥X) — 서브 라인용
 const fmtOrig = (n, cur) => {
   if (n == null) return '—';
+  if (cur === 'CNY') return '¥' + Number(n).toLocaleString('ko-KR', {maximumFractionDigits: 2}) + ' CNY';
   if (cur === 'USD') return '$' + Number(n).toLocaleString(undefined, {maximumFractionDigits: 2});
   if (cur === 'KRW') return '₩' + Math.floor(n).toLocaleString();
   return '¥' + Math.floor(n).toLocaleString();
 };
-// 환율 적용된 KRW 숫자값 (차트 등 raw 숫자 필요한 곳)
-const toKrw = (n, cur) => {
-  if (n == null || isNaN(n)) return null;
-  const rate = cur === 'USD' ? USD_KRW : (cur === 'KRW' ? 1 : JPY_KRW);
-  return Math.floor(n * rate);
+window.TCGFX = Object.freeze({
+  ready: FX_READY,
+  refresh: loadFxRates,
+  convert: (amount, currency) => toKrw(amount, currency),
+  getState: () => ({
+    rates: {JPY: JPY_KRW, USD: USD_KRW, CNY: CNY_KRW},
+    date: FX_AS_OF, updated: FX_UPDATED, basis: FX_BASIS,
+    available: FX_AS_OF !== null,
+    cnyReady: Number.isFinite(CNY_KRW) && CNY_KRW > 0
+  })
+});
+const refreshFxIfDue = () => {
+  if (!document.hidden && Date.now() - fxLastAttempt >= FX_REFRESH_MS) loadFxRates();
 };
+setInterval(refreshFxIfDue, FX_REFRESH_MS);
+window.addEventListener('focus', refreshFxIfDue);
+document.addEventListener('visibilitychange', refreshFxIfDue);
 
 /* ────────────────────────────────────
    2.5 홈 — TOP 10 인기 카드 (GitHub Actions 자동 갱신, 정적 JSON)
@@ -11100,9 +11132,11 @@ window.addEventListener('appinstalled', () => {
 
 // </script>
 <script src="/assets/english-search.js?v=20260908-search1"></script>
-<script src="/assets/search-modal.js?v=20260908-search2"></script>
+<script src="/assets/search-modal.js?v=20261012-cn-release1"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
-<script src="/assets/english-catalog.js?v=20260908-en6"></script>
+<link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
+<script src="/assets/chinese-catalog.js?v=20261012-cn-names1"></script>
+<script src="/assets/english-catalog.js?v=20261012-cn-release1"></script>
 <link rel="stylesheet" href="/assets/riftbound-catalog.css?v=20260909-rb1">
 <script src="/assets/riftbound-catalog.js?v=20260909-rb1"></script>
 </body>

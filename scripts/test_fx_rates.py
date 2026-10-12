@@ -13,14 +13,19 @@ def row(day, value):
 
 class FXTests(unittest.TestCase):
     now = datetime(2026, 9, 11, 4, tzinfo=fx.KST)
+    closing_quotes = {"USD": "1,351.00", "JPY": "875.09", "CNY": "190.27"}
 
     def fetch(self, currency):
-        return [row("2026-09-11", "999"), row("2026-09-10", "1,351.00" if currency == "USD" else "875.09")]
+        return [row("2026-09-11", "999"), row("2026-09-10", self.closing_quotes[currency])]
 
     def test_previous_day_and_units(self):
         result = fx.build_snapshot(self.now, self.fetch)
         self.assertEqual(result["asOf"], "2026-09-10")
-        self.assertEqual(result["rates"], {"USD": 1351.0, "JPY": 8.7509, "JPY_PER_100": 875.09})
+        self.assertEqual(result["rates"], {"USD": 1351.0, "JPY": 8.7509, "JPY_PER_100": 875.09, "CNY": 190.27})
+
+    def test_yuan_is_quoted_per_one_and_requires_daily_endpoint(self):
+        self.assertIn("FX_CNYKRW/prices?", fx.API_URLS["CNY"])
+        self.assertEqual(fx.build_snapshot(self.now, self.fetch)["rates"]["CNY"], 190.27)
 
     def test_utc_runner_uses_kst_day(self):
         result = fx.build_snapshot(datetime(2026, 9, 10, 19, tzinfo=timezone.utc), self.fetch)
@@ -29,7 +34,7 @@ class FXTests(unittest.TestCase):
     def test_weekend_and_holiday(self):
         for day in (12, 13, 14, 15):
             result = fx.build_snapshot(datetime(2026, 9, day, 4, tzinfo=fx.KST),
-                lambda c: [row("2026-09-11", "1351" if c == "USD" else "875.09")])
+                lambda c: [row("2026-09-11", self.closing_quotes[c])])
             self.assertEqual(result["asOf"], "2026-09-11")
 
     def test_unsorted_rows(self):
@@ -47,19 +52,31 @@ class FXTests(unittest.TestCase):
                 fx.previous_close([row(day, "100")], date(2026, 9, 10))
 
     def test_different_currency_dates(self):
-        with self.assertRaises(ValueError):
-            fx.build_snapshot(self.now, lambda c: [row("2026-09-10" if c == "USD" else "2026-09-09", "100")])
+        for mismatched_currency in fx.CURRENCIES:
+            with self.subTest(currency=mismatched_currency), self.assertRaises(ValueError):
+                fx.build_snapshot(self.now, lambda c: [row("2026-09-09" if c == mismatched_currency else "2026-09-10", "100")])
 
     def test_failure_keeps_existing_complete_file(self):
-        with tempfile.TemporaryDirectory() as folder:
-            dest = Path(folder) / "fx.json"
-            dest.write_text('{"old":"snapshot"}', encoding="utf-8")
-            def partial(currency):
-                if currency == "JPY":
-                    raise OSError("network error")
-                return self.fetch(currency)
-            self.assertEqual(fx.main([], self.now, partial, dest), 1)
-            self.assertEqual(dest.read_text(), '{"old":"snapshot"}')
+        for failed_currency in fx.CURRENCIES:
+            with self.subTest(currency=failed_currency), tempfile.TemporaryDirectory() as folder:
+                dest = Path(folder) / "fx.json"
+                dest.write_text('{"old":"snapshot"}', encoding="utf-8")
+                def partial(currency):
+                    if currency == failed_currency:
+                        raise OSError("network error")
+                    return self.fetch(currency)
+                self.assertEqual(fx.main([], self.now, partial, dest), 1)
+                self.assertEqual(dest.read_text(), '{"old":"snapshot"}')
+
+    def test_yuan_invalid_close_or_different_date_keeps_complete_file(self):
+        for yuan_rows in ([row("2026-09-10", "NaN")], [row("2026-09-09", "190.27")]):
+            with self.subTest(rows=yuan_rows), tempfile.TemporaryDirectory() as folder:
+                dest = Path(folder) / "fx.json"
+                dest.write_text('{"old":"snapshot"}', encoding="utf-8")
+                def partial(currency):
+                    return yuan_rows if currency == "CNY" else self.fetch(currency)
+                self.assertEqual(fx.main([], self.now, partial, dest), 1)
+                self.assertEqual(dest.read_text(), '{"old":"snapshot"}')
 
     def test_dry_run_and_success(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -68,6 +85,7 @@ class FXTests(unittest.TestCase):
             self.assertFalse(dest.exists())
             self.assertEqual(fx.main([], self.now, self.fetch, dest), 0)
             self.assertEqual(json.loads(dest.read_text())["asOf"], "2026-09-10")
+            self.assertNotIn(b"\r\n", dest.read_bytes())
             self.assertEqual(len(list(Path(folder).iterdir())), 1)
 
     def test_interrupted_replace_keeps_existing_file(self):

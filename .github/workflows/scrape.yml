@@ -39,6 +39,12 @@ jobs:
       - name: Validate certificate matching, retries and polling
         run: node --test scripts/test_certificates.mjs scripts/test_bgs_cert.mjs scripts/test_psa_polling.mjs
 
+      - name: Validate Chinese catalogue and daily FX
+        run: |
+          node scripts/test_chinese_catalog.cjs
+          node scripts/test_fx_display.cjs
+          python -m unittest discover -s scripts -p test_fx_rates.py
+
       - name: Setup Chrome browser
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
         uses: browser-actions/setup-chrome@latest
@@ -64,7 +70,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: "1"
 
-      - name: Fetch FX rates (Naver USD/KRW, JPY/KRW)
+      - name: Fetch FX rates (Naver USD/KRW, JPY/KRW, CNY/KRW)
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
         run: python scripts/fetch_fx_rates.py || echo "fx fetch failed (non-fatal)"
         env:

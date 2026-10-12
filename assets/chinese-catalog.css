@@ -1,0 +1,50 @@
+.cn-catalog-note{grid-column:1/-1;margin:0;color:#666560;font-size:13px}
+.cn-set .set-tile-img img{width:100%;height:100%;object-fit:contain;padding:16px}
+.cn-set .set-tile-meta{overflow-wrap:anywhere;white-space:normal}
+.cn-no-image{color:#888780;font-size:13px}
+.cn-description{margin:0 0 20px;font-size:14px;line-height:1.8;overflow-wrap:anywhere}
+.cn-variants{display:grid;gap:12px}
+.cn-variant{padding:16px;border:1px solid #EDECE8;border-radius:10px}
+.cn-variant h4,.cn-market h4{margin:0 0 12px;font-size:15px}
+.cn-variant dl{margin:0;font-size:13px}.cn-variant dl>div{display:grid;grid-template-columns:100px minmax(0,1fr);gap:12px;padding:6px 0}
+.cn-variant dt{color:#888780}.cn-variant dd{margin:0;overflow-wrap:anywhere;line-height:1.6}
+.cn-market{margin:20px 0;padding:16px;background:#F7F7F5;border-radius:10px}.cn-market p{margin:0;color:#888780;font-size:14px}
+.cn-card-note{font-size:13px;line-height:1.7;color:#666560}.cn-official{display:inline-flex;align-items:center;min-height:44px;font-size:14px;color:#066666;text-decoration:underline;overflow-wrap:anywhere}
+@media(max-width:420px){.cn-variant dl>div{grid-template-columns:80px minmax(0,1fr);gap:8px}.cn-scroll{padding:16px}}
+
+.cn-product-info{margin-top:24px;border-top:1px solid #EDECE8;padding-top:16px;font-size:14px}
+.cn-product-info summary{cursor:pointer;min-height:44px;display:list-item;line-height:44px;color:#666560}
+.cn-product-info .cn-description{margin-top:12px}
+.cn-card .set-card-num{display:flex;flex-direction:column;gap:4px;min-width:0}
+.cn-card .set-card-num strong,.cn-card .set-card-num span{overflow-wrap:anywhere;white-space:normal}
+.cn-card-variant{color:#888780;font-size:11px;line-height:1.4}
+.cn-detail .px-title,.cn-detail .px-original,.cn-detail .px-pack,.cn-detail .px-info td{overflow-wrap:anywhere}
+.cn-detail .px-grades,#anyModal.ci-expanded .cn-detail .px-grades{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cn-link-notice{font-size:13px;line-height:1.7;padding:12px;background:#F7F7F5;border-radius:8px}
+@media(max-width:420px){.cn-detail .px-actions{flex-wrap:wrap}.cn-card .set-card-num{font-size:11px}}
+
+.cn-tile-market{font-size:12px;color:#066666;line-height:1.6}
+.cn-price-note{font-size:12px;line-height:1.7;color:#777;margin:16px 0 0}
+.cn-price-box .px-grade small{font-size:11px;color:#888;margin-top:5px}
+.cn-price-box .px-current{font-size:clamp(20px,4vw,30px);overflow-wrap:anywhere}
+.cn-price-box .px-grade-price{font-size:clamp(15px,3vw,22px);overflow-wrap:anywhere}
+.cn-auction-history{margin-top:14px;border-top:1px solid #e5e5df;padding-top:8px}
+.cn-auction-history summary{cursor:pointer;font-size:13px;line-height:1.7;min-height:36px;padding:6px 0}
+.cn-auction-history p{font-size:11px;line-height:1.6;color:#777;margin:6px 0}
+.cn-history-scroll{max-height:260px;overflow:auto}
+.cn-auction-history table{width:100%;border-collapse:collapse;font-size:12px}
+.cn-auction-history th,.cn-auction-history td{text-align:left;padding:9px 6px;border-bottom:1px solid #e5e5df;white-space:nowrap}
+.cn-auction-history a,.cn-config-verified a{color:#066666;text-decoration:underline}
+.cn-box-quote{margin-top:12px;padding-top:12px;border-top:1px solid #e5e5df}
+.cn-box-quote>strong{display:block;font-size:13px}.cn-box-price{font-size:22px;font-weight:700;margin:8px 0}
+.cn-market .cn-config-pending{margin-top:8px;font-size:12px;color:#896326;line-height:1.7}
+.cn-market .cn-config-verified{margin-top:8px;font-size:12px;color:#066666;line-height:1.7}
+@media(max-width:420px){.cn-market{padding:12px}.cn-price-box .px-price-head{gap:8px;flex-wrap:wrap}.cn-price-box .px-source{font-size:11px}}
+
+.cn-price{display:inline-flex;flex-direction:column;gap:3px;max-width:100%;vertical-align:top}
+.cn-price-original{font-size:12px;font-weight:400;line-height:1.5;color:#888780;overflow-wrap:anywhere}
+.cn-fx-note{font-size:12px;line-height:1.7;color:#777;margin:10px 0 0}
+.cn-market .cn-fx-note{font-size:12px;color:#777}
+.cn-auction-history .cn-price-primary{font-weight:600}
+.cn-auction-history .cn-price-original{font-size:11px}
+.cn-variant .cn-price-primary{font-weight:600}

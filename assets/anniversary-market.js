@@ -36,6 +36,13 @@
     });
   }
   const rawLabel=p=>p?.packaging==='sealed'?'미개봉 · 1팩':p?.packaging==='opened'?'A급 · 개봉':'A급(미개봉)';
+  const packagingVariants=p=>p?.setCode==='FURBOX'&&p.number
+    ? Object.values(snapshot?.products || {}).filter(row=>row.kind==='card'&&row.setCode===p.setCode&&row.number===p.number&&['opened','sealed'].includes(row.packaging)) : [];
+  function renderVariants(p) {
+    const rows=packagingVariants(p);
+    if(rows.length!==2||new Set(rows.map(row=>row.packaging)).size!==2)return '';
+    return `<div role="group" aria-label="카드 포장 상태" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">${rows.map(row=>`<button type="button" class="btn" data-am-variant="${esc(row.id)}" aria-pressed="${row.id===p.id}" style="flex:1;min-width:120px;white-space:normal;${row.id===p.id?'border-color:#06bfc4;background:#e6fafa;':''}">${row.packaging==='opened'?'개봉 카드 · 등급별 시세':'미개봉 · 1팩 시세'}</button>`).join('')}</div>`;
+  }
   function renderSales(p) {
     if(!p.sales)return '';
     const trades=p.sales.trades || [];
@@ -59,6 +66,7 @@
     const stamp=new Date(p.fetchedAt);
     const stale=!Number.isFinite(stamp.getTime())||Date.now()-stamp.getTime()>48*3600000;
     return `<div class="am-market-note">
+      ${renderVariants(p)}
       ${/2 Piece Set/i.test(p.name)?'<p style="color:#a16207">2장 묶음 상품 가격입니다. 개별 카드 1장 가격이 아닙니다.</p>':''}
       <p style="font-size:12px;color:#888">${stale?'갱신 지연 · 마지막 수집':'수집'} ${Number.isFinite(stamp.getTime())?stamp.toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'확인 필요'} KST</p>
       <details><summary style="cursor:pointer;font-size:12px">전체 등급 · 엔화 가격 보기</summary>
@@ -68,6 +76,12 @@
   }
   let request=0;
   document.addEventListener('click',async event=>{
+    const variant=event.target.closest('[data-am-variant]');
+    if(variant){
+      event.preventDefault();event.stopImmediatePropagation();
+      if(product(variant.dataset.amVariant))await window.openSlidePanel(variant.dataset.amVariant);
+      return;
+    }
     const item=event.target.closest('.set-card-item[data-anniversary-ids]');
     if(!item)return;
     event.preventDefault();event.stopImmediatePropagation();
@@ -79,6 +93,12 @@
     const rows=ids.map(product).filter(Boolean);
     const name=item.dataset.cardName || '';
     closeAnyModal();
+    // The two packaging offers describe the same printed card. Open the card
+    // detail immediately; keep the sealed pack available inside that detail.
+    const opened=rows.find(p=>p.packaging==='opened');
+    if(opened&&rows.length===2&&packagingVariants(opened).length===2&&rows.every(p=>p.setCode===opened.setCode&&p.number===opened.number)&&new Set(rows.map(p=>p.packaging)).size===2){
+      await window.openSlidePanel(String(opened.id));return;
+    }
     if(rows.length===1){await window.openSlidePanel(String(rows[0].id));return;}
     openAnyModal(`<div class="modal-head"><h3>카드 상품 선택</h3><button class="modal-close" aria-label="닫기" onclick="closeAnyModal()">✕</button></div>
       <div class="modal-body" style="padding:20px;text-align:center">

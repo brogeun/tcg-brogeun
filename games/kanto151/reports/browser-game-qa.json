@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "status": "passed",
-  "startedAt": "2026-09-13T15:56:39.301Z",
+  "startedAt": "2026-10-09T16:13:05.668Z",
   "fixtures": [
     "Contact/asset fixtures now move obligate swimmers to actual water and place the test player on a nearby legal surf/land tile. Species habitat availability and movement are independently checked by the nine-request geometry suite.",
     "The child page is explicitly qa=1; execution requires qaMode=true, reset newSave, and isolated in-memory persistence supplied by Game.",
@@ -21,7 +21,7 @@
     {
       "name": "Starter #1 creates a real playable partner",
       "passed": true,
-      "milliseconds": 2062,
+      "milliseconds": 1894,
       "details": {
         "meshes": 37,
         "size": [
@@ -34,7 +34,7 @@
     {
       "name": "Starter #4 creates a real playable partner",
       "passed": true,
-      "milliseconds": 1537,
+      "milliseconds": 842,
       "details": {
         "meshes": 52,
         "size": [
@@ -47,7 +47,7 @@
     {
       "name": "Starter #7 creates a real playable partner",
       "passed": true,
-      "milliseconds": 2574,
+      "milliseconds": 719,
       "details": {
         "meshes": 21,
         "size": [
@@ -60,7 +60,7 @@
     {
       "name": "Starter #25 creates a real playable partner",
       "passed": true,
-      "milliseconds": 2031,
+      "milliseconds": 1548,
       "details": {
         "meshes": 104,
         "size": [
@@ -71,9 +71,316 @@
       }
     },
     {
+      "name": "Shared layout: every move name, seven dialogs and centered close controls at five viewports",
+      "passed": true,
+      "milliseconds": 4915,
+      "details": {
+        "rows": [
+          {
+            "kind": "move-labels",
+            "width": 320,
+            "height": 568,
+            "locale": "ko-KR",
+            "checked": 325
+          },
+          {
+            "kind": "move-labels",
+            "width": 320,
+            "height": 568,
+            "locale": "en-US",
+            "checked": 325
+          },
+          {
+            "kind": "panel",
+            "panel": "party",
+            "width": 320,
+            "height": 568
+          },
+          {
+            "kind": "panel",
+            "panel": "dex",
+            "width": 320,
+            "height": 568
+          },
+          {
+            "kind": "panel",
+            "panel": "bag",
+            "width": 320,
+            "height": 568
+          },
+          {
+            "kind": "panel",
+            "panel": "map",
+            "width": 320,
+            "height": 568
+          },
+          {
+            "kind": "panel",
+            "panel": "pause",
+            "width": 320,
+            "height": 568
+          },
+          {
+            "kind": "panel",
+            "panel": "settings",
+            "width": 320,
+            "height": 568
+          },
+          {
+            "kind": "panel",
+            "panel": "credits",
+            "width": 320,
+            "height": 568
+          },
+          {
+            "kind": "move-labels",
+            "width": 360,
+            "height": 640,
+            "locale": "ko-KR",
+            "checked": 325
+          },
+          {
+            "kind": "move-labels",
+            "width": 360,
+            "height": 640,
+            "locale": "en-US",
+            "checked": 325
+          },
+          {
+            "kind": "panel",
+            "panel": "party",
+            "width": 360,
+            "height": 640
+          },
+          {
+            "kind": "panel",
+            "panel": "dex",
+            "width": 360,
+            "height": 640
+          },
+          {
+            "kind": "panel",
+            "panel": "bag",
+            "width": 360,
+            "height": 640
+          },
+          {
+            "kind": "panel",
+            "panel": "map",
+            "width": 360,
+            "height": 640
+          },
+          {
+            "kind": "panel",
+            "panel": "pause",
+            "width": 360,
+            "height": 640
+          },
+          {
+            "kind": "panel",
+            "panel": "settings",
+            "width": 360,
+            "height": 640
+          },
+          {
+            "kind": "panel",
+            "panel": "credits",
+            "width": 360,
+            "height": 640
+          },
+          {
+            "kind": "move-labels",
+            "width": 390,
+            "height": 844,
+            "locale": "ko-KR",
+            "checked": 325
+          },
+          {
+            "kind": "move-labels",
+            "width": 390,
+            "height": 844,
+            "locale": "en-US",
+            "checked": 325
+          },
+          {
+            "kind": "panel",
+            "panel": "party",
+            "width": 390,
+            "height": 844
+          },
+          {
+            "kind": "panel",
+            "panel": "dex",
+            "width": 390,
+            "height": 844
+          },
+          {
+            "kind": "panel",
+            "panel": "bag",
+            "width": 390,
+            "height": 844
+          },
+          {
+            "kind": "panel",
+            "panel": "map",
+            "width": 390,
+            "height": 844
+          },
+          {
+            "kind": "panel",
+            "panel": "pause",
+            "width": 390,
+            "height": 844
+          },
+          {
+            "kind": "panel",
+            "panel": "settings",
+            "width": 390,
+            "height": 844
+          },
+          {
+            "kind": "panel",
+            "panel": "credits",
+            "width": 390,
+            "height": 844
+          },
+          {
+            "kind": "move-labels",
+            "width": 844,
+            "height": 390,
+            "locale": "ko-KR",
+            "checked": 325
+          },
+          {
+            "kind": "move-labels",
+            "width": 844,
+            "height": 390,
+            "locale": "en-US",
+            "checked": 325
+          },
+          {
+            "kind": "panel",
+            "panel": "party",
+            "width": 844,
+            "height": 390
+          },
+          {
+            "kind": "panel",
+            "panel": "dex",
+            "width": 844,
+            "height": 390
+          },
+          {
+            "kind": "panel",
+            "panel": "bag",
+            "width": 844,
+            "height": 390
+          },
+          {
+            "kind": "panel",
+            "panel": "map",
+            "width": 844,
+            "height": 390
+          },
+          {
+            "kind": "panel",
+            "panel": "pause",
+            "width": 844,
+            "height": 390
+          },
+          {
+            "kind": "panel",
+            "panel": "settings",
+            "width": 844,
+            "height": 390
+          },
+          {
+            "kind": "panel",
+            "panel": "credits",
+            "width": 844,
+            "height": 390
+          },
+          {
+            "kind": "move-labels",
+            "width": 1280,
+            "height": 720,
+            "locale": "ko-KR",
+            "checked": 325
+          },
+          {
+            "kind": "move-labels",
+            "width": 1280,
+            "height": 720,
+            "locale": "en-US",
+            "checked": 325
+          },
+          {
+            "kind": "panel",
+            "panel": "party",
+            "width": 1280,
+            "height": 720
+          },
+          {
+            "kind": "panel",
+            "panel": "dex",
+            "width": 1280,
+            "height": 720
+          },
+          {
+            "kind": "panel",
+            "panel": "bag",
+            "width": 1280,
+            "height": 720
+          },
+          {
+            "kind": "panel",
+            "panel": "map",
+            "width": 1280,
+            "height": 720
+          },
+          {
+            "kind": "panel",
+            "panel": "pause",
+            "width": 1280,
+            "height": 720
+          },
+          {
+            "kind": "panel",
+            "panel": "settings",
+            "width": 1280,
+            "height": 720
+          },
+          {
+            "kind": "panel",
+            "panel": "credits",
+            "width": 1280,
+            "height": 720
+          }
+        ],
+        "checks": 45,
+        "fixtures": "Prepared move names in the actual HUD; iframe resized through browser layout. Native touch is checked separately."
+      }
+    },
+    {
+      "name": "Partner portraits and detailed ball art follow actual appearances without renderer or model leaks",
+      "passed": true,
+      "milliseconds": 2162,
+      "details": {
+        "normalShinyDistinct": true,
+        "modelRefsStable": true,
+        "fieldRendererRestored": true,
+        "menuKeepsFace": true,
+        "balls": [
+          "poke-ball",
+          "great-ball",
+          "ultra-ball"
+        ]
+      }
+    },
+    {
       "name": "All 14 legacy region saves migrate into the five actual safe entries without identity loss",
       "passed": true,
-      "milliseconds": 5185,
+      "milliseconds": 4015,
       "details": [
         {
           "old": "camp",
@@ -206,39 +513,111 @@
     {
       "name": "Minimap uses crisp pixels, visible player markers and working zoom controls",
       "passed": true,
-      "milliseconds": 86,
+      "milliseconds": 419,
       "details": {
         "cssSize": "148",
         "player": [
           74,
-          74
+          70
         ],
-        "scale": 1.9636363636363638,
+        "scale": 1.8409090909090913,
         "legend": "내 위치목적지+회복식수",
         "combatCardsClear": true
       }
     },
     {
-      "name": "Camera keeps its chosen direction around scenery and when combat targets change",
+      "name": "Expanded compact HUD keeps goals, combat cards and notices separate",
       "passed": true,
-      "milliseconds": 15,
+      "milliseconds": 20,
       "details": {
-        "clearDegrees": -2.3812692192497138e-12,
-        "blockedDegrees": -2.0514024122828143e-23,
-        "combatDegrees": -8.412139682040848e-36,
-        "clearDistance": 21.000000000007134,
-        "obstructedDistance": 4.581692304988805
+        "exploration": true,
+        "wild": true,
+        "boss": true,
+        "combatRecovery": true,
+        "noticeClear": true
+      }
+    },
+    {
+      "name": "Pokedex shows all151 static portraits with registered colours, filters and capture/evolution updates",
+      "passed": true,
+      "milliseconds": 3062,
+      "details": {
+        "imagesLoaded": 151,
+        "completeCardRows": true,
+        "contentInsideCards": true,
+        "compactIllustrations": true,
+        "registeredColour": true,
+        "allUnregisteredGrey": true,
+        "shinyBadge": true,
+        "searchAndFilters": true,
+        "browsingPreservesSave": true,
+        "actualCapture": true,
+        "actualEvolution": true
+      }
+    },
+    {
+      "name": "Pocket bag browses without consumption and uses existing supply actions exactly once",
+      "passed": true,
+      "milliseconds": 1355,
+      "details": {
+        "pockets": 5,
+        "browsingPure": true,
+        "canonicalBallSelection": true,
+        "appleRecovery": 25,
+        "canteenRecovery": 40,
+        "repeatedInputGuard": true,
+        "emptyCanteen": true,
+        "evolutionAndKeyNavigation": true
+      }
+    },
+    {
+      "name": "Camera keeps chosen zoom and direction around scenery and when combat targets change",
+      "passed": true,
+      "milliseconds": 22,
+      "details": {
+        "clearDegrees": 4.02696119769466e-11,
+        "blockedDegrees": 7.568789614151751e-23,
+        "combatDegrees": 9.445444227512967e-70,
+        "clearDistance": 20.99999999999979,
+        "obstructedDistance": 20.999999999999993,
+        "wallDistance": 20.999999999999993,
+        "manualDistance": 28.99999999998496
       }
     },
     {
       "name": "Movement, dodge, finite camera and collision boundaries",
       "passed": true,
-      "milliseconds": 20
+      "milliseconds": 7
+    },
+    {
+      "name": "Canonical three-kind thrown balls keep capture timing, inventory and cleanup intact",
+      "passed": true,
+      "milliseconds": 4196,
+      "details": [
+        {
+          "kind": "poke-ball",
+          "remaining": 2,
+          "markedShell": false,
+          "restored": true
+        },
+        {
+          "kind": "great-ball",
+          "remaining": 2,
+          "markedShell": true,
+          "restored": true
+        },
+        {
+          "kind": "ultra-ball",
+          "remaining": 2,
+          "markedShell": true,
+          "restored": true
+        }
+      ]
     },
     {
       "name": "Actual basic attack, status move, throw arc and failed capture restoration",
       "passed": true,
-      "milliseconds": 3121,
+      "milliseconds": 3885,
       "details": {
         "hpBefore": 300,
         "hpAfter": 1,
@@ -248,17 +627,17 @@
     {
       "name": "Capture registration UI, party switch and stone evolution retain UID",
       "passed": true,
-      "milliseconds": 4774
+      "milliseconds": 2196
     },
     {
       "name": "Stored partner evolution presents both real models and preserves the active partner",
       "passed": true,
-      "milliseconds": 1244
+      "milliseconds": 775
     },
     {
       "name": "Move learning waits for a player choice, supports decline and remembers selected slots",
       "passed": true,
-      "milliseconds": 1827,
+      "milliseconds": 1812,
       "details": {
         "declined": 73,
         "selected": [
@@ -272,7 +651,7 @@
     {
       "name": "Thirty hero signatures create finite layered effects",
       "passed": true,
-      "milliseconds": 20035,
+      "milliseconds": 19663,
       "details": {
         "heroes": [
           3,
@@ -311,62 +690,62 @@
     {
       "name": "Region verdant: actual build, actors and special gates",
       "passed": true,
-      "milliseconds": 2884,
+      "milliseconds": 2404,
       "details": {
         "id": "verdant",
-        "worldObjects": 108,
+        "worldObjects": 119,
         "naturalActors": 8
       }
     },
     {
       "name": "Region waterside: actual build, actors and special gates",
       "passed": true,
-      "milliseconds": 2921,
+      "milliseconds": 3042,
       "details": {
         "id": "waterside",
-        "worldObjects": 81,
+        "worldObjects": 92,
         "naturalActors": 8
       }
     },
     {
       "name": "Region highlands: actual build, actors and special gates",
       "passed": true,
-      "milliseconds": 3010,
+      "milliseconds": 3876,
       "details": {
         "id": "highlands",
-        "worldObjects": 101,
-        "naturalActors": 7
+        "worldObjects": 100,
+        "naturalActors": 8
       }
     },
     {
       "name": "Region caldera: actual build, actors and special gates",
       "passed": true,
-      "milliseconds": 2120,
+      "milliseconds": 2419,
       "details": {
         "id": "caldera",
-        "worldObjects": 55,
+        "worldObjects": 50,
         "naturalActors": 6
       }
     },
     {
       "name": "Region complex: actual build, actors and special gates",
       "passed": true,
-      "milliseconds": 2858,
+      "milliseconds": 3538,
       "details": {
         "id": "complex",
-        "worldObjects": 114,
+        "worldObjects": 109,
         "naturalActors": 6
       }
     },
     {
       "name": "Mew requires 150 records, Mewtwo and the actual three-stone puzzle",
       "passed": true,
-      "milliseconds": 1479
+      "milliseconds": 1461
     },
     {
       "name": "All 151: real model, basic action, normal/shiny texture and physical seeded capture",
       "passed": true,
-      "milliseconds": 202240,
+      "milliseconds": 188788,
       "details": {
         "captured": 151,
         "shinyCaptured": 75,
@@ -376,7 +755,7 @@
     {
       "name": "No resource errors, rejected promises or lost WebGL context",
       "passed": true,
-      "milliseconds": 117,
+      "milliseconds": 101,
       "details": {
         "resources": {
           "species": 24,
@@ -386,13 +765,13 @@
           "expressionWarnings": []
         },
         "rendererMemory": {
-          "geometries": 1468,
-          "textures": 97
+          "geometries": 1481,
+          "textures": 101
         },
         "rendererFrame": {
-          "frame": 953,
-          "calls": 216,
-          "triangles": 158459,
+          "frame": 993,
+          "calls": 212,
+          "triangles": 158471,
           "points": 235,
           "lines": 0
         }
@@ -408,9 +787,9 @@
       "shiny": false,
       "meshes": 37,
       "size": [
-        1.3120631828979905,
+        1.4798270472574129,
         1.1672228773838484,
-        1.5073711925155182
+        0.9454103122853734
       ]
     },
     {
@@ -420,9 +799,9 @@
       "shiny": true,
       "meshes": 49,
       "size": [
-        2.1585422624147275,
+        2.067593004806229,
         1.7350841037722684,
-        2.2095006298251443
+        2.0684749244977345
       ]
     },
     {
@@ -432,9 +811,9 @@
       "shiny": false,
       "meshes": 121,
       "size": [
-        3.9302920782043254,
+        3.7660388333576362,
         2.9160083313852088,
-        4.158528291200728
+        3.917778393028847
       ]
     },
     {
@@ -444,9 +823,9 @@
       "shiny": true,
       "meshes": 52,
       "size": [
-        1.3071069762846395,
+        1.9098934426811893,
         1.5514772276035913,
-        1.8771818597451002
+        1.3285345834924307
       ]
     },
     {
@@ -456,9 +835,9 @@
       "shiny": false,
       "meshes": 66,
       "size": [
-        1.633174278983419,
+        2.4003759604909827,
         2.237753791993023,
-        2.431781520317849
+        1.7251082028911755
       ]
     },
     {
@@ -468,9 +847,9 @@
       "shiny": true,
       "meshes": 182,
       "size": [
-        3.908497216460408,
+        5.744429590718762,
         3.4217356474705607,
-        5.694627758142589
+        3.8654420366856908
       ]
     },
     {
@@ -480,9 +859,9 @@
       "shiny": false,
       "meshes": 21,
       "size": [
-        1.2389679472895687,
+        1.3659879876717533,
         1.4021005525421293,
-        1.2802952113525015
+        1.231658108361887
       ]
     },
     {
@@ -492,9 +871,9 @@
       "shiny": true,
       "meshes": 26,
       "size": [
-        1.7436215340214174,
+        1.969098721548042,
         2.310377110975807,
-        2.099258280045774
+        1.6836814207540218
       ]
     },
     {
@@ -504,9 +883,9 @@
       "shiny": false,
       "meshes": 48,
       "size": [
-        4.01298274697063,
+        3.9755819358848283,
         3.6569906537849777,
-        3.9896526103029797
+        4.048718618818363
       ]
     },
     {
@@ -516,9 +895,9 @@
       "shiny": true,
       "meshes": 16,
       "size": [
-        1.723586762341437,
+        2.4543658543652356,
         0.7471579670906067,
-        2.3066380609860895
+        1.3663305371450392
       ]
     },
     {
@@ -528,9 +907,9 @@
       "shiny": false,
       "meshes": 7,
       "size": [
-        0.7505667532829079,
+        1.2101451501057872,
         1.1416183590888977,
-        1.5827403321009514
+        1.4988495269229354
       ]
     },
     {
@@ -540,9 +919,9 @@
       "shiny": true,
       "meshes": 15,
       "size": [
-        2.5833020237444533,
+        2.091499404715848,
         2.192526856153054,
-        1.404524472422632
+        2.0077313008494198
       ]
     },
     {
@@ -552,9 +931,9 @@
       "shiny": false,
       "meshes": 19,
       "size": [
-        1.9805837606582493,
+        1.1670423555084128,
         1.3627286148958346,
-        1.1370571195375012
+        1.9669703310592954
       ]
     },
     {
@@ -564,9 +943,9 @@
       "shiny": true,
       "meshes": 9,
       "size": [
-        0.7655795800100257,
+        0.7534406290227462,
         1.2806090963095358,
-        0.6974141591733272
+        0.6706063895213621
       ]
     },
     {
@@ -576,9 +955,9 @@
       "shiny": false,
       "meshes": 25,
       "size": [
-        2.3539214916570974,
+        2.1349596314382575,
         2.0408720306208337,
-        2.067645025300382
+        1.7448543300380939
       ]
     },
     {
@@ -588,9 +967,9 @@
       "shiny": true,
       "meshes": 54,
       "size": [
-        0.7251667533548629,
+        0.7566228018306982,
         1.0647477744596399,
-        1.280817325690374
+        1.2753577622923746
       ]
     },
     {
@@ -600,9 +979,9 @@
       "shiny": false,
       "meshes": 61,
       "size": [
-        1.75961707700479,
+        1.4090986130737824,
         1.423799793277982,
-        0.7390117412587314
+        1.4497331626390828
       ]
     },
     {
@@ -612,9 +991,9 @@
       "shiny": true,
       "meshes": 89,
       "size": [
-        3.0437893514283036,
+        3.044983548731055,
         2.3648462146356133,
-        1.225614446088267
+        1.2974243178813039
       ]
     },
     {
@@ -624,9 +1003,9 @@
       "shiny": false,
       "meshes": 31,
       "size": [
-        1.1410373094094375,
+        1.1312708271245764,
         1.5106726438016627,
-        1.4386613998313091
+        1.1831151809231617
       ]
     },
     {
@@ -636,9 +1015,9 @@
       "shiny": true,
       "meshes": 40,
       "size": [
-        3.009429907982981,
+        1.507442501473399,
         1.5850877185814218,
-        1.5062335462993275
+        3.0109571785456417
       ]
     },
     {
@@ -648,9 +1027,9 @@
       "shiny": false,
       "meshes": 57,
       "size": [
-        0.7248332060158853,
+        1.424759319548639,
         1.2553862238662417,
-        1.4443002305493833
+        0.9707291188460072
       ]
     },
     {
@@ -660,9 +1039,9 @@
       "shiny": true,
       "meshes": 105,
       "size": [
-        5.346359202677744,
+        3.2785500526555396,
         2.870526366377419,
-        1.8809632545541763
+        4.997981977942277
       ]
     },
     {
@@ -672,9 +1051,9 @@
       "shiny": false,
       "meshes": 17,
       "size": [
-        1.599163816814156,
+        4.527485571336391,
         0.5729453333024435,
-        5.4949394115903605
+        3.742621891938869
       ]
     },
     {
@@ -684,9 +1063,9 @@
       "shiny": true,
       "meshes": 70,
       "size": [
-        5.554999769057936,
+        5.534704488924678,
         2.886745362755526,
-        3.418003125127686
+        3.4484837081167736
       ]
     },
     {
@@ -696,9 +1075,9 @@
       "shiny": false,
       "meshes": 104,
       "size": [
-        1.662763935615101,
+        1.1883236926089071,
         2.0519231565695204,
-        1.804667364058246
+        2.0176920157577527
       ]
     },
     {
@@ -708,9 +1087,9 @@
       "shiny": true,
       "meshes": 126,
       "size": [
-        1.6444705623221292,
+        2.0027441727570365,
         2.023041404240494,
-        2.5202473460951875
+        2.4283341172377835
       ]
     },
     {
@@ -720,9 +1099,9 @@
       "shiny": false,
       "meshes": 34,
       "size": [
-        1.4863533188387053,
+        1.7057533534940517,
         1.380472916599229,
-        1.3612929813794974
+        1.0033879346173125
       ]
     },
     {
@@ -732,9 +1111,9 @@
       "shiny": true,
       "meshes": 73,
       "size": [
-        1.6325069025498424,
+        1.895158548850733,
         1.944989620313469,
-        1.964247801722645
+        1.6676044809054176
       ]
     },
     {
@@ -744,9 +1123,9 @@
       "shiny": false,
       "meshes": 25,
       "size": [
-        1.1925623592096315,
+        1.1741564791586598,
         1.2634343274396376,
-        1.4288999101003963
+        1.41263550726101
       ]
     },
     {
@@ -756,9 +1135,9 @@
       "shiny": true,
       "meshes": 33,
       "size": [
-        0.9582126826689569,
+        1.149317448785681,
         1.5172428098747865,
-        1.555665664898708
+        1.6352932176544748
       ]
     },
     {
@@ -768,9 +1147,9 @@
       "shiny": false,
       "meshes": 35,
       "size": [
-        2.2371597590365564,
+        2.3268100885562237,
         2.4187389818156104,
-        2.3924604290669906
+        2.566102516995807
       ]
     },
     {
@@ -780,9 +1159,9 @@
       "shiny": true,
       "meshes": 23,
       "size": [
-        1.5891688040344538,
+        1.0906221893620478,
         1.4033581683194525,
-        1.094049136023453
+        1.5989118727037033
       ]
     },
     {
@@ -792,9 +1171,9 @@
       "shiny": false,
       "meshes": 22,
       "size": [
-        2.080830835225268,
+        1.4398356834724195,
         1.5035623160105926,
-        1.5429630600750333
+        2.096806624970313
       ]
     },
     {
@@ -804,9 +1183,9 @@
       "shiny": true,
       "meshes": 60,
       "size": [
-        3.7946275147403736,
+        2.7612261619795744,
         2.9823594584825575,
-        2.702934150751033
+        3.553856883868213
       ]
     },
     {
@@ -816,9 +1195,9 @@
       "shiny": false,
       "meshes": 46,
       "size": [
-        1.8480090471236728,
+        1.9776059757185573,
         1.673972333363391,
-        2.1020571485882416
+        1.8003991216289847
       ]
     },
     {
@@ -828,9 +1207,9 @@
       "shiny": true,
       "meshes": 47,
       "size": [
-        2.489101945458729,
+        2.434384665513629,
         2.1457618509254965,
-        2.525208746284677
+        2.450338075705776
       ]
     },
     {
@@ -840,9 +1219,9 @@
       "shiny": false,
       "meshes": 57,
       "size": [
-        1.6545950794472322,
+        1.626615857220044,
         1.4664149123292531,
-        1.9012305677440091
+        1.9196225572494798
       ]
     },
     {
@@ -852,9 +1231,9 @@
       "shiny": true,
       "meshes": 121,
       "size": [
-        4.631360865639645,
+        4.508407032540198,
         2.872215233557725,
-        4.664852972716278
+        4.454879098389602
       ]
     },
     {
@@ -864,9 +1243,9 @@
       "shiny": false,
       "meshes": 44,
       "size": [
-        1.1736251561130406,
+        1.32144509112455,
         1.2998926845626089,
-        1.2315972167417408
+        1.3450246082756392
       ]
     },
     {
@@ -876,9 +1255,9 @@
       "shiny": true,
       "meshes": 46,
       "size": [
-        1.7873905510943997,
+        1.6890225654119058,
         2.5666521064942738,
-        1.7579578618432103
+        1.7417330841523206
       ]
     },
     {
@@ -888,9 +1267,9 @@
       "shiny": false,
       "meshes": 38,
       "size": [
-        2.35438168938238,
+        2.312638882994853,
         1.556689322804625,
-        1.8887298279999811
+        2.286912404132025
       ]
     },
     {
@@ -900,9 +1279,9 @@
       "shiny": true,
       "meshes": 46,
       "size": [
-        1.034371298333283,
+        2.86760701592514,
         1.957766903781089,
-        6.150560625225875
+        5.513743813447109
       ]
     },
     {
@@ -912,9 +1291,9 @@
       "shiny": false,
       "meshes": 23,
       "size": [
-        1.078687162160089,
+        1.1369162180135013,
         1.4818058990246141,
-        0.8745550494513497
+        0.8018141980379365
       ]
     },
     {
@@ -924,9 +1303,9 @@
       "shiny": true,
       "meshes": 27,
       "size": [
-        1.1973031615655894,
+        1.2078239058606104,
         1.0694818936732278,
-        1.309879417368216
+        1.3416234806339276
       ]
     },
     {
@@ -936,9 +1315,9 @@
       "shiny": false,
       "meshes": 16,
       "size": [
-        2.2979600062891983,
+        2.6671537927534494,
         1.3016113147183563,
-        2.3432585143454494
+        2.639953465634476
       ]
     },
     {
@@ -948,9 +1327,9 @@
       "shiny": true,
       "meshes": 16,
       "size": [
-        1.6800367847665134,
+        1.703358999217081,
         0.9364926871005135,
-        1.6445834018370729
+        1.7026437502795586
       ]
     },
     {
@@ -960,9 +1339,9 @@
       "shiny": false,
       "meshes": 27,
       "size": [
-        2.219319343841655,
+        2.214712203915511,
         1.7998960842537433,
-        2.0203269406487463
+        2.014702706608202
       ]
     },
     {
@@ -972,9 +1351,9 @@
       "shiny": true,
       "meshes": 60,
       "size": [
-        1.2190433328635,
+        1.1433001856019738,
         1.7308107840922538,
-        1.2311639809380175
+        1.2388125605022342
       ]
     },
     {
@@ -984,9 +1363,9 @@
       "shiny": false,
       "meshes": 32,
       "size": [
-        2.302794744994812,
+        1.7127771711014592,
         2.78564241013272,
-        2.023968622420872
+        2.277004084328092
       ]
     },
     {
@@ -996,9 +1375,9 @@
       "shiny": true,
       "meshes": 18,
       "size": [
-        1.1650556868151742,
+        1.088016771050523,
         0.9157500207424162,
-        1.1650556868151742
+        1.0880167710505226
       ]
     },
     {
@@ -1008,9 +1387,9 @@
       "shiny": false,
       "meshes": 53,
       "size": [
-        1.8265513824562682,
+        1.9278979585421323,
         1.3695315211014523,
-        1.8578744381587562
+        1.9184626420222024
       ]
     },
     {
@@ -1020,9 +1399,9 @@
       "shiny": true,
       "meshes": 31,
       "size": [
-        1.3255422569463147,
+        1.2827091248343467,
         1.782410036763037,
-        1.2866282764311698
+        1.3270900759190747
       ]
     },
     {
@@ -1032,9 +1411,9 @@
       "shiny": false,
       "meshes": 47,
       "size": [
-        2.4444368914280425,
+        1.4698230331837627,
         2.002396509871151,
-        1.940687747923655
+        2.755108164306069
       ]
     },
     {
@@ -1044,9 +1423,9 @@
       "shiny": true,
       "meshes": 22,
       "size": [
-        1.3198904678592025,
+        1.0422916541956728,
         1.4539542064292006,
-        1.404615117677043
+        1.5987870789770167
       ]
     },
     {
@@ -1056,9 +1435,9 @@
       "shiny": false,
       "meshes": 78,
       "size": [
-        1.780970087560206,
+        1.39489034995688,
         2.2240023160937263,
-        1.4199223010387243
+        1.730251082516073
       ]
     },
     {
@@ -1068,9 +1447,9 @@
       "shiny": true,
       "meshes": 43,
       "size": [
-        1.489692042690452,
+        1.6594346129141457,
         1.8526120189863498,
-        1.5249956025972295
+        1.083746180814864
       ]
     },
     {
@@ -1080,9 +1459,9 @@
       "shiny": false,
       "meshes": 34,
       "size": [
-        1.578444017846359,
+        1.3752936454945268,
         1.6802338523835842,
-        1.6260084432049586
+        1.7194922188086004
       ]
     },
     {
@@ -1092,9 +1471,9 @@
       "shiny": true,
       "meshes": 42,
       "size": [
-        2.2031101322547406,
+        1.1077967845122292,
         1.742193629805682,
-        1.0879038363762064
+        2.19535472527215
       ]
     },
     {
@@ -1104,9 +1483,9 @@
       "shiny": false,
       "meshes": 103,
       "size": [
-        3.959017465580591,
+        4.359926594146159,
         3.0866493738237635,
-        3.402176546841567
+        2.9315082206660037
       ]
     },
     {
@@ -1116,9 +1495,9 @@
       "shiny": true,
       "meshes": 14,
       "size": [
-        1.5257847344113888,
+        1.0161976814490679,
         0.9194914133659218,
-        1.2755051279585903
+        1.5238804102116328
       ]
     },
     {
@@ -1128,9 +1507,9 @@
       "shiny": false,
       "meshes": 38,
       "size": [
-        2.241883175352347,
+        1.1875417473017427,
         1.478441551408985,
-        1.2234162582009516
+        2.2597296796213158
       ]
     },
     {
@@ -1140,9 +1519,9 @@
       "shiny": true,
       "meshes": 47,
       "size": [
-        1.3504050292709648,
+        1.3152352999248202,
         2.1255392274247376,
-        3.022013539571817
+        3.0182580314602676
       ]
     },
     {
@@ -1152,9 +1531,9 @@
       "shiny": false,
       "meshes": 46,
       "size": [
-        1.6902073019815587,
+        1.6376118001492665,
         1.3336534525248558,
-        1.3357947118433309
+        1.5744871781020633
       ]
     },
     {
@@ -1164,9 +1543,9 @@
       "shiny": true,
       "meshes": 57,
       "size": [
-        2.4728466539479452,
+        1.8543353558327693,
         2.2274308638014455,
-        1.8775561194764219
+        2.4303059518332732
       ]
     },
     {
@@ -1176,9 +1555,9 @@
       "shiny": false,
       "meshes": 63,
       "size": [
-        2.236541442630186,
+        1.8917552398052813,
         2.8494647213426663,
-        1.4885607707961457
+        2.0405387879617667
       ]
     },
     {
@@ -1188,9 +1567,9 @@
       "shiny": true,
       "meshes": 41,
       "size": [
-        1.163668585425881,
+        1.103211410428464,
         1.7646389389015444,
-        1.1586088909478525
+        1.2820032062321651
       ]
     },
     {
@@ -1200,9 +1579,9 @@
       "shiny": false,
       "meshes": 42,
       "size": [
-        1.0420784340664193,
+        1.7454315448857067,
         2.212193641061155,
-        1.7734214539484574
+        1.3471068627825504
       ]
     },
     {
@@ -1212,9 +1591,9 @@
       "shiny": true,
       "meshes": 70,
       "size": [
-        2.3724518731908035,
+        2.372769693563286,
         2.422647535310782,
-        1.2154506006462045
+        1.178362591082358
       ]
     },
     {
@@ -1224,9 +1603,9 @@
       "shiny": false,
       "meshes": 30,
       "size": [
-        1.922074290567169,
+        1.9515319146292187,
         1.6149462525825495,
-        1.1072104400077114
+        1.1773706158038513
       ]
     },
     {
@@ -1236,9 +1615,9 @@
       "shiny": true,
       "meshes": 19,
       "size": [
-        2.182043641690923,
+        2.182236246053116,
         1.222312140177544,
-        1.3228757075974542
+        1.3190305767665143
       ]
     },
     {
@@ -1248,9 +1627,9 @@
       "shiny": false,
       "meshes": 36,
       "size": [
-        4.3797983067713835,
+        3.7860165837392814,
         3.0450649851349194,
-        4.653879177101548
+        5.540354533085072
       ]
     },
     {
@@ -1260,9 +1639,9 @@
       "shiny": true,
       "meshes": 36,
       "size": [
-        1.4960898640157136,
+        1.5387234400127345,
         2.1197198104289825,
-        1.5269033654453148
+        1.5902869822394932
       ]
     },
     {
@@ -1272,9 +1651,9 @@
       "shiny": false,
       "meshes": 122,
       "size": [
-        3.2850271020009543,
-        2.900842724667913,
-        3.628545670103538
+        3.6388534120716596,
+        2.9008427246679127,
+        3.283178102123916
       ]
     },
     {
@@ -1284,9 +1663,9 @@
       "shiny": true,
       "meshes": 37,
       "size": [
-        2.238742398946938,
+        1.5394952523791132,
         0.612478050209484,
-        1.1508070501846515
+        2.035813541714197
       ]
     },
     {
@@ -1296,9 +1675,9 @@
       "shiny": false,
       "meshes": 59,
       "size": [
-        2.263919675301421,
+        1.7196252612322347,
         1.4430339299900605,
-        1.4668879628144467
+        2.2147726145516042
       ]
     },
     {
@@ -1308,9 +1687,9 @@
       "shiny": true,
       "meshes": 50,
       "size": [
-        2.643527234486769,
+        2.964131982556423,
         2.1511073236398617,
-        2.6845536456571244
+        2.5142591354680084
       ]
     },
     {
@@ -1320,9 +1699,9 @@
       "shiny": false,
       "meshes": 74,
       "size": [
-        1.86955939669462,
+        2.146963774991346,
         1.9784838368617181,
-        1.6490957166526226
+        1.057633845731723
       ]
     },
     {
@@ -1332,9 +1711,9 @@
       "shiny": true,
       "meshes": 86,
       "size": [
-        3.170469027853593,
+        2.456236330057605,
         2.8303141009438924,
-        1.0418727338910019
+        2.6754646017830748
       ]
     },
     {
@@ -1344,9 +1723,9 @@
       "shiny": false,
       "meshes": 23,
       "size": [
-        1.543231050215158,
-        1.6070790282389984,
-        2.22708419945765
+        2.257166346538419,
+        1.6070790282389986,
+        1.5112227355108985
       ]
     },
     {
@@ -1356,9 +1735,9 @@
       "shiny": true,
       "meshes": 40,
       "size": [
-        1.787881952837844,
+        2.627160512465535,
         2.138553569257015,
-        3.2473024646136603
+        3.081619481919552
       ]
     },
     {
@@ -1368,9 +1747,9 @@
       "shiny": false,
       "meshes": 13,
       "size": [
-        1.029411867656882,
+        1.6667323140380406,
         0.8883746979108976,
-        1.5282850570333721
+        0.891785539719864
       ]
     },
     {
@@ -1380,9 +1759,9 @@
       "shiny": true,
       "meshes": 37,
       "size": [
-        1.5624017721307712,
+        2.506973725717409,
         1.9397467599777842,
-        2.2026738661511747
+        1.0376358120335407
       ]
     },
     {
@@ -1392,9 +1771,9 @@
       "shiny": false,
       "meshes": 37,
       "size": [
-        1.2661282742607312,
+        1.545513536052204,
         1.467339634294322,
-        1.182097960314561
+        0.9796750220877062
       ]
     },
     {
@@ -1404,9 +1783,9 @@
       "shiny": true,
       "meshes": 31,
       "size": [
-        1.5493426647486488,
+        1.474429868389696,
         1.8709501422953048,
-        1.4588059915172176
+        1.5648784664865323
       ]
     },
     {
@@ -1416,9 +1795,9 @@
       "shiny": false,
       "meshes": 57,
       "size": [
-        2.1493204444794305,
+        2.153051479666753,
         2.575966616458226,
-        2.1482502160252146
+        2.147910190476508
       ]
     },
     {
@@ -1428,9 +1807,9 @@
       "shiny": true,
       "meshes": 39,
       "size": [
-        2.6915448227480914,
+        2.266560907669303,
         1.4754424300406515,
-        2.270404778892285
+        2.683588844101971
       ]
     },
     {
@@ -1440,9 +1819,9 @@
       "shiny": false,
       "meshes": 35,
       "size": [
-        6.770835830685295,
-        2.5449680647427493,
-        4.3873002539136365
+        5.424126514010622,
+        2.5449680647427497,
+        6.840304424842616
       ]
     },
     {
@@ -1452,9 +1831,9 @@
       "shiny": true,
       "meshes": 46,
       "size": [
-        2.6534137694497617,
+        2.6431037554656656,
         1.6275487977861467,
-        2.3309005006788146
+        2.3045892050560495
       ]
     },
     {
@@ -1464,9 +1843,9 @@
       "shiny": false,
       "meshes": 48,
       "size": [
-        3.3476121395070226,
+        2.6960706322487025,
         2.011359110805802,
-        2.4884137478775905
+        3.325995148406361
       ]
     },
     {
@@ -1476,9 +1855,9 @@
       "shiny": true,
       "meshes": 26,
       "size": [
-        1.129604512538219,
-        0.8747209512738618,
-        1.6538753498386898
+        1.4599790739256142,
+        0.8747209512738617,
+        1.4014358724649307
       ]
     },
     {
@@ -1488,9 +1867,9 @@
       "shiny": false,
       "meshes": 44,
       "size": [
-        3.170688476182397,
-        2.9766021470866653,
-        3.148726678398643
+        3.2225199468071897,
+        2.9766021470866657,
+        3.8302941908116086
       ]
     },
     {
@@ -1500,9 +1879,9 @@
       "shiny": true,
       "meshes": 24,
       "size": [
-        0.9385388521651317,
+        1.4390176209342296,
         0.8670857829385403,
-        1.4587386439485064
+        1.4101509704180097
       ]
     },
     {
@@ -1512,9 +1891,9 @@
       "shiny": false,
       "meshes": 54,
       "size": [
-        2.7413643408875523,
+        3.0075560126110057,
         2.1051925547169517,
-        2.798660171222463
+        3.0610827487055365
       ]
     },
     {
@@ -1524,9 +1903,9 @@
       "shiny": true,
       "meshes": 100,
       "size": [
-        2.4098800513098144,
+        2.087530761725615,
         3.0131290323562463,
-        3.0253824786209043
+        3.145089189104575
       ]
     },
     {
@@ -1536,9 +1915,9 @@
       "shiny": false,
       "meshes": 29,
       "size": [
-        6.609456542035351,
+        5.9789235228561886,
         5.248341776625227,
-        2.1912583733031354
+        4.734280149310116
       ]
     },
     {
@@ -1548,9 +1927,9 @@
       "shiny": true,
       "meshes": 40,
       "size": [
-        1.3725427033233362,
+        1.3919742020752515,
         1.6993913500008224,
-        1.2492331574211484
+        1.1460515423245052
       ]
     },
     {
@@ -1560,9 +1939,9 @@
       "shiny": false,
       "meshes": 64,
       "size": [
-        1.8850218845096762,
+        1.1973652200661222,
         2.4085942739602735,
-        1.2009870610063844
+        1.8875240914379097
       ]
     },
     {
@@ -1572,9 +1951,9 @@
       "shiny": true,
       "meshes": 29,
       "size": [
-        1.4214293092410077,
-        0.8334642737386524,
-        1.8943145610920675
+        1.363238590595749,
+        0.8334642737386522,
+        1.8992816775964316
       ]
     },
     {
@@ -1584,9 +1963,9 @@
       "shiny": false,
       "meshes": 30,
       "size": [
-        4.6302903198182035,
+        3.9335340035414528,
         3.382316943247192,
-        3.6083508856133992
+        5.020125812986646
       ]
     },
     {
@@ -1596,9 +1975,9 @@
       "shiny": true,
       "meshes": 7,
       "size": [
-        1.0592356130716523,
+        1.1194358676411484,
         0.827635324160545,
-        1.0366718146600977
+        1.1293803288192947
       ]
     },
     {
@@ -1608,9 +1987,9 @@
       "shiny": false,
       "meshes": 11,
       "size": [
-        2.0278851918730627,
+        2.0930668263861563,
         1.5670996229610195,
-        2.075734080522709
+        2.0783053696939433
       ]
     },
     {
@@ -1620,9 +1999,9 @@
       "shiny": true,
       "meshes": 37,
       "size": [
-        1.6349330086691873,
+        1.752324911601435,
         0.551460016809283,
-        1.5724117133689388
+        1.6621176849345325
       ]
     },
     {
@@ -1632,9 +2011,9 @@
       "shiny": false,
       "meshes": 71,
       "size": [
-        6.293806621944468,
+        6.57134426113243,
         5.351805474555316,
-        6.676497341707738
+        6.010060575620081
       ]
     },
     {
@@ -1644,9 +2023,9 @@
       "shiny": true,
       "meshes": 21,
       "size": [
-        1.1873755937879755,
+        1.095241428671423,
         1.1673226046628626,
-        1.11304249414796
+        1.2512917581923073
       ]
     },
     {
@@ -1656,9 +2035,9 @@
       "shiny": false,
       "meshes": 30,
       "size": [
-        2.0764282999881796,
+        1.7575782829130393,
         1.6852103891603196,
-        1.7082829214931436
+        1.9149118535103975
       ]
     },
     {
@@ -1668,9 +2047,9 @@
       "shiny": true,
       "meshes": 28,
       "size": [
-        1.4966739985977746,
+        0.8929379254666419,
         1.9518058336581041,
-        0.8598277327905466
+        1.4351716243314279
       ]
     },
     {
@@ -1680,9 +2059,9 @@
       "shiny": false,
       "meshes": 27,
       "size": [
-        1.7478292203604102,
+        1.1527274573598452,
         2.3576719848647154,
-        0.8953795810182648
+        1.5872676031958344
       ]
     },
     {
@@ -1692,9 +2071,9 @@
       "shiny": true,
       "meshes": 31,
       "size": [
-        2.7833101777706974,
+        1.6764209043886904,
         1.8708254612038273,
-        1.7207924757655153
+        2.751223994240947
       ]
     },
     {
@@ -1704,9 +2083,9 @@
       "shiny": false,
       "meshes": 35,
       "size": [
-        1.4870087557722793,
+        1.3663042059437611,
         1.3854385185912286,
-        1.4838958928033286
+        1.3734473772371096
       ]
     },
     {
@@ -1716,9 +2095,9 @@
       "shiny": true,
       "meshes": 62,
       "size": [
-        1.454268146909346,
+        2.0222861517702584,
         1.5212248569115654,
-        2.106189508855662
+        1.9034923441815312
       ]
     },
     {
@@ -1728,9 +2107,9 @@
       "shiny": false,
       "meshes": 38,
       "size": [
-        3.405579150445205,
+        3.259489003484834,
         1.91688518366113,
-        2.426777578442043
+        3.4781856142762435
       ]
     },
     {
@@ -1740,9 +2119,9 @@
       "shiny": true,
       "meshes": 47,
       "size": [
-        4.7297415305518795,
+        4.392804261521619,
         3.0421608118634684,
-        2.738893183031852
+        3.243527690629719
       ]
     },
     {
@@ -1752,9 +2131,9 @@
       "shiny": false,
       "meshes": 30,
       "size": [
-        2.1829106496157538,
+        2.24675742628608,
         1.6610247157169136,
-        2.163865556694648
+        2.482252812631976
       ]
     },
     {
@@ -1764,9 +2143,9 @@
       "shiny": true,
       "meshes": 4,
       "size": [
-        0.9519484405495895,
+        1.133586479761389,
         0.88125,
-        1.1830067695716195
+        0.8723894102280418
       ]
     },
     {
@@ -1776,9 +2155,9 @@
       "shiny": false,
       "meshes": 101,
       "size": [
-        4.527928658450821,
+        5.107102120147731,
         4.068064960351652,
-        4.885918431607293
+        3.8700310087838767
       ]
     },
     {
@@ -1788,9 +2167,9 @@
       "shiny": true,
       "meshes": 24,
       "size": [
-        1.4010829925322088,
-        1.4362062794999664,
-        1.2251140943979646
+        1.4458386347385046,
+        1.4362062794999666,
+        1.188815183085132
       ]
     },
     {
@@ -1800,9 +2179,9 @@
       "shiny": false,
       "meshes": 28,
       "size": [
-        2.503253967837635,
-        2.1050946839193907,
-        2.5846239459756593
+        2.5709012516365375,
+        2.1050946839193903,
+        2.4784363476070306
       ]
     },
     {
@@ -1812,9 +2191,9 @@
       "shiny": true,
       "meshes": 40,
       "size": [
-        2.776758993860251,
+        2.782649881153713,
         1.010125959113796,
-        2.7836692204107187
+        2.783051863391874
       ]
     },
     {
@@ -1824,9 +2203,9 @@
       "shiny": false,
       "meshes": 27,
       "size": [
-        3.0845816188816397,
+        3.1800702496627724,
         2.3878273156613066,
-        3.242772482649861
+        3.102385309225455
       ]
     },
     {
@@ -1836,9 +2215,9 @@
       "shiny": true,
       "meshes": 26,
       "size": [
-        1.5889489606441969,
+        1.4590867464052024,
         1.481665952700781,
-        0.6259891487939573
+        0.9402758858914524
       ]
     },
     {
@@ -1848,9 +2227,9 @@
       "shiny": false,
       "meshes": 48,
       "size": [
-        1.1645378607113086,
-        2.163687422349335,
-        2.2958529257891245
+        1.2826948257378268,
+        2.1636874223493354,
+        2.2992528979748164
       ]
     },
     {
@@ -1860,9 +2239,9 @@
       "shiny": true,
       "meshes": 68,
       "size": [
-        0.9541840767713334,
+        2.2985287958622513,
         2.810341086516748,
-        2.3115052525529016
+        1.0063426485028586
       ]
     },
     {
@@ -1872,9 +2251,9 @@
       "shiny": false,
       "meshes": 50,
       "size": [
-        3.621455250827628,
+        4.519735481128448,
         3.985530356609863,
-        4.597277121610101
+        3.2175700904948723
       ]
     },
     {
@@ -1884,9 +2263,9 @@
       "shiny": true,
       "meshes": 92,
       "size": [
-        3.324096565290505,
+        2.7837045706776404,
         2.4650377479158396,
-        3.3199885150876245
+        2.7787356572849395
       ]
     },
     {
@@ -1896,9 +2275,9 @@
       "shiny": false,
       "meshes": 59,
       "size": [
-        2.0996172182358603,
+        1.7830228834936932,
         2.1614213136714198,
-        2.145933819126692
+        2.1193125587063086
       ]
     },
     {
@@ -1908,9 +2287,9 @@
       "shiny": true,
       "meshes": 120,
       "size": [
-        2.2349884454033346,
+        1.9801249469485342,
         2.452118276069677,
-        1.9987135299043457
+        2.257143890513592
       ]
     },
     {
@@ -1920,9 +2299,9 @@
       "shiny": false,
       "meshes": 55,
       "size": [
-        1.6677348253872508,
+        2.231430441762279,
         2.8256267207201224,
-        2.5419151015407113
+        2.1182471248239922
       ]
     },
     {
@@ -1932,9 +2311,9 @@
       "shiny": true,
       "meshes": 48,
       "size": [
-        4.061665120975766,
+        3.380330978489607,
         2.115826378955785,
-        1.9595619378712392
+        3.626935600401036
       ]
     },
     {
@@ -1944,9 +2323,9 @@
       "shiny": false,
       "meshes": 29,
       "size": [
-        1.8036537066175646,
-        1.2676628406932666,
-        1.5929755405040824
+        1.9005270095854778,
+        1.2676628406932664,
+        1.8386632617323286
       ]
     },
     {
@@ -1956,9 +2335,9 @@
       "shiny": true,
       "meshes": 82,
       "size": [
-        6.20914811543732,
+        5.165989831705482,
         4.380480895655605,
-        4.8064236901704955
+        6.048928133012277
       ]
     },
     {
@@ -1968,9 +2347,9 @@
       "shiny": false,
       "meshes": 40,
       "size": [
-        3.9559058346713387,
-        3.5910489637841505,
-        5.061284979930784
+        4.0447341440514855,
+        3.591048963784151,
+        4.805185306824217
       ]
     },
     {
@@ -1980,9 +2359,9 @@
       "shiny": true,
       "meshes": 17,
       "size": [
-        1.0107656150756168,
+        1.0240272588603836,
         0.7934317061690481,
-        0.7660693348370042
+        0.7083446436797534
       ]
     },
     {
@@ -1992,9 +2371,9 @@
       "shiny": false,
       "meshes": 57,
       "size": [
-        1.9002754255554577,
+        1.859982431632477,
         1.6966905032375301,
-        1.684844039558958
+        1.7862514127512172
       ]
     },
     {
@@ -2004,9 +2383,9 @@
       "shiny": true,
       "meshes": 60,
       "size": [
-        4.007497432471424,
+        2.1932748885871947,
         2.021036104586354,
-        2.138011594080284
+        3.7440793348713077
       ]
     },
     {
@@ -2016,9 +2395,9 @@
       "shiny": false,
       "meshes": 61,
       "size": [
-        1.9085562982376634,
+        2.152284462470482,
         2.1916411316312914,
-        2.0088126050593367
+        1.8233189845318112
       ]
     },
     {
@@ -2028,9 +2407,9 @@
       "shiny": true,
       "meshes": 79,
       "size": [
-        1.7508359217146099,
+        3.8492133016862233,
         2.3561138836075313,
-        3.841313130219942
+        1.7365059878409745
       ]
     },
     {
@@ -2040,9 +2419,9 @@
       "shiny": false,
       "meshes": 31,
       "size": [
-        1.881348946643346,
+        1.434822991782689,
         1.4403015460507151,
-        1.1392028485349996
+        1.8328464450159618
       ]
     },
     {
@@ -2052,9 +2431,9 @@
       "shiny": true,
       "meshes": 20,
       "size": [
-        1.1642508895974304,
-        0.993591829186434,
-        0.9804161152233375
+        1.1271037743817662,
+        0.9935918291864339,
+        1.0948560847657172
       ]
     },
     {
@@ -2064,9 +2443,9 @@
       "shiny": false,
       "meshes": 37,
       "size": [
-        1.666570678646996,
-        1.6643116339355128,
-        1.811145157572951
+        1.6687076271693662,
+        1.664311633935513,
+        1.792592545023993
       ]
     },
     {
@@ -2076,9 +2455,9 @@
       "shiny": true,
       "meshes": 11,
       "size": [
-        0.8923980620654102,
+        0.9467779380292396,
         0.42002683579231226,
-        0.9567354876914083
+        0.9144312615359143
       ]
     },
     {
@@ -2088,9 +2467,9 @@
       "shiny": false,
       "meshes": 33,
       "size": [
-        1.8563520352047962,
+        2.44608614768715,
         2.506283665726222,
-        1.9654515467512708
+        2.4586967409881995
       ]
     },
     {
@@ -2100,9 +2479,9 @@
       "shiny": true,
       "meshes": 122,
       "size": [
-        6.509491893110914,
+        6.443564718475437,
         1.7238818794095931,
-        4.5043347499829345
+        4.5890178971333
       ]
     },
     {
@@ -2112,9 +2491,9 @@
       "shiny": false,
       "meshes": 48,
       "size": [
-        3.9896285827366045,
+        4.112905800675831,
         4.304773195381769,
-        3.5564906478873253
+        3.4522477137926533
       ]
     },
     {
@@ -2124,9 +2503,9 @@
       "shiny": true,
       "meshes": 103,
       "size": [
-        5.437174972960947,
+        8.663945558468825,
         6.458522886088042,
-        8.806968737866894
+        5.781770690556948
       ]
     },
     {
@@ -2136,9 +2515,9 @@
       "shiny": false,
       "meshes": 97,
       "size": [
-        9.493695729992881,
+        8.106964077415634,
         4.692679998271386,
-        6.27241204344327
+        8.968546166783824
       ]
     },
     {
@@ -2148,9 +2527,9 @@
       "shiny": true,
       "meshes": 198,
       "size": [
-        9.494118899042567,
+        7.879442766980921,
         9.789427900200813,
-        7.458532379058168
+        9.15261054586215
       ]
     },
     {
@@ -2160,9 +2539,9 @@
       "shiny": false,
       "meshes": 32,
       "size": [
-        1.9832307777515048,
+        1.8600408360269753,
         2.239442865752202,
-        2.5361144310907626
+        2.652293454360681
       ]
     },
     {
@@ -2172,9 +2551,9 @@
       "shiny": true,
       "meshes": 96,
       "size": [
-        2.820541742224962,
+        2.6010433464154783,
         3.3475256415351002,
-        2.60197471210578
+        2.822024651301517
       ]
     },
     {
@@ -2184,9 +2563,9 @@
       "shiny": false,
       "meshes": 72,
       "size": [
-        4.6028114904667845,
+        4.59204043674774,
         4.243049885837687,
-        3.43206883024141
+        3.4465532187324968
       ]
     },
     {
@@ -2196,9 +2575,9 @@
       "shiny": true,
       "meshes": 78,
       "size": [
-        4.298243623922197,
+        3.50613542539845,
         4.732915344128895,
-        3.570372355236665
+        4.333775798657221
       ]
     },
     {
@@ -2208,42 +2587,42 @@
       "shiny": false,
       "meshes": 53,
       "size": [
-        2.026236689313399,
+        1.5075682051951351,
         3.5464948831196406,
-        2.897839315549824
+        3.1504589360747333
       ]
     }
   ],
   "regions": [
     {
       "id": "verdant",
-      "worldObjects": 108,
+      "worldObjects": 119,
       "naturalActors": 8
     },
     {
       "id": "waterside",
-      "worldObjects": 81,
+      "worldObjects": 92,
       "naturalActors": 8
     },
     {
       "id": "highlands",
-      "worldObjects": 101,
-      "naturalActors": 7
+      "worldObjects": 100,
+      "naturalActors": 8
     },
     {
       "id": "caldera",
-      "worldObjects": 55,
+      "worldObjects": 50,
       "naturalActors": 6
     },
     {
       "id": "complex",
-      "worldObjects": 114,
+      "worldObjects": 109,
       "naturalActors": 6
     }
   ],
-  "passed": 22,
+  "passed": 28,
   "failed": 0,
-  "finishedAt": "2026-09-13T16:01:08.706Z",
+  "finishedAt": "2026-10-09T16:17:37.354Z",
   "diagnostics": {
     "phase": "playing",
     "region": "waterside",
@@ -2258,39 +2637,203 @@
       "expressionWarnings": []
     },
     "rendererMemory": {
-      "geometries": 1468,
-      "textures": 97
+      "geometries": 1481,
+      "textures": 101
     }
+  },
+  "compiledSourceSha256": {
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/game.mjs": "c1c80b4784c9569c10f3eccc694fef330a2eeefec8983661a03844d36ee8e519",
+    "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/ui.mjs": "486d056210b335cd89f5a04dfaeba99c008bb5e8a59d260ce7f1876f1794c9d2",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/elite-combat.mjs": "0bb35d5f0448076d62e9ecb1f73ca33c650eea43c71b1034dbe0e0ad5762ad7f",
+    "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
+    "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+    "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
+    "src/touch-steering.mjs": "1072587122ba5cf1ccc31fb55e6a546acd2b2667fa7639a5c13e55c5211b69f6",
+    "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+    "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
+    "src/interactions.mjs": "bc2b83e343ccab6d60036a7b489083f768a1733cad74c1d3d20c5c825391c306",
+    "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
+    "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/combat-feedback.mjs": "5550fb6bb39992a450730d1478dba32951606b7572b79ea350ac4b968edbb377",
+    "src/expedition.mjs": "594edf2476b3a19ac40a37ba57360f98b56ac842b533d5dd7f11847bdb748be6",
+    "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/journey-state.mjs": "52301e5931492146f06df3efe2b3082b7122dd31cf506f64943b81d310fd000c",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
+    "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+    "src/journey-view.mjs": "210ad02b4caba27b6724205888730dc3c2710d223dfed507887bd9ddf01935ee",
+    "src/camp.mjs": "9268a369b1eedc20cf17ff93eae06525ab8c7bae2527de7fd7f4af2cd1d29d69",
+    "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/field-expeditions.mjs": "370347df9fd45bfb7657ee8033e7872a8cab1557d8ed8e850ed7e4f114f3b4b9",
+    "src/habitat.mjs": "5a87f4dbe6da8acf1d0e317eb2ad9aa0f9cfff3d966e5ee28d8c7b2c1b03aadf",
+    "src/expedition-routes.mjs": "1866654335ce5aae8d027a5d1a3aaf99b5e1c5e60d8e94c2d7f75108942c966a",
+    "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+    "src/start-screen.mjs": "7585dbc02cc115e49239bb032c137f239b74092d58199d407118029f5b954904",
+    "data/locale-messages.json": "c11e188d5252ffdbb5a84f25a9bdaad0915e0cc841f8d515a94a763fe2e05276",
+    "index.html": "41791718dd59220aaa144a4c43ac6202d26d2ad1fe7729c5cda252a53edf6279",
+    "style.css": "3488b62b9d55bf1b1544661e4c99fede64c0235ba57a59d1820823f57bf7254f",
+    "src/combat-rules.mjs": "a6705ccc4265d4330130da7277ce48b595319829d4f2d796f72150ef9f48578d",
+    "src/hud-layout.mjs": "7cdcbfca915d86b772b88968b8d1f06b2ae75003c47e137477d86eee3836bb41",
+    "src/move-effects.mjs": "8bde5f63996ef60541142fd83d8506ea8106aa2729654290a3068e350936fb02",
+    "src/move-presentation.mjs": "4e1febcfd51583603e479c0a80e8f3104aa28ae2f5a61bc56996b6ef8e5d6677",
+    "src/run-variants.mjs": "01ef1fef14a1e079a0a096d0ba8be071fc65012a8d12042fc5529b707b484460",
+    "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "fbf099611d4316c5cd2e30bdb236de1bacc306c74ecb3b8b5f9422c2f6220083",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
+    "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "src/target-selection.mjs": "d4234d330cf565d489141924a5f96ea79c454195b17e62c6ac582061ac4b6012"
   },
   "sourceSha256": {
     "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
-    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
-    "src/checkpoints.mjs": "f805b5005fd14a0ab0d39112b2846816867d622edc57f56ec544cb54a1cd73af",
-    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+    "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+    "src/camp.mjs": "9268a369b1eedc20cf17ff93eae06525ab8c7bae2527de7fd7f4af2cd1d29d69",
+    "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
+    "src/combat-feedback.mjs": "5550fb6bb39992a450730d1478dba32951606b7572b79ea350ac4b968edbb377",
     "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
-    "src/core.mjs": "52038f2d5a52af05062185d50974dd6abbb7dde0d29a97113bbf3904ac28ad65",
-    "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
-    "src/expedition.mjs": "564e9e62575297c44f05012219057df210299828feae1cf0955ddcef42d2b8ff",
-    "src/field-actions.mjs": "cfef994105543161a4db6d2c76e1b5903b241dbfe4e787355a93d30c9163184a",
+    "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+    "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
+    "src/elite-combat.mjs": "0bb35d5f0448076d62e9ecb1f73ca33c650eea43c71b1034dbe0e0ad5762ad7f",
+    "src/expedition-routes.mjs": "1866654335ce5aae8d027a5d1a3aaf99b5e1c5e60d8e94c2d7f75108942c966a",
+    "src/expedition.mjs": "594edf2476b3a19ac40a37ba57360f98b56ac842b533d5dd7f11847bdb748be6",
+    "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+    "src/field-expeditions.mjs": "370347df9fd45bfb7657ee8033e7872a8cab1557d8ed8e850ed7e4f114f3b4b9",
     "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
-    "src/game.mjs": "e51f90381ebd692461ca6aa8c4c107bf99c8d53f76f0ce1fa0d2a9f4dab0b400",
+    "src/game.mjs": "c1c80b4784c9569c10f3eccc694fef330a2eeefec8983661a03844d36ee8e519",
+    "src/habitat.mjs": "5a87f4dbe6da8acf1d0e317eb2ad9aa0f9cfff3d966e5ee28d8c7b2c1b03aadf",
+    "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
     "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
-    "src/interactions.mjs": "23c5c35cb76f3c2c06fd8a5fe8bd9ac41e6464c94159540f6c0fb6ceeb9c8c73",
+    "src/interactions.mjs": "bc2b83e343ccab6d60036a7b489083f768a1733cad74c1d3d20c5c825391c306",
+    "src/journey-state.mjs": "52301e5931492146f06df3efe2b3082b7122dd31cf506f64943b81d310fd000c",
+    "src/journey-view.mjs": "210ad02b4caba27b6724205888730dc3c2710d223dfed507887bd9ddf01935ee",
+    "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
     "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
     "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
     "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
-    "src/navigation.mjs": "3b00f10c3566782cc75be07b621a9be61df82fd98378e9d4352ce1b915f8e329",
-    "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
-    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+    "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+    "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
     "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
     "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
     "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
     "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
     "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
-    "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+    "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
     "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
-    "src/ui.mjs": "315afb1a4baba3d2747657856c6693f2911203ac16b7c6d2aa78cdb1f4f20f93",
-    "src/world.mjs": "c9bd0e8b0e3791eaa3bbcb59b2944e7a899614db6fdba4d94c7772a72ab20b48",
+    "src/touch-steering.mjs": "1072587122ba5cf1ccc31fb55e6a546acd2b2667fa7639a5c13e55c5211b69f6",
+    "src/ui.mjs": "486d056210b335cd89f5a04dfaeba99c008bb5e8a59d260ce7f1876f1794c9d2",
+    "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
+    "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
+    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+    "data/five-world.json": "fbf099611d4316c5cd2e30bdb236de1bacc306c74ecb3b8b5f9422c2f6220083",
+    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+    "data/locale-messages.json": "c11e188d5252ffdbb5a84f25a9bdaad0915e0cc841f8d515a94a763fe2e05276",
+    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+    "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
+    "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
+    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
+    "index.html": "41791718dd59220aaa144a4c43ac6202d26d2ad1fe7729c5cda252a53edf6279",
+    "style.css": "3488b62b9d55bf1b1544661e4c99fede64c0235ba57a59d1820823f57bf7254f",
+    "CREDITS.md": "5cf10e863e136dffe082bf6e6283fb6ef5399c46341d26c8f421c65f1bcc700c",
+    "src/start-screen.mjs": "7585dbc02cc115e49239bb032c137f239b74092d58199d407118029f5b954904",
+    "assets/fonts/PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
+    "licenses/Pretendard-OFL.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04",
+    "scripts/journey.test.mjs": "1bafc2efb3a174b426cea587629d8e97c8f2b418ec863fbe246f53f75fa6b21b",
+    "scripts/runtime.test.mjs": "88e358a9ee9c490036b7f5586bd058dd3b1d08ce9b07c59970e06fc39ed9315d",
+    "src/combat-rules.mjs": "a6705ccc4265d4330130da7277ce48b595319829d4f2d796f72150ef9f48578d",
+    "src/move-presentation.mjs": "4e1febcfd51583603e479c0a80e8f3104aa28ae2f5a61bc56996b6ef8e5d6677",
+    "src/move-effects.mjs": "8bde5f63996ef60541142fd83d8506ea8106aa2729654290a3068e350936fb02",
+    "src/hud-layout.mjs": "7cdcbfca915d86b772b88968b8d1f06b2ae75003c47e137477d86eee3836bb41",
+    "src/run-variants.mjs": "01ef1fef14a1e079a0a096d0ba8be071fc65012a8d12042fc5529b707b484460",
+    "src/target-selection.mjs": "d4234d330cf565d489141924a5f96ea79c454195b17e62c6ac582061ac4b6012"
+  },
+  "fullPassSourceSha256": {
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+    "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+    "src/camp.mjs": "e7bf77ff416047e9d5a7ff9e17bcc1a5f290622bbd77a8ccc3920eeb4f66d502",
+    "src/checkpoints.mjs": "42d1bbe072679f54fc8e187b426a09b2c6a394cd8461d898cdb84e4c80e2d209",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+    "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
+    "src/elite-combat.mjs": "be2c99736a6be7ac1d8e12a9d9780203afb16794d3818aa178c5f1958afc933b",
+    "src/expedition-routes.mjs": "f881eb616f68acc659621b3fb5d80a6b04c75b043734e5c8d0fb71fdf0b0f187",
+    "src/expedition.mjs": "e88a1b6f0b554539f0ab88f4f7c2e29921741b42c395b84ba061119a37403204",
+    "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+    "src/field-expeditions.mjs": "ac72d63029a6368c99eab1d57d7122916f17925b6ba9c23862489cdc0288d51c",
+    "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+    "src/game.mjs": "17200b4639103204e4069591370504a8624f0625582452d350f7a26c8497fe29",
+    "src/habitat.mjs": "abeccd268bb0cd4e05ca11da937e5dc4a872c061862b2d27c3305fcb48a51966",
+    "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/interactions.mjs": "9d6e5c817025342573e0aba29deb3daf894f35f750c3709367db1cd015130741",
+    "src/journey-state.mjs": "ec5f5fa09348d643bd2c3fbcd345646a1e457aebbcdbf37b6722daa7f7e1d38e",
+    "src/journey-view.mjs": "7eb870b71a157b21b7eeb6821d407fa5c5a9e6873e5f4d32ca44f078bc9d17a2",
+    "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+    "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+    "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+    "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
+    "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+    "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+    "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
+    "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+    "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
+    "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+    "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+    "src/ui.mjs": "49fafe6cfff9f39ef935a455821042107d10d227d87c13bf5ed9f2ee7f605fbb",
+    "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
     "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
     "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
     "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
@@ -2312,174 +2855,157 @@
     "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
     "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
     "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
-    "style.css": "b55d9383b1e2e393f43910c15757170c697e289c76020652c00c56b3169e27bb",
-    "index.html": "cba1a171392e2199565a1c160847cac308ecf7c3de318bb4c1ec142f01ba8da9",
-    "scripts/browser-suite.mjs": "b3cdb6b3b27329b203f477b41159a239a62b35d5b5e51c5e05f9e75973467f43",
-    "scripts/nine-browser-suite.mjs": "f5a96f44a711e8ba6877c0dd3553f140fcb0c7c3631fd2764423e148ae6c392a",
-    "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
-    "src/touch-steering.mjs": "0dda65c617d31ec108fb67c06b9cfafa1dfdc11c85e1126a2e495a265b52cb5c"
+    "index.html": "88755aa4655ac6e81f37ff491796cc6c25b14f21312e7bc8d1ecc32d685525af",
+    "style.css": "b56952256c69830b2cd88a2906a5a5a0e4611439f130e04adeadd691ddfdf49d"
   },
-  "fullSuiteSourceSha256": {
-    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
-    "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
-    "src/checkpoints.mjs": "243bf5336ad2cc8ab74416fc3d298b1c2a663d7fdfff42ba78a7f1c7508052b7",
-    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
-    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
-    "src/core.mjs": "e6a23e765587dd06c87b3d2176d75cbdb8fe3d2651e2bbf618743b7ac0daf53f",
-    "src/ecology.mjs": "2d8e021ce6ba4648edab8578eb0cb89788436c7c769ba54759da8fd8a03f8a78",
-    "src/expedition.mjs": "4e224ff42dd75805070dc1f53c1e0d85cb185ea2a488c74b4114f8861f7a0d78",
-    "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+  "fullPassCompiledSourceSha256": {
+    "scripts/browser-suite.mjs": "50d989630345cd363b76206a81d19f88ede54626c2b82fa5e20ce6816eaed967",
+    "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
     "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
-    "src/game.mjs": "e53bcd2e4fdeda585b0ed28adc5cb2fb667dccd22adb04819ca1386bf6702ec9",
-    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
-    "src/interactions.mjs": "eaae3d35ffa128f97f083b3f95d41e05ed4c171a184aa0bd90e77d5ff4f30408",
-    "src/lighting.mjs": "5f5d82158ec651cacb51ada2f26171050cb9ad74a4b3e17f6102964aedc9c665",
-    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
     "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
-    "src/navigation.mjs": "b3da6d83d99a4320ca625c0d59cbf979397db7ff260fb3d159804c191d255a60",
-    "src/objectives.mjs": "fc57c9cc9caed624ff8602fca8b2c8bc36026030fc4bdd31f36de32ece56f5a0",
-    "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+    "src/journey-state.mjs": "ec5f5fa09348d643bd2c3fbcd345646a1e457aebbcdbf37b6722daa7f7e1d38e",
+    "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
+    "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+    "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
     "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
-    "src/region-world.mjs": "3c3b3fb4954ffa7b263148d296d078dd0226b69f96a6a744a8cf00136c1f5a00",
+    "src/game.mjs": "17200b4639103204e4069591370504a8624f0625582452d350f7a26c8497fe29",
+    "src/ui.mjs": "49fafe6cfff9f39ef935a455821042107d10d227d87c13bf5ed9f2ee7f605fbb",
+    "src/expedition-routes.mjs": "f881eb616f68acc659621b3fb5d80a6b04c75b043734e5c8d0fb71fdf0b0f187",
     "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+    "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+    "src/elite-combat.mjs": "be2c99736a6be7ac1d8e12a9d9780203afb16794d3818aa178c5f1958afc933b",
+    "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+    "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
+    "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+    "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
+    "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+    "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+    "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+    "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+    "src/checkpoints.mjs": "42d1bbe072679f54fc8e187b426a09b2c6a394cd8461d898cdb84e4c80e2d209",
+    "src/interactions.mjs": "9d6e5c817025342573e0aba29deb3daf894f35f750c3709367db1cd015130741",
+    "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
+    "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+    "src/expedition.mjs": "e88a1b6f0b554539f0ab88f4f7c2e29921741b42c395b84ba061119a37403204",
     "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+    "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+    "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
+    "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+    "src/camp.mjs": "e7bf77ff416047e9d5a7ff9e17bcc1a5f290622bbd77a8ccc3920eeb4f66d502",
+    "src/journey-view.mjs": "7eb870b71a157b21b7eeb6821d407fa5c5a9e6873e5f4d32ca44f078bc9d17a2",
     "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
     "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
-    "src/ui.mjs": "657e8fc4912f8e1079327ebe345d50ff42661cec9e78dc1ded5e21f93dd39c8a",
-    "src/world.mjs": "e4270dd9d336e5f589f65cb71418081d475ce65be56b1eb0b29a46252398e3f0",
-    "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
-    "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
-    "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
-    "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
-    "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
-    "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
-    "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
-    "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
-    "data/locale-messages.json": "93196eea146f469ba82cd37a8750d6416646c6f53b183debae4e448928427314",
-    "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
-    "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
-    "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
-    "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
-    "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
-    "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
-    "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
-    "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
-    "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
-    "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
-    "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
-    "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
-    "style.css": "ec5e580a2cf39f5862395bf94fee55899f29387b7950dd6cf6cb7343a184bab6",
-    "index.html": "91116ae6a4ef99639fb8da3020a472565077f6b62ffe67d85c391ea309490165"
+    "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+    "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+    "src/habitat.mjs": "abeccd268bb0cd4e05ca11da937e5dc4a872c061862b2d27c3305fcb48a51966",
+    "src/field-expeditions.mjs": "ac72d63029a6368c99eab1d57d7122916f17925b6ba9c23862489cdc0288d51c",
+    "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+    "scripts/layout-regression.mjs": "a9eba86bced066de77b1c2aeb267eacd88eddd54d31977774c9eba503cbb6aa2"
   },
-  "fullSuiteReport": "reports/nine/full-browser.json",
-  "focusedFollowUps": [
-    {
-      "report": "reports/nine/focused-browser.json",
-      "passed": 20,
-      "scope": "Re-ran all gameplay/region/migration integration cases, excluding unchanged 151-asset and 30-signature bulk checks. Original input hashes retained in that report."
+  "generalImprovementsFollowUp": {
+    "generatedAt": "2026-10-09T17:22:20.910943+00:00",
+    "validationScope": "Full 28-case pass included unchanged 151 real models, normal/shiny textures and seeded physical captures. Later changes to camp/checkpoints/habitat/interaction/elite AI are rechecked by the current-source 26-case focused suite, 63 native input/layout checks, 24 checkpoint/geometry/AI checks and five actual field routes. Full-pass original hashes and report are preserved; no claim of another full 151 replay.",
+    "modifiedSinceFullPass": [
+      "src/camp.mjs",
+      "src/checkpoints.mjs",
+      "src/elite-combat.mjs",
+      "src/field-expeditions.mjs",
+      "src/game.mjs",
+      "src/habitat.mjs",
+      "src/interactions.mjs",
+      "src/journey-view.mjs",
+      "style.css"
+    ],
+    "focusedCases": 26,
+    "nativeChecks": 63,
+    "checkpointGeometryAI": 24,
+    "normalInputRoutes": 5,
+    "evidenceDirectory": "reports/general-improvements-20261010",
+    "unitTests": 294
+  },
+  "startDeviceFollowUp": {
+    "generatedAt": "2026-10-10T07:02:45.639Z",
+    "scope": "Only startup/title/partner-selection design, local font, existing continue/cancel flow, shared preview lifecycle and field menu/input smoke checks changed/retested. Existing 151-species/model/campaign evidence retained for unchanged sources and assets; no new claim of a full campaign sweep.",
+    "previousAffectedSourceSha256": {
+      "src/ui.mjs": "49fafe6cfff9f39ef935a455821042107d10d227d87c13bf5ed9f2ee7f605fbb",
+      "data/locale-messages.json": "3a90d89b22241b4937e4cd98d40bf5393dbe3892d0eadd31f09ac42e3323a837",
+      "index.html": "88755aa4655ac6e81f37ff491796cc6c25b14f21312e7bc8d1ecc32d685525af",
+      "style.css": "683b4493554da4027bfefd2c07120951e0f288574423ef2fdc1af5d6dae4e2b3"
     },
-    {
-      "report": "reports/nine/runtime-browser.json",
-      "passed": 6,
-      "scope": "Latest full rollback, first/repeated death, five stations, failed writes, camp UID transaction, live five-region habitat movement, actual cooldowns including compact choice card."
-    },
-    {
-      "report": "reports/nine/native-input.json",
-      "passed": 24,
-      "scope": "Last result per name: keyboard/click/touch at 1000x720, 390x844, 360x640; save, camp comparison/cancel/apply/search/model and control nonoverlap."
-    },
-    {
-      "report": "reports/nine/native-extra.json",
-      "passed": 12,
-      "scope": "Real keys/clicks for movement, water, consumed berry removal, legal Clefairy Pound re-learning, Pound/Tackle timed reuse, objective text, pause, camp sorting."
-    },
-    {
-      "report": "reports/nine/lighting-summary.json",
-      "scope": "Actual matched baseline/final six-condition screen sequences; renderer values and contact sheet."
-    },
-    {
-      "report": "reports/nine/lighting-quality.json",
-      "scope": "Actual high/auto/low quality changes preserve illumination and enabled shadows."
-    },
-    {
-      "report": "reports/nine/objective-final.json",
-      "scope": "Actual final browser objective and HUD for missing rod and insufficient coins."
-    },
-    {
-      "report": "reports/nine/unit-tests.txt",
-      "passed": 206,
-      "scope": "Final source core/runtime/five-world tests, including all authored spawn legality and recommendation prerequisites."
-    }
-  ],
-  "coverageUpdatedAt": "2026-09-26T14:06:12.275453+00:00",
-  "coverageMethod": "Historical unchanged asset evidence plus current HUD native 33 checks and five-region focused 20 checks. See compactHudFollowUp and archived previous report.",
-  "supplyFollowUps": [
-    {
-      "report": "reports/supply/unit-tests.txt",
-      "passed": 225,
-      "scope": "Full core, runtime and five-world tests, including legacy provision defaults, original archive, old checkpoints, invalid records and transactional actions."
-    },
-    {
-      "report": "reports/supply/focused-browser.json",
-      "passed": 20,
-      "scope": "Current five-region gameplay/migration/camera/capture/evolution/moves/boss/Mew integration. Unchanged 151-asset and 30-signature sweeps excluded."
-    },
-    {
-      "report": "reports/supply/functional-browser.json",
-      "passed": 22,
-      "scope": "Actual source and tree interactions, serialized page reload, rock-smash unlock, canteen/rations, starvation rollback and failed writes."
-    },
-    {
-      "report": "reports/supply/mobile-browser.json",
-      "passed": 12,
-      "scope": "390x844 and 360x640 native touch, control nonoverlap, water/bag use, normal-clock source/camp walking."
-    },
-    {
-      "report": "reports/supply/pacing-browser.json",
-      "scope": "Normal Game.tick and authored walking speed: early landmark round trip and 948 active seconds in caldera with no source, two canteen and two ration uses."
-    }
-  ],
-  "previousNineCoverage": "../.qa-supply-20260914/baseline/reports/browser-game-qa.json",
-  "mobileReleaseFollowUps": {
-    "generatedAt": "2026-09-13T22:43:51.327885+00:00",
-    "sourceSha256": {
+    "sourceCases": 109,
+    "edgeCases": 12,
+    "unitTests": 294,
+    "evidence": [
+      "reports/start-device-20261010/source-browser.json",
+      "reports/start-device-20261010/source-extra.json",
+      "reports/start-device-20261010/unit-tests.txt",
+      "reports/start-device-20261010/change-integrity.json"
+    ],
+    "limitations": [
+      "Edge mobile emulation; no physical phone or Safari test."
+    ],
+    "builtEvidencePending": false,
+    "builtCases": 44,
+    "builtEdgeCases": 12,
+    "builtEvidence": [
+      "reports/start-device-20261010/built-browser.json",
+      "reports/start-device-20261010/built-extra.json",
+      "reports/start-device-20261010/built-integrity.json"
+    ],
+    "finishedAt": "2026-10-10T07:04:48.752Z",
+    "currentTestedBuildSha256": {
       "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
-      "src/camp.mjs": "747531eb181efb2847fbe727437f08395d49a10f029a88bf7f759762995b5953",
-      "src/checkpoints.mjs": "24c98cca162b2c06090d58f08aa5fa705aec5586d1aba7e0613b3a53fb575d25",
+      "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+      "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+      "src/camp.mjs": "9268a369b1eedc20cf17ff93eae06525ab8c7bae2527de7fd7f4af2cd1d29d69",
+      "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
       "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
       "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
-      "src/core.mjs": "0ec48ba271c3e28eb55cafb9a3f0b6767a399ceabb581dd067f823f31806f0f4",
-      "src/ecology.mjs": "6a1e27874e588dedc1ee5aa7c83f46bde78833c44e366579efe92306ded34430",
-      "src/expedition.mjs": "43c6aeba054df0174c915d698bd7638ab117d247ea16c5ed9509dd08591912f1",
-      "src/field-actions.mjs": "03430c994330d3e3945fb85b8708d31bc827ffd2e881fc47107dd166ef76a98b",
+      "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+      "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
+      "src/elite-combat.mjs": "0bb35d5f0448076d62e9ecb1f73ca33c650eea43c71b1034dbe0e0ad5762ad7f",
+      "src/expedition-routes.mjs": "f881eb616f68acc659621b3fb5d80a6b04c75b043734e5c8d0fb71fdf0b0f187",
+      "src/expedition.mjs": "e88a1b6f0b554539f0ab88f4f7c2e29921741b42c395b84ba061119a37403204",
+      "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+      "src/field-expeditions.mjs": "d6b958753350e58879203078a13d5fc6b2b2386cb3f58ceda0bb4baffd9cce99",
       "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
-      "src/game.mjs": "f21991dc786a665dff91d85965464560de61206c646c02dd0165082ec27cebfb",
+      "src/game.mjs": "959b27f173ed548cf1830bcd89d932ed61f71854cb643e160e25227c3d0c7944",
+      "src/habitat.mjs": "5a87f4dbe6da8acf1d0e317eb2ad9aa0f9cfff3d966e5ee28d8c7b2c1b03aadf",
+      "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
       "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
-      "src/interactions.mjs": "a338d2dbbad83d5abf461610f5dbb059da4bd02ef6c02b7087edbef562f2d280",
+      "src/interactions.mjs": "bc2b83e343ccab6d60036a7b489083f768a1733cad74c1d3d20c5c825391c306",
+      "src/journey-state.mjs": "ec5f5fa09348d643bd2c3fbcd345646a1e457aebbcdbf37b6722daa7f7e1d38e",
+      "src/journey-view.mjs": "57d990601d802b2ad08144b058fe429d523f3bb1547271a29f7b09c6e9232020",
+      "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
       "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
       "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
       "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
-      "src/navigation.mjs": "cd39c62476d6ac541a6ecff790868b2de85f9b6f904079f8de537b642c0b4b6d",
-      "src/objectives.mjs": "444c5cc544707f1ad4bf0bd07edf5053dbee4b2a227705b389e9c2fa648f0ce4",
-      "src/pathfinding.mjs": "5acf1764fb20efcca9b754ddbdc2052ae751c286c8e6372d89bb66f1998c09b3",
+      "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+      "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+      "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
       "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
-      "src/region-world.mjs": "74e8db13324432d1289fd4fefc988c01f7065f87c2bba13c309cc0d3b5d20c08",
+      "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+      "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+      "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
       "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
       "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+      "src/start-screen.mjs": "7585dbc02cc115e49239bb032c137f239b74092d58199d407118029f5b954904",
       "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
-      "src/supplies.mjs": "3c07ccf8f7011f442f61a02b74418def70e1a1e4f40eae34c92e9109848a9de7",
+      "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
       "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
-      "src/ui.mjs": "4e73a62feff86e40bda13c6575b8a6c8a1e0227b36338aa96587d996e4469953",
-      "src/world.mjs": "678006e8145dab1189441b14b95e5a2133a526f555b1473a1e341f21d71d7e5b",
-      "data/biomes.json": "98c21142064f269f7e873cc42fb27e6409ccc137c8aa9f6d2ca823f6360a5457",
+      "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+      "src/ui.mjs": "bee49c9be8a792c45ddad1b352b380f9d5d7175df84eb766c818d0f21045146e",
+      "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
+      "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
       "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
       "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
-      "data/five-world.json": "cc5e97967d16d43b7ac2416c1108aaf23647df13fe3162b424da638b25b7a05b",
+      "data/five-world.json": "fbf099611d4316c5cd2e30bdb236de1bacc306c74ecb3b8b5f9422c2f6220083",
       "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
       "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
       "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
       "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
-      "data/locale-messages.json": "d33644c7d76151313e6d181ee088d1c1b383079cd8bb1188d61ea2c63b447ed7",
+      "data/locale-messages.json": "fc65d762f8694cb8238bbc2dd7d25c94ff395c457ac7d6e66fadcbbec9083968",
       "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
       "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
       "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
@@ -2489,58 +3015,568 @@
       "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
       "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
       "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
-      "data/species-localized.json": "8902125ac32c50ebec0d6e369fd125ab49580d452f1c9e83490add9be923511c",
-      "data/species.json": "67d2e9a3c7ba1416cf4f63ae9c0ff1bddf10a2308c4996bf8b4c8abaa574998a",
+      "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
+      "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
       "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f",
-      "style.css": "360aadfa9ecec4b72fbf7ee5bd16a37f96459cea3f8b00bcd10dbb2e81f375a1",
-      "index.html": "2b33919b3e96bb20d96b5c86ea7bb7e8be0575bb96923cd6c564c5e57fd5655f",
-      "scripts/browser-suite.mjs": "d0286a68ac6f110accc8b9d731ec0c734ffc7024eabc25e3c0832f3d3e01dba5",
-      "scripts/nine-browser-suite.mjs": "f5a96f44a711e8ba6877c0dd3553f140fcb0c7c3631fd2764423e148ae6c392a"
+      "vendor/BufferGeometryUtils.js": "fda7e946b8e0b5ab39b779206589e7a1079a22eb24efb89d7223e03fdfb1f751",
+      "vendor/GLTFLoader.js": "0c9392293f77e9fa2be286230d804cb4415a9fbbabcd32c980b476592da5125f",
+      "vendor/three.core.js": "eb077d2417f61d3e6d9264c317cabc4ea35769ed6b0ab533067292a550784c20",
+      "vendor/three.module.js": "c8211c69345d2e9949dc7a8ac969380497aa0600a5a8ac6a459c8cd02dd9cb8a",
+      "index.html": "bdba99e6167a377a22665fe945646ce65070140d3392ab64e7c283dce99de28e",
+      "style.css": "f30018ac1fa4c706da4757f0efaa142ec62aab395c6982aa3677a64df8d4c0c4",
+      "CREDITS.md": "5cf10e863e136dffe082bf6e6283fb6ef5399c46341d26c8f421c65f1bcc700c",
+      "assets/fonts/PretendardVariable.woff2": "9599f12fd42fc0bce1cd50b47a0c022e108d7aa64dd0d1bb0ed44f3282d900b4",
+      "licenses/Pretendard-OFL.txt": "d31ddd9f2bed32fd7e302a205cf2380ba0de6529152d239ef99cfb6f261bfc04"
+    }
+  },
+  "captureMoveFollowUp": {
+    "generatedAt": "2026-10-10T10:57:55.915Z",
+    "scope": "Movement resumes after .2 simulated seconds of throw recovery; fixed flight/shake trajectory, original outcome, one-ball/one-capture guards, statuses/terrain/survival rates preserved. Actual native PC and mobile source scenarios passed; full prior asset/campaign evidence retained for unchanged code/data.",
+    "previousGameSourceSha256": "959b27f173ed548cf1830bcd89d932ed61f71854cb643e160e25227c3d0c7944",
+    "sourceCases": 6,
+    "unitTests": 305,
+    "newRuntimeTests": 11,
+    "evidence": [
+      "reports/capture-move-20261010/before.json",
+      "reports/capture-move-20261010/source-browser.json",
+      "reports/capture-move-20261010/unit-tests.txt",
+      "reports/capture-move-20261010/change-integrity.json"
+    ],
+    "builtEvidencePending": false,
+    "limitations": [
+      "Edge mobile emulation; physical phones and Safari not tested."
+    ],
+    "builtCases": 4,
+    "builtEvidence": [
+      "reports/capture-move-20261010/built-browser.json",
+      "reports/capture-move-20261010/built-integrity.json"
+    ],
+    "finishedAt": "2026-10-10T11:00:28.754Z",
+    "testedBuildSha256": {
+      "src/game.mjs": "74b14be87ae2ace652a6a710e69b239112544fe8cf9c4b503185a2bcff62f7a5",
+      "src/ui.mjs": "bee49c9be8a792c45ddad1b352b380f9d5d7175df84eb766c818d0f21045146e",
+      "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+      "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
+      "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+      "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+      "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8"
+    }
+  },
+  "clickAttackFollowUp": {
+    "generatedAt": "2026-10-10T11:13:54.329Z",
+    "scope": "Remove scenery click and mobile generic hidden basic-attack input. Keep named move buttons, number keys, all move power/range/cooldown calculations, camera/touch steering, capture movement and save state. Replace stale help/tutorial.",
+    "previousSourceSha256": {
+      "src/game.mjs": "74b14be87ae2ace652a6a710e69b239112544fe8cf9c4b503185a2bcff62f7a5",
+      "src/ui.mjs": "bee49c9be8a792c45ddad1b352b380f9d5d7175df84eb766c818d0f21045146e",
+      "src/expedition.mjs": "e88a1b6f0b554539f0ab88f4f7c2e29921741b42c395b84ba061119a37403204",
+      "index.html": "bdba99e6167a377a22665fe945646ce65070140d3392ab64e7c283dce99de28e",
+      "data/locale-messages.json": "fc65d762f8694cb8238bbc2dd7d25c94ff395c457ac7d6e66fadcbbec9083968",
+      "scripts/runtime.test.mjs": "12738465337fb6c32116fddb0a044b58266d5c312d7abe045e77acf608f55a95"
     },
+    "sourceCases": 4,
+    "unitTests": 309,
+    "newRuntimeTests": 4,
+    "updatedRuntimeTests": 1,
     "evidence": [
-      "reports/mobile-release/browser.json",
-      "reports/mobile-release/extra-browser.json",
-      "reports/mobile-release/focused-browser.json",
-      "reports/mobile-release/unit-tests.txt"
+      "reports/click-attack-20261010/before.json",
+      "reports/click-attack-20261010/source-browser.json",
+      "reports/click-attack-20261010/unit-tests.txt",
+      "reports/click-attack-20261010/change-integrity.json"
     ],
-    "scope": "59 native touch/layout/input checks across six viewports and 20 current gameplay integration checks; historical 151 asset evidence unchanged."
+    "builtEvidencePending": false,
+    "limitations": [
+      "Edge mobile emulation; physical phones and Safari not tested."
+    ],
+    "builtCases": 4,
+    "builtEvidence": [
+      "reports/click-attack-20261010/built-browser.json",
+      "reports/click-attack-20261010/built-integrity.json"
+    ],
+    "sameInputComparison": [
+      "reports/click-attack-20261010/before.json",
+      "reports/click-attack-20261010/after.json"
+    ],
+    "finishedAt": "2026-10-10T11:16:07.873Z",
+    "testedBuildSha256": {
+      "src/game.mjs": "533e949cf1a9e7a0191f1ccc68fd659b09d05a3cd17464aa31f05a0cab2fe660",
+      "src/ui.mjs": "2e89c818d5bfd92c98d32ce27d50c00d93a07110c7a6d86d11b7e5f6eea0b472",
+      "src/expedition.mjs": "594edf2476b3a19ac40a37ba57360f98b56ac842b533d5dd7f11847bdb748be6",
+      "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+      "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
+      "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+      "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+      "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+      "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+      "index.html": "40cade1fb4bbbd01b7b089723681e8a9d4d55e62109b0bc9e67efd4d99a2fb23",
+      "style.css": "f30018ac1fa4c706da4757f0efaa142ec62aab395c6982aa3677a64df8d4c0c4",
+      "data/locale-messages.json": "9dd64a1adda89b752094931266c481207edc931d6f91354a81d8ad27558df52a"
+    }
   },
-  "readabilityFollowUp": {
-    "verifiedAt": "2026-09-15T12:41:41.543923+00:00",
+  "reviewMovesFollowUp": {
+    "generatedAt": "2026-10-11T15:39:44.089Z",
+    "scope": "Fix reviewed R1–R7, audit all 151 learnsets / 325 current action moves and expand 35 effect families. Rechecked affected gameplay and native/mobile UI; unchanged full-151 model/collection proof is retained at its original source version.",
+    "previousSourceSha256": {
+      "src/combat-feedback.mjs": "89c613b1f3f9486524fceb5086bc107bc92af505117f969cf1355bee0468d604",
+      "src/expedition-routes.mjs": "f881eb616f68acc659621b3fb5d80a6b04c75b043734e5c8d0fb71fdf0b0f187",
+      "src/field-expeditions.mjs": "d6b958753350e58879203078a13d5fc6b2b2386cb3f58ceda0bb4baffd9cce99",
+      "src/game.mjs": "533e949cf1a9e7a0191f1ccc68fd659b09d05a3cd17464aa31f05a0cab2fe660",
+      "src/journey-state.mjs": "ec5f5fa09348d643bd2c3fbcd345646a1e457aebbcdbf37b6722daa7f7e1d38e",
+      "src/journey-view.mjs": "57d990601d802b2ad08144b058fe429d523f3bb1547271a29f7b09c6e9232020",
+      "src/ui.mjs": "2e89c818d5bfd92c98d32ce27d50c00d93a07110c7a6d86d11b7e5f6eea0b472",
+      "data/locale-messages.json": "9dd64a1adda89b752094931266c481207edc931d6f91354a81d8ad27558df52a",
+      "scripts/journey.test.mjs": "518a1199350d2b81017d5c1aa467e2854c58a4a1035ecd149da0dca250234220",
+      "scripts/runtime.test.mjs": "0b7b3e4aaa29d10910839e29eebbd4f155e69f94d5e37c66d038ade482148324",
+      "style.css": "f30018ac1fa4c706da4757f0efaa142ec62aab395c6982aa3677a64df8d4c0c4",
+      "src/combat-rules.mjs": null,
+      "src/move-presentation.mjs": null,
+      "src/move-effects.mjs": null,
+      "src/hud-layout.mjs": null,
+      "src/run-variants.mjs": null
+    },
+    "sourceChecks": {
+      "moveData": {
+        "species": 151,
+        "moves": 325,
+        "families": 35
+      },
+      "nativeEffects": 650,
+      "multiHitChains": 16,
+      "normalTimeKnownMoves": 4,
+      "functional": 6,
+      "uiPanels": 84,
+      "uiWidths": [
+        320,
+        360,
+        390,
+        844,
+        1280,
+        1920
+      ],
+      "labelLayouts": 2600,
+      "labelClipping": 0,
+      "labelOrphans": 0,
+      "saveFailureAndRetry": true,
+      "captureMovement": 6,
+      "captureCombat": 4,
+      "nativeInput": 4,
+      "midgameRoutes": 2,
+      "lightingAndCamera": 4
+    },
+    "unitTests": 316,
     "evidence": [
-      {
-        "report": "reports/readability-20260915/browser-checks.json",
-        "passed": 21,
-        "scope": "Native map, mobile field action, actual short normal-clock camp route, supplies, cache reload, checkpoint starvation rollback."
-      },
-      {
-        "report": "reports/readability-20260915/focused-browser.json",
-        "passed": 20,
-        "scope": "Current five-region combat/capture/evolution/move/legacy-save regression; unchanged 151-asset sweep excluded."
-      },
-      {
-        "report": "reports/readability-20260915/unit-tests.txt",
-        "passed": 231,
-        "scope": "Core/runtime/five-world including overlap, ball grants, FPS, preservation and all acquisition paths."
-      }
+      "reports/review-moves-20261011/move-data-audit.json",
+      "reports/review-moves-20261011/source-effects-browser.json",
+      "reports/review-moves-20261011/source-normal-effects.json",
+      "reports/review-moves-20261011/functional-browser.json",
+      "reports/review-moves-20261011/combat-range.json",
+      "reports/review-moves-20261011/save-title-failure.json",
+      "reports/review-moves-20261011/move-label-readability.json",
+      "reports/review-moves-20261011/ui-browser.json",
+      "reports/review-moves-20261011/capture-source-browser.json",
+      "reports/review-moves-20261011/source-capture-combat.json",
+      "reports/review-moves-20261011/lighting-camera-balance.json",
+      "reports/review-moves-20261011/source-browser.json",
+      "reports/review-moves-20261011/source-midgame-browser.json",
+      "reports/review-moves-20261011/tests-final.txt",
+      "reports/review-moves-20261011/change-integrity.json"
     ],
-    "scope": "Incremental current implementation verification. Historical 151-species asset/browser evidence retained; assets/importer/species/moves/biomes/compositions unchanged."
+    "sourceSha256": {
+      "src/combat-feedback.mjs": "ff4b6ab76692b7c5f9da7116b026f28d810521e4e95edf170e526262a97f495e",
+      "src/expedition-routes.mjs": "1866654335ce5aae8d027a5d1a3aaf99b5e1c5e60d8e94c2d7f75108942c966a",
+      "src/field-expeditions.mjs": "370347df9fd45bfb7657ee8033e7872a8cab1557d8ed8e850ed7e4f114f3b4b9",
+      "src/game.mjs": "4d739d09a055b001decd0e551c55c81cf9c8b0842312078ad26b09ca1eba1704",
+      "src/journey-state.mjs": "52301e5931492146f06df3efe2b3082b7122dd31cf506f64943b81d310fd000c",
+      "src/journey-view.mjs": "210ad02b4caba27b6724205888730dc3c2710d223dfed507887bd9ddf01935ee",
+      "src/ui.mjs": "486d056210b335cd89f5a04dfaeba99c008bb5e8a59d260ce7f1876f1794c9d2",
+      "data/locale-messages.json": "dea4728e06483b8ab3e910192bc90afce94f92268a62905f02e320eb59cc6f61",
+      "scripts/journey.test.mjs": "1bafc2efb3a174b426cea587629d8e97c8f2b418ec863fbe246f53f75fa6b21b",
+      "scripts/runtime.test.mjs": "3a3e4b5f4695858b69414ddf61116ac2d4f2ff21edbc753f5f67ad6bcbac2caa",
+      "style.css": "d79dc6f894c63338639d8b9847e9f1530bafa3328d1e996668f7110e5df55a90",
+      "src/combat-rules.mjs": "a6705ccc4265d4330130da7277ce48b595319829d4f2d796f72150ef9f48578d",
+      "src/move-presentation.mjs": "9e18c76bff6c5098e1781ac839071cc4981051692d017389bb2014e9d8b1ad40",
+      "src/move-effects.mjs": "cc7656f653216ff03dbab4fa86a83f6a2000d41925f94e282598cd390f55dfa2",
+      "src/hud-layout.mjs": "7cdcbfca915d86b772b88968b8d1f06b2ae75003c47e137477d86eee3836bb41",
+      "src/run-variants.mjs": "01ef1fef14a1e079a0a096d0ba8be071fc65012a8d12042fc5529b707b484460"
+    },
+    "builtEvidencePending": false,
+    "limitations": [
+      "Edge mobile emulation. Physical phones and Safari were not tested.",
+      "325 moves use shared identity families; they do not each have a bespoke cinematic.",
+      "Existing simplified special-move battle mechanics are preserved. Original turn-based fidelity is not claimed.",
+      "Midgame stage flows were played in prepared QA states; long-session pacing on every natural route is not yet proven."
+    ],
+    "builtChecks": {
+      "nativeEffects": 650,
+      "multiHitChains": 16,
+      "normalTimeKnownMoves": 4,
+      "captureCombat": 4,
+      "nativeInput": 4,
+      "midgameRoutes": 2,
+      "functional": 6,
+      "httpSourceBuildFiles": 70
+    },
+    "builtEvidence": [
+      "reports/review-moves-20261011/built-effects-browser.json",
+      "reports/review-moves-20261011/built-normal-effects.json",
+      "reports/review-moves-20261011/built-capture-combat.json",
+      "reports/review-moves-20261011/built-browser.json",
+      "reports/review-moves-20261011/built-midgame-browser.json",
+      "reports/review-moves-20261011/built-functional-browser.json",
+      "reports/review-moves-20261011/built-integrity.json"
+    ],
+    "testedBuildSha256": {
+      "index.html": "40cade1fb4bbbd01b7b089723681e8a9d4d55e62109b0bc9e67efd4d99a2fb23",
+      "style.css": "d79dc6f894c63338639d8b9847e9f1530bafa3328d1e996668f7110e5df55a90",
+      "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+      "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+      "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+      "src/camp.mjs": "9268a369b1eedc20cf17ff93eae06525ab8c7bae2527de7fd7f4af2cd1d29d69",
+      "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
+      "src/combat-feedback.mjs": "ff4b6ab76692b7c5f9da7116b026f28d810521e4e95edf170e526262a97f495e",
+      "src/combat-rules.mjs": "a6705ccc4265d4330130da7277ce48b595319829d4f2d796f72150ef9f48578d",
+      "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+      "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+      "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
+      "src/elite-combat.mjs": "0bb35d5f0448076d62e9ecb1f73ca33c650eea43c71b1034dbe0e0ad5762ad7f",
+      "src/expedition-routes.mjs": "1866654335ce5aae8d027a5d1a3aaf99b5e1c5e60d8e94c2d7f75108942c966a",
+      "src/expedition.mjs": "594edf2476b3a19ac40a37ba57360f98b56ac842b533d5dd7f11847bdb748be6",
+      "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+      "src/field-expeditions.mjs": "370347df9fd45bfb7657ee8033e7872a8cab1557d8ed8e850ed7e4f114f3b4b9",
+      "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+      "src/game.mjs": "4d739d09a055b001decd0e551c55c81cf9c8b0842312078ad26b09ca1eba1704",
+      "src/habitat.mjs": "5a87f4dbe6da8acf1d0e317eb2ad9aa0f9cfff3d966e5ee28d8c7b2c1b03aadf",
+      "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
+      "src/hud-layout.mjs": "7cdcbfca915d86b772b88968b8d1f06b2ae75003c47e137477d86eee3836bb41",
+      "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+      "src/interactions.mjs": "bc2b83e343ccab6d60036a7b489083f768a1733cad74c1d3d20c5c825391c306",
+      "src/journey-state.mjs": "52301e5931492146f06df3efe2b3082b7122dd31cf506f64943b81d310fd000c",
+      "src/journey-view.mjs": "210ad02b4caba27b6724205888730dc3c2710d223dfed507887bd9ddf01935ee",
+      "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
+      "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+      "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+      "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+      "src/move-effects.mjs": "cc7656f653216ff03dbab4fa86a83f6a2000d41925f94e282598cd390f55dfa2",
+      "src/move-presentation.mjs": "9e18c76bff6c5098e1781ac839071cc4981051692d017389bb2014e9d8b1ad40",
+      "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+      "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+      "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
+      "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+      "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+      "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+      "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
+      "src/run-variants.mjs": "01ef1fef14a1e079a0a096d0ba8be071fc65012a8d12042fc5529b707b484460",
+      "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+      "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+      "src/start-screen.mjs": "7585dbc02cc115e49239bb032c137f239b74092d58199d407118029f5b954904",
+      "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+      "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
+      "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+      "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+      "src/ui.mjs": "486d056210b335cd89f5a04dfaeba99c008bb5e8a59d260ce7f1876f1794c9d2",
+      "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
+      "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
+      "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+      "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+      "data/five-world.json": "fbf099611d4316c5cd2e30bdb236de1bacc306c74ecb3b8b5f9422c2f6220083",
+      "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+      "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+      "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+      "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+      "data/locale-messages.json": "dea4728e06483b8ab3e910192bc90afce94f92268a62905f02e320eb59cc6f61",
+      "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+      "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+      "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+      "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+      "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+      "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+      "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+      "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+      "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+      "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
+      "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
+      "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f"
+    },
+    "finishedAt": "2026-10-11T15:42:52.159Z"
   },
-  "starterSwipeFollowUp": {
-    "date": "2026-09-26T13:18:33.492237+00:00",
-    "nativeEvidence": "reports/starter-swipe-20260926/browser-checks.json",
-    "nativePassed": 40,
-    "regressionEvidence": "reports/starter-swipe-20260926/focused-browser.json",
-    "regressionPassed": 20,
-    "unitTests": 244,
-    "scope": "Current starter camera, portrait/landscape native two-finger input, four rare habitats, serialization and death rollback. Prior 151-species render results are historical and were not rerun; the unchanged asset importer is retained. Current unit tests recheck 151-species reachability; native E checks spawn all four changed rare species. Timer/random branches use isolated fixtures; no personal save is read."
+  "elementalEffectsFollowUp": {
+    "generatedAt": "2026-10-11T22:40:22.124Z",
+    "scope": "18 named elemental identities; signature presentations limited to their actual species move. Preserve combat data and impact strength, saves and previously verified R1–R7. Keep Hub return navigation on latest title.",
+    "sourceChecks": {
+      "nativeMoveInputs": 650,
+      "namedVariants": 18,
+      "knownMoveUses": 15,
+      "viewports": [
+        320,
+        390,
+        844,
+        1280
+      ],
+      "titleAndHubReturn": 4,
+      "unitTests": 318
+    },
+    "sourceSha256": {
+      "src/move-presentation.mjs": "4e1febcfd51583603e479c0a80e8f3104aa28ae2f5a61bc56996b6ef8e5d6677",
+      "src/move-effects.mjs": "8bde5f63996ef60541142fd83d8506ea8106aa2729654290a3068e350936fb02",
+      "src/combat-feedback.mjs": "5550fb6bb39992a450730d1478dba32951606b7572b79ea350ac4b968edbb377",
+      "scripts/runtime.test.mjs": "091b56117e928ab93a1f470731e43eab889f44f02033886336eac4bc48487f26",
+      "index.html": "41791718dd59220aaa144a4c43ac6202d26d2ad1fe7729c5cda252a53edf6279",
+      "style.css": "3488b62b9d55bf1b1544661e4c99fede64c0235ba57a59d1820823f57bf7254f"
+    },
+    "previousSourceSha256": {
+      "src/move-presentation.mjs": "9e18c76bff6c5098e1781ac839071cc4981051692d017389bb2014e9d8b1ad40",
+      "src/move-effects.mjs": "cc7656f653216ff03dbab4fa86a83f6a2000d41925f94e282598cd390f55dfa2",
+      "src/combat-feedback.mjs": "ff4b6ab76692b7c5f9da7116b026f28d810521e4e95edf170e526262a97f495e",
+      "scripts/runtime.test.mjs": "3a3e4b5f4695858b69414ddf61116ac2d4f2ff21edbc753f5f67ad6bcbac2caa",
+      "index.html": "40cade1fb4bbbd01b7b089723681e8a9d4d55e62109b0bc9e67efd4d99a2fb23",
+      "style.css": "d79dc6f894c63338639d8b9847e9f1530bafa3328d1e996668f7110e5df55a90"
+    },
+    "sourceEvidence": [
+      "reports/elemental-effects-20261012/source-effects-browser.json",
+      "reports/elemental-effects-20261012/source-known-moves.json",
+      "reports/elemental-effects-20261012/source-title-smoke.json"
+    ],
+    "builtEvidencePending": false,
+    "limitations": [
+      "Edge mobile emulation only; physical devices/Safari not tested.",
+      "Prepared memory-save encounters, not a fresh 151-species natural playthrough."
+    ],
+    "builtChecks": {
+      "nativeMoveInputs": 650,
+      "namedVariants": 18,
+      "knownMoveUses": 15,
+      "viewports": [
+        320,
+        390,
+        844,
+        1280
+      ],
+      "titleAndHubReturn": 4,
+      "unitTests": 318,
+      "httpSourceBuildFiles": 70
+    },
+    "builtEvidence": [
+      "reports/elemental-effects-20261012/built-effects-browser.json",
+      "reports/elemental-effects-20261012/built-known-moves.json",
+      "reports/elemental-effects-20261012/built-title-smoke.json",
+      "reports/elemental-effects-20261012/built-integrity.json"
+    ],
+    "testedBuildSha256": {
+      "index.html": "41791718dd59220aaa144a4c43ac6202d26d2ad1fe7729c5cda252a53edf6279",
+      "style.css": "3488b62b9d55bf1b1544661e4c99fede64c0235ba57a59d1820823f57bf7254f",
+      "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+      "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+      "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+      "src/camp.mjs": "9268a369b1eedc20cf17ff93eae06525ab8c7bae2527de7fd7f4af2cd1d29d69",
+      "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
+      "src/combat-feedback.mjs": "5550fb6bb39992a450730d1478dba32951606b7572b79ea350ac4b968edbb377",
+      "src/combat-rules.mjs": "a6705ccc4265d4330130da7277ce48b595319829d4f2d796f72150ef9f48578d",
+      "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+      "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+      "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
+      "src/elite-combat.mjs": "0bb35d5f0448076d62e9ecb1f73ca33c650eea43c71b1034dbe0e0ad5762ad7f",
+      "src/expedition-routes.mjs": "1866654335ce5aae8d027a5d1a3aaf99b5e1c5e60d8e94c2d7f75108942c966a",
+      "src/expedition.mjs": "594edf2476b3a19ac40a37ba57360f98b56ac842b533d5dd7f11847bdb748be6",
+      "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+      "src/field-expeditions.mjs": "370347df9fd45bfb7657ee8033e7872a8cab1557d8ed8e850ed7e4f114f3b4b9",
+      "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+      "src/game.mjs": "4d739d09a055b001decd0e551c55c81cf9c8b0842312078ad26b09ca1eba1704",
+      "src/habitat.mjs": "5a87f4dbe6da8acf1d0e317eb2ad9aa0f9cfff3d966e5ee28d8c7b2c1b03aadf",
+      "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
+      "src/hud-layout.mjs": "7cdcbfca915d86b772b88968b8d1f06b2ae75003c47e137477d86eee3836bb41",
+      "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+      "src/interactions.mjs": "bc2b83e343ccab6d60036a7b489083f768a1733cad74c1d3d20c5c825391c306",
+      "src/journey-state.mjs": "52301e5931492146f06df3efe2b3082b7122dd31cf506f64943b81d310fd000c",
+      "src/journey-view.mjs": "210ad02b4caba27b6724205888730dc3c2710d223dfed507887bd9ddf01935ee",
+      "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
+      "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+      "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+      "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+      "src/move-effects.mjs": "8bde5f63996ef60541142fd83d8506ea8106aa2729654290a3068e350936fb02",
+      "src/move-presentation.mjs": "4e1febcfd51583603e479c0a80e8f3104aa28ae2f5a61bc56996b6ef8e5d6677",
+      "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+      "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+      "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
+      "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+      "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+      "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+      "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
+      "src/run-variants.mjs": "01ef1fef14a1e079a0a096d0ba8be071fc65012a8d12042fc5529b707b484460",
+      "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+      "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+      "src/start-screen.mjs": "7585dbc02cc115e49239bb032c137f239b74092d58199d407118029f5b954904",
+      "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+      "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
+      "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+      "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+      "src/ui.mjs": "486d056210b335cd89f5a04dfaeba99c008bb5e8a59d260ce7f1876f1794c9d2",
+      "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
+      "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
+      "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+      "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+      "data/five-world.json": "fbf099611d4316c5cd2e30bdb236de1bacc306c74ecb3b8b5f9422c2f6220083",
+      "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+      "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+      "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+      "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+      "data/locale-messages.json": "dea4728e06483b8ab3e910192bc90afce94f92268a62905f02e320eb59cc6f61",
+      "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+      "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+      "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+      "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+      "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+      "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+      "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+      "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+      "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+      "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
+      "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
+      "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f"
+    },
+    "finishedAt": "2026-10-11T22:44:14.831Z"
   },
-  "compactHudFollowUp": {
-    "date": "2026-09-26T14:06:12.275453+00:00",
-    "native": "reports/hud-volley-20260926/kanto-browser.json",
-    "nativePassed": 33,
-    "regression": "reports/hud-volley-20260926/focused-browser.json",
-    "regressionPassed": 20,
-    "scope": "Current HUD presentation, four viewports, native mobile two-finger movement, action visibility, warnings, explicit save and minimap/detail controls. Five-region focused combat/capture/evolution/legacy-save checks rerun. Assets/data unchanged; prior 151-species full rendering evidence remains historical."
+  "clickTargetFollowUp": {
+    "generatedAt": "2026-10-12T01:10:39.181Z",
+    "scope": "Select clicked or briefly tapped visible wild individual; preserve chosen-move attacks, camera drag, swipes, Q/Target cycling and user saves.",
+    "sourceChecks": {
+      "unitTests": 322,
+      "nativeInputViewports": [
+        [
+          1280,
+          720
+        ],
+        [
+          390,
+          844
+        ],
+        [
+          844,
+          390
+        ]
+      ],
+      "nativeChecks": 32,
+      "pageErrors": 0,
+      "preservationFiles": 65
+    },
+    "sourceSha256": {
+      "src/target-selection.mjs": "d4234d330cf565d489141924a5f96ea79c454195b17e62c6ac582061ac4b6012",
+      "src/game.mjs": "c1c80b4784c9569c10f3eccc694fef330a2eeefec8983661a03844d36ee8e519",
+      "src/touch-steering.mjs": "1072587122ba5cf1ccc31fb55e6a546acd2b2667fa7639a5c13e55c5211b69f6",
+      "data/locale-messages.json": "c11e188d5252ffdbb5a84f25a9bdaad0915e0cc841f8d515a94a763fe2e05276",
+      "scripts/runtime.test.mjs": "88e358a9ee9c490036b7f5586bd058dd3b1d08ce9b07c59970e06fc39ed9315d"
+    },
+    "previousSourceSha256": {
+      "src/game.mjs": "4d739d09a055b001decd0e551c55c81cf9c8b0842312078ad26b09ca1eba1704",
+      "src/touch-steering.mjs": "37e7347ffaf0e8d05712dc58f98ba8a9bb8eaa70a6155be3689891824c1a953f",
+      "data/locale-messages.json": "dea4728e06483b8ab3e910192bc90afce94f92268a62905f02e320eb59cc6f61",
+      "scripts/runtime.test.mjs": "091b56117e928ab93a1f470731e43eab889f44f02033886336eac4bc48487f26"
+    },
+    "sourceEvidence": [
+      "reports/click-target-20261012/source-browser.json",
+      "reports/click-target-20261012/tests.txt",
+      "reports/click-target-20261012/preservation.json"
+    ],
+    "builtEvidencePending": false,
+    "limitations": [
+      "Edge mobile emulation, not physical phones or Safari.",
+      "Prepared encounters; not a natural 151-species playthrough."
+    ],
+    "builtChecks": {
+      "unitTests": 322,
+      "nativeChecks": 32,
+      "nativeInputViewports": [
+        [
+          1280,
+          720
+        ],
+        [
+          390,
+          844
+        ],
+        [
+          844,
+          390
+        ]
+      ],
+      "pageErrors": 0,
+      "httpSourceBuildFiles": 71
+    },
+    "builtEvidence": [
+      "reports/click-target-20261012/built-browser.json",
+      "reports/click-target-20261012/built-integrity.json"
+    ],
+    "testedBuildSha256": {
+      "index.html": "41791718dd59220aaa144a4c43ac6202d26d2ad1fe7729c5cda252a53edf6279",
+      "style.css": "3488b62b9d55bf1b1544661e4c99fede64c0235ba57a59d1820823f57bf7254f",
+      "src/audio.mjs": "5c4fbfa62e212955ba13b70320b82082e785a2866225b6b3affa315829e7e14c",
+      "src/bag.mjs": "7767ff2c28f4a60a6f9ec1e29d9c32fb4b11509944756af1b2558d15e983da1f",
+      "src/ball-visuals.mjs": "04598eb45414269456593c866c4fa0a3542d877a22cafc8f4c3e8511a17a8d40",
+      "src/camp.mjs": "9268a369b1eedc20cf17ff93eae06525ab8c7bae2527de7fd7f4af2cd1d29d69",
+      "src/checkpoints.mjs": "9d1c7440b2c67ff00a95ec3b479f488236c031aa2309cb027cd2d281950b41ec",
+      "src/combat-feedback.mjs": "5550fb6bb39992a450730d1478dba32951606b7572b79ea350ac4b968edbb377",
+      "src/combat-rules.mjs": "a6705ccc4265d4330130da7277ce48b595319829d4f2d796f72150ef9f48578d",
+      "src/cooldowns.mjs": "4efe127537b3d1da59fd17588d428f01fb1bf113adc42941c863bdde34169096",
+      "src/core.mjs": "b0ce783b053a4562b3209ccf44c671cb9955820a068d6e79f3f242a874c73228",
+      "src/ecology.mjs": "bff8d9f3147c332b63078682b17f08de1434bf8d31156df296403e6b829d3e35",
+      "src/elite-combat.mjs": "0bb35d5f0448076d62e9ecb1f73ca33c650eea43c71b1034dbe0e0ad5762ad7f",
+      "src/expedition-routes.mjs": "1866654335ce5aae8d027a5d1a3aaf99b5e1c5e60d8e94c2d7f75108942c966a",
+      "src/expedition.mjs": "594edf2476b3a19ac40a37ba57360f98b56ac842b533d5dd7f11847bdb748be6",
+      "src/field-actions.mjs": "ac98b6a79e0e18d7153d6a32533e272322c9aadac04b4b752c0e246199c5ec95",
+      "src/field-expeditions.mjs": "370347df9fd45bfb7657ee8033e7872a8cab1557d8ed8e850ed7e4f114f3b4b9",
+      "src/five-regions.mjs": "33ba98817f8f71edf52ffbd45a8dcf52f52a4b883b104e8e4a8d69f31bc39dcb",
+      "src/game.mjs": "c1c80b4784c9569c10f3eccc694fef330a2eeefec8983661a03844d36ee8e519",
+      "src/habitat.mjs": "5a87f4dbe6da8acf1d0e317eb2ad9aa0f9cfff3d966e5ee28d8c7b2c1b03aadf",
+      "src/hud-artwork.mjs": "7e492d561bc43ec3251de7035b64cfcdc4b93fa05c74cbd1c75b7472812ba48b",
+      "src/hud-layout.mjs": "7cdcbfca915d86b772b88968b8d1f06b2ae75003c47e137477d86eee3836bb41",
+      "src/i18n.mjs": "3ebb3803641050ddaddf62fed3ace8c438faed2e7a7df9be8ca4c3fea44b845f",
+      "src/interactions.mjs": "bc2b83e343ccab6d60036a7b489083f768a1733cad74c1d3d20c5c825391c306",
+      "src/journey-state.mjs": "52301e5931492146f06df3efe2b3082b7122dd31cf506f64943b81d310fd000c",
+      "src/journey-view.mjs": "210ad02b4caba27b6724205888730dc3c2710d223dfed507887bd9ddf01935ee",
+      "src/journey.mjs": "4a0b80af64dc151f01a56d71d698fa3d9e3da543ff2d130579f282a03c9e1652",
+      "src/lighting.mjs": "14cf9fc244adb5f1250ed8b48369937775456d737cf761edf2926b1c3ef5488c",
+      "src/liquid-material.mjs": "77f3d0a0938b5629bd3b062191cba304f3580d7d789578487b5af49500b8e85f",
+      "src/main.mjs": "102f6a1b9a3283d97a91a4f5de50750d170df64d63d976337f8a74390986a8e8",
+      "src/move-effects.mjs": "8bde5f63996ef60541142fd83d8506ea8106aa2729654290a3068e350936fb02",
+      "src/move-presentation.mjs": "4e1febcfd51583603e479c0a80e8f3104aa28ae2f5a61bc56996b6ef8e5d6677",
+      "src/navigation.mjs": "85f2f1f891691f3367c3df87d0ea317fc1ed98999f756081b58b76f1baf72c50",
+      "src/objectives.mjs": "546c4978e4009402e645f3bd4b4c6b68d47e383ef6c5421ddd5b2fe8ba6bb989",
+      "src/pathfinding.mjs": "668129b02cbba704860b2b2da2ffbfeac8089f3bc4efc7e62f74fa4c78beb690",
+      "src/pokemon.mjs": "8b7911b3c4875b8a639ec3c3bfc4b0b377c34b581e59a26b1c3ffac5e2ebc7d1",
+      "src/rare-encounters.mjs": "7cb647a1c2684e742ff1a8268e4283818a4105aa33a5ad5cedbbde35482f4224",
+      "src/region-world.mjs": "019996b764d80b64f464958586de7082266a3bbb1b837fbba4b48fbdb96c4330",
+      "src/rest.mjs": "f4782f876c377af5efc3c06639327b32dc446651b1b84537db23e73bba032855",
+      "src/run-variants.mjs": "01ef1fef14a1e079a0a096d0ba8be071fc65012a8d12042fc5529b707b484460",
+      "src/save-migration.mjs": "4df0d36b0d36a59c9ed340a0a42efeaee57938447b516bde869b8bb02298c6a8",
+      "src/signatures.mjs": "1c45e2fd65d73f401ca2c3b5e287a2fd4dba04e983d5d43524a803f04fb12ffd",
+      "src/start-screen.mjs": "7585dbc02cc115e49239bb032c137f239b74092d58199d407118029f5b954904",
+      "src/structures.mjs": "95bb85db47def1cfbf2bb6adf029d33f736a3b4a6297efe70ecbec3de2cb2dd7",
+      "src/supplies.mjs": "8e59975974f70c1fea6320627ecfa90a975f790da8d7d5bdda22d0c1af1f82b6",
+      "src/target-selection.mjs": "d4234d330cf565d489141924a5f96ea79c454195b17e62c6ac582061ac4b6012",
+      "src/terrain-material.mjs": "b2624c83e1e0a907571ad5f3e826b4fbe23191f61c0f6db570db80fe0bd1200c",
+      "src/touch-steering.mjs": "1072587122ba5cf1ccc31fb55e6a546acd2b2667fa7639a5c13e55c5211b69f6",
+      "src/ui.mjs": "486d056210b335cd89f5a04dfaeba99c008bb5e8a59d260ce7f1876f1794c9d2",
+      "src/world.mjs": "f0b2e8449e351f2cc99124d6c39f3532e37fb674ee23790f0bdd11f8ab70c52d",
+      "data/biomes.json": "d2de91601b82149f271545edd61920779e69d44e949319af10e121e2f12622e5",
+      "data/data-validation.json": "ae43116c9e60b58581f63579c4b695b8bc7d3d32371bfd6bcadffe278898b71b",
+      "data/experience.json": "138b184a18695c3b53604c98f6ab4019893bb695bf30ee5905365aaee773af94",
+      "data/five-world.json": "fbf099611d4316c5cd2e30bdb236de1bacc306c74ecb3b8b5f9422c2f6220083",
+      "data/game-design.json": "bf0fd44d47cec2f85b29f8f71c56f0bd2cb1f9a58e074285efed8eeae398bcec",
+      "data/items.json": "e8c50d46698d5c2ec7fdd846eb3258af5500a4fcaec85ec02a0cb35884fc9963",
+      "data/locale-entities.json": "698ae723af4c4d869943f66f6e453f8d8ef6e83f72b0537a2f35675709963ffa",
+      "data/locale-literals.json": "7b07fb47d2427902caee4f6e000fa38a1e4056a775abc624a212b28b6ceef40c",
+      "data/locale-messages.json": "c11e188d5252ffdbb5a84f25a9bdaad0915e0cc841f8d515a94a763fe2e05276",
+      "data/move-description-validation.json": "608a4424918875955353a3bc7d1bf3795e197f5eba002a705d1cd189b6e6f7c1",
+      "data/moves-localized.json": "b7d6c558e575346a1a0d6f34ec2083bc08887ba38d860eee80956d2c686438ab",
+      "data/moves.json": "5d972e1699fea13b9fe5de66943e48b046a5d7362aedc84400d7decd60dc6d90",
+      "data/pokemon-manifest.json": "3350acdcb43df3f4f7f0c208dba2b8750d845935f5220c542abf227bfb2a80e7",
+      "data/polish-data-validation.json": "98d6150343e3cbf01e976d2b7d27c4cf914415544d185227536241f030586104",
+      "data/polish-provenance.json": "c1520a262cbca1666cb4c1efaee7b2ee431a20c08d7089daea4bc052c428e606",
+      "data/provenance.json": "2b81d199567c3fc83e98736ff0fac08504ea2cc75e98044c556b953a6c8691ea",
+      "data/region-compositions.json": "c9d0d244327aa5557785070e275404d23b1bd33c4f5c4615c60c82434db6e63f",
+      "data/regions-localized.json": "5d218b12c5663aab632192b2cfcba228b2ce033ff58369d3f55b92934478d682",
+      "data/species-localized.json": "08f2bed727bbc9fe6fb48eafdb28e966fb5abec7387a59bde8d3355d8993eef7",
+      "data/species.json": "458d55604444acc8deef1208acda3d3d56dac3bfaa9e795e169fa6e0aea363fd",
+      "data/type-chart.json": "b1f0c555d0e652e2b3435cc0c1c9eb2164bbe6d69a34bfdacf6072e674615e4f"
+    },
+    "finishedAt": "2026-10-12T01:12:59.412Z"
   }
 }

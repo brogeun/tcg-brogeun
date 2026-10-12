@@ -1,0 +1,301 @@
+{
+  "status": "passed",
+  "base": "http://127.0.0.1:8799/dist/",
+  "startedAt": "2026-10-12T01:57:24.020Z",
+  "scope": "Fresh qa=1 memory saves. Actual cached Rattata models, authored terrain and renderer. Two stationary same-species encounters prepared at legal nearby tiles; simulation paused only during precise pointing, restored for movement and chosen-move checks. All target gestures use native mouse/touch/keyboard.",
+  "cases": [
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "fixture": {
+        "uuids": [
+          "78468614-e89f-4372-a03c-da01371ca89e",
+          "d6c2e28a-8fb5-447b-86b3-939b578b625f"
+        ],
+        "positions": [
+          [
+            -10.5,
+            -0.02052986652742469,
+            13
+          ],
+          [
+            -5.5,
+            0.0023921422098337674,
+            13
+          ]
+        ],
+        "player": [
+          -8,
+          -0.002708858567520864,
+          15
+        ],
+        "equipped": [
+          {
+            "id": 33,
+            "range": 4.2,
+            "cooldown": 1.8
+          },
+          {
+            "id": 45,
+            "range": 15,
+            "cooldown": 2.5
+          }
+        ]
+      },
+      "checks": [
+        "Four native body clicks/taps select the correct separate individual and display target HUD/marker; no attack, damage, cooldown, movement or camera change",
+        "Scenery click/tap retains existing selection",
+        "Solid foreground scenery prevents selecting a hidden Pokemon",
+        "Fainted/capturing individuals cannot be selected",
+        "Mouse drag out and back over Pokemon does not select",
+        "Mouse drag still orbits camera without selecting or attacking",
+        "Right/middle click do not change target",
+        "Existing Q target cycle still works",
+        "Capture and restore guards retain target; Korean/English help explains clicking/tapping",
+        "Explicit slot 1 attacks the clicked individual using the equipped move, without hidden basic attack"
+      ],
+      "images": [
+        "reports/wild-retaliation-20261012/built-1280-selected.png"
+      ],
+      "selected": {
+        "target": 1,
+        "uuid": "d6c2e28a-8fb5-447b-86b3-939b578b625f",
+        "casts": 0,
+        "hp": [
+          1000,
+          1000
+        ],
+        "cooldowns": [
+          0,
+          0
+        ],
+        "basic": 0,
+        "position": [
+          -8,
+          -0.002708858567520864,
+          15
+        ],
+        "yaw": 0,
+        "pitch": 0.65,
+        "moving": false,
+        "touchMove": {
+          "x": 0,
+          "z": 0,
+          "run": false
+        },
+        "walk": false,
+        "selectedLabel": [
+          false,
+          true
+        ],
+        "hud": "꼬렛 Lv. 3",
+        "hudVisible": true
+      },
+      "cast": {
+        "id": 33,
+        "target": 0,
+        "basic": false
+      },
+      "status": "passed"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "fixture": {
+        "uuids": [
+          "17a407e9-23f5-47d9-8c42-cfec0322519d",
+          "a7dbc75b-c7e4-4283-ab3c-5954fe60ac44"
+        ],
+        "positions": [
+          [
+            -10.5,
+            -0.02052986652742469,
+            13
+          ],
+          [
+            -5.5,
+            0.0023921422098337674,
+            13
+          ]
+        ],
+        "player": [
+          -8,
+          -0.002708858567520864,
+          15
+        ],
+        "equipped": [
+          {
+            "id": 33,
+            "range": 4.2,
+            "cooldown": 1.8
+          },
+          {
+            "id": 45,
+            "range": 15,
+            "cooldown": 2.5
+          }
+        ]
+      },
+      "checks": [
+        "Four native body clicks/taps select the correct separate individual and display target HUD/marker; no attack, damage, cooldown, movement or camera change",
+        "Scenery click/tap retains existing selection",
+        "Solid foreground scenery prevents selecting a hidden Pokemon",
+        "Fainted/capturing individuals cannot be selected",
+        "Returned swipe over Pokemon does not select; finger release clears movement",
+        "Long hold, cancelled touch and two-finger gesture do not select",
+        "Small finger jitter below 5px still selects",
+        "Existing target cycle button still works",
+        "Native movement and camera swipes still work without target changes or attacks",
+        "Capture and restore guards retain target; Korean/English help explains clicking/tapping",
+        "Explicit slot 1 attacks the clicked individual using the equipped move, without hidden basic attack"
+      ],
+      "images": [
+        "reports/wild-retaliation-20261012/built-390-selected.png"
+      ],
+      "selected": {
+        "target": 1,
+        "uuid": "a7dbc75b-c7e4-4283-ab3c-5954fe60ac44",
+        "casts": 0,
+        "hp": [
+          1000,
+          1000
+        ],
+        "cooldowns": [
+          0,
+          0
+        ],
+        "basic": 0,
+        "position": [
+          -8,
+          -0.002708858567520864,
+          15
+        ],
+        "yaw": 0,
+        "pitch": 0.65,
+        "moving": false,
+        "touchMove": {
+          "x": 0,
+          "z": 0,
+          "run": false
+        },
+        "walk": false,
+        "selectedLabel": [
+          false,
+          true
+        ],
+        "hud": "꼬렛 Lv. 3",
+        "hudVisible": true
+      },
+      "cast": {
+        "id": 33,
+        "target": 0,
+        "basic": false
+      },
+      "status": "passed"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "fixture": {
+        "uuids": [
+          "fb44c325-8f28-4c72-afb1-70d2f1712b98",
+          "2b866d5a-3310-4c86-b38b-06139aee0356"
+        ],
+        "positions": [
+          [
+            -10.5,
+            -0.02052986652742469,
+            13
+          ],
+          [
+            -5.5,
+            0.0023921422098337674,
+            13
+          ]
+        ],
+        "player": [
+          -8,
+          -0.002708858567520864,
+          15
+        ],
+        "equipped": [
+          {
+            "id": 33,
+            "range": 4.2,
+            "cooldown": 1.8
+          },
+          {
+            "id": 45,
+            "range": 15,
+            "cooldown": 2.5
+          }
+        ]
+      },
+      "checks": [
+        "Four native body clicks/taps select the correct separate individual and display target HUD/marker; no attack, damage, cooldown, movement or camera change",
+        "Scenery click/tap retains existing selection",
+        "Solid foreground scenery prevents selecting a hidden Pokemon",
+        "Fainted/capturing individuals cannot be selected",
+        "Returned swipe over Pokemon does not select; finger release clears movement",
+        "Long hold, cancelled touch and two-finger gesture do not select",
+        "Small finger jitter below 5px still selects",
+        "Existing target cycle button still works",
+        "Native movement and camera swipes still work without target changes or attacks",
+        "Capture and restore guards retain target; Korean/English help explains clicking/tapping",
+        "Explicit slot 1 attacks the clicked individual using the equipped move, without hidden basic attack"
+      ],
+      "images": [
+        "reports/wild-retaliation-20261012/built-844-selected.png"
+      ],
+      "selected": {
+        "target": 1,
+        "uuid": "2b866d5a-3310-4c86-b38b-06139aee0356",
+        "casts": 0,
+        "hp": [
+          1000,
+          1000
+        ],
+        "cooldowns": [
+          0,
+          0
+        ],
+        "basic": 0,
+        "position": [
+          -8,
+          -0.002708858567520864,
+          15
+        ],
+        "yaw": 0,
+        "pitch": 0.65,
+        "moving": false,
+        "touchMove": {
+          "x": 0,
+          "z": 0,
+          "run": false
+        },
+        "walk": false,
+        "selectedLabel": [
+          false,
+          true
+        ],
+        "hud": "꼬렛 Lv. 3",
+        "hudVisible": true
+      },
+      "cast": {
+        "id": 33,
+        "target": 0,
+        "basic": false
+      },
+      "status": "passed"
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "Edge mobile emulation, not physical phones or Safari.",
+    "Prepared encounters; not a natural 151-species playthrough."
+  ],
+  "finishedAt": "2026-10-12T01:57:45.536Z"
+}

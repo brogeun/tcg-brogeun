@@ -1,0 +1,97 @@
+✖ wild provocation survives rejected movement at its habitat edge (4.6544ms)
+✖ immune hostile hit still provokes a wild Pokemon without bypassing immunity (0.6214ms)
+✖ rooted wild Pokemon attacks in range without moving, unlike sleep freeze and stun (2.8843ms)
+✖ first hostile action provokes promptly but repeated hits do not shorten its attack cadence (0.6141ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 162.8679
+
+✖ failing tests:
+
+test at scripts\runtime.test.mjs:1179:1
+✖ wild provocation survives rejected movement at its habitat edge (4.6544ms)
+  AssertionError [ERR_ASSERTION]: Habitat rejection erased retaliation
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///C:/Users/pc/Desktop/TCG%20project/KANTO151_HANDOFF_WORK_2026-09-13/kanto151-online/scripts/runtime.test.mjs:1179:436)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\runtime.test.mjs:1180:1
+✖ immune hostile hit still provokes a wild Pokemon without bypassing immunity (0.6214ms)
+  AssertionError [ERR_ASSERTION]: Immune damage discarded awareness
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///C:/Users/pc/Desktop/TCG%20project/KANTO151_HANDOFF_WORK_2026-09-13/kanto151-online/scripts/runtime.test.mjs:1180:198)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\runtime.test.mjs:1181:1
+✖ rooted wild Pokemon attacks in range without moving, unlike sleep freeze and stun (2.8843ms)
+  AssertionError [ERR_ASSERTION]: Movement root blocked all retaliation
+      at TestContext.<anonymous> (file:///C:/Users/pc/Desktop/TCG%20project/KANTO151_HANDOFF_WORK_2026-09-13/kanto151-online/scripts/runtime.test.mjs:1181:514)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts\runtime.test.mjs:1182:1
+✖ first hostile action provokes promptly but repeated hits do not shorten its attack cadence (0.6141ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - true
+  
+      at TestContext.<anonymous> (file:///C:/Users/pc/Desktop/TCG%20project/KANTO151_HANDOFF_WORK_2026-09-13/kanto151-online/scripts/runtime.test.mjs:1182:208)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

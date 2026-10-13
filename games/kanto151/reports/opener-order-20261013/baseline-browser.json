@@ -1,0 +1,455 @@
+{
+  "status": "passed",
+  "base": "http://127.0.0.1:8799/",
+  "startedAt": "2026-10-13T02:16:34.115Z",
+  "mode": "Original backed-up runtime; diagnostic recording before fix",
+  "scope": "Fresh qa=1 memory saves; actual legitimately learned/equipped skills and normal keyboard/mobile button input. Durable prepared encounters and expired idle timers. One initial case per viewport observes timer expiration by actual idle simulation. No real user saves.",
+  "cases": [
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "before": {
+        "speciesId": 4,
+        "moveId": 10,
+        "kind": "scratch",
+        "slot": 0,
+        "distance": 1.5999999999999996,
+        "engine": {
+          "template": "melee",
+          "power": 40,
+          "cooldown": 3.0023999999999997,
+          "range": 2.6,
+          "radius": 0.8,
+          "castTime": 0.31,
+          "projectileSpeed": 18,
+          "knockback": 2.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        },
+        "known": true,
+        "playerHp": 1000,
+        "idleTimer": -0.30720000000000014
+      },
+      "after": {
+        "events": [
+          {
+            "side": "wild",
+            "moveId": 84,
+            "damage": 8,
+            "time": 0.3422000000000005
+          }
+        ],
+        "casts": [
+          {
+            "side": "player",
+            "moveId": 10,
+            "time": 0.19200000000000061
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 0.20000000000000062
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 4.001800000000003
+          }
+        ],
+        "playerHp": 992,
+        "targetHp": 10000,
+        "playerSerial": 2,
+        "projectiles": 0,
+        "cooldowns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "engine": {
+          "template": "melee",
+          "power": 40,
+          "cooldown": 3.0023999999999997,
+          "range": 2.6,
+          "radius": 0.8,
+          "castTime": 0.31,
+          "projectileSpeed": 18,
+          "knockback": 2.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        }
+      },
+      "beforeImage": "reports/opener-order-20261013/baseline-1280-scratch-before.png",
+      "afterImage": "reports/opener-order-20261013/baseline-1280-scratch-after.png"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "before": {
+        "speciesId": 1,
+        "moveId": 33,
+        "kind": "tackle",
+        "slot": 0,
+        "distance": 2,
+        "engine": {
+          "template": "dash",
+          "power": 40,
+          "cooldown": 1.8,
+          "range": 4.2,
+          "radius": 0.8,
+          "castTime": 0.1,
+          "projectileSpeed": 18,
+          "knockback": 2.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        },
+        "known": true,
+        "playerHp": 1000,
+        "idleTimer": -8.119999999999996
+      },
+      "after": {
+        "events": [
+          {
+            "side": "player",
+            "moveId": 33,
+            "damage": 44,
+            "time": 0.301499999999999
+          }
+        ],
+        "casts": [
+          {
+            "side": "player",
+            "moveId": 33,
+            "time": 0.17549999999999955
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 0.1833999999999989
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 3.989499999999926
+          }
+        ],
+        "playerHp": 1000,
+        "targetHp": 9956,
+        "playerSerial": 1,
+        "projectiles": 0,
+        "cooldowns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "engine": {
+          "template": "dash",
+          "power": 40,
+          "cooldown": 1.8,
+          "range": 4.2,
+          "radius": 0.8,
+          "castTime": 0.1,
+          "projectileSpeed": 18,
+          "knockback": 2.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        }
+      },
+      "beforeImage": "reports/opener-order-20261013/baseline-1280-tackle-before.png",
+      "afterImage": "reports/opener-order-20261013/baseline-1280-tackle-after.png"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "before": {
+        "speciesId": 7,
+        "moveId": 55,
+        "kind": "water-gun",
+        "slot": 0,
+        "distance": 2,
+        "engine": {
+          "template": "projectile",
+          "power": 40,
+          "cooldown": 2.4,
+          "range": 13,
+          "radius": 0.8,
+          "castTime": 0.16,
+          "projectileSpeed": 20,
+          "knockback": 2.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        },
+        "known": true,
+        "playerHp": 1000,
+        "idleTimer": -8.118999999999994
+      },
+      "after": {
+        "events": [
+          {
+            "side": "wild",
+            "moveId": 84,
+            "damage": 14,
+            "time": 0.325799999999985
+          }
+        ],
+        "casts": [
+          {
+            "side": "player",
+            "moveId": 55,
+            "time": 0.17579999999998996
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 0.18379999999998908
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 3.986899999999787
+          }
+        ],
+        "playerHp": 986,
+        "targetHp": 10000,
+        "playerSerial": 2,
+        "projectiles": 0,
+        "cooldowns": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "engine": {
+          "template": "projectile",
+          "power": 40,
+          "cooldown": 2.4,
+          "range": 13,
+          "radius": 0.8,
+          "castTime": 0.16,
+          "projectileSpeed": 20,
+          "knockback": 2.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        }
+      },
+      "beforeImage": "reports/opener-order-20261013/baseline-1280-water-gun-before.png",
+      "afterImage": "reports/opener-order-20261013/baseline-1280-water-gun-after.png"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "before": {
+        "speciesId": 126,
+        "moveId": 126,
+        "kind": "fire-blast",
+        "slot": 1,
+        "distance": 8,
+        "engine": {
+          "template": "projectile",
+          "power": 110,
+          "cooldown": 5.8,
+          "range": 16,
+          "radius": 0.8,
+          "castTime": 0.58,
+          "projectileSpeed": 20,
+          "knockback": 3.95,
+          "status": "burn",
+          "statusChance": 0.1,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        },
+        "known": true,
+        "playerHp": 1000,
+        "idleTimer": -8.11999999999999
+      },
+      "after": {
+        "events": [
+          {
+            "side": "wild",
+            "moveId": 84,
+            "damage": 6,
+            "time": 0.3420999999999701
+          }
+        ],
+        "casts": [
+          {
+            "side": "player",
+            "moveId": 126,
+            "time": 0.19199999999997885
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 0.19999999999997797
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 4.000999999999847
+          }
+        ],
+        "playerHp": 994,
+        "targetHp": 10000,
+        "playerSerial": 2,
+        "projectiles": 0,
+        "cooldowns": [
+          0,
+          1.9909999999999968,
+          0,
+          0
+        ],
+        "engine": {
+          "template": "projectile",
+          "power": 110,
+          "cooldown": 5.8,
+          "range": 16,
+          "radius": 0.8,
+          "castTime": 0.58,
+          "projectileSpeed": 20,
+          "knockback": 3.95,
+          "status": "burn",
+          "statusChance": 0.1,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        }
+      },
+      "beforeImage": "reports/opener-order-20261013/baseline-1280-fire-blast-before.png",
+      "afterImage": "reports/opener-order-20261013/baseline-1280-fire-blast-after.png"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "before": {
+        "speciesId": 3,
+        "moveId": 76,
+        "kind": "solar-beam",
+        "slot": 1,
+        "distance": 8,
+        "engine": {
+          "template": "beam",
+          "power": 120,
+          "cooldown": 6.2,
+          "range": 18,
+          "radius": 0.8,
+          "castTime": 0.9,
+          "projectileSpeed": 18,
+          "knockback": 4.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        },
+        "known": true,
+        "playerHp": 1000,
+        "idleTimer": -8.1251
+      },
+      "after": {
+        "events": [
+          {
+            "side": "wild",
+            "moveId": 84,
+            "damage": 3,
+            "time": 0.33859999999998536
+          }
+        ],
+        "casts": [
+          {
+            "side": "player",
+            "moveId": 76,
+            "time": 0.1839999999999904
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 0.1919999999999895
+          },
+          {
+            "side": "wild",
+            "moveId": 84,
+            "time": 3.9971999999999532
+          }
+        ],
+        "playerHp": 997,
+        "targetHp": 10000,
+        "playerSerial": 2,
+        "projectiles": 0,
+        "cooldowns": [
+          0,
+          2.3799000000000103,
+          0,
+          0
+        ],
+        "engine": {
+          "template": "beam",
+          "power": 120,
+          "cooldown": 6.2,
+          "range": 18,
+          "radius": 0.8,
+          "castTime": 0.9,
+          "projectileSpeed": 18,
+          "knockback": 4.2,
+          "status": "none",
+          "statusChance": 0,
+          "statusDuration": 6,
+          "hitCount": 1,
+          "healFraction": 0,
+          "drainFraction": 0,
+          "statChanges": []
+        }
+      },
+      "beforeImage": "reports/opener-order-20261013/baseline-1280-solar-beam-before.png",
+      "afterImage": "reports/opener-order-20261013/baseline-1280-solar-beam-after.png"
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "Edge mobile emulation, not physical phones or Safari.",
+    "Prepared encounters, not a new natural 151-species run."
+  ],
+  "finishedAt": "2026-10-13T02:17:00.024Z"
+}

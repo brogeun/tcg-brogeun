@@ -14,3 +14,15 @@ export function pickWildTargetAt(g,x,y,ray){
  if(g.world.level){g.world.level.updateMatrixWorld(true);const blocker=ray.intersectObject(g.world.level,true).find(h=>h.distance<hit.distance-.02&&opaqueSurface(h));if(blocker)return null;}
  return actor;
 }
+
+// Keep individual order while enemies move; new arrivals join after the retained cycle.
+export function cycleWildTarget(g,direction=1){
+ if(g.phase!=='playing'||g.panel||g.transitioning||g.restoring||g.survivalDying||g.partnerChanging||g.capture||!(g.player?.hp>0))return undefined;
+ const eligible=(g.wild||[]).filter(a=>a.hp>0&&!a.capturing&&a.model?.visible!==false&&a.model?.position.distanceTo(g.player.model.position)<30);
+ const valid=new Set(eligible),order=g.targetCycle?.epoch===g.regionEpoch?[...g.targetCycle.actors]:[];
+ const newcomers=eligible.filter(a=>!order.includes(a)).sort((a,b)=>a.model.position.distanceTo(g.player.model.position)-b.model.position.distanceTo(g.player.model.position));
+ order.push(...newcomers);const step=direction<0?-1:1,current=order.indexOf(g.target||(g.targetCycle?.epoch===g.regionEpoch?g.targetCycle.selected:null));let selected=null;
+ // Retain the old anchor for this turn so a defeated/removed target advances to its successor.
+ for(let n=1;n<=order.length;n++){const i=(current<0?(step>0?n-1:order.length-n):current+step*n+order.length)%order.length;if(valid.has(order[i])){selected=order[i];break;}}
+ g.targetCycle={epoch:g.regionEpoch,actors:order.filter(a=>valid.has(a)),selected};return selected;
+}

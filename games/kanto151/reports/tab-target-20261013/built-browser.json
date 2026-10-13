@@ -1,0 +1,557 @@
+{
+  "status": "passed",
+  "base": "http://127.0.0.1:8799/dist/",
+  "startedAt": "2026-10-13T02:54:53.927Z",
+  "scope": "Fresh qa=1 in-memory saves. Actual modeled wild encounters and normal Tab/Shift+Tab/Q/mobile Target/mouse input. Prepared durable HP, legal fixture positions and combat timers. No persistent user saves.",
+  "cases": [
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Three simultaneous attackers with forward Tab cycle",
+      "actions": [
+        {
+          "input": "Tab",
+          "target": "ca05032a-c5a5-424a-b2aa-7a35d2c1c00b",
+          "hud": "꼬렛 Lv. 4"
+        },
+        {
+          "input": "Tab",
+          "target": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed",
+          "hud": "꼬렛 Lv. 6"
+        },
+        {
+          "input": "Tab",
+          "target": "8d2c6cef-1c72-46e7-ab67-833fd3f620c8",
+          "hud": "꼬렛 Lv. 8"
+        },
+        {
+          "input": "Tab",
+          "target": "ca05032a-c5a5-424a-b2aa-7a35d2c1c00b",
+          "hud": "꼬렛 Lv. 4"
+        }
+      ],
+      "retaliation": [
+        {
+          "actor": "ca05032a-c5a5-424a-b2aa-7a35d2c1c00b",
+          "target": "c1c8be9c-3522-46ed-8884-5af480b7c9d1",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 6,
+          "time": 0.7456
+        },
+        {
+          "actor": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed",
+          "target": "c1c8be9c-3522-46ed-8884-5af480b7c9d1",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 7,
+          "time": 0.9138000000000004
+        },
+        {
+          "actor": "8d2c6cef-1c72-46e7-ab67-833fd3f620c8",
+          "target": "c1c8be9c-3522-46ed-8884-5af480b7c9d1",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 7,
+          "time": 1.0578000000000005
+        }
+      ],
+      "image": "reports/tab-target-20261013/built-1280-combat.png"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Shift+Tab reverses and wraps",
+      "target": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Held Tab does not repeatedly cycle",
+      "target": "8d2c6cef-1c72-46e7-ab67-833fd3f620c8"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Moving attackers retain their original cycle",
+      "reorder": {
+        "before": [
+          2.1805192745454405,
+          2.080939064257578,
+          1.948214946666359
+        ],
+        "retained": [
+          "ca05032a-c5a5-424a-b2aa-7a35d2c1c00b",
+          "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed",
+          "8d2c6cef-1c72-46e7-ab67-833fd3f620c8"
+        ]
+      }
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Q follows the same cycle",
+      "target": "8d2c6cef-1c72-46e7-ab67-833fd3f620c8"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Changing target during learned Solar Beam keeps pending damage on original target",
+      "charge": {
+        "serial": 4,
+        "cd": 6.2
+      },
+      "events": [
+        {
+          "actor": "c1c8be9c-3522-46ed-8884-5af480b7c9d1",
+          "target": "ca05032a-c5a5-424a-b2aa-7a35d2c1c00b",
+          "side": "player",
+          "moveId": 76,
+          "damage": 356,
+          "time": 2.762400000000002
+        }
+      ],
+      "selected": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Next ready skill damages the newly selected target",
+      "selected": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed",
+      "events": [
+        {
+          "actor": "c1c8be9c-3522-46ed-8884-5af480b7c9d1",
+          "target": "ca05032a-c5a5-424a-b2aa-7a35d2c1c00b",
+          "side": "player",
+          "moveId": 76,
+          "damage": 356,
+          "time": 2.762400000000002
+        },
+        {
+          "actor": "c1c8be9c-3522-46ed-8884-5af480b7c9d1",
+          "target": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed",
+          "side": "player",
+          "moveId": 76,
+          "damage": 362,
+          "time": 8.960004999999942
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Defeated and capturing targets skipped",
+      "selected": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Direct click keeps individual selection without attack",
+      "point": {
+        "x": 524.1433700177981,
+        "y": 369.0289471065194
+      },
+      "preparedCameraDistance": 28
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Pause focus wraps and dex search Tab keeps native focus",
+      "first": "resume",
+      "last": "title-return"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Korean control guide shows forward and reverse targeting",
+      "image": "reports/tab-target-20261013/built-1280-settings.png"
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "mobile": false,
+      "name": "Removed current target advances to the following individual",
+      "removed": "ca05032a-c5a5-424a-b2aa-7a35d2c1c00b",
+      "next": "6e2f1ef2-71ad-40ab-a6b1-bd618b2347ed"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Three simultaneous attackers with forward Tab cycle",
+      "actions": [
+        {
+          "input": "Tab",
+          "target": "1bbe4d8b-8e8f-4607-8453-155eeaaa0592",
+          "hud": "꼬렛 Lv. 4"
+        },
+        {
+          "input": "Tab",
+          "target": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3",
+          "hud": "꼬렛 Lv. 6"
+        },
+        {
+          "input": "Tab",
+          "target": "6efade19-3ed4-40a9-8719-71a854679b1e",
+          "hud": "꼬렛 Lv. 8"
+        },
+        {
+          "input": "Tab",
+          "target": "1bbe4d8b-8e8f-4607-8453-155eeaaa0592",
+          "hud": "꼬렛 Lv. 4"
+        }
+      ],
+      "retaliation": [
+        {
+          "actor": "1bbe4d8b-8e8f-4607-8453-155eeaaa0592",
+          "target": "920c4cbb-6826-41e0-b9bd-bd564a1885af",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 7,
+          "time": 0.5988000000000001
+        },
+        {
+          "actor": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3",
+          "target": "920c4cbb-6826-41e0-b9bd-bd564a1885af",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 7,
+          "time": 0.7571000000000003
+        },
+        {
+          "actor": "6efade19-3ed4-40a9-8719-71a854679b1e",
+          "target": "920c4cbb-6826-41e0-b9bd-bd564a1885af",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 8,
+          "time": 0.9171000000000005
+        }
+      ],
+      "image": "reports/tab-target-20261013/built-390-combat.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Shift+Tab reverses and wraps",
+      "target": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Held Tab does not repeatedly cycle",
+      "target": "6efade19-3ed4-40a9-8719-71a854679b1e"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Moving attackers retain their original cycle",
+      "reorder": {
+        "before": [
+          2.180875752048707,
+          2.19690294697952,
+          1.9481510285642205
+        ],
+        "retained": [
+          "1bbe4d8b-8e8f-4607-8453-155eeaaa0592",
+          "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3",
+          "6efade19-3ed4-40a9-8719-71a854679b1e"
+        ]
+      }
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Mobile Target follows the same cycle",
+      "target": "6efade19-3ed4-40a9-8719-71a854679b1e"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Changing target during learned Solar Beam keeps pending damage on original target",
+      "charge": {
+        "serial": 4,
+        "cd": 6.2
+      },
+      "events": [
+        {
+          "actor": "920c4cbb-6826-41e0-b9bd-bd564a1885af",
+          "target": "1bbe4d8b-8e8f-4607-8453-155eeaaa0592",
+          "side": "player",
+          "moveId": 76,
+          "damage": 400,
+          "time": 2.4565
+        }
+      ],
+      "selected": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Next ready skill damages the newly selected target",
+      "selected": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3",
+      "events": [
+        {
+          "actor": "920c4cbb-6826-41e0-b9bd-bd564a1885af",
+          "target": "1bbe4d8b-8e8f-4607-8453-155eeaaa0592",
+          "side": "player",
+          "moveId": 76,
+          "damage": 400,
+          "time": 2.4565
+        },
+        {
+          "actor": "920c4cbb-6826-41e0-b9bd-bd564a1885af",
+          "target": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3",
+          "side": "player",
+          "moveId": 76,
+          "damage": 411,
+          "time": 8.68949999999995
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Defeated and capturing targets skipped",
+      "selected": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Direct touch keeps individual selection without attack",
+      "point": {
+        "x": 54.7396843710095,
+        "y": 431.6507179362657
+      },
+      "preparedCameraDistance": 28
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Pause focus wraps and dex search Tab keeps native focus",
+      "first": "resume",
+      "last": "title-return"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Korean control guide shows forward and reverse targeting",
+      "image": "reports/tab-target-20261013/built-390-settings.png"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "mobile": true,
+      "name": "Removed current target advances to the following individual",
+      "removed": "1bbe4d8b-8e8f-4607-8453-155eeaaa0592",
+      "next": "bfa468dc-5e4e-4890-a2c4-b0546cafaeb3"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Three simultaneous attackers with forward Tab cycle",
+      "actions": [
+        {
+          "input": "Tab",
+          "target": "c37af42d-1087-4a2c-8335-969887acfaf3",
+          "hud": "꼬렛 Lv. 4"
+        },
+        {
+          "input": "Tab",
+          "target": "4fd14b18-5694-4072-b9de-4ca2ac623b9c",
+          "hud": "꼬렛 Lv. 6"
+        },
+        {
+          "input": "Tab",
+          "target": "90236adc-c4ce-432b-afd8-ee07ced2663a",
+          "hud": "꼬렛 Lv. 8"
+        },
+        {
+          "input": "Tab",
+          "target": "c37af42d-1087-4a2c-8335-969887acfaf3",
+          "hud": "꼬렛 Lv. 4"
+        }
+      ],
+      "retaliation": [
+        {
+          "actor": "c37af42d-1087-4a2c-8335-969887acfaf3",
+          "target": "60f1ee7f-b422-4ea9-b0d6-77b972925d68",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 6,
+          "time": 0.5867000000000001
+        },
+        {
+          "actor": "4fd14b18-5694-4072-b9de-4ca2ac623b9c",
+          "target": "60f1ee7f-b422-4ea9-b0d6-77b972925d68",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 7,
+          "time": 0.7446000000000004
+        },
+        {
+          "actor": "90236adc-c4ce-432b-afd8-ee07ced2663a",
+          "target": "60f1ee7f-b422-4ea9-b0d6-77b972925d68",
+          "side": "wild",
+          "moveId": 33,
+          "damage": 7,
+          "time": 0.9008000000000007
+        }
+      ],
+      "image": "reports/tab-target-20261013/built-844-combat.png"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Shift+Tab reverses and wraps",
+      "target": "4fd14b18-5694-4072-b9de-4ca2ac623b9c"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Held Tab does not repeatedly cycle",
+      "target": "90236adc-c4ce-432b-afd8-ee07ced2663a"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Moving attackers retain their original cycle",
+      "reorder": {
+        "before": [
+          2.180673819300446,
+          2.1961009703802428,
+          1.9480900522775288
+        ],
+        "retained": [
+          "c37af42d-1087-4a2c-8335-969887acfaf3",
+          "4fd14b18-5694-4072-b9de-4ca2ac623b9c",
+          "90236adc-c4ce-432b-afd8-ee07ced2663a"
+        ]
+      }
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Mobile Target follows the same cycle",
+      "target": "90236adc-c4ce-432b-afd8-ee07ced2663a"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Changing target during learned Solar Beam keeps pending damage on original target",
+      "charge": {
+        "serial": 4,
+        "cd": 6.2
+      },
+      "events": [
+        {
+          "actor": "60f1ee7f-b422-4ea9-b0d6-77b972925d68",
+          "target": "c37af42d-1087-4a2c-8335-969887acfaf3",
+          "side": "player",
+          "moveId": 76,
+          "damage": 378,
+          "time": 2.4915000000000007
+        }
+      ],
+      "selected": "4fd14b18-5694-4072-b9de-4ca2ac623b9c"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Next ready skill damages the newly selected target",
+      "selected": "4fd14b18-5694-4072-b9de-4ca2ac623b9c",
+      "events": [
+        {
+          "actor": "60f1ee7f-b422-4ea9-b0d6-77b972925d68",
+          "target": "c37af42d-1087-4a2c-8335-969887acfaf3",
+          "side": "player",
+          "moveId": 76,
+          "damage": 378,
+          "time": 2.4915000000000007
+        },
+        {
+          "actor": "60f1ee7f-b422-4ea9-b0d6-77b972925d68",
+          "target": "4fd14b18-5694-4072-b9de-4ca2ac623b9c",
+          "side": "player",
+          "moveId": 76,
+          "damage": 382,
+          "time": 8.728999999999969
+        }
+      ]
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Defeated and capturing targets skipped",
+      "selected": "4fd14b18-5694-4072-b9de-4ca2ac623b9c"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Direct touch keeps individual selection without attack",
+      "point": {
+        "x": 370.11942801934026,
+        "y": 206.39066147598277
+      },
+      "preparedCameraDistance": 28
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Pause focus wraps and dex search Tab keeps native focus",
+      "first": "resume",
+      "last": "title-return"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Korean control guide shows forward and reverse targeting",
+      "image": "reports/tab-target-20261013/built-844-settings.png"
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "mobile": true,
+      "name": "Removed current target advances to the following individual",
+      "removed": "4fd14b18-5694-4072-b9de-4ca2ac623b9c",
+      "next": "c37af42d-1087-4a2c-8335-969887acfaf3"
+    }
+  ],
+  "errors": [],
+  "limitations": [
+    "Edge mobile viewport/touch emulation; physical phones and Safari not tested.",
+    "Prepared encounters for bounded interaction/combat tests; not a natural 151-species run."
+  ],
+  "finishedAt": "2026-10-13T02:55:32.206Z"
+}

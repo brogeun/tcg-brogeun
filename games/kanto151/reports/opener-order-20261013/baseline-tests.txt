@@ -1,0 +1,46 @@
+✖ an expired idle wild timer cannot interrupt a genuine first skill before its impact (16.5958ms)
+✖ a charging beam hits a target closing along the visible beam segment (4.097ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 194.2996
+
+✖ failing tests:
+
+test at scripts\runtime.test.mjs:1187:1
+✖ an expired idle wild timer cannot interrupt a genuine first skill before its impact (16.5958ms)
+  AssertionError [ERR_ASSERTION]: Opening skill vanished 10
+      at TestContext.<anonymous> (file:///C:/Users/pc/Desktop/TCG%20project/KANTO151_HANDOFF_WORK_2026-09-13/kanto151-online/scripts/runtime.test.mjs:1187:674)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at scripts\runtime.test.mjs:1188:1
+✖ a charging beam hits a target closing along the visible beam segment (4.097ms)
+  AssertionError [ERR_ASSERTION]: Solar Beam missed a target directly inside its beam
+      at TestContext.<anonymous> (file:///C:/Users/pc/Desktop/TCG%20project/KANTO151_HANDOFF_WORK_2026-09-13/kanto151-online/scripts/runtime.test.mjs:1188:306)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

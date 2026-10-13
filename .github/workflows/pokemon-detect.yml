@@ -60,6 +60,10 @@ jobs:
           git commit -m "🤖 Pokemon 신규 세트 자동 동기화"
           git push
 
+      - name: Verify public home card index before deploy
+        if: steps.changes.outputs.has_changes == 'true'
+        run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir .
+
       - name: Deploy to Cloudflare Pages
         if: steps.changes.outputs.has_changes == 'true'
         env:

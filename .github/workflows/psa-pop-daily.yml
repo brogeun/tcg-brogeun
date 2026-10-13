@@ -43,6 +43,10 @@ jobs:
             echo "No changes — Cloudflare blocked or all cached."
           fi
 
+      - name: Verify public home card index before deploy
+        if: success()
+        run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir .
+
       - name: Deploy to Cloudflare Pages
         if: success()
         env:

@@ -132,6 +132,10 @@ jobs:
           done
           # admin
           [ -f functions/api/admin.js ] && cp functions/api/admin.js _deploy/functions/api/admin.js && echo "✓ admin"
+          # Preserve the existing card API routes in the operating site.
+          for f in beezie-prices.js card.js cards.js img.js scrape-set.js scraped-sets.js snkrdunk.js top10.js; do
+            [ -f "functions/api/$f" ] && cp "functions/api/$f" "_deploy/functions/api/$f"
+          done
           # 카드 등급별 시세 라이브 폴백
           [ -f functions/api/card-grades.js ] && cp functions/api/card-grades.js _deploy/functions/api/card-grades.js && echo "✓ card-grades"
           # PSA cert/pop + BGS cert/pop (그레이딩 POP 기능 — 화이트리스트 누락으로 푸시마다 404 되던 것 복구)
@@ -148,8 +152,12 @@ jobs:
           cp functions/api/games/volleyball.js _deploy/functions/api/games/volleyball.js
           cp functions/api/games/jigglypuff.js _deploy/functions/api/games/jigglypuff.js
           # auth
-          for f in request.js verify.js me.js logout.js; do
+          for f in request.js verify.js me.js logout.js delete-account.js exchange-code.js; do
             [ -f "functions/api/auth/$f" ] && cp "functions/api/auth/$f" "_deploy/functions/api/auth/$f" && echo "✓ auth/$f"
+          done
+          # Preserve native sign-in and browser OAuth callbacks.
+          for d in apple google kakao; do
+            [ -d "functions/api/auth/$d" ] && cp -r "functions/api/auth/$d" "_deploy/functions/api/auth/$d"
           done
           # portfolio
           [ -f functions/api/portfolio/index.js ] && cp functions/api/portfolio/index.js _deploy/functions/api/portfolio/index.js && echo "✓ portfolio/"
@@ -167,6 +175,9 @@ jobs:
           find _deploy -type f | head -30
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
+
+      - name: Verify public home card index before deploy
+        run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
 
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}

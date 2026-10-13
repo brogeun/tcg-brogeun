@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-v5-furbox-detail-20261012';
+const CACHE_VERSION = 'tcghub-index19-restore-20261013-1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -60,6 +60,16 @@ self.addEventListener('fetch', event => {
 
   // Chinese daily FX snapshots must not use an older cached rate.
   if (url.origin === location.origin && url.pathname === '/data/fx-rates.json') {
+    event.respondWith(networkFirst(req, DATA_CACHE));
+    return;
+  }
+
+  // Keep the card index display and its verified results from the same current release.
+  if (url.origin === location.origin && ['/assets/market-price-index.js', '/assets/market-price-index.css'].includes(url.pathname)) {
+    event.respondWith(networkFirst(req, STATIC_CACHE));
+    return;
+  }
+  if (url.origin === location.origin && ['/data/market-price-index.json', '/data/market-price-index-validation.json', '/data/market-price-index-independent-verification.json'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }

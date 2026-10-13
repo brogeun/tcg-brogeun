@@ -15,7 +15,7 @@
     return title;
   }
   function ensureData() {
-    if (ready) return ready;
+    if (ready && !window.PromoSearch?.needsRetry()) return ready;
     ready=(async()=>{
       await loadCardSearchData();
       if (!_ALL_CARDS_INDEX?.length) throw new Error('검색 데이터를 불러오지 못했어요.');
@@ -98,7 +98,7 @@
       // ID-based Korean box names also remain searchable after metadata enrichment.
       normalized.forEach(c=>{if(c.displayName.toLowerCase().includes(q.toLowerCase())&&(category==='all'||c.kind===category))unique.set(c.id,c)});
       }
-      const results=[...unique.values()];
+      const results=(language==='ja'&&window.PromoSearch ? PromoSearch.filterCodeQuery([...unique.values()],q) : [...unique.values()]);
       count.textContent=results.length ? results.length+'개 결과 · '+Math.min(visible,results.length)+'개 표시' : '';
       list.innerHTML=results.length ? results.slice(0,visible).map(c=>{
         const safe=escapeHtml;

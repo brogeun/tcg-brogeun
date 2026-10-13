@@ -4816,7 +4816,7 @@ let _ALL_CARDS_INDEX = null;
 let _SEARCH_ALIASES = null;
 
 async function loadCardSearchData() {
-  if (_ALL_CARDS_INDEX) return;
+  if (_ALL_CARDS_INDEX) { if (window.PromoSearch?.needsRetry()) _ALL_CARDS_INDEX = await PromoSearch.merge(_ALL_CARDS_INDEX); return; }
   const t = Math.floor(Date.now() / 3600000);
   if (!_PRICE_BOX_NAME_OVERRIDES) {
     try {
@@ -4906,6 +4906,7 @@ async function loadCardSearchData() {
   _ALL_CARDS_INDEX = [...cardItems, ...boxItems];
   await window.AnniversaryMarket?.load();
   _ALL_CARDS_INDEX = [...new Map([..._ALL_CARDS_INDEX,...(window.AnniversaryMarket?.products() || [])].map(p=>[String(p.id),p])).values()];
+  if (window.PromoSearch) _ALL_CARDS_INDEX = await PromoSearch.merge(_ALL_CARDS_INDEX);
   console.log(`[search] 카드 ${cardItems.length} + 박스 ${boxItems.length} 인덱싱`);
   // search-aliases.json 로딩
   try {
@@ -4967,7 +4968,7 @@ function searchCards(query, limit = 30) {
     const bN = parseInt((b.listingCount || '0').toString().replace(/\+/g, '')) || 0;
     return bN - aN;
   });
-  return matches.slice(0, limit);
+  return (window.PromoSearch ? PromoSearch.filterCodeQuery(matches, query) : matches).slice(0, limit);
 }
 
 function renderSearchResults(results, query) {
@@ -5105,7 +5106,7 @@ function renderPriceSearchAsGrid(results, query) {
     image: c.thumbnailUrl,
     lastPrice: c.minPrice,
     lowestAsk: c.minPrice,
-    currency: 'USD',
+    currency: c.currency || 'USD',
     brand: c.brand,
   }));
   // PRICE_CAT 무관하게 카드 표시 (검색 모드 표시용 임시 override)
@@ -11136,7 +11137,8 @@ window.addEventListener('appinstalled', () => {
 
 // </script>
 <script src="/assets/english-search.js?v=20260908-search1"></script>
-<script src="/assets/search-modal.js?v=20261012-cn-release1"></script>
+<script src="/assets/promo-search.js?v=20261013-promo1"></script>
+<script src="/assets/search-modal.js?v=20261013-promo1"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261012-cn-names1"></script>

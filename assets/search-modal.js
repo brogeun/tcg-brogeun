@@ -81,6 +81,68 @@
     });
   }
   function schedule(){version++;clearTimeout(timer);visible=30;if(!input.value.trim()){list.replaceChildren();count.textContent='';return}timer=setTimeout(render,180)}
+  // Transparent CDN margins must not determine the mobile card's visible size.
+  const searchArtwork=new Map(), artworkWaiters=[];
+  let artworkActive=0;
+  function measureSearchArtwork(src) {
+    if(searchArtwork.has(src))return searchArtwork.get(src);
+    const pending=(async()=>{
+      if(artworkActive>=3)await new Promise(resolve=>artworkWaiters.push(resolve));
+      else artworkActive++;
+      try {
+        const needed=innerWidth<=768&&!modal?.hidden&&list&&[...list.querySelectorAll('.gs-row[data-kind="card"]>img.gs-thumb')].some(img=>(img.currentSrc||img.src)===src);
+        if(!needed){searchArtwork.delete(src);return null;}
+        const probe=new Image();
+        await new Promise((resolve,reject)=>{
+          const timeout=setTimeout(()=>{probe.src='';reject(new Error('Artwork timeout'));},10000);
+          probe.onload=()=>{clearTimeout(timeout);resolve()};
+          probe.onerror=()=>{clearTimeout(timeout);reject(new Error('Artwork unavailable'))};
+          probe.src='/api/img?u='+encodeURIComponent(src);
+        });
+        const factor=Math.min(1,512/Math.max(probe.naturalWidth,probe.naturalHeight));
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(probe.naturalWidth*factor));
+        canvas.height=Math.max(1,Math.round(probe.naturalHeight*factor));
+        const context=canvas.getContext('2d',{willReadFrequently:true});
+        if(!context)return null;
+        context.drawImage(probe,0,0,canvas.width,canvas.height);
+        const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;
+        let left=canvas.width,top=canvas.height,right=0,bottom=0;
+        for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++)if(pixels[(y*canvas.width+x)*4+3]>0){
+          left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x+1);bottom=Math.max(bottom,y+1);
+        }
+        if(right<=left||bottom<=top||left===0&&top===0&&right===canvas.width&&bottom===canvas.height)return null;
+        // Include edge pixels when the measurement canvas was downscaled.
+        left=Math.max(0,left-1);top=Math.max(0,top-1);right=Math.min(canvas.width,right+1);bottom=Math.min(canvas.height,bottom+1);
+        return {width:probe.naturalWidth,height:probe.naturalHeight,bounds:[left*probe.naturalWidth/canvas.width,top*probe.naturalHeight/canvas.height,right*probe.naturalWidth/canvas.width,bottom*probe.naturalHeight/canvas.height]};
+      } catch { return null; }
+      finally {const next=artworkWaiters.shift();if(next)next();else artworkActive--;}
+    })();
+    searchArtwork.set(src,pending);
+    if(searchArtwork.size>180)searchArtwork.delete(searchArtwork.keys().next().value);
+    return pending;
+  }
+  async function fitSearchArtwork(img) {
+    if(innerWidth>768||modal?.hidden||!img.complete||!img.naturalWidth||!img.isConnected)return;
+    const src=img.currentSrc||img.src,row=img.closest('.gs-row');
+    if(row?.dataset.kind!=='card'||!/^https:\/\/cdn\.snkrdunk\.com\/upload_bg_removed\//.test(src)||img.parentElement.classList.contains('gs-card-art'))return;
+    const art=await measureSearchArtwork(src);
+    if(!art||!img.isConnected||modal.hidden||innerWidth>768||(img.currentSrc||img.src)!==src||img.parentElement.classList.contains('gs-card-art'))return;
+    const [left,top,right,bottom]=art.bounds,w=right-left,h=bottom-top;
+    const scale=Math.min(96*.98/w,134*.98/h),host=document.createElement('span');
+    host.className='gs-thumb gs-card-art'+(img.classList.contains('gs-card-thumb')?' gs-card-thumb':'');
+    for(const [key,value] of Object.entries({width:art.width*scale,height:art.height*scale,left:(96-w*scale)/2-left*scale,top:(134-h*scale)/2-top*scale}))host.style.setProperty('--gs-art-'+key,value+'px');
+    img.replaceWith(host);host.append(img);img.classList.remove('gs-thumb','gs-card-thumb');
+  }
+  function watchSearchArtwork() {
+    if(!list||modal.hidden||innerWidth>768)return;
+    list.querySelectorAll('.gs-row[data-kind="card"]>img.gs-thumb').forEach(img=>{
+      img.addEventListener('load',()=>fitSearchArtwork(img),{once:true});
+      if(img.complete)fitSearchArtwork(img);
+    });
+  }
+  window.addEventListener('resize',watchSearchArtwork);
+
   async function render(keepScroll=false){
     const own=++version,q=input.value.trim();
     if(!q){list.replaceChildren();count.textContent='';return}
@@ -115,6 +177,7 @@
         const price=Number(c.minPrice)>0 ? fmtKrw(Number(c.minPrice),c.currency) : '시세 없음';
         return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="#price/'+encodeURIComponent(c.id)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+'</div></div><span class="gs-price" title="'+safe(fmtOrig(c.minPrice,c.currency))+'">'+price+'</span></a>';
       }).join('')+(results.length>visible?'<button id="gsMore" class="gs-filter" style="margin:16px 0;width:100%">검색 결과 더 보기</button>':'') : '<div class="gs-state">“'+escapeHtml(q)+'” 검색 결과가 없습니다.<br>이름이나 세트코드, 상품 ID를 확인해주세요.</div>';
+      watchSearchArtwork();
     }catch(error){if(own!==version||modal.hidden)return;list.innerHTML='<div class="gs-state">검색 데이터를 불러오지 못했어요.<br>검색 버튼을 눌러 다시 시도해주세요.</div>';count.textContent=''}
   }
   function open(query=''){

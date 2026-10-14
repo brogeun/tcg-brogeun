@@ -25,7 +25,7 @@
       normalized.clear();
       for(const raw of searchRows){
         const c=boxMap.get(raw.id)||raw;
-        if(window.JapaneseCardNames && JapaneseCardNames.language(c)!=='ja')continue;
+        if(window.JapaneseCardNames ? JapaneseCardNames.language(c)!=='ja' : ['en','zh','zh-cn','zh-tw','cn'].includes(String(c.language||'').toLowerCase())||[c.setCode,c.code,c.id].some(value=>/^(?:EN|CN)-/i.test(String(value||''))))continue;
         const kind=c.kind==='box' ? (c._catalogue || isPriceBoxProduct(c)?'box':'card') : 'card';
         const sets=CARDINFO[c.brand]||[];
         const code=(c.code||c.productNumber||'').toUpperCase();

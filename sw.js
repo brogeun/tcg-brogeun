@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-index19-restore-20261013-1';
+const CACHE_VERSION = 'tcghub-japanese-catalog-20261014-3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -74,7 +74,18 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Card names and catalogue modules must use the same current release.
+  if (url.origin === location.origin && ['/assets/japanese-card-names.js', '/assets/japanese-catalog.js', '/assets/search-modal.js', '/assets/contained-card-match.js', '/assets/contained-card-market.js', '/assets/price-expanded.js', '/assets/price-expanded.css'].includes(url.pathname)) {
+    event.respondWith(networkFirst(req, STATIC_CACHE));
+    return;
+  }
+
   // /data/*.json — stale-while-revalidate
+  // Search labels and printing identities form one current catalogue release.
+  if (url.origin === location.origin && (['/data/japanese-catalog.json', '/data/japanese-card-names-ko.json'].includes(url.pathname) || url.pathname.startsWith('/data/cards-by-set/'))) {
+    event.respondWith(networkFirst(req, DATA_CACHE));
+    return;
+  }
   if (url.pathname.startsWith('/data/') && url.pathname.endsWith('.json')) {
     event.respondWith(staleWhileRevalidate(req, DATA_CACHE));
     return;

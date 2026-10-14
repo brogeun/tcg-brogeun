@@ -181,6 +181,9 @@ jobs:
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
 
+      - name: Verify Japanese catalogue and Korean search before deploy
+        run: node scripts/test_ja_production_gate.cjs --bundle-dir _deploy
+
       - name: Verify public home card index before deploy
         run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
 

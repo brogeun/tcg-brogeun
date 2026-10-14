@@ -5,13 +5,9 @@
   let modal, input, list, count, opener, timer, version=0, category='all', language='ja', visible=30, composing=false, ready;
   const normalized=new Map();
   const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
-  let pokemonNames=[];
   function cardTitle(c) {
+    if(c.brand==='pokemon' && window.JapaneseCardNames) return JapaneseCardNames.title(c);
     let title=c.name.replace(/\s*\((?:Enhanced|High Class|Booster|Expansion|Promotional|Starter)\b.*$/i,'').trim();
-    if(c.brand==='pokemon') {
-      const match=pokemonNames.find(n=>title.toLowerCase().startsWith(n.en.toLowerCase()) && !/[a-z]/i.test(title.charAt(n.en.length)));
-      if(match) title=match.ko+title.slice(match.en.length);
-    }
     return title;
   }
   function ensureData() {
@@ -19,24 +15,23 @@
     ready=(async()=>{
       await loadCardSearchData();
       if (!_ALL_CARDS_INDEX?.length) throw new Error('검색 데이터를 불러오지 못했어요.');
-      try {
-        const response=await fetch('/data/pokemon-names-pokeapi.json');
-        if(response.ok) pokemonNames=(await response.json()).filter(n=>n.en&&n.ko).sort((a,b)=>b.en.length-a.en.length);
-      } catch { /* Keep original names when the existing Korean dictionary is unavailable. */ }
-      const boxes=_ALL_CARDS_INDEX.filter(c=>c.kind==='box').map(c=>({...c}));
+      await window.JapaneseCardNames?.ensureData();
+      const searchRows=window.JapaneseCatalog?.getSearchRows() || _ALL_CARDS_INDEX;
+      const boxes=searchRows.filter(c=>c.kind==='box'&&!c._catalogue).map(c=>({...c}));
       await enrichPriceProductMetadata(boxes,'box');
       // Current price feed precedes manual fallback; keep its price for duplicate IDs.
       const boxMap=new Map();
       boxes.forEach(c=>{if(!boxMap.has(c.id))boxMap.set(c.id,c)});
-      for(const raw of _ALL_CARDS_INDEX){
+      normalized.clear();
+      for(const raw of searchRows){
         const c=boxMap.get(raw.id)||raw;
-        if(['en','zh','zh-cn','zh-tw','cn'].includes(String(c.language||'').toLowerCase())||[c.setCode,c.code,c.id].some(value=>/^(?:EN|CN)-/i.test(String(value||''))))continue;
-        const kind=c.kind==='box' ? (isPriceBoxProduct(c)?'box':'card') : 'card';
+        if(window.JapaneseCardNames && JapaneseCardNames.language(c)!=='ja')continue;
+        const kind=c.kind==='box' ? (c._catalogue || isPriceBoxProduct(c)?'box':'card') : 'card';
         const sets=CARDINFO[c.brand]||[];
         const code=(c.code||c.productNumber||'').toUpperCase();
         const set=sets.find(s=>(kind==='box' && String(s.boxId)===c.id) || (code && (code===s.code.toUpperCase() || code.startsWith(s.code.toUpperCase()+'-') || code.startsWith('PKMN-TCG-'+s.code.toUpperCase()+'-'))));
         const name=kind==='box' ? (getBoxKoreanName(c,c.brand)||c._koName||c.name) : cardTitle(c);
-        normalized.set(c.id,{...c,kind,displayName:name,setName:set?.name || c.productNumber?.toUpperCase() || (c.brand==='onepiece'?'원피스':'포켓몬')});
+        normalized.set(c.id,{...c,kind,displayName:name,setName:c.setName || set?.name || c.productNumber?.toUpperCase() || (c.brand==='onepiece'?'원피스':'포켓몬')});
       }
     })().catch(error=>{ready=null;if(!_ALL_CARDS_INDEX?.length)_ALL_CARDS_INDEX=null;throw error});
     return ready;
@@ -175,7 +170,9 @@
         }
         const image=/^(https?:\/\/|\/)/.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>';
         const price=Number(c.minPrice)>0 ? fmtKrw(Number(c.minPrice),c.currency) : '시세 없음';
-        return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="#price/'+encodeURIComponent(c.id)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+'</div></div><span class="gs-price" title="'+safe(fmtOrig(c.minPrice,c.currency))+'">'+price+'</span></a>';
+        const href=window.JapaneseCatalog ? JapaneseCatalog.href(c) : '#price/'+encodeURIComponent(c.id);
+        const label=c._catalogue && !c.productId ? (c.kind==='box'?'수록 목록':'카드 정보') : price;
+        return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="'+safe(href)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+(c._catalogue&&c.number?' · '+safe(c.number):'')+'</div></div><span class="gs-price" title="'+safe(fmtOrig(c.minPrice,c.currency))+'">'+label+'</span></a>';
       }).join('')+(results.length>visible?'<button id="gsMore" class="gs-filter" style="margin:16px 0;width:100%">검색 결과 더 보기</button>':'') : '<div class="gs-state">“'+escapeHtml(q)+'” 검색 결과가 없습니다.<br>이름이나 세트코드, 상품 ID를 확인해주세요.</div>';
       watchSearchArtwork();
     }catch(error){if(own!==version||modal.hidden)return;list.innerHTML='<div class="gs-state">검색 데이터를 불러오지 못했어요.<br>검색 버튼을 눌러 다시 시도해주세요.</div>';count.textContent=''}

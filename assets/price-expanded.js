@@ -79,7 +79,7 @@
       return;
     }
     const product={...original};
-    const [histData,detail]=await Promise.all([json(`/data/history/${encodeURIComponent(id)}.json`),loadCardsDetail(),enrichPriceProductMetadata([product],'box')]);
+    const [histData,detail]=await Promise.all([json(`/data/history/${encodeURIComponent(id)}.json`),loadCardsDetail(),enrichPriceProductMetadata([product],'box'),window.JapaneseCardNames?.ensureData()]);
     if (!current()) return;
     const history=sortedHistory(histData?.history);
     const box=isBox(product,history);
@@ -88,7 +88,7 @@
     if (!current()) return;
     const sets=catalogInfo.sets;
     const originalName=decode(product.name);
-    const name=decode((box && getBoxKoreanName(product,brand)) || HOME_TOP_KO_NAMES[String(id)] || product._koName || product.name_ko || originalName);
+    const name=decode((box && getBoxKoreanName(product,brand)) || (!box && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : '') || HOME_TOP_KO_NAMES[String(id)] || product._koName || product.name_ko || originalName);
     const pack=decode(sets.map(PriceProductInfo.label).join(' / ') || product.set_name || product.pack || '');
     const release=sets.length ? sets.map(s=>`${sets.length>1?s.code+' · ':''}${s.release || '카드정보에 발매일 미등록'}`).join(' / ')
       : product.release_date || product.releaseDate || '카드정보에 발매일 미등록';
@@ -113,7 +113,7 @@
         <div class="px-art">${product.image?`<img src="${escapeHtml(product.image)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>이미지 없음</span>`:'<span>이미지 없음</span>'}</div>
         <div class="px-summary-main"><div class="px-summary-top"><span class="px-badge ${brand==='onepiece'?'op':''}">${brand==='onepiece'?'원피스':'포켓몬'}</span><div class="px-tools"><button type="button" class="px-icon-btn card-favorite" id="pxWatch" data-watch-id="${escapeHtml(String(id))}" data-watch-grade="${box?'box':'psa10'}" aria-label="즐겨찾기 추가" aria-pressed="false">${icon('star')}</button><button type="button" class="px-icon-btn" id="pxShare" aria-label="시세 링크 공유">${icon('share')}</button></div></div>
           <h1 class="px-title" title="${escapeHtml(name)}">${escapeHtml(name)}</h1>
-          ${name!==originalName?`<p class="px-original" title="${escapeHtml(originalName)}">${escapeHtml(originalName)}</p>`:''}
+          ${name!==originalName?`<details class="px-original-name"><summary>원문 이름</summary><p class="px-original">${escapeHtml(originalName)}</p></details>`:''}
           <p class="px-pack">${escapeHtml(pack || '카드정보에 확장팩 미등록')}</p>
         </div>
         <div class="px-actions"><button type="button" id="pxPortfolio" class="px-btn primary">${icon('plus')}포트폴리오 추가</button><a href="${escapeHtml(extURL)}" class="px-btn" target="_blank" rel="noopener noreferrer">${icon('external')}SNKRDUNK</a></div>

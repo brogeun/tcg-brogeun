@@ -135,7 +135,7 @@
     img.replaceWith(host);host.append(img);img.classList.remove('gs-thumb','gs-card-thumb');
   }
   function watchSearchArtwork() {
-    if(!list||modal.hidden||innerWidth>768)return;
+    if(!list||modal.hidden||typeof innerWidth!=='number'||innerWidth>768)return;
     list.querySelectorAll('.gs-row[data-kind="card"]>img.gs-thumb').forEach(img=>{
       img.addEventListener('load',()=>fitSearchArtwork(img),{once:true});
       if(img.complete)fitSearchArtwork(img);

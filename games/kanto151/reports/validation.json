@@ -1,6 +1,6 @@
 {
-  "validationScope": "source-and-tested-build",
-  "generatedAt": "2026-10-13T02:57:24.140Z",
+  "validationScope": "current-source-before-local-build",
+  "generatedAt": "2026-10-15T14:10:25.802Z",
   "result": "passed",
   "species": 151,
   "models": 151,
@@ -50,16 +50,75 @@
     "J_pokedex151Achievable": true,
     "browserAssetImporterMatches": true,
     "browserGame151SpeciesFiveRegions": true,
-    "browserGameSourceCoverage": true,
-    "browserGameAuditedSourcesMatch": true,
-    "fiveWorldBrowserEvidenceCurrent": true,
-    "finalReleasePlayAndTouchEvidence": true,
-    "finalReleaseSourcesCurrent": true
+    "browserGameCurrentSourcesAndTools": true,
+    "historicalReleasePlayAndTouchEvidence": true
   },
   "errors": [],
   "assetFilesChecked": 789,
+  "evidence": {
+    "currentBrowser": {
+      "path": "reports/overall-improvements-20261015/browser-game-qa.json",
+      "startedAt": "2026-10-15T14:09:21.681Z",
+      "finishedAt": "2026-10-15T14:09:54.744Z",
+      "sourceCollection": {
+        "method": "browser-http-response-sha256",
+        "inventoryUrl": "http://127.0.0.1:8790/scripts/qa-source-files.json",
+        "runtimeBase": "http://127.0.0.1:8790/",
+        "collectedAt": "2026-10-15T14:09:22.780Z",
+        "files": 86,
+        "cache": "no-store"
+      }
+    },
+    "currentRegressionTests": {
+      "files": [
+        "scripts/base-facilities.test.mjs",
+        "scripts/camp-guidance.test.mjs",
+        "scripts/combat-controls.test.mjs",
+        "scripts/core.test.mjs",
+        "scripts/escape-action.test.mjs",
+        "scripts/evidence-integrity.test.mjs",
+        "scripts/five-world.test.mjs",
+        "scripts/journey.test.mjs",
+        "scripts/loading-recovery.test.mjs",
+        "scripts/objective-recovery.test.mjs",
+        "scripts/overall-graphics.test.mjs",
+        "scripts/overall-recovery.test.mjs",
+        "scripts/pathfinding-recovery.test.mjs",
+        "scripts/runtime.test.mjs",
+        "scripts/save-recovery.test.mjs",
+        "scripts/status-escape-integration.test.mjs",
+        "scripts/status-rules.test.mjs",
+        "scripts/ui-accessibility.test.mjs"
+      ],
+      "passed": true
+    },
+    "historicalRelease": {
+      "path": "reports/release-qa.json",
+      "generatedAt": "2026-10-13T02:57:18.855Z",
+      "validationScope": "Current scoped stable-target and initiating-skill source/build/native checks; earlier full collection/world proof is preserved at its original tested versions.",
+      "currentSourceClaim": false,
+      "checks": {
+        "browser": true,
+        "mobile": true,
+        "imports": true,
+        "pacing": true,
+        "natural": true,
+        "geometry": true,
+        "identityPreserved": true,
+        "noLegacyFiles": true,
+        "locale": true,
+        "optionalStories": true,
+        "optionalElites": true,
+        "optionalRewards": true,
+        "deathRollback": true,
+        "mixedObjectives": true,
+        "dist": true
+      }
+    }
+  },
   "limitations": [
     "Reachability uses repeatable successful encounters and renewable training/items. It is not an unattended natural 151-species playthrough.",
-    "Run scripts/qa.html for accelerated browser integration checks; visual and normal-input playtesting are recorded separately."
+    "The selected current browser run and current regression tests attest to this source. Earlier manual/mobile/natural-play release scenarios remain historical and are not claimed as newly rerun.",
+    "This validates local source before packaging; a new output folder still needs its own runtime and visual checks."
   ]
 }

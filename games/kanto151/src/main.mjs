@@ -5,11 +5,13 @@ import {Game} from './game.mjs';
 import {UI} from './ui.mjs';
 import {newSave,loadSave} from './core.mjs';
 import {migrateFiveSave} from './save-migration.mjs';
+import {baseComposition} from './base-layout.mjs';
 const read=async name=>{const response=await fetch(new URL(`../data/${name}.json`,import.meta.url));if(!response.ok)throw Error(`Could not load ${name}: HTTP ${response.status}`);return response.json();};
 try{
  let [species,moves,biomes,chart,manifest,design,entities,messages,literals,speciesLocalized,regionsLocalized,compositions,movesLocalized]=await Promise.all(['species','moves','biomes','type-chart','pokemon-manifest','game-design','locale-entities','locale-messages','locale-literals','species-localized','regions-localized','region-compositions','moves-localized'].map(read));
  const params=new URLSearchParams(location.search),qaMode=params.get('qa')==='1';
- configureLocale({entities,messages,literals},qaMode?'ko-KR':loadSave()?.settings.locale||'ko-KR');localizeData({species,moves,biomes,speciesLocalized,regionsLocalized,movesLocalized});
+ compositions={...compositions,regions:{...compositions.regions,verdant:baseComposition(compositions.regions.verdant)}};
+ configureLocale({entities,messages,literals},qaMode?'ko-KR':loadSave(globalThis.localStorage,raw=>migrateFiveSave(raw,compositions))?.settings.locale||'ko-KR');localizeData({species,moves,biomes,speciesLocalized,regionsLocalized,movesLocalized});
  const world=new World(document.querySelector('#world'));
  world.compositions=compositions;
  const resources=new PokemonResources(THREE,manifest,new URL('../assets/cobblemon/',import.meta.url).href,{maxSpecies:24});

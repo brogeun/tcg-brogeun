@@ -267,7 +267,7 @@ html,body,button,input,select{font-family:"Malgun Gothic","Apple SD Gothic Neo",
  #context{left:var(--edge-left);top:auto!important;bottom:calc(var(--edge-bottom) + 352px)!important;transform:none;width:174px;max-width:calc(100vw - 180px);max-height:84px;padding:8px;display:block;overflow:hidden;text-align:left}#context kbd{display:none}#context b{font-size:12px}#context small{font-size:10px;line-height:1.4}
  #hud:has(#context:not(.hidden)) #objective{visibility:hidden}.tutorial-hint{display:none}
  #target-hud,#boss-hud{top:204px;left:var(--edge-left);right:auto;transform:none;width:174px;max-width:calc(100vw - 180px);padding:8px;max-height:128px}.target-hud>b{font-size:13px;margin:3px 0}.target-hud>small{font-size:10px;margin-top:4px}.boss-hud h2{font-size:16px}
- #hud:has(#context:not(.hidden)) #target-hud{visibility:hidden}
+ #hud:not(.in-combat):has(#context:not(.hidden)) #target-hud{visibility:hidden}
  #modal-backdrop{padding:max(8px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
  #panel:not(.move-choice-panel),#panel.move-choice-panel{max-height:calc(100dvh - max(16px,env(safe-area-inset-top)) - env(safe-area-inset-bottom));width:min(var(--panel-width,720px),calc(100vw - 24px))}
  #panel .panel-header>button{min-width:44px;min-height:44px}#panel button{min-height:44px}#panel input,#panel select{font-size:16px!important;min-height:44px}#panel-body{touch-action:pan-y}
@@ -747,6 +747,47 @@ body:has(#title.startup:not(.hidden),#starter.startup:not(.hidden)):has(#modal-b
 .damage-number{font-size:18px;line-height:1.12;text-align:center}.damage-number b{display:block}.damage-number small{display:block;font-size:10px;font-weight:600}.damage-number.heavy,.damage-number.signature,.damage-number.critical{font-size:23px}
 @media(max-width:900px){.damage-number{font-size:16px}.damage-number.heavy,.damage-number.signature,.damage-number.critical{font-size:20px}}
 
+/* One pushback control serves keyboard and touch without moving the skill/ball row. */
+#hud #escape-button{display:grid;grid-template-rows:14px 16px 13px;align-content:center;justify-items:center;gap:2px;flex:0 0 68px;width:68px;min-width:68px;height:64px;min-height:64px;padding:4px;border-radius:8px;background:var(--glass);border-color:#b8d9c066;backdrop-filter:blur(12px)}
+#escape-button kbd{margin:0;font-size:9px;line-height:11px;padding:1px 4px}
+#escape-button strong{font-size:11px;line-height:16px;white-space:nowrap}
+#escape-button small{font-size:10px;line-height:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#escape-button:disabled{opacity:.65}
+#partner-status{font-size:8px;line-height:11px;padding:1px 0}
+#partner-status>span,#partner-status>small{display:block;white-space:nowrap}
+#partner-status>small{font-size:8px;line-height:10px}
+#partner-status.status-guard{background:#173e3deb;color:#bdebc9}
+@media(pointer:coarse){
+ #hud #escape-button{position:absolute;right:calc(var(--edge-right) + 180px);bottom:calc(var(--edge-bottom) + 118px);width:64px;min-width:64px;height:44px;min-height:44px;grid-template-rows:16px 13px;gap:1px;padding:4px}
+ #escape-button kbd{display:none}
+ #escape-button strong{font-size:10px}
+ #escape-button:hover,#escape-button:active{transform:none}
+}
+@media(pointer:coarse) and (max-height:480px){
+ #hud #escape-button{bottom:calc(var(--edge-bottom) + 60px)}
+ #hud.hud-compact #touch-interact{right:296px}
+}
+
 /* Keep the existing Hub return link with the new title device. */
 .startup .start-footer{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 14px}
 .startup .start-footer .start-credits{margin:3px 0 -6px;text-decoration:none}
+/* Camera tools supplement touch looking without changing a chosen view. */
+#field-camera-controls{position:absolute;right:12px;top:150px;display:flex;align-items:center;gap:4px;pointer-events:auto}
+#field-camera-controls button{min-width:44px;min-height:44px;padding:7px 10px;border-radius:7px;background:#143239eb;color:#eaf2df;font-size:13px;line-height:1.3}
+#field-camera-controls #camp-overview{min-width:112px;font-size:12px}
+#field-camera-controls #camp-overview[aria-pressed=true]{background:#d5e89e;color:#193628;border-color:#d5e89e}
+@media(pointer:coarse){body:has(#toast-stack .toast.warn) #hud.hud-compact #tutorial-hint.first-swipe-hint:not(.hidden){display:none!important}}
+#hud.in-combat #target-hud:not(.hidden),#hud.in-combat #boss-hud:not(.hidden){visibility:visible}
+#hud.hud-compact #touch-interact .interaction-place{display:block!important;color:#e6edcf}
+#hud.hud-compact #touch-interact .interaction-reason{display:block!important;color:#f1cb9d;font-size:10px;line-height:1.35}
+#ball-stock-help{position:absolute;right:12px;bottom:158px;min-height:44px;padding:8px 12px;background:#173a42ee;border:1px solid #e8ce8a;border-radius:7px;font-size:12px;pointer-events:auto}
+@media(pointer:coarse) and (min-height:481px){
+ #field-camera-controls{top:auto;bottom:calc(var(--edge-bottom) + 250px);right:var(--edge-right)}
+ #hud.hud-compact.skills-open #field-camera-controls{bottom:calc(var(--edge-bottom) + 306px)}
+ #ball-stock-help{right:var(--edge-right);bottom:calc(var(--edge-bottom) + 132px);max-width:170px}
+ #hud.hud-compact.skills-open #ball-stock-help{bottom:calc(var(--edge-bottom) + 200px)}
+}
+@media(pointer:coarse) and (max-height:480px){
+ #field-camera-controls{top:146px;bottom:auto;right:var(--edge-right)}
+ #ball-stock-help{right:var(--edge-right);bottom:calc(var(--edge-bottom) + 112px);max-width:170px}
+}

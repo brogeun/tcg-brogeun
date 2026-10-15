@@ -1,4 +1,5 @@
 import {THREE} from './world.mjs';
+import * as statusRules from './status-rules.mjs';
 import {t,currentLocale} from './i18n.mjs';
 
 const label=s=>s.name[currentLocale()]||s.name['en-US'];
@@ -11,7 +12,7 @@ export function cancelFieldAction(g,reason='input'){
  if(reason==='input'||reason==='damage')g.notify(t('exp.fieldCancelled'));
 }
 export function beginFieldAction(g,s){
- if(g.fieldAction||!g.player||g.player.hp<=0||g.player.recoil||['sleep','freeze','stun','trap'].includes(g.player.status))return false;
+ if(g.fieldAction||!g.player||!statusRules.canMove(g.player)||g.player.recoil||g.escapePending)return false;
  const completed=g.expedition.state.shortcuts.includes(s.id),travel=traversal(s);
  if(completed&&!travel){g.notify(t('exp.fieldCleared'));return true;}
  const start=g.player.model.position.clone(),reverse=Math.hypot(start.x-s.to[0],start.z-s.to[1])<Math.hypot(start.x-s.from[0],start.z-s.from[1]);
@@ -30,7 +31,7 @@ export function beginFieldAction(g,s){
 export function updateFieldAction(g,dt){
  const a=g.fieldAction;if(!a)return false;
  if(g.regionEpoch!==a.epoch||g.player!==a.actor){cancelFieldAction(g,'region');return false;}
- if(g.player.hp<a.hp||g.player.recoil||g.player.hp<=0){cancelFieldAction(g,'damage');return false;}
+ if(g.player.hp<a.hp||g.player.recoil||!statusRules.canMove(g.player)){cancelFieldAction(g,'damage');return false;}
  if(Math.hypot(g.touchMove?.x||0,g.touchMove?.z||0)>.1||['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].some(k=>g.keys.has(k))){cancelFieldAction(g);return false;}
  a.time+=dt;const f=Math.min(1,a.time/a.duration),ease=f*f*(3-2*f),p=g.player;
  g.world.previewShortcut?.(a.shortcut,a.snapshot,ease);

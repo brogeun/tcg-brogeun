@@ -1,5 +1,5 @@
 let locale='ko-KR',messages={},entities={},literals={},patterns=[],exact=new Map(),reverseLiterals=new Map();
-const origins=new WeakMap(),supplemental={};
+const origins=new WeakMap(),attributeOrigins=new WeakMap(),supplemental={};
 const language=()=>locale==='en-US'?'en':'ko';
 export function configureLocale(data,selected='ko-KR'){messages={...data.messages,...supplemental};entities=data.entities;literals=data.literals||{};reverseLiterals=new Map(Object.entries(literals).map(([en,ko])=>[ko,en]));patterns=[];for(const [key,entry] of Object.entries(messages)){if(!entry.en.includes('{'))continue;const names=[];const escaped=entry.en.replace(/[.*+?^$()|[\]\\]/g,'\\$&').replace(/\{(\w+)\}/g,(_,name)=>{names.push(name);return '(.+?)';});patterns.push({key,names,re:new RegExp('^'+escaped+'$')});}exact=new Map(Object.entries(messages).flatMap(([k,v])=>[[v.en,k],[v.ko,k]]));setLocale(selected);}
 export function setLocale(value){locale=value==='en-US'?'en-US':'ko-KR';if(globalThis.document){document.documentElement.lang=locale;document.title=t('app.title');}}
@@ -15,7 +15,25 @@ export function tx(value){const text=String(value??'');const normalized=text.tri
  for(const p of patterns){const match=normalized.match(p.re);if(match)return t(p.key,Object.fromEntries(p.names.map((name,i)=>[name,match[i+1]])));}
  return text;
 }
-export function localizeDOM(root=document.body){if(!root)return;const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;while((node=walker.nextNode())){if(['SCRIPT','STYLE','CODE','PRE'].includes(node.parentElement?.tagName))continue;const old=origins.get(node),source=old&&node.nodeValue===old.rendered?old.source:node.nodeValue;const rendered=tx(source);if(rendered!==node.nodeValue)node.nodeValue=rendered;origins.set(node,{source,rendered});}for(const el of root.querySelectorAll('[aria-label],[title],[placeholder]'))for(const attr of ['aria-label','title','placeholder'])if(el.hasAttribute(attr)){const key='i18n-'+attr,source=el.getAttribute('data-'+key)||el.getAttribute(attr);el.setAttribute('data-'+key,source);el.setAttribute(attr,tx(source));}}
+export function localizeDOM(root=document.body){
+ if(!root)return;
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node;
+ while((node=walker.nextNode())){if(['SCRIPT','STYLE','CODE','PRE'].includes(node.parentElement?.tagName))continue;const old=origins.get(node),source=old&&node.nodeValue===old.rendered?old.source:node.nodeValue;const rendered=tx(source);if(rendered!==node.nodeValue)node.nodeValue=rendered;origins.set(node,{source,rendered});}
+ const selector='[aria-label],[title],[placeholder]',elements=[...root.querySelectorAll(selector)];
+ if(root.matches?.(selector))elements.unshift(root);
+ for(const el of elements){
+  const previous=attributeOrigins.get(el)||{};
+  for(const attr of ['aria-label','title','placeholder']){
+   if(!el.hasAttribute(attr)){delete previous[attr];continue;}
+   const key='data-i18n-'+attr,current=el.getAttribute(attr),old=previous[attr],cached=el.getAttribute(key);
+   // A changed attribute is new gameplay state, not the previous translated label.
+   const source=old&&current!==old.rendered?current:cached??old?.source??current,rendered=tx(source);
+   el.setAttribute(key,source);if(current!==rendered)el.setAttribute(attr,rendered);
+   previous[attr]={source,rendered};
+  }
+  attributeOrigins.set(el,previous);
+ }
+}
 export function localizeData(data){for(const s of data.species){const localized=data.speciesLocalized[s.id];for(const field of ['name','genus','habitatHint','description']){const fallback=s[field];if(field==='name')s.englishName=fallback;Object.defineProperty(s,field,{configurable:true,enumerable:true,get:()=>localized?.[field]?.[language()]??(field==='name'?entity('species',s.id,fallback):fallback)});}}
  for(const m of data.moves){for(const field of ['description','effectDescription']){const old=m[field];Object.defineProperty(m,field,{configurable:true,enumerable:true,get:()=>data.movesLocalized?.[m.id]?.[field]?.[language()]??old});}const fallback=m.name;m.englishName=fallback;Object.defineProperty(m,'name',{configurable:true,enumerable:true,get:()=>entity('moves',m.id,fallback)});}
  for(const b of data.biomes)for(const field of ['name','description']){const fallback=b[field];Object.defineProperty(b,field,{configurable:true,enumerable:true,get:()=>data.regionsLocalized[b.id]?.[field]?.[language()]??fallback});}

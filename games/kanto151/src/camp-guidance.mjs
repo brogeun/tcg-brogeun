@@ -77,9 +77,9 @@ export function updateFieldGuidance(ui){
  if(!hud||!g.player)return;
  let controls=doc.querySelector('#field-camera-controls');
  if(!controls){
-  controls=doc.createElement('div');controls.id='field-camera-controls';controls.setAttribute('role','group');hud.append(controls);
+  controls=doc.createElement('div');controls.id='field-camera-controls';controls.setAttribute('role','group');(doc.querySelector('.navigation-dock')||hud).append(controls);
   controls.addEventListener('keydown',event=>{if(event.key===' '||event.key==='Enter')event.stopPropagation();});
-  controls.innerHTML='<button id="camp-overview" type="button" aria-pressed="false"></button><button id="field-zoom-out" type="button">−</button><button id="field-zoom-in" type="button">+</button>';
+  controls.innerHTML='<span class="field-camera-label"></span><button id="camp-overview" type="button" aria-pressed="false"></button><button id="field-zoom-out" type="button">−</button><button id="field-zoom-in" type="button">+</button>';
   doc.querySelector('#camp-overview').onclick=()=>{
    if(ui.campView)restoreCampView(ui);else{ui.campView={region:g.save.region,epoch:g.regionEpoch,aspect:w.camera?.aspect,original:{...w.orbit}};Object.assign(w.orbit,{distance:campOverviewDistance(g),pitch:.8,yaw:.35});}
    ui.updateTimer=0;updateFieldGuidance(ui);
@@ -92,11 +92,12 @@ export function updateFieldGuidance(ui){
  if(ui.campView&&ui.campView.aspect!==w.camera?.aspect){ui.campView.aspect=w.camera?.aspect;w.orbit.distance=campOverviewDistance(g);}
  controls.classList.toggle('hidden',!!g.panel||combat||g.phase!=='playing');
  controls.setAttribute('aria-label',words('시점과 거리','View and camera distance'));
+ controls.querySelector('.field-camera-label').textContent=words('시점 거리','Camera');
  const overview=doc.querySelector('#camp-overview');overview.classList.toggle('hidden',!atCamp);
  overview.textContent=words(ui.campView?'원래 시점':'캠프 전체보기',ui.campView?'Return to view':'View camp');
  overview.setAttribute('aria-pressed',String(!!ui.campView));
  overview.title=words('시설 배치를 넓게 보고 다시 누르면 이전 시점으로 돌아가요.','See the camp layout. Press again to restore your previous view.');
- for(const [id,ko,en,disabled]of[['field-zoom-out','멀리 보기','Zoom out',w.orbit.distance>=90],['field-zoom-in','가까이 보기','Zoom in',w.orbit.distance<=9]]){
+ for(const [id,ko,en,disabled]of[['field-zoom-out','시점 멀리 보기','Camera zoom out',w.orbit.distance>=90],['field-zoom-in','시점 가까이 보기','Camera zoom in',w.orbit.distance<=9]]){
   const b=doc.querySelector('#'+id),label=words(ko,en);b.title=label;b.setAttribute('aria-label',label);b.disabled=disabled;
  }
  let balls=doc.querySelector('#ball-stock-help');

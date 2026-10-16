@@ -1,0 +1,13 @@
+.account-save-title{padding:0 22px 14px;text-align:center;display:grid;gap:6px}
+#account-save-open{min-height:38px;padding:7px 14px;font-size:12px;background:#1c484e;color:#e0f0db;border:1px solid #668b7c;border-radius:9px}
+#account-save-open[data-status=conflict],#account-save-open[data-status=link-required]{background:#dfc790;color:#243b36}
+#account-save-status{font-size:10px;line-height:1.5;color:#c0d2bf;overflow-wrap:anywhere}
+.account-settings{padding:14px 0;border-bottom:1px solid #9ba88c4a;margin-bottom:14px}
+.account-settings strong{font-size:14px}.account-settings .notice{margin:8px 0}.account-settings button{min-height:42px}
+.account-status{padding:14px;background:#264b4f;border-radius:10px}.account-status p{margin:8px 0;font-size:13px;line-height:1.7}.account-status small{font-size:11px;color:#c0d6c7}
+.account-records{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}
+.account-record{min-width:0;border:1px solid #b1c7ad55;padding:14px;border-radius:10px;overflow-wrap:anywhere}.account-record h3{font-size:12px;font-weight:500;color:#dfca95;margin:0 0 12px}.account-record strong{font-size:16px}.account-record p{font-size:12px;line-height:1.8}.account-record small{font-size:11px;line-height:1.7;color:#bbcec0}
+.account-choice-notice{border:1px solid #d3b565;padding:12px;border-radius:8px;background:#8c70392b;color:#ffe4a8;font-size:12px;line-height:1.8;overflow-wrap:anywhere}
+.account-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0}.account-buttons button,.account-buttons a{min-width:0;min-height:44px;padding:11px 12px;font-size:12px;line-height:1.5;white-space:normal;overflow-wrap:anywhere}.account-buttons a{display:flex;align-items:center;justify-content:center;color:#e6e7c9}
+#save-note[data-account-status]{max-width:270px;line-height:1.5;text-shadow:0 1px 5px #102d30}#save-note[data-account-status=offline],#save-note[data-account-status=error],#save-note[data-account-status=conflict]{color:#ffe0a0}
+@media(max-width:600px){.account-records{gap:8px}.account-record{padding:11px}.account-record strong{font-size:14px}.account-buttons{grid-template-columns:1fr}.account-save-title{padding:0 16px 10px}#account-save-open{min-height:38px}#account-save-status{font-size:10px}}

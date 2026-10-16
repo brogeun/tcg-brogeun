@@ -113,6 +113,9 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 
+      - name: Validate Kanto151 account saves and original Pokemon preservation
+        run: node --test scripts/test_kanto151_account_client.mjs scripts/test_kanto151_account_game.mjs scripts/test_kanto151_account_save.mjs
+
       - name: Prepare deploy bundle (정적 + admin function 만)
         # 옛날 functions/api/*.js 들은 deploy 깨뜨려서 제외, admin.js 만 포함
         run: |
@@ -132,7 +135,7 @@ jobs:
           mkdir -p _deploy/functions/api/portfolio/watchlist
           mkdir -p _deploy/functions/_shared
           # 공유 헬퍼
-          for f in jwt.js email.js auth.js apple.js admin.js certificates.js; do
+          for f in jwt.js email.js auth.js apple.js admin.js certificates.js kanto151-save.js; do
             [ -f "functions/_shared/$f" ] && cp "functions/_shared/$f" "_deploy/functions/_shared/$f" && echo "✓ _shared/$f"
           done
           # admin
@@ -156,6 +159,7 @@ jobs:
           mkdir -p _deploy/functions/api/games
           cp functions/api/games/volleyball.js _deploy/functions/api/games/volleyball.js
           cp functions/api/games/jigglypuff.js _deploy/functions/api/games/jigglypuff.js
+          cp functions/api/games/kanto151-save.js _deploy/functions/api/games/kanto151-save.js
           # auth
           for f in request.js verify.js me.js logout.js delete-account.js exchange-code.js; do
             [ -f "functions/api/auth/$f" ] && cp "functions/api/auth/$f" "_deploy/functions/api/auth/$f" && echo "✓ auth/$f"
@@ -186,6 +190,16 @@ jobs:
 
       - name: Verify public home card index before deploy
         run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
+
+      - name: Verify account save files and keep Johto development unpublished
+        run: |
+          test -s _deploy/games/kanto151/account-save.css
+          test -s _deploy/games/kanto151/src/account-save.mjs
+          test -s _deploy/games/kanto151/src/account-save-game.mjs
+          test -s _deploy/games/kanto151/src/account-save-ui.mjs
+          test -s _deploy/functions/api/games/kanto151-save.js
+          test -s _deploy/functions/_shared/kanto151-save.js
+          test ! -d _deploy/games/kanto151/johto
 
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}

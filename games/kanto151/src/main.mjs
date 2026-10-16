@@ -6,6 +6,7 @@ import {UI} from './ui.mjs';
 import {newSave,loadSave} from './core.mjs';
 import {migrateFiveSave} from './save-migration.mjs';
 import {baseComposition} from './base-layout.mjs';
+import {AccountSaveUI} from './account-save-ui.mjs';
 const read=async name=>{const response=await fetch(new URL(`../data/${name}.json`,import.meta.url));if(!response.ok)throw Error(`Could not load ${name}: HTTP ${response.status}`);return response.json();};
 try{
  let [species,moves,biomes,chart,manifest,design,entities,messages,literals,speciesLocalized,regionsLocalized,compositions,movesLocalized]=await Promise.all(['species','moves','biomes','type-chart','pokemon-manifest','game-design','locale-entities','locale-messages','locale-literals','species-localized','regions-localized','region-compositions','moves-localized'].map(read));
@@ -18,6 +19,7 @@ try{
  const game=new Game(world,resources,{species,moves,biomes,chart,manifest,design,compositions,qaMode});
  // QA uses an isolated in-memory storage adapter, including checkpoints and autosaves.
  const ui=new UI(game);world.setQuality(game.save.settings.quality);
+ if(!qaMode){const account=new AccountSaveUI(game,ui);await account.init();}
  await game.intro();ui.ready();
  // Read-only diagnostics and explicit developer room, without save mutation shortcuts.
  window.kanto151={game,world,resources,ui,diagnostics:()=>({phase:game.phase,region:game.save.region,actors:game.wild.length,renderer:world.renderer.info,assetCount:manifest.length})};

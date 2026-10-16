@@ -1,3 +1,4 @@
+export function isMobileHUD(){return !!globalThis.matchMedia?.('(max-width:700px), (pointer:coarse), (max-width:1000px) and (max-height:500px) and (orientation:landscape)')?.matches;}
 // Split into at most two balanced lines without orphaning a final character.
 export function balancedMoveName(name,width,measure){const chars=Array.from(name);if(measure(name)<=width)return [name];let best=null;for(let i=2;i<=chars.length-2;i++){const a=chars.slice(0,i).join('').trim(),b=chars.slice(i).join('').trim();if(!a||!b)continue;const wordBoundary=/\s/.test(chars[i-1]+chars[i]);const score=Math.max(measure(a),measure(b))+(Math.abs(measure(a)-measure(b))*.16)+(/[a-z]/i.test(name)&&!wordBoundary?width*.45:0);if(!best||score<best.score)best={score,lines:[a,b]};}return best?.lines||[name];}
 const overlaps=(a,b)=>a.x<b.x+b.w+5&&a.x+a.w+5>b.x&&a.y<b.y+b.h+4&&a.y+a.h+4>b.y;

@@ -8,7 +8,7 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;
 const when=value=>value&&Number.isFinite(Date.parse(value))?new Date(value).toLocaleString('ko-KR'):'아직 저장하지 않음';
 
 function statusCopy(s){
- const text={checking:'계정 기록을 확인하고 있어요',local:'로그인 전에는 이 기기에 저장해요',offline:'이 기기 기록은 유지했어요 · 계정 연결을 다시 확인해 주세요',
+ const text={checking:'계정 기록을 확인하고 있어요',local:s.localBundle?'이 브라우저에 자동 저장돼요':'이 브라우저에 저장된 탐험이 없어요',offline:'이 기기 기록은 유지했어요 · 계정 연결을 다시 확인해 주세요',
   'link-required':'이 기기의 기존 기록을 계정에 연결할 수 있어요','cloud-available':'계정에서 이어할 기록을 찾았어요',conflict:'서로 다른 기록이 있어요 · 사용할 기록을 확인해 주세요',
   synced:s.pending?'이 기기에 저장됨 · 계정 저장 대기':'계정에 저장했어요',syncing:'이 기기에 저장됨 · 계정에 저장하고 있어요',error:'계정에 저장하지 못했어요 · 이 기기 기록은 유지해요'};
  return text[s.status]||'계정 기록을 확인해 주세요';
@@ -20,7 +20,7 @@ export class AccountSaveUI{
   this.controller=new AccountSaveController({transport:transport||createAccountSaveTransport(),storage:game.storage,validateBundle:bundle=>{validateAccountGameBundle(bundle,game);return true;},onChange:()=>this.changed()});
   game.accountSave=this.controller;game.accountSaveUI=this;ui.accountSave=this;
   const box=document.createElement('div');box.className='account-save-title';
-  box.innerHTML='<button id="account-save-open" type="button">계정 저장</button><small id="account-save-status" role="status" aria-live="polite">계정 기록을 확인하고 있어요</small>';
+  box.innerHTML='<small id="account-save-status" role="status" aria-live="polite">계정 기록을 확인하고 있어요</small><button id="account-save-open" type="button">계정 저장</button>';
   $('#title-actions').after(box);$('#account-save-open').onclick=()=>this.open();
   this._storage=event=>{if(event.key?.startsWith('tcghub:kanto151:')&&this.controller.snapshot.user){this.localTabChanged=true;this.changed();}};
   window.addEventListener('storage',this._storage);
@@ -76,7 +76,8 @@ export class AccountSaveUI{
   this.ui.shell('카카오 계정 저장','KANTO 151');
   const identity=s.user?.displayName||s.user?.name||(s.user?'로그인한 카카오 계정':'로그인하지 않은 상태');
   $('#panel-body').innerHTML=`<section class="account-status"><strong>${esc(identity)}</strong><p role="status">${esc(statusCopy(s))}</p>${s.lastSuccessfulAt?`<small>계정 저장 확인 · ${esc(when(s.lastSuccessfulAt))}</small>`:''}</section>
-   <div class="account-records">${this.card('이 기기 기록',s.localBundle)}${this.card('계정에 보관된 기록',s.record?.bundle)}</div>
+   <div class="account-records">${this.card('이 브라우저 기록',s.localBundle)}${s.record?this.card('계정에 보관된 기록',s.record.bundle):`<section class="account-record"><h3>계정에 보관된 기록</h3><p>${s.status==='checking'?'계정 기록을 확인하고 있어요.':s.status==='offline'||s.status==='error'?'계정에 연결하지 못해 기록을 확인하지 못했어요.':!s.user?'로그인 후 계정 기록을 확인할 수 있어요.':'이 계정에 저장된 탐험이 없어요.'}</p></section>`}</div>
+   ${!playing&&!this.game.save.starter?'<p class="notice">이 브라우저에 저장된 탐험이 없어 이어하기가 비활성화돼 있어요. 기존 기록은 같은 카카오 계정으로 로그인하거나 기록 파일을 가져와 이어할 수 있어요.</p>':''}
    <p class="notice">포켓몬·도감·가방·탐험 진행과 저장대 복귀 기록을 함께 보관해요. 빈 기록은 계정 기록을 덮어쓰지 않아요.</p>
    ${['conflict','link-required'].includes(s.status)?'<p class="account-choice-notice">두 기록은 자동으로 합치지 않아요. 선택하기 전 기기 원본을 백업하고, 계정의 이전 기록도 보관해요.</p>':''}
    ${s.reason==='different-account'?'<p class="account-choice-notice">이 기기에는 다른 계정에서 사용한 기록이 있어요. 사용할 기록을 직접 확인해 주세요.</p>':''}
@@ -86,6 +87,7 @@ export class AccountSaveUI{
     ${s.canUseCloud&&['cloud-available','conflict'].includes(s.status)?`<button id="account-use-cloud" type="button" ${blocked||playing?'disabled':''}>계정 기록으로 이어하기</button>`:''}
     ${s.status==='synced'?`<button id="account-sync-now" type="button" ${blocked?'disabled':''}>지금 계정에 저장</button>`:''}
     <button id="account-refresh" type="button" ${blocked?'disabled':''}>계정 기록 다시 확인</button>
+    ${!playing?'<button id="account-import-file" type="button">기록 파일 가져오기</button>':''}
     <button id="account-export-local" type="button" ${this.game.save.starter?'':'disabled'}>기기 기록 파일로 보관</button>
     ${s.record?'<button id="account-export-cloud" type="button">계정 기록 파일로 보관</button>':''}
     ${playing&&s.canUseCloud?'<button id="account-return-title" type="button">이 기기 진행 저장 후 첫 화면으로</button>':''}
@@ -104,6 +106,7 @@ export class AccountSaveUI{
   bind('#account-sync-now',async()=>{if(!this.game.persist())throw Error('이 기기에 먼저 저장하지 못해 계정 저장을 보류했어요.');await this.controller.flush();});
   bind('#account-refresh',async()=>{this.localTabChanged=false;this.problem=null;await this.controller.refresh(readAccountGameBundle(this.game));if(this.controller.snapshot.status==='cloud-available'&&this.game.phase==='title')await this.restoreCloud();});
   bind('#account-return-title',async()=>{if(await returnToTitle(this.ui,$('#account-return-title')))this.open();});
+  const importFile=$('#account-import-file');if(importFile)importFile.onclick=()=>{this.game.openPanel('settings');$('#save-file').click();};
   $('#account-export-local').onclick=()=>this.ui.exportSave();
   const exportCloud=$('#account-export-cloud');if(exportCloud)exportCloud.onclick=()=>{const url=URL.createObjectURL(new Blob([s.record.bundle.save],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='kanto151-account-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
  }

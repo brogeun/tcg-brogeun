@@ -43,7 +43,7 @@ export class StartScreen {
  }
  setBusy(value) {
   this.busy=value;
-  document.querySelectorAll('#title button,#starter button').forEach(el=>el.disabled=value);
+  document.querySelectorAll('#title button,#starter button').forEach(el=>el.disabled=value||(el.id==='continue'&&!this.game.save.starter));
   $('#starter').setAttribute('aria-busy',String(value));
   $('#title').setAttribute('aria-busy',String(value));
  }
@@ -52,7 +52,9 @@ export class StartScreen {
   this.titleSave=this.game.save;
   $('#starter').classList.add('hidden');$('#title').classList.remove('hidden');
   const has=!!this.titleSave.starter;
-  $('#continue').classList.toggle('hidden',!has);
+  $('#continue').classList.remove('hidden');
+  $('#continue').classList.toggle('start-primary',has);$('#continue').classList.toggle('start-secondary',!has);
+  $('#continue').disabled=!has;
   $('#start-save').classList.toggle('hidden',!has);$('#start-lineup').classList.toggle('hidden',has);
   $('#start-heading').textContent=t(has?'start.saved':'start.first');
   $('#start-description').textContent=t(has?'start.savedDescription':'start.firstDescription');
@@ -129,6 +131,10 @@ export class StartScreen {
  }
  async continue() {
   if(this.busy||this.game.phase!=='title'||this.game.panel)return;
+  if(!this.game.save.starter){
+   if(this.ui.accountSave)this.ui.accountSave.open();else this.game.openPanel('settings');
+   return;
+  }
   this.setBusy(true);
   try{await this.game.continueGame();}catch(error){this.game.fail(error);}
   finally{this.setBusy(false);}

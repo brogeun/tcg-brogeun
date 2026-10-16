@@ -11,7 +11,7 @@ const read=async name=>{const response=await fetch(new URL(`../data/${name}.json
 try{
  let [species,moves,biomes,chart,manifest,design,entities,messages,literals,speciesLocalized,regionsLocalized,compositions,movesLocalized]=await Promise.all(['species','moves','biomes','type-chart','pokemon-manifest','game-design','locale-entities','locale-messages','locale-literals','species-localized','regions-localized','region-compositions','moves-localized'].map(read));
  const params=new URLSearchParams(location.search),qaMode=params.get('qa')==='1';
- compositions={...compositions,regions:{...compositions.regions,verdant:baseComposition(compositions.regions.verdant)}};
+ compositions={...compositions,regions:Object.fromEntries(Object.entries(compositions.regions).map(([id,composition])=>[id,baseComposition(composition)]))};
  configureLocale({entities,messages,literals},qaMode?'ko-KR':loadSave(globalThis.localStorage,raw=>migrateFiveSave(raw,compositions))?.settings.locale||'ko-KR');localizeData({species,moves,biomes,speciesLocalized,regionsLocalized,movesLocalized});
  const world=new World(document.querySelector('#world'));
  world.compositions=compositions;

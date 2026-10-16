@@ -9,6 +9,13 @@ const COLORS = {
  symbolCream: 0xf5e7c8, symbolDark: 0x785035,
 };
 const UP = new THREE.Vector3(0, 1, 0);
+const THEMES = {
+ verdant: {},
+ waterside: {wood: 0xb58c62, woodDark: 0x6f6251, woodLight: 0xd5b98c, green: 0x548c98, greenDark: 0x355f70, canvas: 0xe7dcc1, yellow: 0xd8ba79},
+ highlands: {wood: 0x8b7059, woodDark: 0x534c45, woodLight: 0xbba287, green: 0x667d92, greenDark: 0x394e66, canvas: 0xd8d9cd, stone: 0x8a929e, stoneLight: 0xc9d1d3},
+ caldera: {wood: 0x78604e, woodDark: 0x443b36, woodLight: 0xa58a70, green: 0xac6947, greenDark: 0x6b4036, canvas: 0xc8b09a, stone: 0x5f5c60, stoneLight: 0x8b807b, yellow: 0xc99b59},
+ complex: {wood: 0x73817e, woodDark: 0x3e4b4c, woodLight: 0x9ba9a1, green: 0x638c79, greenDark: 0x365c50, canvas: 0xc7d1bf, metal: 0x7e9698, yellow: 0xc1af68},
+};
 
 // Each facility becomes one mesh per material, including its small props.
 // Geometry is local to its anchor, so the visual and collision rotations agree.
@@ -20,6 +27,8 @@ function workshop(world, spec, dimensions) {
  group.rotation.y = rotation;
  const tag = spec.decoration ? 'baseDecoration' : 'baseFacility';
  group.userData[tag] = spec.id;
+ group.userData.regionTheme = spec.theme || 'verdant';
+ const palette = {...COLORS, ...THEMES[spec.theme || 'verdant']};
  const buckets = new Map(), colliders = [];
  const add = (geometry, color, position = [0, 0, 0], rotation = [0, 0, 0], scale = [1, 1, 1]) => {
   let g = geometry.index ? geometry.toNonIndexed() : geometry;
@@ -100,9 +109,9 @@ function workshop(world, spec, dimensions) {
    merged.computeBoundingSphere();
    const cloth = ['canvas', 'cream', 'green', 'greenDark', 'yellow'].includes(color);
    const roughness = color === 'metal' ? .44 : color === 'blue' ? .62 : color.startsWith('wood') ? .82 : cloth ? .98 : .94;
-   const material = new THREE.MeshStandardMaterial({color: COLORS[color], roughness, metalness: color === 'metal' ? .28 : 0, side: cloth ? THREE.DoubleSide : THREE.FrontSide});
+   const material = new THREE.MeshStandardMaterial({color: palette[color], roughness, metalness: color === 'metal' ? .28 : 0, side: cloth ? THREE.DoubleSide : THREE.FrontSide});
    if (color.startsWith('symbol') || color === 'rations' || color === 'drink') {
-    material.emissive.setHex(COLORS[color]);
+    material.emissive.setHex(palette[color]);
     material.emissiveIntensity = color === 'symbolCream' ? .1 : .055;
    }
    if (color === 'ember' || color === 'flame') {
@@ -120,11 +129,28 @@ function workshop(world, spec, dimensions) {
   return {...spec, rotation, y, ...dimensions, group, meshes, colliders, signs,
    entrance: {x: x + Math.sin(rotation) * front, z: z + Math.cos(rotation) * front}};
  };
- return {box, beam, collider, post, patch, face, disc, plaque, crate, add, finish};
+ return {box, beam, collider, post, patch, face, disc, plaque, crate, add, finish, theme: spec.theme || 'verdant'};
 }
 
 function buildHealing(w) {
- const {box, beam, collider, post, patch, face} = w;
+ const {box, beam, collider, post, patch, face, disc, theme} = w;
+ if (theme === 'waterside' || theme === 'complex') {
+  // The coast uses an airy sail roof; the research outpost uses a metal awning.
+  const industrial = theme === 'complex';
+  for (const x of [-2.05, 2.05]) for (const z of [-1.55, 1.55]) post(x, z, z < 0 ? 2.85 : 2.4, .2);
+  patch(industrial ? 'metal' : 'green', 4.6, 3.8, (x, z) => 2.64 - z * .14 + (industrial ? 0 : .13 * Math.abs(x) / 2.3), 6, 4);
+  for (const z of [-1.83, 1.83]) box('woodLight', [4.6, .15, .12], [0, 2.64 - z * .14, z]);
+  if (industrial) {
+   for (let x = -2; x <= 2; x += .5) box('metal', [.065, .08, 3.7], [x, 2.68, 0], [.14, 0, 0]);
+   box('woodDark', [4.25, 1.45, .16], [0, .82, -1.6]);
+   box('greenDark', [1.02, .66, .18], [-1.43, 1.48, -1.48]);
+   for (let i = 0; i < 3; i++) box('yellow', [.52, .045, .035], [-1.43, 1.33 + i * .15, -1.365]);
+  } else {
+   for (const x of [-2.05, 2.05]) beam('canvas', [x, 2.36, 1.55], [x, .13, 1.78], .03);
+   for (let i = 0; i < 5; i++) box('woodLight', [.78, .06, 3.25], [(i - 2) * .85, .035, 0]);
+  }
+  box('greenDark', [1.76, .64, .09], [0, 2.36, 1.93]);
+ } else {
  for (const x of [-2.05, 2.05]) for (const z of [-1.55, 1.55]) post(x, z, 1.44, .21);
  for (const side of [-1, 1]) {
   patch('green', 2.3, 3.8, px => 3.04 - Math.abs(px + side * 1.15) / 2.3 * 1.74, 1, 4, side * 1.15);
@@ -136,8 +162,20 @@ function buildHealing(w) {
  }
  beam('woodDark', [0, 2.97, -1.76], [0, 2.97, 1.76], .08);
  face('greenDark', [[-1.12, 2.17, 1.865], [1.12, 2.17, 1.865], [0, 3.045, 1.865]]);
- box('symbolCream', [.66, .15, .07], [0, 2.53, 1.915]);
- box('symbolCream', [.16, .65, .07], [0, 2.53, 1.919]);
+ if (theme === 'highlands') {
+  for (const z of [-1.5, -.5, .5, 1.5]) beam('woodDark', [-2.24, 1.3, z], [0, 3.08, z], .07);
+  for (const side of [-1, 1]) patch('cream', .52, 3.82, px => 3.09 - Math.abs(px + side * .26) / 2.3 * 1.74, 1, 4, side * .26);
+ } else if (theme === 'caldera') {
+  for (const x of [-1.9, -1.15, -.4, .4, 1.15, 1.9]) {
+   box('stone', [.73, .65, .48], [x, .33, -1.65]);
+   collider(x, -1.65, .73, .48, .66);
+  }
+ }
+ }
+ // One shelter carries both the recovery cross and the companion paw.
+ box('symbolCream', [.46, .12, .07], [-.36, 2.46, 1.99]);
+ box('symbolCream', [.12, .46, .07], [-.36, 2.46, 1.995]);
+ paw(w, .4, 2.42, 1.995, .65);
  // A broad bed sits inside; the full front edge stays open for approach.
  box('wood', [2.05, .17, 2.43], [0, .42, -.12]);
  for (const x of [-.86, .86]) for (const z of [-1.12, .88]) box('woodDark', [.17, .41, .17], [x, .205, z]);
@@ -149,6 +187,32 @@ function buildHealing(w) {
  box('canvas', [1.12, .18, .52], [0, .85, -.83], [-.08, 0, 0]);
  box('green', [1.13, .08, .52], [0, .955, -.87], [-.08, 0, 0]);
  collider(0, -.12, 2.1, 2.55, 1.0);
+ for (const x of [-1.54, 1.54]) {
+  disc('canvas', .4, .12, [x, .1, .36], [1, 1, 1.2], 12);
+  disc('greenDark', .36, .06, [x, .19, .36], [1, 1, 1.2], 12);
+  disc('cream', .19, .1, [x, .07, 1.12], [1, 1, 1], 10);
+  disc('blue', .135, .02, [x, .126, 1.12], [1, 1, 1], 10);
+ }
+ if (theme === 'highlands' || theme === 'caldera' || theme === 'complex') {
+  box('stone', [4.35, .12, 3.45], [0, .025, -.08]);
+ }
+ lantern(w, 1.76, 1.53, 1.57);
+}
+
+function paw(w, x, y, z, scale = 1) {
+ const {add} = w;
+ add(new THREE.SphereGeometry(.125 * scale, 8, 5), 'symbolCream', [x, y - .065 * scale, z], [0, 0, 0], [1.17, .85, .23]);
+ for (const [dx, dy, r] of [[-.18, .11, .055], [-.067, .2, .067], [.067, .2, .067], [.18, .11, .055]])
+  add(new THREE.SphereGeometry(r * scale, 7, 5), 'symbolCream', [x + dx * scale, y + dy * scale, z], [0, 0, 0], [.8, 1.1, .35]);
+}
+
+function lantern(w, x, y, z) {
+ const {box, beam} = w;
+ beam('metal', [x, y + .3, z], [x, y + .49, z], .025);
+ box('metal', [.34, .06, .28], [x, y + .28, z]);
+ box('yellow', [.24, .32, .2], [x, y + .08, z]);
+ box('metal', [.34, .07, .28], [x, y - .11, z]);
+ for (const side of [-1, 1]) box('metal', [.035, .34, .24], [x + side * .14, y + .08, z]);
 }
 
 function book(w, px, py, pz, width = 1.45, depth = .93) {
@@ -230,46 +294,52 @@ function supplyStation(w) {
  for (const side of [-1, 1]) box('symbolCream', [.035, .09, .039], [side * .092, 2.032, 1.92]);
 }
 
-function companionShelter(w) {
- const {box, beam, collider, post, patch, disc, plaque, add} = w;
- const rx = 2.2, rz = 1.8, gap = .59, segments = 12;
- // The curved rail stops either side of a wide, unobstructed central entrance.
- const railPoints = [];
- for (let i = 0; i <= segments; i++) {
-  const a = gap + (Math.PI * 2 - gap * 2) * i / segments;
-  const x = Math.sin(a) * rx, z = Math.cos(a) * rz;
-  railPoints.push([x, z]);
-  box('wood', [.17, .88, .17], [x, .44, z]);
-  box('woodLight', [.23, .09, .23], [x, .915, z]);
-  collider(x, z, .17, .17, .96);
-  if (i) {
-   const [px, pz] = railPoints[i - 1], mx = (x + px) / 2, mz = (z + pz) / 2;
-   const length = Math.hypot(x - px, z - pz), angle = Math.atan2(-(z - pz), x - px);
-   box('wood', [length, .18, .11], [mx, .58, mz], [0, angle, 0]);
-   box('woodLight', [length, .055, .12], [mx, .698, mz], [0, angle, 0]);
-   box('woodDark', [length, .13, .09], [mx, .32, mz], [0, angle, 0]);
-   collider(mx, mz, length, .12, .74, angle);
-  }
+function rationStation(w) {
+ const {box, post, patch, crate, plaque, add} = w;
+ for (const x of [-1.2, 1.2]) post(x, -.7, 2.02, .16);
+ patch('green', 2.8, 2, (x, z) => 2.12 - z * .12, 2, 2);
+ crate(-.6, 0, 0, 1.05, .72, 1.1);
+ crate(.57, -.12, 0, .92, .52, .87);
+ for (const [x, z] of [[-.87, -.1], [-.43, -.2], [-.65, .26]]) {
+  box('canvas', [.32, .26, .3], [x, .87, z]);
+  box('rations', [.04, .28, .32], [x, .87, z]);
  }
- const canopyDepth = 1.7, canopyBack = -.55;
- for (const x of [-1.73, 1.73]) for (const z of [-1.3, .2]) post(x, z, 2.37 + (z < 0 ? .1 : 0), .19);
- patch('canvas', 3.65, canopyDepth, (x, z) => 2.47 - .39 * (1 - (x / 1.825) ** 2) * (1 - (z / (canopyDepth / 2)) ** 2) - z * .045, 6, 4, 0, canopyBack);
- for (const z of [-canopyDepth / 2, canopyDepth / 2]) {
-  for (let i = 0; i < 6; i++) {
-   const x1 = (i / 6 - .5) * 3.65, x2 = ((i + 1) / 6 - .5) * 3.65;
-   beam('cream', [x1, 2.47 - z * .045, z + canopyBack], [x2, 2.47 - z * .045, z + canopyBack], .024, 5);
-  }
+ add(new THREE.SphereGeometry(.3, 8, 6), 'canvas', [.59, .77, -.09], [0, 0, 0], [1, 1.4, 1]);
+ box('woodDark', [.2, .07, .2], [.59, 1.19, -.09]);
+ plaque(0, 1.71, 1.02, .56, .4);
+ box('rations', [.3, .21, .035], [0, 1.69, 1.12]);
+ box('symbolDark', [.032, .21, .04], [0, 1.69, 1.15]);
+}
+
+function campDressing(w) {
+ const {box, beam, collider, disc, theme} = w;
+ // A bench, lantern and field equipment form a single small regional vignette.
+ box('wood', [2.35, .16, .68], [-.12, .57, 0]);
+ for (const x of [-1.04, .8]) {
+  box(theme === 'caldera' ? 'stone' : 'woodDark', [.22, .52, .56], [x, .26, 0]);
  }
- for (const x of [-.92, .92]) {
-  disc('canvas', .9, .17, [x, .11, .12], [1, 1, .91]);
-  disc('greenDark', .83, .14, [x, .25, .12], [1, 1, .91]);
-  disc('green', .72, .025, [x, .33, .12], [1, 1, .91]);
+ box('woodLight', [2.35, .38, .12], [-.12, 1.01, -.32]);
+ collider(-.12, 0, 2.35, .8, 1.25);
+ beam('woodDark', [-1.6, 0, 0], [-1.6, 2.05, 0], .085);
+ beam('woodDark', [-1.6, 2.05, 0], [-1.25, 2.05, 0], .07);
+ collider(-1.6, 0, .18, .18, 2.1);
+ lantern(w, -1.26, 1.55, 0);
+ if (theme === 'waterside') {
+  for (const x of [1.28, 1.52]) beam('woodLight', [x, .1, .15], [x + .16, 1.74, -.2], .045);
+  for (const y of [.15, .24, .33]) disc('canvas', .3, .07, [1.5, y, .32], [1, 1, 1], 12);
+ } else if (theme === 'highlands') {
+  box('blue', [.6, .6, .35], [1.45, .35, 0]);
+  for (const x of [1.3, 1.65]) beam('woodLight', [x, .08, .2], [x - .18, 1.6, -.14], .03);
+  for (const y of [.24, .34, .44]) disc('canvas', .23, .07, [1.45, y, .36], [1, 1, 1], 12);
+ } else if (theme === 'caldera') {
+  for (const x of [1.16, 1.6]) for (const y of [.16, .43]) box('stone', [.42, .24, .7], [x, y, 0]);
+  box('metal', [.56, .16, .47], [1.42, .66, 0]);
+ } else {
+  box('metal', [.8, .64, .6], [1.38, .35, 0]);
+  box('greenDark', [.56, .34, .025], [1.38, .39, .32]);
+  for (const x of [1.23, 1.4, 1.57]) box('yellow', [.07, .07, .03], [x, .4, .35]);
  }
- // The front right rail faces the base camera; the badge stays outside the entry.
- plaque(1.47, .58, 1.43, .65, .55);
- add(new THREE.SphereGeometry(.125, 8, 5), 'symbolDark', [1.47, .515, 1.535], [0, 0, 0], [1.17, .85, .23]);
- for (const [x, y, r] of [[-.18, .11, .055], [-.067, .2, .067], [.067, .2, .067], [.18, .11, .055]])
-  add(new THREE.SphereGeometry(r, 7, 5), 'symbolDark', [1.47 + x, .58 + y, 1.535], [0, 0, 0], [.8, 1.1, .35]);
+ collider(1.4, 0, .85, .8, .9);
 }
 
 function smallCampfire(w) {
@@ -319,24 +389,31 @@ export function buildBaseFacilities(world, layout) {
   heal: [buildHealing, {width: 4.6, depth: 3.8, height: 3.1}],
   research: [researchStation, {width: 4.5, depth: 3.4, height: 2.8}],
   shop: [supplyStation, {width: 5, depth: 3.4, height: 2.8}],
-  camp: [companionShelter, {width: 4.8, depth: 4, height: 2.6}],
+  save: [researchStation, {width: 4.5, depth: 3.4, height: 2.8}],
+  rations: [rationStation, {width: 2.8, depth: 2, height: 2.3}],
  };
  const facilities = [];
- for (const spec of layout.facilities || []) {
+ for (const facility of layout.facilities || []) {
+  const spec = {theme: layout.theme || 'verdant', ...facility};
   const entry = builders[spec.kind];
   if (!entry) throw new Error(`Unknown base facility: ${spec.kind}`);
   const w = workshop(world, spec, entry[1]);
   entry[0](w); facilities.push(w.finish());
  }
  if (layout.water) {
-  const spec = {id: 'base-water', kind: 'drink', rotation: 0, ...layout.water};
+  const spec = {id: 'base-water', kind: 'drink', rotation: 0, theme: layout.theme || 'verdant', ...layout.water};
   const w = workshop(world, spec, {width: 1.05, depth: .88, height: 1.4});
   drinkingStation(w); facilities.push(w.finish());
  }
  const decorations = [];
+ for (const spec of layout.decorations || []) {
+  if (spec.kind !== 'camp-dressing') throw new Error(`Unknown camp decoration: ${spec.kind}`);
+  const w = workshop(world, {theme: layout.theme || 'verdant', ...spec, decoration: true}, {width: 4, depth: 1, height: 2.2});
+  campDressing(w); decorations.push(w.finish());
+ }
  if (layout.fire) {
   const point = Array.isArray(layout.fire) ? {x: layout.fire[0], z: layout.fire[1]} : layout.fire;
-  const w = workshop(world, {id: 'base-fire', decoration: true, rotation: 0, ...point}, {width: 1.2, depth: 1.2, height: .55});
+  const w = workshop(world, {id: 'base-fire', decoration: true, rotation: 0, theme: layout.theme || 'verdant', ...point}, {width: 1.2, depth: 1.2, height: .55});
   smallCampfire(w);
   const fire = w.finish();
   const light = new THREE.PointLight(0xffae63, .65, 3, 2);

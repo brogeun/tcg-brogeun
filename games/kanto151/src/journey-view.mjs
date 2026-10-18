@@ -1,3 +1,4 @@
+import {createFieldObject} from './field-objects.mjs';
 import {THREE} from './world.mjs';
 import * as journey from './journey.mjs';
 import {t,tx,currentLocale,entity} from './i18n.mjs';
@@ -5,11 +6,7 @@ const esc=s=>String(tx(s??'')).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 export function syncJourneyMarkers(g){if(!g.world.level||!g.compositions?.regions[g.save.region])return;const j=journey.journeyState(g.save),entries=journey.journeyInteractions(g),stamp=JSON.stringify([g.save.region,entries.map(i=>[i.key,i.x,i.z]),Object.entries(j.stories).filter(([,r])=>r.claimed).map(([id])=>id)]);if(g.journeyStamp===stamp&&g.journeyGroup?.parent)return;
  if(g.journeyGroup?.parent){g.journeyGroup.removeFromParent();g.journeyGroup.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});}
  const group=new THREE.Group();g.world.level.add(group);g.journeyGroup=group;g.journeyStamp=stamp;g.world.interactions=g.world.interactions.filter(i=>!['journey','elite','run','survey-hub'].includes(i.kind));
- const mark=(x,z,color,completed=false)=>{const ring=new THREE.Mesh(new THREE.RingGeometry(.7,.85,24),new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide,transparent:true,opacity:completed?.6:.85,depthWrite:false,toneMapped:false}));ring.rotation.x=-Math.PI/2;ring.position.set(x,g.standingHeight(x,z)+.14,z);ring.userData.owned=true;group.add(ring);if(!completed){const diamond=new THREE.Mesh(new THREE.OctahedronGeometry(.22),new THREE.MeshBasicMaterial({color,toneMapped:false}));diamond.position.set(x,g.standingHeight(x,z)+1.4,z);diamond.userData.owned=true;group.add(diamond);}};
- for(const i of entries){g.world.interactions.push(i);mark(i.x,i.z,i.kind==='elite'?0xf1ae75:0x9adbe5);}
- if(j.stories['generator-record']?.claimed&&g.save.region==='complex'){for(const x of [19,22,25])mark(x,12,0x9cf3cd,true);}
- if(j.stories['ember-route']?.claimed&&g.save.region==='caldera')for(const p of [[-22,22],[-13,4],[-5,-6]])mark(...p,0xf7d788,true);
- if(j.stories['coast-rescue']?.claimed&&g.save.region==='waterside')mark(16,-12,0x9cf3cd,true);
+ for(const i of entries){g.world.interactions.push(i);createFieldObject(g.world,i,group);}
 }
 const rewardText=r=>{const reward=journey.fieldRuns.runReward(r,journey.fieldRuns.RUN_RULES);return t('journey.reward',reward)+(reward.bonus?t('journey.bonus'):'');};
 export function localizedActivity(g,choice){

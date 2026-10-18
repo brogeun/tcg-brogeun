@@ -1,11 +1,11 @@
 // Regional shelters share readable facilities while keeping their own setting.
 const point=(x,z)=>Object.freeze([x,z]);
 export const BASE_LABELS=Object.freeze({
- heal:{'ko-KR':'친구 쉼터','en-US':'Companion shelter'},
- research:{'ko-KR':'연구·기록소','en-US':'Research station'},
- save:{'ko-KR':'연구·기록소 · 기록 저장','en-US':'Research station · Save record'},
- shop:{'ko-KR':'보급소','en-US':'Supply shop'},
- rations:{'ko-KR':'보급소 · 기본 식량','en-US':'Supply shop · Camp food'},
+ heal:{'ko-KR':'회복·친구 교체','en-US':'Recovery · Change friends'},
+ research:{'ko-KR':'도감 연구','en-US':'Pokédex research'},
+ save:{'ko-KR':'복귀 기록 저장','en-US':'Save return checkpoint'},
+ shop:{'ko-KR':'물품 구매','en-US':'Buy supplies'},
+ rations:{'ko-KR':'무료 음식 보충','en-US':'Free food refill'},
  drink:{'ko-KR':'보급소 · 식수대','en-US':'Supply shop · Drinking water'}
 });
 export const BASE_LAYOUT=Object.freeze({
@@ -21,8 +21,8 @@ export const BASE_LAYOUT=Object.freeze({
 
 const regionalLabels=Object.freeze({
  heal:BASE_LABELS.heal,
- save:Object.freeze({'ko-KR':'탐험 기록대 · 기록 저장','en-US':'Expedition desk · Save record'}),
- rations:Object.freeze({'ko-KR':'기본 식량대','en-US':'Camp food supplies'}),
+ save:BASE_LABELS.save,
+ rations:Object.freeze({'ko-KR':'음식 보충','en-US':'Refill food'}),
  drink:Object.freeze({'ko-KR':'물빛 해안 식수대','en-US':'Waterside drinking water'})
 });
 const regionalLayout=(id,x,z,water)=>Object.freeze({

@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import {attachBaseWayfinding} from './base-wayfinding.mjs';
 
 const COLORS = {
  wood: 0xaa784a, woodDark: 0x785035, woodLight: 0xc49662,
@@ -7,6 +8,7 @@ const COLORS = {
  metal: 0x837e68, rations: 0xf0d391, drink: 0x6096a2,
  stone: 0xa1a294, stoneLight: 0xb8b7a6, ember: 0xd9733c, flame: 0xffa451,
  symbolCream: 0xf5e7c8, symbolDark: 0x785035,
+ medical: 0xad5147, recordBlue: 0x476f91,
 };
 const UP = new THREE.Vector3(0, 1, 0);
 const THEMES = {
@@ -21,10 +23,14 @@ const THEMES = {
 // Geometry is local to its anchor, so the visual and collision rotations agree.
 function workshop(world, spec, dimensions) {
  const {x, z, rotation = 0} = spec, y = world.height(x, z);
+ // Keep every solid and its attached service symbol in the same local scale.
+ // Water taps and loose camp dressing retain their useful, person-sized props.
+ const modelScale = !spec.decoration && spec.kind !== 'drink' && ['waterside', 'highlands', 'caldera', 'complex'].includes(spec.theme) ? .88 : 1;
  const group = world.owned(new THREE.Group());
  group.name = `base-${spec.id}`;
  group.position.set(x, y, z);
  group.rotation.y = rotation;
+ group.scale.setScalar(modelScale);
  const tag = spec.decoration ? 'baseDecoration' : 'baseFacility';
  group.userData[tag] = spec.id;
  group.userData.regionTheme = spec.theme || 'verdant';
@@ -46,6 +52,8 @@ function workshop(world, spec, dimensions) {
   add(new THREE.CylinderGeometry(radius, radius, direction.length(), sides), color, a.clone().add(b).multiplyScalar(.5).toArray(), new THREE.Quaternion().setFromUnitVectors(UP, direction.normalize()));
  };
  const collider = (cx, cz, width, depth, height, angle = 0, bottom = 0) => {
+  cx *= modelScale; cz *= modelScale;
+  width *= modelScale; depth *= modelScale; height *= modelScale; bottom *= modelScale;
   const co = Math.cos(rotation), si = Math.sin(rotation);
   const c = {type: 'obb', baseFacility: spec.id, x: x + cx * co + cz * si, z: z - cx * si + cz * co,
    rotation: rotation + angle, halfWidth: width / 2, halfDepth: depth / 2,
@@ -125,8 +133,10 @@ function workshop(world, spec, dimensions) {
    if (signs[color]) {mesh.userData.supplyKind = color; signs[color].push(mesh);}
    group.add(mesh); meshes.push(mesh);
   }
-  const front = dimensions.depth / 2 + .65;
-  return {...spec, rotation, y, ...dimensions, group, meshes, colliders, signs,
+  const scaledDimensions = Object.fromEntries(Object.entries(dimensions).map(([key, value]) => [key, value * modelScale]));
+  // Preserve the full approach clearance outside the now smaller roof edge.
+  const front = scaledDimensions.depth / 2 + .65;
+  return {...spec, rotation, y, ...scaledDimensions, group, meshes, colliders, signs,
    entrance: {x: x + Math.sin(rotation) * front, z: z + Math.cos(rotation) * front}};
  };
  return {box, beam, collider, post, patch, face, disc, plaque, crate, add, finish, theme: spec.theme || 'verdant'};
@@ -149,7 +159,6 @@ function buildHealing(w) {
    for (const x of [-2.05, 2.05]) beam('canvas', [x, 2.36, 1.55], [x, .13, 1.78], .03);
    for (let i = 0; i < 5; i++) box('woodLight', [.78, .06, 3.25], [(i - 2) * .85, .035, 0]);
   }
-  box('greenDark', [1.76, .64, .09], [0, 2.36, 1.93]);
  } else {
  for (const x of [-2.05, 2.05]) for (const z of [-1.55, 1.55]) post(x, z, 1.44, .21);
  for (const side of [-1, 1]) {
@@ -172,17 +181,13 @@ function buildHealing(w) {
   }
  }
  }
- // One shelter carries both the recovery cross and the companion paw.
- box('symbolCream', [.46, .12, .07], [-.36, 2.46, 1.99]);
- box('symbolCream', [.12, .46, .07], [-.36, 2.46, 1.995]);
- paw(w, .4, 2.42, 1.995, .65);
  // A broad bed sits inside; the full front edge stays open for approach.
  box('wood', [2.05, .17, 2.43], [0, .42, -.12]);
  for (const x of [-.86, .86]) for (const z of [-1.12, .88]) box('woodDark', [.17, .41, .17], [x, .205, z]);
  box('wood', [2.1, .36, .13], [0, .73, -1.35]);
  for (const x of [-1.02, 1.02]) box('woodLight', [.14, .34, 2.55], [x, .55, -.13]);
  box('cream', [1.87, .23, 2.25], [0, .635, -.1]);
- box('green', [1.88, .08, 1.15], [0, .79, .27]);
+ box('medical', [1.88, .08, 1.15], [0, .79, .27]);
  box('greenDark', [1.88, .23, .085], [0, .675, .86]);
  box('canvas', [1.12, .18, .52], [0, .85, -.83], [-.08, 0, 0]);
  box('green', [1.13, .08, .52], [0, .955, -.87], [-.08, 0, 0]);
@@ -294,10 +299,31 @@ function supplyStation(w) {
  for (const side of [-1, 1]) box('symbolCream', [.035, .09, .039], [side * .092, 2.032, 1.92]);
 }
 
+function recordStation(w) {
+ const {box,beam,collider}=w;
+ // A blue recording kiosk has a tall backboard and a low writing desk,
+ // rather than repeating the roofed research building used by the village.
+ box('stone', [3.85,.16,2.9], [0,.04,-.1]);
+ for(const x of [-1.7,1.7]){
+  box('woodDark',[.18,2.62,.18],[x,1.31,-.92]);
+  collider(x,-.92,.18,.18,2.62);
+ }
+ box('woodDark',[3.65,1.48,.16],[0,1.86,-.93]);
+ box('recordBlue',[3.4,1.27,.10],[0,1.87,-.81]);
+ box('woodLight',[3.88,.16,.62],[0,2.69,-.91],[.08,0,0]);
+ box('wood',[3.3,.17,1.18],[0,1.01,.40]);
+ for(const x of [-1.45,1.45])box('woodDark',[.17,1.0,.17],[x,.50,.77]);
+ box('recordBlue',[3.08,.67,.12],[0,.59,.93]);
+ collider(0,.4,3.3,1.18,1.13);
+ book(w,0,1.17,.38,1.60,.88);
+ for(let i=0;i<3;i++)box(i===1?'cream':'recordBlue',[.53,.1,.48],[-1.13,1.17+i*.10,.32]);
+ beam('symbolDark',[.73,1.16,.35],[1.1,1.28,.12],.035);
+}
+
 function rationStation(w) {
  const {box, post, patch, crate, plaque, add} = w;
  for (const x of [-1.2, 1.2]) post(x, -.7, 2.02, .16);
- patch('green', 2.8, 2, (x, z) => 2.12 - z * .12, 2, 2);
+ for(let i=0;i<6;i++)patch(i%2?'cream':'yellow',2.8/6,2,(x,z)=>2.12-z*.12,1,2,(i-2.5)*2.8/6);
  crate(-.6, 0, 0, 1.05, .72, 1.1);
  crate(.57, -.12, 0, .92, .52, .87);
  for (const [x, z] of [[-.87, -.1], [-.43, -.2], [-.65, .26]]) {
@@ -306,9 +332,6 @@ function rationStation(w) {
  }
  add(new THREE.SphereGeometry(.3, 8, 6), 'canvas', [.59, .77, -.09], [0, 0, 0], [1, 1.4, 1]);
  box('woodDark', [.2, .07, .2], [.59, 1.19, -.09]);
- plaque(0, 1.71, 1.02, .56, .4);
- box('rations', [.3, .21, .035], [0, 1.69, 1.12]);
- box('symbolDark', [.032, .21, .04], [0, 1.69, 1.15]);
 }
 
 function campDressing(w) {
@@ -389,7 +412,7 @@ export function buildBaseFacilities(world, layout) {
   heal: [buildHealing, {width: 4.6, depth: 3.8, height: 3.1}],
   research: [researchStation, {width: 4.5, depth: 3.4, height: 2.8}],
   shop: [supplyStation, {width: 5, depth: 3.4, height: 2.8}],
-  save: [researchStation, {width: 4.5, depth: 3.4, height: 2.8}],
+  save: [recordStation, {width: 4.5, depth: 3.4, height: 2.8}],
   rations: [rationStation, {width: 2.8, depth: 2, height: 2.3}],
  };
  const facilities = [];
@@ -422,5 +445,6 @@ export function buildBaseFacilities(world, layout) {
  }
  const signs = {rations: facilities.flatMap(f => f.signs.rations), drink: facilities.flatMap(f => f.signs.drink)};
  world.baseFacilities = {facilities, signs, decorations};
+ attachBaseWayfinding(world, world.baseFacilities);
  return world.baseFacilities;
 }

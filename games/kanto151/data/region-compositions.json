@@ -580,12 +580,12 @@
         ]
       },
       "palette": {
-        "ground": "#587949",
-        "path": "#b5a57c",
-        "canopy": "#52804e",
+        "ground": "#52633d",
+        "path": "#a38455",
+        "canopy": "#42664a",
         "accent": "#d5d98a",
-        "sky": "#a4cec1",
-        "fog": "#99bda1"
+        "sky": "#9fb9b4",
+        "fog": "#99aca0"
       },
       "safePoint": {
         "id": "verdant-rest",
@@ -605,10 +605,10 @@
               -22
             ],
             "radius": [
-              13,
-              14
+              18,
+              17
             ],
-            "height": 1.8
+            "height": 3.6
           },
           {
             "shape": "mound",
@@ -617,10 +617,58 @@
               -23
             ],
             "radius": [
-              15,
-              13
+              17,
+              14
             ],
-            "height": 1.2
+            "height": 2.4
+          },
+          {
+            "shape": "mound",
+            "center": [
+              -34,
+              9
+            ],
+            "radius": [
+              13,
+              20
+            ],
+            "height": 5
+          },
+          {
+            "shape": "mound",
+            "center": [
+              32,
+              25
+            ],
+            "radius": [
+              15,
+              14
+            ],
+            "height": 3.6
+          },
+          {
+            "shape": "mound",
+            "center": [
+              -28,
+              33
+            ],
+            "radius": [
+              15,
+              12
+            ],
+            "height": 3.4
+          },
+          {
+            "shape": "mound",
+            "center": [
+              5,
+              -40
+            ],
+            "radius": [
+              22,
+              12
+            ],
+            "height": 3.8
           }
         ],
         "maximumWalkableSlope": 0.62
@@ -631,15 +679,31 @@
           "points": [
             [
               0,
-              30
+              34
             ],
             [
               0,
-              16
+              26
+            ],
+            [
+              0,
+              18
+            ],
+            [
+              -1,
+              14
+            ],
+            [
+              1,
+              10
             ],
             [
               4,
               4
+            ],
+            [
+              -2,
+              0
             ],
             [
               -8,
@@ -658,11 +722,15 @@
               -15
             ],
             [
+              -16,
+              -24
+            ],
+            [
               -15,
               -36
             ]
           ],
-          "width": 4.6,
+          "width": 3.1,
           "surface": "soil"
         },
         {
@@ -673,23 +741,39 @@
               4
             ],
             [
+              15,
+              3
+            ],
+            [
               20,
               -3
+            ],
+            [
+              23,
+              -11
             ],
             [
               20,
               -19
             ],
             [
+              12,
+              -23
+            ],
+            [
               2,
               -25
+            ],
+            [
+              -7,
+              -22
             ],
             [
               -17,
               -15
             ]
           ],
-          "width": 3.6,
+          "width": 2.8,
           "surface": "soil"
         },
         {
@@ -700,7 +784,11 @@
               4
             ],
             [
-              21,
+              15,
+              8
+            ],
+            [
+              23,
               8
             ],
             [
@@ -708,7 +796,7 @@
               8
             ]
           ],
-          "width": 4,
+          "width": 3.2,
           "surface": "soil"
         },
         {
@@ -2322,174 +2410,544 @@
       ],
       "ecologyPockets": [
         {
-          "id": "verdant-first",
+          "id": "verdant-trail-birds",
+          "habitatGroup": "verdant-first",
+          "habitatRole": "trail-canopy",
           "center": [
-            6,
-            15
+            7,
+            16
           ],
           "radius": [
-            6,
-            5
+            3.5,
+            3
           ],
           "speciesIds": [
-            16,
+            16
+          ],
+          "method": "field",
+          "leashRadius": 3.5,
+          "conditions": {},
+          "count": [
+            1,
+            2
+          ],
+          "resource": "berries"
+        },
+        {
+          "id": "verdant-trail-roots",
+          "habitatGroup": "verdant-first",
+          "habitatRole": "grass-roots",
+          "center": [
+            4,
+            12.5
+          ],
+          "radius": [
+            3,
+            3
+          ],
+          "speciesIds": [
             19
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 3,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
-        },
-        {
-          "id": "verdant-meadow-life",
-          "center": [
-            11,
             1
           ],
+          "resource": "berries"
+        },
+        {
+          "id": "verdant-meadow-birds",
+          "habitatGroup": "verdant-meadow-life",
+          "habitatRole": "open-meadow",
+          "center": [
+            15,
+            1.5
+          ],
           "radius": [
-            8,
-            6
+            3.8,
+            3.4
           ],
           "speciesIds": [
             21,
-            29,
-            32,
-            39,
-            52,
-            56,
             84
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 3.8,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "grass"
         },
         {
-          "id": "verdant-understory",
+          "id": "verdant-flower-grass",
+          "habitatGroup": "verdant-meadow-life",
+          "habitatRole": "flower-grass",
           "center": [
-            -27,
+            8,
             -1
           ],
           "radius": [
-            7,
-            7
+            3.8,
+            3
           ],
           "speciesIds": [
-            48,
+            29,
+            32,
+            39
+          ],
+          "method": "field",
+          "leashRadius": 3.8,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "grass"
+        },
+        {
+          "id": "verdant-meadow-tree-edge",
+          "habitatGroup": "verdant-meadow-life",
+          "habitatRole": "woodland-edge",
+          "center": [
+            15,
+            -2.6
+          ],
+          "radius": [
+            3.1,
+            3
+          ],
+          "speciesIds": [
+            52,
+            56
+          ],
+          "method": "field",
+          "leashRadius": 3.1,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "berries"
+        },
+        {
+          "id": "verdant-understory-moths",
+          "habitatGroup": "verdant-understory",
+          "habitatRole": "shaded-understory",
+          "center": [
+            -26,
+            0
+          ],
+          "radius": [
+            3.2,
+            3.8
+          ],
+          "speciesIds": [
+            48
+          ],
+          "method": "field",
+          "leashRadius": 3.8,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "leaves"
+        },
+        {
+          "id": "verdant-understory-plants",
+          "habitatGroup": "verdant-understory",
+          "habitatRole": "damp-grass",
+          "center": [
+            -30,
+            -1
+          ],
+          "radius": [
+            3,
+            3
+          ],
+          "speciesIds": [
             69
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 3,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "leaves"
         },
         {
-          "id": "verdant-tree-life",
+          "id": "verdant-leaf-saplings",
+          "habitatGroup": "verdant-tree-life",
+          "habitatRole": "leaf-canopy",
           "center": [
-            -24,
-            -18
+            -26,
+            -15
           ],
           "radius": [
-            8,
-            7
+            3.2,
+            3.2
           ],
           "speciesIds": [
-            10,
-            13,
-            43,
-            46,
+            10
+          ],
+          "method": "tree",
+          "leashRadius": 3.2,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "leaves"
+        },
+        {
+          "id": "verdant-thorn-saplings",
+          "habitatGroup": "verdant-tree-life",
+          "habitatRole": "thorn-canopy",
+          "center": [
+            -29,
+            -19
+          ],
+          "radius": [
+            3,
+            3
+          ],
+          "speciesIds": [
+            13
+          ],
+          "method": "tree",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "leaves"
+        },
+        {
+          "id": "verdant-shaded-grass",
+          "habitatGroup": "verdant-tree-life",
+          "habitatRole": "shaded-grass",
+          "center": [
+            -22,
+            -15
+          ],
+          "radius": [
+            3,
+            2.5
+          ],
+          "speciesIds": [
+            43
+          ],
+          "method": "tree",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "verdant-rotting-log",
+          "habitatGroup": "verdant-tree-life",
+          "habitatRole": "rotting-wood",
+          "center": [
+            -27,
+            -12.8
+          ],
+          "radius": [
+            2.8,
+            2.6
+          ],
+          "speciesIds": [
+            46
+          ],
+          "method": "tree",
+          "leashRadius": 2.8,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "verdant-ancient-roots",
+          "habitatGroup": "verdant-tree-life",
+          "habitatRole": "root-cluster",
+          "center": [
+            -22.8,
+            -23
+          ],
+          "radius": [
+            3.2,
+            2.8
+          ],
+          "speciesIds": [
             102
           ],
           "method": "tree",
-          "leashRadius": 7,
+          "leashRadius": 3.2,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "shade"
         },
         {
-          "id": "verdant-starter-nests",
+          "id": "verdant-leafy-starter-nest",
+          "habitatGroup": "verdant-starter-nests",
+          "habitatRole": "leafy-thicket",
           "center": [
-            -12,
+            -12.5,
+            -13.7
+          ],
+          "radius": [
+            3,
+            2.6
+          ],
+          "speciesIds": [
+            1
+          ],
+          "method": "nest",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "leaves"
+        },
+        {
+          "id": "verdant-trunk-starter-nest",
+          "habitatGroup": "verdant-starter-nests",
+          "habitatRole": "tree-trunks",
+          "center": [
+            -8.5,
             -12
           ],
           "radius": [
-            5,
-            5
+            2.4,
+            3
           ],
           "speciesIds": [
-            1,
             25
           ],
           "method": "nest",
-          "leashRadius": 7,
+          "leashRadius": 3,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "berries"
         },
         {
-          "id": "verdant-reserve-nests",
+          "id": "verdant-reserve-sheltered-grass",
+          "habitatGroup": "verdant-reserve-nests",
+          "habitatRole": "sheltered-grass",
           "center": [
-            21,
-            -20
+            19,
+            -17
           ],
           "radius": [
-            7,
-            6
+            3.5,
+            2.6
           ],
           "speciesIds": [
             83,
-            113,
+            113
+          ],
+          "method": "nest",
+          "leashRadius": 3.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "leaves"
+        },
+        {
+          "id": "verdant-reserve-open-grass",
+          "habitatGroup": "verdant-reserve-nests",
+          "habitatRole": "open-grass",
+          "center": [
+            22.5,
+            -21
+          ],
+          "radius": [
+            3.5,
+            3
+          ],
+          "speciesIds": [
             115,
+            128
+          ],
+          "method": "nest",
+          "leashRadius": 3.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "berries"
+        },
+        {
+          "id": "verdant-reserve-woodland",
+          "habitatGroup": "verdant-reserve-nests",
+          "habitatRole": "woodland-edge",
+          "center": [
+            17,
+            -22
+          ],
+          "radius": [
+            3,
+            2.5
+          ],
+          "speciesIds": [
             123,
-            127,
-            128,
+            127
+          ],
+          "method": "nest",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "leaves"
+        },
+        {
+          "id": "verdant-reserve-pond-nest",
+          "habitatGroup": "verdant-reserve-nests",
+          "habitatRole": "pond-water",
+          "center": [
+            30.8,
+            -23
+          ],
+          "radius": [
+            3.6,
+            3.4
+          ],
+          "speciesIds": [
             147
           ],
           "method": "nest",
-          "leashRadius": 7,
+          "leashRadius": 3.6,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "waterBodyId": "verdant-reserve-pond",
+          "resource": "water"
         },
         {
-          "id": "verdant-reserve-life",
+          "id": "verdant-reserve-runners",
+          "habitatGroup": "verdant-reserve-life",
+          "habitatRole": "open-meadow",
           "center": [
-            28,
-            -14
+            30,
+            -12
           ],
           "radius": [
-            5,
-            5
+            3,
+            3
           ],
           "speciesIds": [
-            85,
+            85
+          ],
+          "method": "field",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "grass"
+        },
+        {
+          "id": "verdant-reserve-shade",
+          "habitatGroup": "verdant-reserve-life",
+          "habitatRole": "shaded-grass",
+          "center": [
+            26,
+            -16
+          ],
+          "radius": [
+            3,
+            3
+          ],
+          "speciesIds": [
             108
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 3,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "berries"
         }
       ],
-      "waterBodies": [],
+      "waterBodies": [
+        {
+          "id": "verdant-reserve-pond",
+          "kind": "water",
+          "surfaceY": 2.12,
+          "foam": false,
+          "flowSpeed": 0.12,
+          "polygon": [
+            [
+              26.4,
+              -26.75
+            ],
+            [
+              30.4,
+              -26.75
+            ],
+            [
+              31.75,
+              -25.4
+            ],
+            [
+              31.75,
+              -23.1
+            ],
+            [
+              30.9,
+              -22.25
+            ],
+            [
+              26.4,
+              -22.25
+            ],
+            [
+              25.25,
+              -23.4
+            ],
+            [
+              25.25,
+              -25.6
+            ]
+          ],
+          "basin": {
+            "floorY": 1.75,
+            "shoreBlendWidth": 2.2
+          },
+          "color": "#326b60",
+          "depthScale": 1.7,
+          "shoreVegetation": "forest"
+        }
+      ],
       "setpieces": [],
       "entrances": [
         {
@@ -2584,6 +3042,62 @@
           0,
           20
         ]
+      },
+      "groundPatches": [
+        {
+          "center": [
+            0,
+            26
+          ],
+          "radius": [
+            12.5,
+            8.6
+          ],
+          "color": "#8e7952",
+          "strength": 0.91
+        },
+        {
+          "center": [
+            4,
+            4
+          ],
+          "radius": [
+            9,
+            6.5
+          ],
+          "color": "#71804b",
+          "strength": 0.44
+        },
+        {
+          "center": [
+            -21,
+            -19
+          ],
+          "radius": [
+            8,
+            8
+          ],
+          "color": "#665e40",
+          "strength": 0.63
+        },
+        {
+          "center": [
+            20,
+            -19
+          ],
+          "radius": [
+            10,
+            8
+          ],
+          "color": "#80905a",
+          "strength": 0.47
+        }
+      ],
+      "artDirection": {
+        "revision": "verdant-authored-20261017",
+        "layout": "Forest ranger courtyard, rock-framed woodland approach, meadow, ancient root grove, observation ridge loop",
+        "scenery": "opaque-faceted-forest",
+        "lighting": "woodland-daylight"
       }
     },
     "waterside": {
@@ -3769,29 +4283,57 @@
       ],
       "ecologyPockets": [
         {
-          "id": "waterside-bank-life",
+          "id": "waterside-reedy-bank",
+          "habitatGroup": "waterside-bank-life",
+          "habitatRole": "reedy-waterline",
           "center": [
-            -23,
-            5
+            -5,
+            3
           ],
           "radius": [
-            7,
-            7
+            3.4,
+            5
           ],
           "speciesIds": [
-            54,
-            79
+            54
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 5,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "shore"
+        },
+        {
+          "id": "waterside-quiet-bank",
+          "habitatGroup": "waterside-bank-life",
+          "habitatRole": "quiet-waterline",
+          "center": [
+            -9,
+            -7
+          ],
+          "radius": [
+            3.8,
+            4
+          ],
+          "speciesIds": [
+            79
+          ],
+          "method": "field",
+          "leashRadius": 4,
+          "conditions": {},
+          "count": [
+            1,
+            2
+          ],
+          "resource": "shore"
         },
         {
           "id": "waterside-nest",
+          "habitatGroup": "waterside-nest",
+          "habitatRole": "sheltered-bank",
           "center": [
             -20,
             -14
@@ -3804,88 +4346,190 @@
             7
           ],
           "method": "nest",
-          "leashRadius": 7,
+          "leashRadius": 4,
           "conditions": {},
           "count": [
             1,
             3
-          ]
+          ],
+          "resource": "shore"
         },
         {
           "id": "waterside-tide-life",
+          "habitatGroup": "waterside-tide-life",
+          "habitatRole": "tidal-shore",
           "center": [
-            23,
-            31
+            13.8,
+            29
           ],
           "radius": [
-            6,
+            3.3,
             4
           ],
           "speciesIds": [
             86
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 4,
           "conditions": {},
           "count": [
             1,
             3
-          ]
+          ],
+          "resource": "shore"
         },
         {
-          "id": "waterside-marsh-life",
+          "id": "waterside-marsh-reeds",
+          "habitatGroup": "waterside-marsh-life",
+          "habitatRole": "reed-edge",
           "center": [
-            -28,
-            -21
+            -31,
+            -18
           ],
           "radius": [
-            8,
-            8
+            3,
+            4
           ],
           "speciesIds": [
             23,
-            24,
-            44,
-            49,
-            70,
-            88,
-            114
+            24
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 4,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "shade"
         },
         {
-          "id": "waterside-fishing",
+          "id": "waterside-marsh-flowers",
+          "habitatGroup": "waterside-marsh-life",
+          "habitatRole": "marsh-flowers",
           "center": [
-            -7,
-            -15
+            -25,
+            -21
           ],
           "radius": [
-            2.5,
-            5
+            4.5,
+            4
+          ],
+          "speciesIds": [
+            44,
+            49,
+            70,
+            114
+          ],
+          "method": "field",
+          "leashRadius": 4.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "waterside-marsh-mud",
+          "habitatGroup": "waterside-marsh-life",
+          "habitatRole": "marsh-mud",
+          "center": [
+            -26,
+            -27
+          ],
+          "radius": [
+            3.5,
+            3
+          ],
+          "speciesIds": [
+            88
+          ],
+          "method": "field",
+          "leashRadius": 3.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "waterside-fishing-pool",
+          "habitatGroup": "waterside-fishing",
+          "habitatRole": "sheltered-water",
+          "center": [
+            -7.2,
+            -12.7
+          ],
+          "radius": [
+            2,
+            3
           ],
           "speciesIds": [
             60,
-            72,
             118,
-            129,
+            129
+          ],
+          "method": "fishing",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "water"
+        },
+        {
+          "id": "waterside-fishing-shore",
+          "habitatGroup": "waterside-fishing",
+          "habitatRole": "tidal-waterline",
+          "center": [
+            -9.2,
+            -18
+          ],
+          "radius": [
+            1.3,
+            3
+          ],
+          "speciesIds": [
             90,
-            98,
+            98
+          ],
+          "method": "fishing",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shore"
+        },
+        {
+          "id": "waterside-fishing-channel",
+          "habitatGroup": "waterside-fishing",
+          "habitatRole": "open-channel",
+          "center": [
+            -3.8,
+            -17
+          ],
+          "radius": [
+            2.6,
+            5
+          ],
+          "speciesIds": [
+            72,
             116,
             120
           ],
           "method": "fishing",
-          "leashRadius": 7,
+          "leashRadius": 5,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "water"
         }
       ],
       "waterBodies": [
@@ -4715,80 +5359,206 @@
       ],
       "ecologyPockets": [
         {
-          "id": "highlands-rock-life",
+          "id": "highlands-gravel-burrows",
+          "habitatGroup": "highlands-rock-life",
+          "habitatRole": "gravel-burrows",
           "center": [
-            -30,
-            -3
-          ],
-          "radius": [
-            8,
-            8
-          ],
-          "speciesIds": [
-            27,
-            66,
-            74,
-            77,
-            95
-          ],
-          "method": "field",
-          "leashRadius": 7,
-          "conditions": {},
-          "count": [
-            1,
-            3
-          ]
-        },
-        {
-          "id": "highlands-starter-nests",
-          "center": [
-            -29,
-            -16
-          ],
-          "radius": [
-            5,
-            5
-          ],
-          "speciesIds": [
-            4,
-            35
-          ],
-          "method": "nest",
-          "leashRadius": 7,
-          "conditions": {},
-          "count": [
-            1,
-            3
-          ]
-        },
-        {
-          "id": "highlands-cave-life",
-          "center": [
-            12,
-            -9
+            -33,
+            -2
           ],
           "radius": [
             3,
-            7
+            3.5
           ],
           "speciesIds": [
-            41,
-            50,
-            67,
-            75,
-            104,
-            111
+            27,
+            74
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 3.5,
           "conditions": {},
           "count": [
             1,
+            1
+          ],
+          "resource": "minerals"
+        },
+        {
+          "id": "highlands-rock-crags",
+          "habitatGroup": "highlands-rock-life",
+          "habitatRole": "rock-crags",
+          "center": [
+            -31,
+            -7
+          ],
+          "radius": [
+            3.5,
             3
-          ]
+          ],
+          "speciesIds": [
+            66,
+            95
+          ],
+          "method": "field",
+          "leashRadius": 3.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "minerals"
+        },
+        {
+          "id": "highlands-open-rock-grass",
+          "habitatGroup": "highlands-rock-life",
+          "habitatRole": "open-rock-grass",
+          "center": [
+            -26,
+            1
+          ],
+          "radius": [
+            4,
+            3
+          ],
+          "speciesIds": [
+            77
+          ],
+          "method": "field",
+          "leashRadius": 4,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "grass"
+        },
+        {
+          "id": "highlands-warm-starter-nest",
+          "habitatGroup": "highlands-starter-nests",
+          "habitatRole": "warm-rock-nook",
+          "center": [
+            -30,
+            -15
+          ],
+          "radius": [
+            3,
+            3
+          ],
+          "speciesIds": [
+            4
+          ],
+          "method": "nest",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "minerals"
+        },
+        {
+          "id": "highlands-moonlit-nest",
+          "habitatGroup": "highlands-starter-nests",
+          "habitatRole": "moonlit-rock-nook",
+          "center": [
+            -27,
+            -19
+          ],
+          "radius": [
+            2.7,
+            2.7
+          ],
+          "speciesIds": [
+            35
+          ],
+          "method": "nest",
+          "leashRadius": 2.7,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "minerals"
+        },
+        {
+          "id": "highlands-cave-air",
+          "habitatGroup": "highlands-cave-life",
+          "habitatRole": "cave-air",
+          "center": [
+            9,
+            -8
+          ],
+          "radius": [
+            1.2,
+            6
+          ],
+          "speciesIds": [
+            41
+          ],
+          "method": "field",
+          "leashRadius": 5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "highlands-cave-burrows",
+          "habitatGroup": "highlands-cave-life",
+          "habitatRole": "cave-soil",
+          "center": [
+            9.2,
+            -13
+          ],
+          "radius": [
+            1.3,
+            3
+          ],
+          "speciesIds": [
+            50,
+            104
+          ],
+          "method": "field",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "minerals"
+        },
+        {
+          "id": "highlands-cave-rock-floor",
+          "habitatGroup": "highlands-cave-life",
+          "habitatRole": "cave-rock-floor",
+          "center": [
+            14.8,
+            -8
+          ],
+          "radius": [
+            1.1,
+            6
+          ],
+          "speciesIds": [
+            67,
+            75,
+            111
+          ],
+          "method": "field",
+          "leashRadius": 5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "minerals"
         },
         {
           "id": "highlands-cave-nest",
+          "habitatGroup": "highlands-cave-nest",
+          "habitatRole": "quiet-cave",
           "center": [
             12,
             -15
@@ -4801,56 +5571,111 @@
             63
           ],
           "method": "nest",
-          "leashRadius": 7,
-          "conditions": {},
-          "count": [
-            1,
-            3
-          ]
-        },
-        {
-          "id": "highlands-snow-life",
-          "center": [
-            29,
-            -29
-          ],
-          "radius": [
-            5,
-            5
-          ],
-          "speciesIds": [
-            87,
-            124
-          ],
-          "method": "field",
-          "leashRadius": 7,
-          "conditions": {},
-          "count": [
-            1,
-            3
-          ]
-        },
-        {
-          "id": "highlands-snow-water",
-          "center": [
-            32.15,
-            -22.5
-          ],
-          "radius": [
-            1.4,
-            1.8
-          ],
-          "speciesIds": [
-            91,
-            117
-          ],
-          "method": "field",
           "leashRadius": 2,
           "conditions": {},
           "count": [
             1,
+            3
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "highlands-thaw-shell-bed",
+          "habitatGroup": "highlands-snow-water",
+          "habitatRole": "thaw-bed",
+          "center": [
+            31.4,
+            -22.5
+          ],
+          "radius": [
+            0.55,
+            1.5
+          ],
+          "speciesIds": [
+            91
+          ],
+          "method": "field",
+          "leashRadius": 1.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "waterBodyId": "highlands-summit-thaw",
+          "resource": "water"
+        },
+        {
+          "id": "highlands-snow-shore",
+          "habitatGroup": "highlands-snow-life",
+          "habitatRole": "ice-waterline",
+          "center": [
+            30,
+            -26
+          ],
+          "radius": [
+            3,
             2
-          ]
+          ],
+          "speciesIds": [
+            87
+          ],
+          "method": "field",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "water"
+        },
+        {
+          "id": "highlands-thaw-channel",
+          "habitatGroup": "highlands-snow-water",
+          "habitatRole": "thaw-water",
+          "center": [
+            32.9,
+            -22.5
+          ],
+          "radius": [
+            0.55,
+            1.5
+          ],
+          "speciesIds": [
+            117
+          ],
+          "method": "field",
+          "leashRadius": 1.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "waterBodyId": "highlands-summit-thaw",
+          "resource": "water"
+        },
+        {
+          "id": "highlands-snow-clearing",
+          "habitatGroup": "highlands-snow-life",
+          "habitatRole": "snow-clearing",
+          "center": [
+            30,
+            -29.2
+          ],
+          "radius": [
+            2.5,
+            2.8
+          ],
+          "speciesIds": [
+            124
+          ],
+          "method": "field",
+          "leashRadius": 2.8,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
         }
       ],
       "waterBodies": [
@@ -5668,31 +6493,82 @@
       ],
       "ecologyPockets": [
         {
-          "id": "caldera-west-life",
+          "id": "caldera-ash-shade",
+          "habitatGroup": "caldera-west-life",
+          "habitatRole": "ash-shade",
           "center": [
-            -23,
-            -10
+            -24,
+            -4
           ],
           "radius": [
-            5,
-            8
+            2.7,
+            3
           ],
           "speciesIds": [
-            37,
-            58,
-            78,
-            110
+            37
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 3,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "caldera-cinder-flat",
+          "habitatGroup": "caldera-west-life",
+          "habitatRole": "cinder-flat",
+          "center": [
+            -18.2,
+            -12
+          ],
+          "radius": [
+            2.8,
+            4
+          ],
+          "speciesIds": [
+            58,
+            78
+          ],
+          "method": "field",
+          "leashRadius": 4,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "grass"
+        },
+        {
+          "id": "caldera-fume-rocks",
+          "habitatGroup": "caldera-west-life",
+          "habitatRole": "fume-rocks",
+          "center": [
+            -25,
+            -16
+          ],
+          "radius": [
+            2.5,
+            2.5
+          ],
+          "speciesIds": [
+            110
+          ],
+          "method": "field",
+          "leashRadius": 2.5,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
         },
         {
           "id": "caldera-hot-nest",
+          "habitatGroup": "caldera-hot-nest",
+          "habitatRole": "warm-rock-nook",
           "center": [
             22,
             12
@@ -5705,12 +6581,13 @@
             126
           ],
           "method": "nest",
-          "leashRadius": 7,
+          "leashRadius": 4,
           "conditions": {},
           "count": [
             1,
             3
-          ]
+          ],
+          "resource": "minerals"
         }
       ],
       "waterBodies": [
@@ -6487,31 +7364,59 @@
       ],
       "ecologyPockets": [
         {
-          "id": "complex-ghost-life",
+          "id": "complex-ghost-shade",
+          "habitatGroup": "complex-ghost-life",
+          "habitatRole": "ruin-shade",
           "center": [
-            -20,
-            11
+            -25.2,
+            8.5
           ],
           "radius": [
-            7,
-            7
+            3.2,
+            4.2
           ],
           "speciesIds": [
             92,
-            93,
+            93
+          ],
+          "method": "field",
+          "leashRadius": 4.2,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
+        },
+        {
+          "id": "complex-memory-courtyard",
+          "habitatGroup": "complex-ghost-life",
+          "habitatRole": "quiet-courtyard",
+          "center": [
+            -17,
+            7
+          ],
+          "radius": [
+            3.4,
+            4
+          ],
+          "speciesIds": [
             96,
             97
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 4,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            2
+          ],
+          "resource": "shade"
         },
         {
           "id": "complex-memory-nest",
+          "habitatGroup": "complex-memory-nest",
+          "habitatRole": "quiet-ruin",
           "center": [
             -18,
             5
@@ -6524,40 +7429,92 @@
             122
           ],
           "method": "nest",
-          "leashRadius": 7,
+          "leashRadius": 3,
           "conditions": {},
           "count": [
             1,
             3
-          ]
+          ],
+          "resource": "none"
         },
         {
-          "id": "complex-electric-life",
+          "id": "complex-generator-coils",
+          "habitatGroup": "complex-electric-life",
+          "habitatRole": "power-conduit",
           "center": [
-            23,
-            19
+            22.5,
+            17.4
           ],
           "radius": [
-            7,
-            5
+            2.8,
+            2
           ],
           "speciesIds": [
             81,
-            82,
-            100,
-            101,
-            109
+            82
           ],
           "method": "field",
-          "leashRadius": 7,
+          "leashRadius": 2.8,
           "conditions": {},
           "count": [
             1,
-            3
-          ]
+            1
+          ],
+          "resource": "electric"
+        },
+        {
+          "id": "complex-generator-cargo",
+          "habitatGroup": "complex-electric-life",
+          "habitatRole": "cargo-flat",
+          "center": [
+            27,
+            20.8
+          ],
+          "radius": [
+            3,
+            2.5
+          ],
+          "speciesIds": [
+            100,
+            101
+          ],
+          "method": "field",
+          "leashRadius": 3,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "electric"
+        },
+        {
+          "id": "complex-generator-vents",
+          "habitatGroup": "complex-electric-life",
+          "habitatRole": "industrial-vent",
+          "center": [
+            18,
+            21.7
+          ],
+          "radius": [
+            2.8,
+            2.2
+          ],
+          "speciesIds": [
+            109
+          ],
+          "method": "field",
+          "leashRadius": 2.8,
+          "conditions": {},
+          "count": [
+            1,
+            1
+          ],
+          "resource": "shade"
         },
         {
           "id": "complex-electric-nest",
+          "habitatGroup": "complex-electric-nest",
+          "habitatRole": "power-conduit",
           "center": [
             28,
             22
@@ -6570,15 +7527,18 @@
             125
           ],
           "method": "nest",
-          "leashRadius": 7,
+          "leashRadius": 3,
           "conditions": {},
           "count": [
             1,
             3
-          ]
+          ],
+          "resource": "electric"
         },
         {
           "id": "complex-lab-anomaly",
+          "habitatGroup": "complex-lab-anomaly",
+          "habitatRole": "indoor-laboratory",
           "center": [
             -2,
             -17
@@ -6591,13 +7551,14 @@
             132
           ],
           "method": "nest",
-          "leashRadius": 7,
+          "leashRadius": 2,
           "conditions": {},
           "count": [
             1,
             3
           ],
-          "indoor": true
+          "indoor": true,
+          "resource": "shade"
         }
       ],
       "waterBodies": [],

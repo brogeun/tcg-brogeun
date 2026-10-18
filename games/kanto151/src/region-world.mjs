@@ -1,11 +1,26 @@
+import {installCanopyVisibility} from './canopy-visibility.mjs';
+import {buildHighlandsCavern,HIGHLANDS_CAVERN_HABITATS} from './highlands-cavern.mjs';
+import {buildComplexRuins} from './complex-ruins.mjs';
+import {expeditionFramePlan,buildExpeditionGroundCover} from './expedition-frame.mjs';
+import {expeditionComposition,remainingExpeditionPlan,buildRemainingExpedition,expeditionReplacesProp} from './remaining-expedition.mjs';
 import {WATER_SOURCES,APPLE_TREES} from './supplies.mjs';
 import {THREE} from './world.mjs';
 import {liquidMesh,waterfallMesh} from './liquid-material.mjs';
 import {buildStructures} from './structures.mjs';
 import {BASE_LAYOUT,BASE_LABELS,baseComposition,isBaseProp,containsBasePoint} from './base-layout.mjs';
 import {buildBaseFacilities} from './base-facilities.mjs';
+import {buildVerdantVillage} from './verdant-village.mjs';
+import {buildVerdantLandscape,VERDANT_TREE_PROP} from './verdant-landscape.mjs';
 import {terrainMaterial} from './terrain-material.mjs';
+import {buildLandscapeDressing} from './landscape-dressing.mjs';
 import {currentLocale,t,tx} from './i18n.mjs';
+// Region-specific rebuilding is cloned so saves and source compositions stay intact.
+function detailedComposition(c){
+ c=expeditionComposition(c);
+ if(c.id==='complex')return {...c,palette:{...c.palette,ground:'#7a8055',path:'#8b795b',canopy:'#79834d',sky:'#a0b5b0',fog:'#a8b6a6'},terrain:{...c.terrain,features:[...c.terrain.features,{center:[41,22],radius:[6,16],height:2.2,falloff:3.4},{center:[8,37],radius:[15,6],height:1.1,falloff:3.4}]},materialOverrides:{'expedition-pine':{canopy:'#7a8a48',bark:'#625341',roughness:1},'expedition-understory':{color:'#b3b888',canopy:'#80904e',roughness:1}},groundPatches:[...(c.groundPatches||[]),{center:[23,17],radius:[18,16],color:'#555c47',strength:.68},{center:[1,20],radius:[9,12],color:'#767750',strength:.45},{center:[39,22],radius:[8,19],color:'#777d4a',strength:.35}]};
+ if(c.id==='highlands'){c={...c,props:c.props.map((p,i)=>i===0?{...p,materialVariant:'expedition-bridge'}:p)};const keys={'highlands-cave-air':'air','highlands-cave-burrows':'burrow','highlands-cave-rock-floor':'rock','highlands-cave-nest':'nest'};return {...c,ecologyPockets:c.ecologyPockets.map(p=>keys[p.id]?{...p,...HIGHLANDS_CAVERN_HABITATS[keys[p.id]]}:p),materialOverrides:{'expedition-pine':{canopy:'#607249',bark:'#5c5142',roughness:1},'expedition-understory':{color:'#a4ad85',canopy:'#74814e',roughness:1},'expedition-bridge':{color:'#6e634c',roughness:1,metalness:0}},groundPatches:[...(c.groundPatches||[]),{center:[12,-9],radius:[14,17],color:'#545f54',strength:.64}]};}
+ return c;
+}
 const label=x=>x?.[currentLocale()]||x?.['en-US']||'';
 export function insidePolygon(x,z,points=[]){let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){const a=points[i],b=points[j];if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
 export function waterAt(world,x,z){return world.composition?.waterBodies.find(b=>insidePolygon(x,z,b.polygon)&&!(b.holes||[]).some(h=>insidePolygon(x,z,h.polygon||h)))||null;}
@@ -16,18 +31,26 @@ export function regionHeight(world,x,z,walk=true){const c=world.composition;if(!
  for(const shelf of c.terrain.shelves||[])if(insidePolygon(x,z,shelf.polygon))h=shelf.height;
  for(const ramp of c.terrain.ramps||[]){const [a,b]=ramp.points,dx=b[0]-a[0],dz=b[1]-a[1],t=((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz);if(t>=0&&t<=1&&Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t)<ramp.width/2)h=ramp.heights[0]+(ramp.heights[1]-ramp.heights[0])*t;}
  for(const body of c.waterBodies){const points=[body.polygon,...(body.holes||[]).map(h=>h.polygon||h)];let edge=Infinity;for(const polygon of points){const loop={points:[...polygon,polygon[0]]};edge=Math.min(edge,distanceToPath(x,z,loop));}const wet=waterAt(world,x,z)===body,width=body.basin?.shoreBlendWidth||2.5,f=Math.min(1,edge/width),blend=f*f*(3-2*f);if(wet)h=body.surfaceY-.04+((body.basin?.floorY??body.surfaceY-.8)-(body.surfaceY-.04))*blend;else if(edge<width)h=(body.surfaceY+.04)*(1-blend)+h*blend;if(walk&&wet&&body.kind==='ice')h=body.surfaceY+.025;}
- for(const surface of (world.walkSurfaces||[])){const dx=x-surface.x,dz=z-surface.z,co=Math.cos(surface.rotation),si=Math.sin(surface.rotation),u=Math.abs(dx*co-dz*si),v=Math.abs(dx*si+dz*co),outside=Math.max(u-surface.width/2,v-surface.length/2);if(outside<=1e-6){if(walk)h=Math.max(h,surface.y);else if(surface.kind==='bridge-deck')h=Math.min(h,surface.y-.04);}else if(outside<surface.blend&&(surface.kind!=='bridge-deck'||u<=surface.width/2+1e-6))h=Math.max(h,h+(surface.y-h)*(1-outside/surface.blend));}
+ for(const surface of (world.walkSurfaces||[])){if(surface.polygon){if(insidePolygon(x,z,surface.polygon))h=Math.max(h,surface.y);continue;}const dx=x-surface.x,dz=z-surface.z,co=Math.cos(surface.rotation),si=Math.sin(surface.rotation),u=Math.abs(dx*co-dz*si),v=Math.abs(dx*si+dz*co),outside=Math.max(u-surface.width/2,v-surface.length/2);if(outside<=1e-6){if(walk)h=Math.max(h,surface.y);else if(surface.kind==='bridge-deck')h=Math.min(h,surface.y-.04);}else if(outside<surface.blend&&(surface.kind!=='bridge-deck'||u<=surface.width/2+1e-6))h=Math.max(h,h+(surface.y-h)*(1-outside/surface.blend));}
  return h;
 }
 export async function buildRegion(world,biome,onProgress=()=>{}){
- world.clearLevel();world.region=biome.id;world.biome=biome;const c=baseComposition(world.compositions.regions[biome.id]),base=biome.id==='verdant',layout=c.baseLayout;world.composition=c;world.walkSurfaces=[];world.palette=c.palette;world.scene.fog=new THREE.FogExp2(c.palette.fog,biome.id==='cave'?.018:biome.id==='ruins'?.014:.0065);world.sky.material.uniforms.top.value.set(c.palette.sky);world.sky.material.uniforms.bottom.value.set(c.palette.fog);world.scene.background.set(c.palette.fog);
+ world.clearLevel();world.region=biome.id;world.biome=biome;const c=detailedComposition(baseComposition(world.compositions.regions[biome.id])),base=biome.id==='verdant',layout=c.baseLayout;world.composition=c;world.walkSurfaces=[];world.palette=c.palette;world.scene.fog=new THREE.FogExp2(c.palette.fog,base?.0095:biome.id==='cave'?.018:biome.id==='ruins'?.014:.0065);world.sky.material.uniforms.top.value.set(c.palette.sky);world.sky.material.uniforms.bottom.value.set(c.palette.fog);world.scene.background.set(c.palette.fog);
  world.ownedMaterials=[];world.placementRecords=[];world.canopyColor=new THREE.Color(c.palette.canopy);const batches=new Map();
- const add=(path,p)=>{const key=path+'|'+(p.materialVariant||'');if(!batches.has(key))batches.set(key,{path,placements:[]});batches.get(key).placements.push(p);};
- for(const p of c.props){if(p.rendererKey==='nature/sign'||base&&isBaseProp(p))continue;add(p.rendererKey,p);if(p.collision&&!p.rendererKey.includes('wall')){const size=p.bounds;world.colliders.push({prop:p,x:p.x,z:p.z,r:p.collision.radius||Math.min(size.width,size.depth)*.4,h:size.height,cameraRadius:Math.min(size.width,size.depth)*.42});}}
+ const add=(path,p)=>{if(c.id==='highlands'&&path==='quaternius/Bush_Common'&&p.x>2&&p.x<22&&p.z>-20&&p.z<2){path='nature/rock_smallA';p={...p,height:.45,materialVariant:'basalt'};}else if(c.id==='complex'&&path==='quaternius/Bush_Common'){path='nature/plant_bushDetailed';p={...p,materialVariant:'expedition-understory'};}if(base&&!p.expeditionScenery&&(VERDANT_TREE_PROP.test(path)||/Flower_\d|Bush_Common_Flowers/.test(path)||path==='quaternius/Bush_Common'&&!p.collision||path==='nature/log_large'))return;const key=path+'|'+(p.materialVariant||'');if(!batches.has(key))batches.set(key,{path,placements:[]});batches.get(key).placements.push(p);};
+ for(const [propIndex,p] of c.props.entries()){if(p.rendererKey==='nature/sign'||base&&isBaseProp(p)||expeditionReplacesProp(c.id,propIndex))continue;const replaced=c.id==='complex'&&[2,3,6,7].includes(propIndex)||c.id==='highlands'&&([2,3].includes(propIndex)&&p.rendererKey==='nature/stone_tallA'||p.rendererKey==='nature/cliff_cave_rock'&&Math.hypot(p.x-6,p.z+2)<.1);if(!replaced)add(p.rendererKey,p);if(p.collision&&!p.rendererKey.includes('wall')){const size=p.bounds;world.colliders.push({prop:p,x:p.x,z:p.z,r:p.collision.radius||Math.min(size.width,size.depth)*.4,h:size.height,cameraRadius:Math.min(size.width,size.depth)*.42});}}
  for(const p of c.props)if(p.walkSurface){p.resolvedBaseY=regionHeight(world,p.x,p.z,false)+(p.y||0);if(p.walkSurface.kind==='bridge-deck'){const half=p.walkSurface.length/2,dx=Math.sin(p.walkSurface.rotation??p.rotation??0)*half,dz=Math.cos(p.walkSurface.rotation??p.rotation??0)*half,body=waterAt(world,p.x,p.z);const deck=Math.max(regionHeight(world,p.x-dx,p.z-dz,false),regionHeight(world,p.x+dx,p.z+dz,false),body?body.surfaceY+.2:-Infinity);p.resolvedBaseY=deck-p.bounds.height*p.walkSurface.heightFraction;}world.walkSurfaces.push({kind:p.walkSurface.kind,x:p.x,z:p.z,rotation:p.walkSurface.rotation??p.rotation??0,width:p.walkSurface.width,length:p.walkSurface.length,y:p.resolvedBaseY+p.bounds.height*p.walkSurface.heightFraction,blend:p.walkSurface.approachBlendLength||2});}
  for(const p of c.props)if(p.walkSurface?.rails){const r=p.walkSurface.rotation??p.rotation??0,y=p.resolvedBaseY+p.bounds.height*p.walkSurface.heightFraction;for(const side of [-1,1])world.colliders.push({type:'obb',x:p.x+Math.cos(r)*p.walkSurface.rails*side,z:p.z-Math.sin(r)*p.walkSurface.rails*side,rotation:r,halfWidth:.15,halfDepth:p.walkSurface.length/2,h:.7,bottomY:y,topY:y+.7,r:.15});}
  buildStructures(world,c);
- if(layout)buildBaseFacilities(world,layout);
+ if(biome.id==='highlands')buildHighlandsCavern(world,c);
+ if(biome.id==='complex')buildComplexRuins(world,c);
+ buildRemainingExpedition(world,c);
+ {const frame=[...expeditionFramePlan(c),...remainingExpeditionPlan(c)];for(const p of frame){
+  if(p.kind==='grass')continue;
+  if(p.collision){const [x,z]=world.collision(p.x,p.z,.8);if(Math.hypot(x-p.x,z-p.z)>.01)continue;world.colliders.push({x:p.x,z:p.z,r:p.collision.radius,h:p.height,cameraRadius:.55,expeditionFrame:true});}
+  add(p.path,p);
+ }buildExpeditionGroundCover(world,frame);}
+ if(layout)(base?buildVerdantVillage:buildBaseFacilities)(world,layout);
  const extent=c.staged===false?c.playableBounds.max[0]*2+12:150;const terrain=new THREE.PlaneGeometry(extent,extent,120,120);terrain.rotateX(-Math.PI/2);const a=terrain.attributes.position;
  for(let i=0;i<a.count;i++){const x=a.getX(i),z=a.getZ(i);a.setY(i,regionHeight(world,x,z,false));}
  terrain.computeVertexNormals();const ground=world.owned(new THREE.Mesh(terrain,terrainMaterial(c)));ground.receiveShadow=true;world.ground=ground;
@@ -36,7 +59,17 @@ export async function buildRegion(world,biome,onProgress=()=>{}){
  for(const surface of world.walkSurfaces.filter(s=>s.kind==='bridge-deck'))for(const sign of [-1,1]){const vertices=[],indices=[],r=surface.rotation,co=Math.cos(r),si=Math.sin(r),n=16;for(let j=0;j<=n;j++){const v=sign*(surface.length/2+surface.blend*(1-j/n));for(const side of [-1,1]){const u=side*surface.width/2,x=surface.x+u*co+v*si,z=surface.z-u*si+v*co;vertices.push(x,regionHeight(world,x,z,true)+.005,z);}if(j<n){const k=j*2;indices.push(k,k+2,k+1,k+1,k+2,k+3);}}const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geometry.setIndex(indices);geometry.computeVertexNormals();const material=terrainMaterial(c);material.side=THREE.DoubleSide;const mesh=world.owned(new THREE.Mesh(geometry,material));mesh.userData.walkApproach=true;mesh.receiveShadow=true;}
  // Dressing is constrained to authored ecology pockets and clear paths. Skyline,
  // major structures, water and elevation all come from measured compositions.
- for(const [pi,pocket] of c.ecologyPockets.entries()){if(pocket.indoor||pocket.method==='fishing'||biome.id==='laboratory')continue;for(let i=0;i<35;i++){const angle=i*2.399963,r=Math.sqrt((i+.5)/35),x=pocket.center[0]+Math.cos(angle)*r*pocket.radius[0],z=pocket.center[1]+Math.sin(angle)*r*pocket.radius[1];if(layout&&containsBasePoint(x,z,biome.id)||pathAt(world,x,z)||waterAt(world,x,z)||Math.hypot(x,z)<4)continue;const path=biome.id==='highlands'?(pocket.id.includes('cave')?'quaternius/Mushroom_Common':pocket.id.includes('snow')?'quaternius/Pebble_Round_5':'quaternius/Pebble_Square_3'):['volcano','caldera'].includes(biome.id)?'quaternius/Pebble_Square_3':biome.id==='cave'?'quaternius/Mushroom_Common':biome.id==='laboratory'?'survival/box-large':biome.id==='frozen'?'quaternius/Pebble_Round_5':i%5===0?'quaternius/Fern_1':'quaternius/Grass_Common_Short';add(path,{x,z,height:biome.id==='laboratory'?.35:.25+(i%4)*.12,rotation:angle,materialVariant:biome.id});}}
+ // Quiet forest ponds use a subdued water tint and a broken planted bank.
+ for(const body of c.waterBodies||[])if(body.shoreVegetation==='forest'){
+  const center=body.polygon.reduce((v,p)=>[v[0]+p[0]/body.polygon.length,v[1]+p[1]/body.polygon.length],[0,0]);
+  for(let i=0;i<body.polygon.length*2;i++){
+   const a=body.polygon[Math.floor(i/2)],b=body.polygon[(Math.floor(i/2)+1)%body.polygon.length],px=i%2?(a[0]+b[0])/2:a[0],pz=i%2?(a[1]+b[1])/2:a[1],distance=Math.hypot(px-center[0],pz-center[1]),x=px+(px-center[0])/distance*.45,z=pz+(pz-center[1])/distance*.45;
+   if(waterAt(world,x,z)||pathAt(world,x,z))continue;
+   add(i%2?'quaternius/Grass_Wispy_Tall':'quaternius/Fern_1',{x,z,height:i%2?.62:.44,rotation:i*2.399963,materialVariant:biome.id});
+   if(i%4===0)add('quaternius/Pebble_Round_1',{x:x+.25,z:z+.13,height:.22,rotation:i,materialVariant:biome.id});
+  }
+ }
+ const habitatSizes=new Map();for(const p of c.ecologyPockets){const key=p.habitatGroup||p.id;habitatSizes.set(key,(habitatSizes.get(key)||0)+1);}for(const [pi,pocket] of c.ecologyPockets.entries()){if(base||c.expeditionRebuilt||pocket.indoor||pocket.method==='fishing'||biome.id==='laboratory'||biome.id==='highlands'&&pocket.id.startsWith('highlands-cave')||biome.id==='complex'&&pocket.habitatGroup==='complex-electric-life')continue;const dressingCount=Math.max(5,Math.floor(35/habitatSizes.get(pocket.habitatGroup||pocket.id)));for(let i=0;i<dressingCount;i++){const angle=i*2.399963,r=Math.sqrt((i+.5)/dressingCount),x=pocket.center[0]+Math.cos(angle)*r*pocket.radius[0],z=pocket.center[1]+Math.sin(angle)*r*pocket.radius[1];if(layout&&containsBasePoint(x,z,biome.id)||pathAt(world,x,z)||waterAt(world,x,z)||Math.hypot(x,z)<4)continue;const path=pocket.resource==='shade'?'quaternius/Mushroom_Common':pocket.resource==='leaves'?'quaternius/Fern_1':biome.id==='highlands'?(pocket.id.includes('cave')?'quaternius/Mushroom_Common':pocket.id.includes('snow')?'quaternius/Pebble_Round_5':'quaternius/Pebble_Square_3'):['volcano','caldera'].includes(biome.id)?'quaternius/Pebble_Square_3':biome.id==='cave'?'quaternius/Mushroom_Common':biome.id==='laboratory'?'survival/box-large':biome.id==='frozen'?'quaternius/Pebble_Round_5':i%5===0?'quaternius/Fern_1':'quaternius/Grass_Common_Short';add(path,{x,z,height:biome.id==='laboratory'?.35:.25+(i%4)*.12,rotation:angle,materialVariant:biome.id});}}
  world.liquidLight={value:1};for(const body of c.waterBodies)world.owned(liquidMesh(body,c.palette,world.wind,world.liquidLight));
  // One shelter entrance handles rest and companion changes in each main region.
  const marker=(kind,name,x,z,data={})=>{const item={kind,x,z,...data};if(data.facilityName)Object.defineProperty(item,'facilityName',{enumerable:true,get:()=>label(data.facilityName)});Object.defineProperty(item,'name',{enumerable:true,get:()=>item.landmark?label(item.landmark.name):item.shortcut?label(item.shortcut.name):tx(name)});world.interactions.push(item);};const safe=c.safePoint.position;
@@ -67,16 +100,17 @@ export async function buildRegion(world,biome,onProgress=()=>{}){
  for(const shortcut of world.compositions.shortcuts.filter(s=>s.regionId===biome.id)){marker('capability',label(shortcut.name),...shortcut.interaction,{shortcut});if(['climb','surf'].includes(shortcut.capability))marker('capability',label(shortcut.name),...shortcut.to,{shortcut});world.addBeacon(...shortcut.interaction,0xe9cb84);world.addStationSign(...shortcut.interaction,0xe9cb84,'activate');}
  for(const [i,l] of c.landmarks.entries()){const p=l.position,key=c.staged===false?l.id:`${biome.id}-landmark-${i}`,spot=base&&l.id==='verdant-camp'?BASE_LAYOUT.points.pickup:[[3,3],[-3,3],[3,-3],[-3,-3],[5,2],[-5,2],[0,5],[0,-5]].map(([dx,dz])=>[p.x+dx,p.z+dz]).find(([x,z])=>{const [cx,cz]=world.collision(x,z,.55);return Math.hypot(cx-x,cz-z)<.01&&!waterAt(world,x,z)&&Math.abs(world.height(x,z)-world.height(p.x,p.z))<1.5&&world.interactions.every(i=>Math.hypot(i.x-x,i.z-z)>=2);})||[p.x+3,p.z+3];marker('pickup',t('interaction.pickup'),...spot,{key});add('survival/chest',{x:spot[0],z:spot[1],height:.5,rotation:.5,pickupKey:key});}
  let done=0;for(const batch of batches.values()){await placeComposedBatch(world,batch.path,batch.placements);onProgress(++done/batches.size*.9);}
- addSetpieces(world,c);world.addAtmosphere(()=>Math.random(),biome.id);world.cameraTarget.set(safe.x,1,safe.z);onProgress(1);return world;
+ addSetpieces(world,c);if(base){buildVerdantLandscape(world,c);world.sun?.color?.set(0xffdda5);world.hemi?.color?.set(0xe4ebd6);world.hemi?.groundColor?.set(0x283d30);}else{await buildLandscapeDressing(world,c);world.sun?.color?.set(0xffe3b5);world.hemi?.color?.set(0xe8ffe8);world.hemi?.groundColor?.set(0x40574b);}if(biome.id==='complex'){world.sun?.color?.set(0xffd69b);world.hemi?.color?.set(0xc6d7c1);world.hemi?.groundColor?.set(0x35432d);}world.addAtmosphere(()=>Math.random(),biome.id);world.cameraTarget.set(safe.x,1,safe.z);onProgress(1);return world;
 }
 async function placeComposedBatch(world,path,placements){const template=await world.template(path),bounds=template.userData.bounds,size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3()),sources=[];template.traverse(m=>{if(m.isMesh)sources.push(m);});
  if(path.includes('wall'))for(const p of placements)if(p.collision){const scale=p.scale??(p.height||1)/Math.max(.05,size.y);world.colliders.push({prop:p,type:'obb',x:p.x,z:p.z,rotation:p.rotation||0,halfWidth:size.x*scale/2,halfDepth:size.z*scale/2,h:size.y*scale,r:Math.min(size.x,size.z)*scale*.5,cameraRadius:Math.max(size.x,size.z)*scale*.4});}
- for(const source of sources){const original=source.material,materials=(Array.isArray(original)?original:[original]).map(mat=>{const m=mat.clone(),variant=world.compositions.materialVariants[placements[0].materialVariant];const leaves=/Leaves|Leaf|Pine/i.test(mat.name)&&!!mat.map;
+ for(const source of sources){const original=source.material,materials=(Array.isArray(original)?original:[original]).map(mat=>{const m=mat.clone(),variant=world.composition.materialOverrides?.[placements[0].materialVariant]||world.compositions.materialVariants[placements[0].materialVariant];const leaves=/Leaves|Leaf|Pine/i.test(mat.name)&&!!mat.map;
   // Material.clone does not copy shader hooks: retain the template's wind step.
   m.onBeforeCompile=(shader,renderer)=>mat.onBeforeCompile.call(m,shader,renderer);
   m.customProgramCacheKey=()=>`regional-material-v3-${world.region}-${leaves?'canopy':'solid'}-${mat.userData.wind?'wind':'still'}`;
   if(variant?.color)m.color.set(variant.color);else if(variant?.bark&&!leaves)m.color.set(variant.bark);if(variant?.emissive)m.emissive?.set(variant.emissive);if(variant?.roughness!==undefined)m.roughness=variant.roughness;if(variant?.metalness!==undefined)m.metalness=variant.metalness;if(variant?.emissiveIntensity!==undefined)m.emissiveIntensity=variant.emissiveIntensity;
   if(leaves){const inheritedCompile=m.onBeforeCompile;m.alphaTest=.35;m.roughness=.95;m.color.set(0xffffff);m.onBeforeCompile=(shader,renderer)=>{inheritedCompile(shader,renderer);shader.uniforms.canopy={value:new THREE.Color(variant?.canopy||world.composition.palette.canopy)};shader.fragmentShader='uniform vec3 canopy;\n'+shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n diffuseColor.rgb=canopy*(0.68+dot(diffuseColor.rgb,vec3(.2126,.7152,.0722))*.50);');};}
+  if(leaves&&/Tree|Pine/i.test(path))installCanopyVisibility(m,world);
   world.ownedMaterials.push(m);return m;});const inst=new THREE.InstancedMesh(source.geometry,Array.isArray(original)?materials:materials[0],placements.length);inst.userData.shared=true;inst.castShadow=placements.length<50;inst.receiveShadow=true;
   // The existing player-following 64m shadow frustum bounds foliage shadows;
   // low quality disables them with the shared shadow map. No extra draw meshes.
@@ -93,3 +127,7 @@ function addSetpieces(world,c){for(const s of c.setpieces||[])if(s.kind==='conta
 }
 
 export function deckAt(world,x,z){return (world.walkSurfaces||[]).find(s=>{const dx=x-s.x,dz=z-s.z,co=Math.cos(s.rotation),si=Math.sin(s.rotation);return Math.abs(dx*co-dz*si)<s.width/2&&Math.abs(dx*si+dz*co)<s.length/2;});}
+
+
+
+

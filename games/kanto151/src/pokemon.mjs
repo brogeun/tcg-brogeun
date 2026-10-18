@@ -3,6 +3,8 @@
  * Assets: Cobblemon team/contributors, CC BY-NC 3.0; see ASSET_CREDITS.md.
  * Coordinates and box UV semantics follow the documented Bedrock/Blockbench format.
  */
+import {createCombatProfile,selectCombatClip,sampleCombatMotion,sampleRecoilMotion,applyCombatBonePose} from './combat-motion.mjs';
+
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const expressions = new Map();
@@ -242,8 +244,8 @@ export class PokemonResources {
   async create(id,{shiny=false,scale=1,maxDimension=5.5,grounded=true}={}) {
     const record=await this.load(id);record.refs++;record.used=performance.now();
     const THREE=this.THREE,info=record.info;
-    const group=new THREE.Group(),orientation=new THREE.Group(),rig=new THREE.Group();
-    group.name=`pokemon-${id}`;group.add(orientation);orientation.add(rig);orientation.rotation.y=Math.PI;
+    const group=new THREE.Group(),visualRoot=new THREE.Group(),orientation=new THREE.Group(),rig=new THREE.Group();
+    group.name=`pokemon-${id}`;visualRoot.name='combat-visual-root';group.add(visualRoot);visualRoot.add(orientation);orientation.add(rig);orientation.rotation.y=Math.PI;
     rig.scale.setScalar(1/16);
     const boneMap=new Map(),meshBones=[],materials=[],layers=[];
     const baseMaterial=new THREE.MeshStandardMaterial({map:record.textures.get(shiny?info.shinyTexture:info.texture),roughness:0.92,metalness:0,alphaTest:0.25,side:THREE.DoubleSide});
@@ -276,9 +278,11 @@ export class PokemonResources {
       }
     };
     changeLayers();
-    let elapsed=0,actionElapsed=0,lastAction='',released=false;
+    const combatProfile=createCombatProfile(info,boneMap.keys());
+    let elapsed=0,actionElapsed=0,lastAction='',lastCastSerial=null,released=false;
+    let visualHeight=1,recoilTail=null;
     const context={time:0,moving:false};
-    const apply=(name,time,state)=>{
+    const apply=(name,time,state,weight=1,actionLayer=false)=>{
       const clip=record.animations[name];if(!clip)return;
       context.time=clip.length>0?(clip.loop?time%clip.length:Math.min(time,clip.length)):time;
       context.moving=state.moving;
@@ -286,9 +290,9 @@ export class PokemonResources {
       context.yaw_change=state.yawChange||0;context.pitch_change=0;context.dive=0;
       for(const channel of clip.bones) {
         const bone=boneMap.get(channel.name);if(!bone)continue;
-        if(channel.position){const v=channel.position(context),rest=bone.userData.restPosition;bone.position.set(rest.x-v[0],rest.y+v[1],rest.z+v[2]);}
-        if(channel.rotation){const v=channel.rotation(context),rest=bone.userData.restRotation;bone.rotation.set(rest.x-v[0]*DEG,rest.y-v[1]*DEG,rest.z+v[2]*DEG,'ZYX');}
-        if(channel.scale){const v=channel.scale(context);bone.scale.set(v[0],v[1],v[2]);}
+        if(channel.position){const v=channel.position(context),rest=bone.userData.restPosition,limit=n=>actionLayer?clamp(n,-2,2):n;bone.position.set(bone.position.x+(rest.x-limit(v[0])-bone.position.x)*weight,bone.position.y+(rest.y+limit(v[1])-bone.position.y)*weight,bone.position.z+(rest.z+limit(v[2])-bone.position.z)*weight);}
+        if(channel.rotation){const v=channel.rotation(context),rest=bone.userData.restRotation;bone.rotation.set(bone.rotation.x+(rest.x-v[0]*DEG-bone.rotation.x)*weight,bone.rotation.y+(rest.y-v[1]*DEG-bone.rotation.y)*weight,bone.rotation.z+(rest.z+v[2]*DEG-bone.rotation.z)*weight,'ZYX');}
+        if(channel.scale){const v=channel.scale(context);bone.scale.set(bone.scale.x+(v[0]-bone.scale.x)*weight,bone.scale.y+(v[1]-bone.scale.y)*weight,bone.scale.z+(v[2]-bone.scale.z)*weight);}
         if(channel.globalRotation&&bone.parent!==rig) {
           const parentRotation=new THREE.Quaternion();bone.parent.getWorldQuaternion(parentRotation);
           const desired=bone.quaternion.clone();bone.quaternion.copy(parentRotation.invert().multiply(desired));
@@ -299,13 +303,41 @@ export class PokemonResources {
       if(released)return;
       elapsed=Number.isFinite(state.time)?state.time:elapsed+Math.max(0,dt);
       const action=state.action||'';
-      if(action!==lastAction){actionElapsed=0;lastAction=action;}else actionElapsed+=Math.max(0,dt);
+      const castSerial=state.combatMotion?.serial??null;
+      if(action!==lastAction||castSerial!==lastCastSerial){actionElapsed=0;lastAction=action;}else actionElapsed+=Math.max(0,dt);
+      lastCastSerial=castSerial;
       for(const bone of boneMap.values()){bone.position.copy(bone.userData.restPosition);bone.rotation.copy(bone.userData.restRotation);bone.scale.set(1,1,1);}
       const semantic=state.moving?'walk':state.battle?'battle':'idle';
       apply(info.clips[semantic]||info.clips.idle,elapsed,state);
-      if(action)apply(record.animations[action]?action:(info.clips[action]||info.clips.attack),actionElapsed,state);
+      let combatPose=null;
+      const nativeMotionWeight=state.reducedMotion?.25:1;
+      if(state.combatMotion){
+        combatPose=sampleCombatMotion(combatProfile,state.combatMotion,{reducedMotion:state.reducedMotion,height:visualHeight});
+        const clip=selectCombatClip(info,record.animations,state.combatMotion.move);
+        if(clip)apply(clip,combatPose.clipProgress*(record.animations[clip].length||state.combatMotion.duration),state,combatPose.weight*.42*nativeMotionWeight,true);
+        recoilTail=null;
+      }else if(action==='attack'&&state.combatMotion===undefined){
+        // Legacy field/pushback callers still get a safe pose, never a hurt/cry clip.
+        combatPose=sampleCombatMotion(combatProfile,{move:{damageClass:'physical',engine:{template:'melee'}},elapsed:actionElapsed%.4,castTime:.16,duration:.4,serial:0},{reducedMotion:state.reducedMotion,height:visualHeight});
+      }else if(action==='recoil'||state.recoil){
+        const duration=state.recoil?.duration||.25,time=state.recoil?.elapsed??actionElapsed;
+        recoilTail={time,duration};combatPose=sampleRecoilMotion(time,duration,{reducedMotion:state.reducedMotion,height:visualHeight});
+        const clip=info.clips.recoil;
+        if(clip)apply(clip,Math.min(1,time/duration)*(record.animations[clip]?.length||duration),state,combatPose.weight*.5*nativeMotionWeight,true);
+      }else if(recoilTail){
+        recoilTail.time+=Math.max(0,dt);combatPose=sampleRecoilMotion(recoilTail.time,recoilTail.duration,{reducedMotion:state.reducedMotion,height:visualHeight});
+        if(recoilTail.time>=recoilTail.duration)recoilTail=null;
+      }
+      // Missing faint/sleep/recoil clips never fall through to an attack clip.
+      if(action&&action!=='attack'&&action!=='recoil')apply(record.animations[action]?action:info.clips[action],actionElapsed,state);
+      if(combatPose)applyCombatBonePose(boneMap,combatProfile,combatPose);
+      const blend=dt>0?1-Math.exp(-Math.min(.1,dt)*28):1;
+      const target=combatPose||{forward:0,lift:0,pitch:0,yaw:0,roll:0,squash:0};
+      visualRoot.position.x=0;visualRoot.position.y+=(target.lift-visualRoot.position.y)*blend;visualRoot.position.z+=(target.forward-visualRoot.position.z)*blend;
+      visualRoot.rotation.x+=(target.pitch-visualRoot.rotation.x)*blend;visualRoot.rotation.y+=(target.yaw-visualRoot.rotation.y)*blend;visualRoot.rotation.z+=(target.roll-visualRoot.rotation.z)*blend;
+      visualRoot.scale.set(1-target.squash*.4,1+target.squash,1-target.squash*.4);
       for(const layer of layers)layer.material.map=layer.frames[Math.floor(elapsed*layer.fps)%layer.frames.length];
-      const flash=state.hitFlash||0;baseMaterial.emissive.setHex(flash>0?0xffffff:0x000000);baseMaterial.emissiveIntensity=flash;
+      const flash=state.hitFlash||0;baseMaterial.emissive.setHex(flash>0?0xffd5a1:0x000000);baseMaterial.emissiveIntensity=flash*(state.reducedMotion?.06:.13);
     };
     update(0,{time:0});group.updateMatrixWorld(true);
     let bounds=new THREE.Box3().setFromObject(rig),size=bounds.getSize(new THREE.Vector3());
@@ -314,9 +346,10 @@ export class PokemonResources {
     bounds=new THREE.Box3().setFromObject(rig);
     if(grounded)orientation.position.y=-bounds.min.y;
     group.updateMatrixWorld(true);bounds=new THREE.Box3().setFromObject(group);size=bounds.getSize(new THREE.Vector3());
+    visualHeight=size.y;
     group.userData={
       id:Number(id),shiny,info,height:size.y,radius:Math.max(size.x,size.z)/2,bounds:bounds.clone(),dimensions:{x:size.x,y:size.y,z:size.z},groundOffset:orientation.position.y,
-      animationNames:Object.keys(record.animations),bones:boneMap,materials,update,
+      animationNames:Object.keys(record.animations),bones:boneMap,materials,update,combatProfile,visualRoot,
       setShiny:async value=>{shiny=Boolean(value);group.userData.shiny=shiny;baseMaterial.map=record.textures.get(shiny?info.shinyTexture:info.texture);baseMaterial.needsUpdate=true;changeLayers();},
       release:()=>{if(released)return;released=true;group.removeFromParent();for(const material of materials)material.dispose();for(const layer of layers)layer.material.dispose();record.refs=Math.max(0,record.refs-1);record.used=performance.now();this.evict();},
     };

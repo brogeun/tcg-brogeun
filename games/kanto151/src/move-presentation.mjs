@@ -29,7 +29,10 @@ const groups={
 };
 const named=new Map(Object.entries(groups).flatMap(([family,list])=>list.split(',').map(slug=>[slug,family])));
 export const MOVE_FAMILIES=Object.freeze([...Object.keys(groups),'heal','shield','buff','status','contact','projectile','area']);
-export function movePresentation(move){const template=move.engine.template;if(['heal','shield','buff'].includes(template))return template;return named.get(move.slug)||({debuff:'status',trap:'area','ground-aoe':'area','radial-aoe':'area',dash:'rush',beam:'beam',cone:'gust',melee:'contact','multi-hit':'contact'}[template]||'projectile');}
+// Unlisted moves still inherit their element's visual vocabulary. Keep contact
+// actions and support actions distinct; this classification never changes rules.
+const elementalFamilies={fire:'flame',water:'jet',grass:'leaf',electric:'spark',ice:'frost',psychic:'psychic',ghost:'shadow',dark:'shadow',rock:'stone',ground:'fault',poison:'sludge',bug:'needle',flying:'gust',dragon:'beam',steel:'needle',fairy:'star'};
+export function movePresentation(move){const template=move.engine?.template;if(['heal','shield','buff'].includes(template))return template;const family=named.get(move.slug);if(family)return family;if(template==='debuff')return 'status';if(template==='dash')return 'rush';if(['melee','multi-hit'].includes(template))return 'contact';if(['trap','ground-aoe','radial-aoe'].includes(template))return ({water:'wave',grass:'vine',fire:'explosion'})[move.type]||elementalFamilies[move.type]||'area';return elementalFamilies[move.type]||({beam:'beam',cone:'gust'}[template])||'projectile';}
 export function projectileShape(move){const f=movePresentation(move);return f==='star'?'star':['needle','frost','stone','fault'].includes(f)?'shard':f==='leaf'?'leaf':['psychic','shadow','bubble','sound'].includes(f)?'ring':'orb';}
 // Named action identity stays stable across language changes and evolution.
 export const ELEMENTAL_VARIANTS=Object.freeze(['ember','flamethrower','fire-blast','fire-spin','heat-wave','overheat','blast-burn','bubble','bubble-beam','water-pulse','water-gun','hydro-pump','hydro-cannon','thunder-shock','thunderbolt','thunder','ice-beam','blizzard']);

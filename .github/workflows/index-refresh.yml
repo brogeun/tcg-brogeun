@@ -64,6 +64,7 @@ jobs:
         run: python -B scripts/update_dynamic_card_index.py --prune-source-cache
 
       - name: Save raw evidence outside the public bundle and Git history
+        if: always() && steps.sources.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: data/_card-index-source-cache

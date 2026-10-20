@@ -50,6 +50,12 @@ CARD_BRACKET_RE = re.compile(r'\[[^\]]*\d+[^\]]*\]')
 # 강제 박스 키워드 (대괄호 있어도 박스로 분류 — 예: 박스 상품에 카드번호 표기될 일 거의 없으나 안전장치)
 HARD_BOX_KEYWORDS = ('ボックス', 'BOX', 'スペシャルBOX', 'スターターデッキ')
 
+# Verified official product, not an inferred ID/name match:
+# https://snkrdunk.com/apparels/136031 is the One Piece OP01 Romance Dawn BOX.
+# It has no card-condition grade chips; old wrongly classified grade rows stay
+# preserved but must never be fetched/relabelled as current card quotes.
+VERIFIED_BOX_IDS = frozenset({'136031'})
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 UA = (
@@ -275,6 +281,8 @@ def scrape_url(label: str, url: str, max_items: int = 10) -> list:
 
 def is_box_product(product) -> bool:
     """카드: [세트코드 번호] 대괄호 있음. 박스: 대괄호 없거나 ボックス/BOX 단어 직접 포함."""
+    if isinstance(product, dict) and str(product.get('id') or '') in VERIFIED_BOX_IDS:
+        return True
     if isinstance(product, dict):
         explicit_kind = str(product.get("kind") or "").strip().lower()
         if explicit_kind in ("box", "card"):
@@ -381,6 +389,8 @@ def preserve_product_metadata(filename: str, products: list) -> list:
             pass
 
     for product in products:
+        if str(product.get('id') or '') in VERIFIED_BOX_IDS:
+            product['kind'] = 'box'
         old = known.get(str(product.get("id") or ""))
         if not old:
             continue
@@ -827,17 +837,17 @@ def main():
     print("=" * 60)
     usd_jpy = fetch_usd_jpy()
     # 박스 ID 모으기 (등급 없으니 스킵)
-    box_ids = set()
+    box_ids = set(VERIFIED_BOX_IDS)
     for f in ("price-pokemon-box.json", "price-onepiece-box.json"):
         try:
             d = json.loads((DATA_DIR / f).read_text(encoding="utf-8"))
             for p in d.get("products", []):
                 if p.get("id"):
-                    box_ids.add(p["id"])
+                    box_ids.add(str(p["id"]))
         except Exception:
             pass
     all_ids = sorted(collect_card_ids())
-    card_ids = [cid for cid in all_ids if cid not in box_ids]
+    card_ids = [cid for cid in all_ids if str(cid) not in box_ids]
     print(f"  전체 추적 ID: {len(all_ids)}개  /  박스 제외 카드만: {len(card_ids)}개")
     total += 1
     try:
@@ -923,6 +933,8 @@ def main():
         if not is_card and not is_box:
             is_card = True
             is_box = True
+        if str(cid) in box_ids:
+            is_card, is_box = False, True
 
         any_new = False
         history_error = False

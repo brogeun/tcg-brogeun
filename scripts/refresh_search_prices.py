@@ -121,6 +121,7 @@ class PublicClient:
         self.started = clock()
         self.last_request = None
         self.requests = 0
+        self.page_attempts = {}
 
     def remaining(self):
         left = self.max_seconds - (self.clock() - self.started)
@@ -132,19 +133,26 @@ class PublicClient:
         url = ("https://snkrdunk.com/en/v1/trading-cards"
                f"?brandId={brand}&categoryId=25&page={page}&perPage={per_page}&order={order}")
         for attempt in range(self.attempts):
+            if self.page_attempts.get(url, 0) >= self.attempts:
+                raise RefreshError("Per-page request budget exhausted (maximum 3 actual attempts)")
             left = self.remaining()
             wait = max(0, self.interval - (self.clock() - self.last_request)) if self.last_request is not None else 0
             if wait >= left:
                 raise RefreshError("Search refresh runtime limit reached")
             self.sleep(wait)
             self.remaining()
-            request = urllib.request.Request(url, headers={
+            headers = {
                 "User-Agent": "TCGHUB-search-refresh/1.0 (+https://tcghub.kr)",
                 "Accept": "application/json", "Accept-Language": "en-US,en;q=0.9",
                 "Referer": "https://snkrdunk.com/en/",
-            })
+            }
+            if self.page_attempts.get(url, 0):
+                # Revalidate the same public page on a retry; keep its URL and budget.
+                headers.update({"Cache-Control": "no-cache", "Pragma": "no-cache"})
+            request = urllib.request.Request(url, headers=headers)
             self.last_request = self.clock()
             self.requests += 1
+            self.page_attempts[url] = self.page_attempts.get(url, 0) + 1
             try:
                 with self.opener(request, timeout=min(20, self.remaining())) as response:
                     status = response.getcode()
@@ -167,10 +175,10 @@ class PublicClient:
             except urllib.error.HTTPError as exc:
                 if exc.code in (403, 429):
                     raise RefreshError(f"HTTP {exc.code}: stopped without replacing any search files") from exc
-                if exc.code < 500 or attempt + 1 == self.attempts:
+                if exc.code < 500 or self.page_attempts[url] >= self.attempts:
                     raise RefreshError("Listing HTTP failure " + str(exc.code)) from exc
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                if attempt + 1 == self.attempts:
+                if self.page_attempts[url] >= self.attempts:
                     raise RefreshError("Listing transport failure: " + type(exc).__name__) from exc
         raise RefreshError("Listing attempts exhausted")
 
@@ -178,64 +186,81 @@ class PublicClient:
 def collect_stream(get_page, brand, order, basis, per_page=100, max_pages=500, now=None):
     if not 1 <= per_page <= 100 or not 1 <= max_pages <= 500:
         raise RefreshError("Invalid listing page bounds")
-    found, fingerprints = {}, set()
+    found, fingerprints, repeated_retries = {}, set(), 0
     for page in range(1, max_pages + 1):
-        payload = get_page(brand, order, page, per_page)
-        if not isinstance(payload, dict) or not isinstance(payload.get("tradingCards"), list):
-            raise RefreshError("Listing schema lacks tradingCards array")
-        rows = payload["tradingCards"]
-        if len(rows) > per_page:
-            raise RefreshError("Listing response exceeds requested page size")
-        if not rows:
-            if not found:
-                raise RefreshError("Empty brand listing without meaningful progress")
-            return found, {"brand": brand, "order": order, "pages": page,
-                           "products": len(found), "terminal": "empty-page"}
-        page_ids, new_ids = [], 0
-        checked_at = (now or (lambda: datetime.now(UTC)))().astimezone(UTC).isoformat()
-        for row in rows:
-            if not isinstance(row, dict):
-                raise RefreshError("Invalid listing row")
-            cid = str(row.get("id", ""))
-            if not re.fullmatch(r"[1-9][0-9]{0,19}", cid):
-                raise RefreshError("Invalid numeric listing product ID")
-            if row.get("brand") not in (None, brand) or row.get("brandId") not in (None, brand):
-                raise RefreshError("Listing brand mismatch")
-            if row.get("categoryId") not in (None, 25, "25"):
-                raise RefreshError("Listing category mismatch")
-            if row.get("kind") not in (None, "card", "single", "single-card"):
-                raise RefreshError("Unexpected non-card listing")
-            if not isinstance(row.get("name"), str) or not row["name"].strip():
-                raise RefreshError("Listing product name is missing")
-            count = row.get("listingCount")
-            if count is not None and not ((type(count) is int and count >= 0) or
-                                          (isinstance(count, str) and re.fullmatch(r"[0-9]+\+?", count))):
-                raise RefreshError("Invalid listing count")
-            value, source_currency = listing_price(row, basis)
-            if value is not None and count in (0, "0"):
-                raise RefreshError("Positive listing price with zero listings")
-            if cid in page_ids:
-                raise RefreshError("Duplicate product ID within listing page")
-            page_ids.append(cid)
-            new_ids += cid not in found
-            found[cid] = {"id": cid, "brand": brand, "kind": "card",
-                          **{key: row.get(key) or "" for key in META_FIELDS if key not in ("id", "brand", "kind")},
-                          "minPrice": value, "currency": "USD", "listingCount": count,
-                          "priceCheckedAt": checked_at,
-                          "priceStatus": ("available" if value is not None else
-                                          "no-listings" if count in (0, "0") else "price-unavailable"),
-                          "priceSource": {"type": "listing-ask", "originalPrice": row.get("minPrice"),
-                                          "originalCurrency": source_currency, "url":
-                                          "https://snkrdunk.com/en/v1/trading-cards"
-                                          f"?brandId={brand}&categoryId=25&page={page}&perPage={per_page}&order={order}"}}
-        fingerprint = tuple(sorted(page_ids))
-        if fingerprint in fingerprints or new_ids == 0:
-            raise RefreshError("Repeated listing page or no new IDs; traversal incomplete")
+        context = f"brand={brand} order={order} page={page}"
+        for page_attempt in range(1, 4):
+            cid = None
+            try:
+                payload = get_page(brand, order, page, per_page)
+                if not isinstance(payload, dict) or not isinstance(payload.get("tradingCards"), list):
+                    raise RefreshError("Listing schema lacks tradingCards array")
+                rows = payload["tradingCards"]
+                if len(rows) > per_page:
+                    raise RefreshError("Listing response exceeds requested page size")
+                if not rows:
+                    if not found:
+                        raise RefreshError("Empty brand listing without meaningful progress")
+                    print(f"[search] {context} rows=0 unique={len(found)} terminal=empty-page", flush=True)
+                    return found, {"brand": brand, "order": order, "pages": page,
+                                   "products": len(found), "terminal": "empty-page", "repeatedPageRetries": repeated_retries}
+                page_ids, page_records = [], {}
+                checked_at = (now or (lambda: datetime.now(UTC)))().astimezone(UTC).isoformat()
+                for row in rows:
+                    if not isinstance(row, dict):
+                        raise RefreshError("Invalid listing row")
+                    cid = str(row.get("id", ""))
+                    if not re.fullmatch(r"[1-9][0-9]{0,19}", cid):
+                        raise RefreshError("Invalid numeric listing product ID")
+                    if row.get("brand") not in (None, brand) or row.get("brandId") not in (None, brand):
+                        raise RefreshError("Listing brand mismatch")
+                    if row.get("categoryId") not in (None, 25, "25"):
+                        raise RefreshError("Listing category mismatch")
+                    if row.get("kind") not in (None, "card", "single", "single-card"):
+                        raise RefreshError("Unexpected non-card listing")
+                    if not isinstance(row.get("name"), str) or not row["name"].strip():
+                        raise RefreshError("Listing product name is missing")
+                    count = row.get("listingCount")
+                    if count is not None and not ((type(count) is int and count >= 0) or
+                                                  (isinstance(count, str) and re.fullmatch(r"[0-9]+\+?", count))):
+                        raise RefreshError("Invalid listing count")
+                    value, source_currency = listing_price(row, basis)
+                    if value is not None and count in (0, "0"):
+                        raise RefreshError("Positive listing price with zero listings")
+                    if cid in page_records:
+                        raise RefreshError("Duplicate product ID within listing page")
+                    page_ids.append(cid)
+                    page_records[cid] = {"id": cid, "brand": brand, "kind": "card",
+                                          **{key: row.get(key) or "" for key in META_FIELDS if key not in ("id", "brand", "kind")},
+                                          "minPrice": value, "currency": "USD", "listingCount": count,
+                                          "priceCheckedAt": checked_at,
+                                          "priceStatus": ("available" if value is not None else
+                                                          "no-listings" if count in (0, "0") else "price-unavailable"),
+                                          "priceSource": {"type": "listing-ask", "originalPrice": row.get("minPrice"),
+                                                          "originalCurrency": source_currency, "url":
+                                                          "https://snkrdunk.com/en/v1/trading-cards"
+                                                          f"?brandId={brand}&categoryId=25&page={page}&perPage={per_page}&order={order}"}}
+                fingerprint = tuple(sorted(page_ids))
+                new_ids = len(set(page_ids) - found.keys())
+                if fingerprint in fingerprints or new_ids == 0:
+                    reason = ("Repeated listing page or no new IDs; traversal incomplete"
+                              f" attempt={page_attempt}/3 rows={len(rows)} firstId={page_ids[0]} lastId={page_ids[-1]}")
+                    if page_attempt == 3:
+                        raise RefreshError(reason)
+                    repeated_retries += 1
+                    print(f"::warning::[search] {context} {reason}; retrying SAME page, never skipping", flush=True)
+                    continue
+                break
+            except (RefreshError, ValueError, TypeError) as error:
+                raise RefreshError(f"{context} rowId={cid} {error}") from error
+        # Rejected repeated pages never mutate accepted products/provenance.
+        found.update(page_records)
         fingerprints.add(fingerprint)
+        if page == 1 or page % 25 == 0:
+            print(f"[search] {context} rows={len(rows)} unique={len(found)}", flush=True)
         if len(rows) < per_page:
-            return found, {"brand": brand, "order": order, "pages": page,
-                           "products": len(found), "terminal": "short-page"}
-    raise RefreshError("Listing page limit reached before terminal page")
+            print(f"[search] {context} short-page rows={len(rows)}; checking NEXT page for explicit empty terminal", flush=True)
+    raise RefreshError(f"brand={brand} order={order} page={max_pages} Listing page limit reached before terminal page")
 
 
 def build_documents(old, basis, get_page, per_page=100, max_pages=500, now=None):

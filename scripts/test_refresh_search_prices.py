@@ -36,7 +36,7 @@ def old_catalogue(pokemon=2):
 def complete_pages(brand, order, page, per_page):
     if brand == "pokemon":
         return {"tradingCards": [row(1), row(2)] if page == 1 else []}
-    return {"tradingCards": [row(10)]}
+    return {"tradingCards": [row(10)] if page == 1 else []}
 
 
 class FakeClient:
@@ -72,6 +72,17 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(set(result), {"1", "2", "3"})
         self.assertEqual(report["pages"], 3)
 
+    def test_short_intermediate_pages_do_not_hide_later_products_or_claim_completion(self):
+        calls = []
+        def pages(brand, order, page, per_page):
+            calls.append(page)
+            return {'tradingCards': {1: [row(1)], 2: [row(2), row(3)], 3: [row(4)], 4: []}[page]}
+        result, summary = target.collect_stream(pages, 'pokemon', 'popular', self.basis(), per_page=2)
+        self.assertEqual(set(result), {'1', '2', '3', '4'})
+        self.assertEqual(calls, [1, 2, 3, 4])
+        self.assertEqual(summary['terminal'], 'empty-page')
+        self.assertEqual(summary['pages'], 4)
+
     def test_repeated_page_and_reordered_same_ids_fail(self):
         for reorder in (False, True):
             def pages(brand, order, page, per_page):
@@ -79,10 +90,38 @@ class FixtureTests(unittest.TestCase):
             with self.assertRaisesRegex(target.RefreshError, "Repeated"):
                 target.collect_stream(pages, "pokemon", "popular", self.basis(), per_page=2)
 
+    def test_transient_repeat_retries_same_page_without_committing_rejected_provenance(self):
+        calls = []
+        def pages(brand, order, page, per_page):
+            calls.append(page)
+            if page == 1 or page == 2 and calls.count(2) == 1:
+                return {"tradingCards": [row(1), row(2)]}
+            return {"tradingCards": [row(3), row(4)] if page == 2 else []}
+        result, summary = target.collect_stream(pages, 'pokemon', 'popular', self.basis(), per_page=2)
+        self.assertEqual(calls, [1, 2, 2, 3])
+        self.assertEqual(set(result), {'1', '2', '3', '4'})
+        self.assertEqual(summary['repeatedPageRetries'], 1)
+        self.assertIn('page=1&', result['1']['priceSource']['url'])
+        self.assertIn('page=2&', result['3']['priceSource']['url'])
+
+    def test_persistent_repeat_has_context_and_never_skips_to_next_page(self):
+        calls = []
+        def pages(brand, order, page, per_page):
+            calls.append(page)
+            return {'tradingCards': [row(1), row(2)]}
+        with self.assertRaisesRegex(target.RefreshError, r'brand=pokemon order=popular page=2.*firstId=1 lastId=2'):
+            target.collect_stream(pages, 'pokemon', 'popular', self.basis(), per_page=2)
+        self.assertEqual(calls, [1, 2, 2, 2])
+
+    def test_bad_price_error_identifies_brand_order_page_and_row(self):
+        with self.assertRaisesRegex(target.RefreshError, r'brand=onepiece order=new page=1 rowId=123'):
+            target.collect_stream(lambda *args: {'tradingCards': [row(123, 10, 'EUR 10')]},
+                                  'onepiece', 'new', self.basis())
+
     def test_missing_products_are_unavailable_with_original_metadata_retained(self):
         catalog = old_catalogue(pokemon=5)
         def pages(brand, order, page, per_page):
-            return {"tradingCards": [row(1), row(2), row(3), row(4)] if brand == "pokemon" else [row(10)]}
+            return {"tradingCards": ([row(1), row(2), row(3), row(4)] if brand == "pokemon" else [row(10)]) if page == 1 else []}
         documents = target.build_documents(catalog, self.basis(), pages, now=lambda: NOW)
         missing = next(item for item in documents["all-cards.json"]["details"] if item["id"] == "5")
         self.assertEqual(missing["name"], "Preserve 5")
@@ -102,8 +141,8 @@ class FixtureTests(unittest.TestCase):
             target.collect_stream(lambda *args: {"tradingCards": []}, "pokemon", "popular", self.basis())
 
     def test_missing_price_does_not_claim_no_listings_when_listings_exist(self):
-        def pages(*args):
-            return {"tradingCards": [row(1, None, "")]}
+        def pages(brand, order, page, per_page):
+            return {"tradingCards": [row(1, None, "")] if page == 1 else []}
         values, _ = target.collect_stream(pages, "pokemon", "popular", self.basis())
         self.assertEqual(values["1"]["priceStatus"], "price-unavailable")
         self.assertEqual(values["1"]["listingCount"], "99+")
@@ -164,7 +203,7 @@ class FixtureTests(unittest.TestCase):
                 target.collect_stream(lambda *args: invalid, "pokemon", "popular", self.basis())
         with self.assertRaisesRegex(target.RefreshError, "conflicts"):
             target.build_documents(old_catalogue(), self.basis(),
-                                   lambda *args: {"tradingCards": [row(1), row(2)]})
+                                   lambda brand, order, page, size: {"tradingCards": [row(1), row(2)] if page == 1 else []})
 
 
 class PromotionTests(unittest.TestCase):
@@ -224,6 +263,23 @@ class PromotionTests(unittest.TestCase):
             for name, raw in originals.items():
                 self.assertEqual((directory / name).read_bytes(), raw)
 
+    def test_unrecovered_repeated_page_preserves_all_three_original_snapshots(self):
+        with tempfile.TemporaryDirectory() as folder:
+            directory, _, _ = self.fixture(folder)
+            (directory / 'all-cards.json').write_text(json.dumps(old_catalogue()), encoding='utf-8')
+            (directory / 'fx-rates.json').write_text(json.dumps(fx()), encoding='utf-8')
+            originals = {name: (directory / name).read_bytes() for name in
+                         ('all-cards.json', 'cards-meta.json', 'cards-prices.json')}
+            calls = []
+            def repeated(brand, order, page, per_page):
+                calls.append(page)
+                return {'tradingCards': [row(1), row(2)]}
+            with self.assertRaisesRegex(target.RefreshError, 'Repeated listing page'):
+                target.refresh(directory, FakeClient(repeated), now=lambda: NOW, per_page=2)
+            self.assertEqual(calls, [1, 2, 2, 2])
+            for name, raw in originals.items():
+                self.assertEqual((directory / name).read_bytes(), raw)
+
 
 class ClientTests(unittest.TestCase):
     class Response(io.BytesIO):
@@ -249,6 +305,32 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(starts, [0, 1, 2])
         self.assertTrue(all("cookie" not in {key.lower() for key in request.headers}
                             and "authorization" not in {key.lower() for key in request.headers} for request in requests))
+        headers = [{key.lower(): value for key, value in request.headers.items()} for request in requests]
+        self.assertNotIn("cache-control", headers[0])
+        self.assertEqual(headers[1]["cache-control"], "no-cache")
+        self.assertEqual(headers[1]["pragma"], "no-cache")
+        self.assertNotIn("cache-control", headers[2])
+
+    def test_same_page_validation_retries_revalidate_without_changing_url(self):
+        requests, ticks = [], [0.0]
+        def opener(request, timeout):
+            requests.append(request)
+            return self.Response(b'{"tradingCards":[]}')
+        client = target.PublicClient(opener=opener, clock=lambda: ticks[0],
+                                     sleep=lambda seconds: ticks.__setitem__(0, ticks[0] + seconds))
+        for _ in range(3):
+            client.get("pokemon", "popular", 2, 100)
+        self.assertEqual(len({request.full_url for request in requests}), 1)
+        headers = [{key.lower(): value for key, value in request.headers.items()} for request in requests]
+        self.assertNotIn("cache-control", headers[0])
+        self.assertNotIn("pragma", headers[0])
+        for retried in headers[1:]:
+            self.assertEqual(retried["cache-control"], "no-cache")
+            self.assertEqual(retried["pragma"], "no-cache")
+        self.assertEqual(ticks[0], 2.0)
+        with self.assertRaisesRegex(target.RefreshError, "request budget exhausted"):
+            client.get("pokemon", "popular", 2, 100)
+        self.assertEqual(len(requests), 3)
 
     def test_403_and_429_stop_on_first_attempt(self):
         for code in (403, 429):
@@ -274,6 +356,24 @@ class ClientTests(unittest.TestCase):
         client = target.PublicClient(opener=opener, clock=lambda: tick[0], sleep=lambda sec: tick.__setitem__(0, tick[0] + sec), max_seconds=1)
         with self.assertRaisesRegex(target.RefreshError, "runtime"):
             client.get("pokemon", "popular", 1, 100)
+
+    def test_transport_and_repeated_page_retries_share_three_actual_request_budget(self):
+        from urllib.parse import parse_qs, urlsplit
+        requests, ticks = [], [0.0]
+        counts = {}
+        def opener(request, timeout):
+            page = int(parse_qs(urlsplit(request.full_url).query)['page'][0])
+            counts[page] = counts.get(page, 0) + 1
+            requests.append((page, ticks[0]))
+            if page == 2 and counts[page] == 1:
+                raise urllib.error.HTTPError(request.full_url, 503, 'transient', {}, None)
+            return self.Response(json.dumps({'tradingCards': [row(1), row(2)]}).encode())
+        client = target.PublicClient(opener=opener, clock=lambda: ticks[0],
+                                     sleep=lambda seconds: ticks.__setitem__(0, ticks[0] + seconds))
+        with self.assertRaisesRegex(target.RefreshError, 'request budget exhausted'):
+            target.collect_stream(client.get, 'pokemon', 'popular', {'rates': {'USD': 1400, 'JPY': 9}}, per_page=2)
+        self.assertEqual(counts, {1: 1, 2: 3})
+        self.assertEqual([stamp for _, stamp in requests], [0, 1, 2, 3])
 
 
 if __name__ == "__main__":

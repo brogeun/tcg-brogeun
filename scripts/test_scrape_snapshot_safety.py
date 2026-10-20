@@ -212,6 +212,35 @@ class DailySnapshotSafetyTests(unittest.TestCase):
                 target.save_payload(path.name, 'pokemon-card', products(29), 'new timestamp')
             self.assertEqual(path.read_bytes(), b'last complete category bytes')
 
+    def test_verified_op01_box_is_not_requested_as_graded_card_and_old_grade_row_is_retained(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data, _ = self.fixture(folder)
+            path = data / 'cards-detail.json'
+            payload = json.loads(path.read_bytes())
+            old_box_row = {'id': '136031', 'grades': {'raw': {'lowest_ask': 999}}, 'fetchedAt': 'old', 'custom': 'keep'}
+            payload['cards']['136031'] = old_box_row
+            path.write_text(json.dumps(payload))
+            (data / 'history/136031.json').write_text(json.dumps({'id': '136031', 'updatedAt': 'old',
+                'history': [{'date': '2020-01-01', 'box_price': 99, 'raw_price': 999}]}))
+            visited = []
+            def source(request, **kwargs):
+                visited.append(request.full_url)
+                if '/136031/' in request.full_url:
+                    self.assertIn('/sales-history?', request.full_url)
+                    return Response(b'{"history":[]}')
+                if request.full_url.endswith('/136031'):
+                    self.fail('Verified box must never request card grade chips')
+                if '/sales-chart/' in request.full_url:
+                    return Response(b'{"points":[]}')
+                return Response(b'{"conditionId":18,"usedMinPrice":20}{"conditionId":22,"usedMinPrice":100}{"conditionId":23,"usedMinPrice":50}')
+            with self.main_patches(data, products(10), source), patch.object(target, 'collect_card_ids', lambda: {'1', '136031'}):
+                target.main()
+            refreshed = json.loads(path.read_bytes())
+            self.assertEqual(refreshed['cards']['136031'], old_box_row)
+            self.assertEqual(refreshed['collection']['checkedCardIds'], ['1'])
+            self.assertTrue(target.is_box_product({'id': '136031', 'kind': 'card', 'name': 'legacy wrong kind'}))
+            self.assertTrue(any('/136031/sales-history?' in url for url in visited))
+
 
 if __name__ == '__main__':
     unittest.main()

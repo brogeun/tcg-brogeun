@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '17 19 * * *'  # 04:17 KST; avoid the busy start of the hour.
   workflow_dispatch:  # 수동 실행 가능
+    inputs:
+      collect_scope:
+        description: '갱신 범위 (search-only: 환율과 전체 검색만 수집)'
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - search-only
   workflow_run:
     workflows: ['Refresh Verified Home Card Index Daily', 'Chinese Auction Prices Daily']
     types: [completed]
@@ -34,6 +43,7 @@ jobs:
     timeout-minutes: 90  # Existing daily collection plus bounded full search-price pagination.
     env:
       COLLECT_DATA: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[refresh-prices]')) }}
+      COLLECT_PRIMARY: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[refresh-prices]'))) && (github.event_name != 'workflow_dispatch' || inputs.collect_scope != 'search-only') }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -67,7 +77,7 @@ jobs:
           node --test scripts/test_beezie_snapshot_api.cjs
 
       - name: Setup Chrome browser
-        if: env.COLLECT_DATA == 'true'
+        if: env.COLLECT_PRIMARY == 'true'
         uses: browser-actions/setup-chrome@latest
         with:
           chrome-version: stable
@@ -79,7 +89,7 @@ jobs:
           pip install "selenium>=4.20.0" "webdriver-manager>=4.0.0" "beautifulsoup4>=4.12,<5" requests
 
       - name: Run scraper
-        if: env.COLLECT_DATA == 'true'
+        if: env.COLLECT_PRIMARY == 'true'
         id: daily-primary
         continue-on-error: true  # Retain failed-source snapshots; collect independent FX/search updates.
         run: python scripts/scrape_snkrdunk.py
@@ -87,7 +97,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
 
       - name: Run news scraper (한국 포켓몬·원피스 공식 소식)
-        if: env.COLLECT_DATA == 'true' && github.event_name != 'push'
+        if: env.COLLECT_PRIMARY == 'true' && github.event_name != 'push'
         continue-on-error: true  # 한 사이트 장애가 가격 수집·배포 전체를 막지 않도록 경고 처리
         run: python scripts/scrape_news.py
         env:
@@ -117,14 +127,14 @@ jobs:
         run: node scripts/build_promo_search.cjs
 
       - name: Update anniversary Japanese grade prices and missing versions
-        if: env.COLLECT_DATA == 'true'
+        if: env.COLLECT_PRIMARY == 'true'
         continue-on-error: true # Last complete snapshot is kept when any source fails.
         run: python scripts/sync_anniversary_market.py
         env:
           PYTHONUNBUFFERED: "1"
 
       - name: Update Futuristic Box promo prices and complete public sales history
-        if: env.COLLECT_DATA == 'true'
+        if: env.COLLECT_PRIMARY == 'true'
         continue-on-error: true # Collector retains previous snapshot if any product fails.
         run: python scripts/sync_futuristic_market.py
         env:

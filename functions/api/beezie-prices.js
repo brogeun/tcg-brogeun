@@ -7,14 +7,21 @@ const SOURCE = 'official current Beezie catalogue + machine status API + labelle
 const MAX_AGE_MS = 30 * 60 * 1000;
 const CACHE_SECONDS = 60;
 const SOURCE_STATES = new Set(['active', 'started', 'running', 'open']);
+const DEBUG_CODES = new Set(['SOURCE_FETCH', 'SOURCE_HTTP', 'SOURCE_BODY', 'SOURCE_JSON', 'SOURCE_TOO_LARGE', 'SNAPSHOT_INVALID']);
 const CORS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Access-Control-Allow-Origin': '*',
 };
 let pendingSnapshot = null;
 
+function sourceError(code) {
+  const error = new Error('Beezie snapshot unavailable');
+  error.code = code;
+  return error;
+}
+
 function requireValid(condition) {
-  if (!condition) throw new Error('Invalid or stale Beezie snapshot');
+  if (!condition) throw sourceError('SNAPSHOT_INVALID');
 }
 
 function fresh(value, now) {
@@ -81,16 +88,29 @@ function json(payload, status, cacheControl) {
 async function fetchSnapshot() {
   if (!pendingSnapshot) {
     pendingSnapshot = (async () => {
-      const response = await fetch(SNAPSHOT_URL, {
-        headers: { Accept: 'application/json' },
-        redirect: 'error',
-        signal: AbortSignal.timeout(8000),
-        cf: { cacheEverything: true, cacheTtl: 30 },
-      });
-      if (!response.ok) throw new Error('Snapshot source unavailable');
-      const text = await response.text();
-      if (text.length > 128000) throw new Error('Snapshot exceeds expected size');
-      return JSON.parse(text);
+      let response;
+      try {
+        response = await fetch(SNAPSHOT_URL, {
+          headers: { Accept: 'application/json' },
+          // workerd accepts manual/follow; a 3xx must fail without following it.
+          redirect: 'manual',
+          signal: AbortSignal.timeout(8000),
+          cf: { cacheEverything: true, cacheTtl: 30 },
+        });
+      } catch {
+        throw sourceError('SOURCE_FETCH');
+      }
+      if (response.status !== 200) {
+        const error = sourceError('SOURCE_HTTP');
+        error.httpStatus = response.status;
+        throw error;
+      }
+      let text;
+      try { text = await response.text(); }
+      catch { throw sourceError('SOURCE_BODY'); }
+      if (text.length > 128000) throw sourceError('SOURCE_TOO_LARGE');
+      try { return JSON.parse(text); }
+      catch { throw sourceError('SOURCE_JSON'); }
     })().finally(() => { pendingSnapshot = null; });
   }
   return pendingSnapshot;
@@ -119,12 +139,20 @@ export async function onRequestGet(context) {
     const response = json({ ...payload, debug }, 200,
       debug || !ttl ? 'no-store' : 'public, max-age=' + ttl + ', s-maxage=' + ttl);
     if (cache && !debug && ttl) {
-      const write = cache.put(key, response.clone()).catch(() => {});
-      if (typeof context.waitUntil === 'function') context.waitUntil(write);
-      else await write;
+      try {
+        const write = Promise.resolve(cache.put(key, response.clone())).catch(() => {});
+        if (typeof context.waitUntil === 'function') context.waitUntil(write);
+        else await write;
+      } catch { /* Cache writes must never replace a validated source response. */ }
     }
     return response;
-  } catch {
-    return json({ ok: false, error: 'Beezie 최신 자료를 확인하지 못했습니다.', results: [] }, 503, 'no-store');
+  } catch (error) {
+    const body = { ok: false, error: 'Beezie 최신 자료를 확인하지 못했습니다.', results: [] };
+    if (debug) {
+      body.errorCode = DEBUG_CODES.has(error?.code) ? error.code : 'SNAPSHOT_INVALID';
+      if (body.errorCode === 'SOURCE_HTTP' && Number.isInteger(error.httpStatus) &&
+          error.httpStatus >= 100 && error.httpStatus <= 599) body.sourceHttpStatus = error.httpStatus;
+    }
+    return json(body, 503, 'no-store');
   }
 }

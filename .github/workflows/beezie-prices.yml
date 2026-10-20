@@ -6,7 +6,7 @@ name: Beezie EV prices
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # 매 10분
+    - cron: '7-57/10 * * * *'  # 10-minute targets outside the busy hour boundary.
   workflow_dispatch:        # 수동 실행 가능
 
 permissions:

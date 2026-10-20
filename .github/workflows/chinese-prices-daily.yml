@@ -2,7 +2,7 @@ name: Chinese Auction Prices Daily
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # 03:00 KST; ahead of the 04:00 website bundle.
+    - cron: '7 18 * * *'  # 03:07 KST; ahead of the daily website bundle.
   workflow_dispatch:
 
 permissions:

@@ -53,7 +53,12 @@ function sandbox(payload = paused(), options = {}) {
     },
     caches: options.cache ? { default: {
       match: async key => options.cache(key),
-      put: async (key, value) => puts.push({ key, value }),
+      put: (key, value) => {
+        if (options.cachePutThrows) throw new Error('Synthetic private cache failure');
+        if (options.cachePutRejects) return Promise.reject(new Error('Synthetic private cache failure'));
+        puts.push({ key, value });
+        return Promise.resolve();
+      },
     }} : undefined,
   });
   vm.runInContext(source.replace(/\bexport /g, '') + '\nthis.api={onRequestGet};', context);
@@ -64,11 +69,11 @@ function request(debug = false) {
   return new Request('https://tcghub.kr/api/beezie-prices' + (debug ? '?debug=1' : ''));
 }
 
-async function invoke(environment, debug = false) {
+async function invoke(environment, debug = false, extraContext = {}) {
   const context = { request: request(debug), env: new Proxy({}, {
     get() { throw new Error('Credentials must not be accessed'); },
   }) };
-  const response = await environment.api.onRequestGet(context);
+  const response = await environment.api.onRequestGet({ ...context, ...extraContext });
   return { response, body: await response.json() };
 }
 
@@ -84,7 +89,7 @@ test('fresh complete paused catalogue returns verified null quotes with no paid/
   assert.ok(body.results.every(row => row.price === null && row.avg === null && row.ev === null));
   assert.equal(env.calls.length, 1);
   assert.equal(env.calls[0].url, SNAPSHOT);
-  assert.equal(env.calls[0].init.redirect, 'error');
+  assert.equal(env.calls[0].init.redirect, 'manual');
   assert.equal(env.calls[0].init.headers.Authorization, undefined);
   assert.match(response.headers.get('cache-control'), /max-age=60/);
   assert.equal(response.headers.get('access-control-allow-origin'), '*');
@@ -133,7 +138,10 @@ test('stale, future, legacy, partial, mismatched identity and invalid quote payl
     numericStringId(data) { data.results[0].id = '98'; },
     wrongLabel(data) { data.results[0].tier = 'Gold TCG'; },
     fingerprint(data) { data.catalogue.htmlSha256 = 'unknown'; },
-    fabricatedPaused(data) { data.results[0].price = 30; },
+    fabricatedPaused(data) {
+      data.results[0] = paused().results[0]; data.results[0].price = 30;
+      data.status = 'partially-unavailable'; data.pricesFresh = false;
+    },
     nullPrice(data) { data.results[0].price = null; },
     numericStringPrice(data) { data.results[0].price = '50'; },
     badEv(data) { data.results[0].ev = 999; },
@@ -155,8 +163,8 @@ test('stale, future, legacy, partial, mismatched identity and invalid quote payl
   }
 });
 
-test('network, HTTP and JSON failures return 503 without another source', async () => {
-  for (const options of [{ failure: true }, { status: 404 }, { status: 500 }, { invalidJson: true }]) {
+test('network, redirects, HTTP and JSON failures return 503 without another source', async () => {
+  for (const options of [{ failure: true }, { status: 201 }, { status: 302 }, { status: 404 }, { status: 500 }, { invalidJson: true }]) {
     const env = sandbox(paused(), options);
     const { response, body } = await invoke(env);
     assert.equal(response.status, 503);
@@ -203,6 +211,48 @@ test('concurrent requests share one free source request', async () => {
   assert.equal((await first).response.status, 200);
   assert.equal((await second).response.status, 200);
   assert.equal(env.calls.length, 1);
+});
+
+test('workerd-compatible manual mode rejects redirects without issuing another fetch', async () => {
+  const env = sandbox(paused(), { fetch: async (url, init) => {
+    if (!['manual', 'follow'].includes(init.redirect)) throw new TypeError('Synthetic unsupported redirect mode');
+    return new Response(JSON.stringify(paused()));
+  } });
+  assert.equal((await invoke(env)).response.status, 200);
+  assert.equal(env.calls[0].init.redirect, 'manual');
+  assert.equal(env.calls.length, 1);
+});
+
+test('synchronous cache put/waitUntil errors and rejected cache writes cannot break a valid source', async () => {
+  for (const options of [{ cachePutThrows: true }, { cachePutRejects: true }, {}]) {
+    const env = sandbox(paused(), { cache: () => undefined, ...options });
+    const extraContext = options.cachePutThrows || options.cachePutRejects ? {} : {
+      waitUntil() { throw new Error('Synthetic private scheduling failure'); },
+    };
+    const result = await invoke(env, false, extraContext);
+    assert.equal(result.response.status, 200);
+    assert.equal(result.body.ok, true);
+  }
+});
+
+test('debug returns only fixed failure codes and optional numeric source HTTP status', async () => {
+  for (const [options, code] of [
+    [{ failure: true }, 'SOURCE_FETCH'],
+    [{ status: 403 }, 'SOURCE_HTTP'],
+    [{ invalidJson: true }, 'SOURCE_JSON'],
+    [{}, 'SNAPSHOT_INVALID'],
+  ]) {
+    const data = paused();
+    if (!Object.keys(options).length) data.fetchedAt = NOW - 1800001;
+    const normal = await invoke(sandbox(data, options));
+    assert.equal(normal.body.errorCode, undefined);
+    const result = await invoke(sandbox(data, options), true);
+    assert.equal(result.response.status, 503);
+    assert.equal(result.body.errorCode, code);
+    if (code === 'SOURCE_HTTP') assert.equal(result.body.sourceHttpStatus, 403);
+    assert.equal(result.response.headers.get('cache-control'), 'no-store');
+    assert.doesNotMatch(JSON.stringify(result.body), /Synthetic|private|https?:|stack/i);
+  }
 });
 
 test('only the original GET route handler is exported', () => {

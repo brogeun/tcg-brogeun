@@ -2,7 +2,7 @@ name: Scrape SNKRDUNK Daily
 
 on:
   schedule:
-    - cron: '0 19 * * *'  # 04:00 KST 매일
+    - cron: '17 19 * * *'  # 04:17 KST; avoid the busy start of the hour.
   workflow_dispatch:  # 수동 실행 가능
   workflow_run:
     workflows: ['Refresh Verified Home Card Index Daily', 'Chinese Auction Prices Daily']

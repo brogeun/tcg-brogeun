@@ -1,0 +1,11 @@
+section[data-page="centering"] .ct-viewport{overflow:auto;max-height:660px;background:#f3f4f6;border-radius:8px;margin:10px 0}
+section[data-page="centering"] .ct-viewport canvas{display:block;touch-action:none;cursor:crosshair}
+section[data-page="centering"] .ct-note{font-size:12px;line-height:1.65;color:#526070;text-align:left;margin:10px 0;overflow-wrap:anywhere}
+section[data-page="centering"] .ct-control{display:flex;align-items:center;gap:10px;font-size:12px;color:#374151;margin:12px 0;text-align:left;min-height:32px}
+section[data-page="centering"] .ct-control span{min-width:98px}
+section[data-page="centering"] .ct-control input[type="range"]{flex:1;min-width:0;min-height:32px;accent-color:#2563eb}
+section[data-page="centering"] .ct-control input[type="checkbox"]{width:20px;height:20px;flex:none}
+section[data-page="centering"] .ct-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+section[data-page="centering"] .ct-actions button{white-space:normal;min-height:44px;cursor:pointer;padding:8px 12px}
+section[data-page="centering"] button:disabled{opacity:.5;cursor:default}
+@media(max-width:640px){section[data-page="centering"] #centeringMain{padding:14px!important}section[data-page="centering"] #centeringUploadArea{gap:8px!important}section[data-page="centering"] .centering-upload-slot{padding:18px 6px!important}section[data-page="centering"] .ct-measure-grid{grid-template-columns:minmax(0,1fr)!important}section[data-page="centering"] .ct-viewport{max-height:580px}}

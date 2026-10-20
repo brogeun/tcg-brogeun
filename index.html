@@ -690,6 +690,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/search-modal.css?v=20261014-mobile-art1">
 <link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
 <link rel="stylesheet" href="/assets/home-discovery.css?v=20260908-compact4">
+<link rel="stylesheet" href="/assets/centering-tool.css?v=20261021-v1">
+<script defer src="/assets/centering-geometry.js?v=20261021-v1"></script>
+<script defer src="/assets/centering-tool.js?v=20261021-v1"></script>
 </head>
 <body>
 <script>
@@ -2052,7 +2055,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div id="centeringMain" style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px">
         <div style="font-size:13px; color:#6b7280; margin-bottom:14px; line-height:1.7">
-          💡 <b>사용법</b>: 슬리브 없는 카드 정면 사진 (단색 배경 권장) — 앞면 + 뒷면 둘 다 업로드 → 자동 감지 후 핸들 조정 → 등급 측정
+          💡 <b>사용법</b>: 슬리브 없는 카드 정면 사진 (단색 배경 권장) — 앞·뒷면 사진 선택 → 네 모서리 확인 → 촬영 각도 보정 → 테두리 확인 → AI 분석<br>AI에는 표시선 없는 원본 기반 고해상도 사진을 사용합니다. 센터링은 경계를 확인한 뒤 계산합니다.
         </div>
         <!-- 앞/뒤 업로드 영역 -->
         <div id="centeringUploadArea" style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
@@ -2086,11 +2089,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
         <!-- 측정 영역 (앞/뒤 둘 다 업로드 후 표시) -->
         <div id="centeringWorkspace" style="display:none; margin-top:18px">
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px">
+          <div class="ct-measure-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px">
             <!-- 앞면 측정 -->
             <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center">
               <div style="font-size:12px; font-weight:800; color:#3b82f6; margin-bottom:8px; text-align:left">앞면</div>
-              <canvas data-centering-canvas="front" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas>
+              <div class="ct-viewport"><canvas data-centering-canvas="front" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas></div><div data-centering-controls="front"></div>
               <div style="margin-top:10px; font-size:12px; color:#374151; text-align:left">
                 좌/우: <span data-centering-lr="front">-</span> · <b data-centering-lrpct="front">-/-</b><br>
                 상/하: <span data-centering-tb="front">-</span> · <b data-centering-tbpct="front">-/-</b>
@@ -2099,7 +2102,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             <!-- 뒷면 측정 -->
             <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center">
               <div style="font-size:12px; font-weight:800; color:#10b981; margin-bottom:8px; text-align:left">뒷면</div>
-              <canvas data-centering-canvas="back" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas>
+              <div class="ct-viewport"><canvas data-centering-canvas="back" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas></div><div data-centering-controls="back"></div>
               <div style="margin-top:10px; font-size:12px; color:#374151; text-align:left">
                 좌/우: <span data-centering-lr="back">-</span> · <b data-centering-lrpct="back">-/-</b><br>
                 상/하: <span data-centering-tb="back">-</span> · <b data-centering-tbpct="back">-/-</b>
@@ -2110,11 +2113,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
           <!-- 등급 추정 + AI -->
           <div style="margin-top:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px">
             <div style="background:linear-gradient(135deg,#fef3c7,#fde68a); border:1px solid #fcd34d; border-radius:10px; padding:14px">
-              <div style="font-size:11px; font-weight:700; color:#92400e; margin-bottom:6px">🏆 앞면 추정 등급</div>
+              <div style="font-size:11px; font-weight:700; color:#92400e; margin-bottom:6px">앞면 센터링 참고 기준</div>
               <div data-centering-grades="front" style="font-size:13px; color:#78350f; line-height:1.7">-</div>
             </div>
             <div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe); border:1px solid #93c5fd; border-radius:10px; padding:14px">
-              <div style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:6px">🏆 뒷면 추정 등급</div>
+              <div style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:6px">뒷면 센터링 참고 기준</div>
               <div data-centering-grades="back" style="font-size:13px; color:#1e40af; line-height:1.7">-</div>
             </div>
           </div>
@@ -2125,6 +2128,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             </button>
             <button class="btn" type="button" onclick="resetCentering()" style="cursor:pointer; padding:10px 16px; font-size:12px">↻ 다른 카드</button>
           </div>
+          <p id="centeringReadyHint" class="ct-note" role="status">앞·뒷면의 카드 경계를 확인해 주세요.</p>
           <!-- AI 분석 결과 — CGA 스타일 (4개 sub-score + Final + AI Note) -->
           <div id="centeringAIResult" style="display:none; margin-top:14px">
             <!-- 4개 sub-score 그리드 (밝은 테마) -->
@@ -2152,7 +2156,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
             </div>
             <!-- Final score (밝은 테마) -->
             <div style="background:linear-gradient(135deg,#fef3c7,#fde68a); border-radius:12px; padding:18px; text-align:center; border:2px solid #f59e0b; margin-bottom:12px; box-shadow:0 2px 8px rgba(245,158,11,0.15)">
-              <div style="font-size:11px; font-weight:800; color:#92400e; letter-spacing:1px; margin-bottom:6px">🏆 AI FINAL SCORE</div>
+              <div style="font-size:11px; font-weight:800; color:#92400e; letter-spacing:1px; margin-bottom:6px">사진 기반 참고 점수</div>
               <div data-score="final" style="font-size:42px; font-weight:900; color:#78350f; line-height:1">-</div>
               <div data-score-grade="final" style="font-size:13px; font-weight:700; color:#92400e; margin-top:4px"></div>
             </div>
@@ -3944,571 +3948,12 @@ async function renderPsaPopBadge(productId) {
 }
 
 /* ─────────── 센터링 툴 (PSA/BGS 자가진단 + Gemini AI, 앞/뒤 동시) ─────────── */
-const _CENTERING = {
-  // side('front'|'back') → { img, naturalWidth, naturalHeight, outer, inner, scale, dragHandle }
-  front: { img: null, outer: null, inner: null, scale: 1, dragHandle: null },
-  back: { img: null, outer: null, inner: null, scale: 1, dragHandle: null },
-};
-
-function getAICenteringCount() {
-  const today = new Date().toISOString().slice(0, 10);
-  try {
-    const data = JSON.parse(localStorage.getItem('aiCenteringCount') || '{}');
-    return data.date === today ? (data.count || 0) : 0;
-  } catch { return 0; }
-}
-function incAICenteringCount() {
-  const today = new Date().toISOString().slice(0, 10);
-  const cur = getAICenteringCount();
-  localStorage.setItem('aiCenteringCount', JSON.stringify({ date: today, count: cur + 1 }));
-  updateAICenteringCountUI();
-}
-function updateAICenteringCountUI() {
-  // 테스트 기간 — 카운트 표시 안 함
-  const el = document.getElementById('centeringAICount');
-  if (el) el.textContent = '';
-}
-
-// 센터링 페이지 — 로그인 게이트 토글
-function applyCenteringLoginGate() {
-  const gate = document.getElementById('centeringLoginGate');
-  const main = document.getElementById('centeringMain');
-  if (!gate || !main) return;
-  const loggedIn = !!(typeof CURRENT_USER !== 'undefined' && CURRENT_USER);
-  gate.style.display = loggedIn ? 'none' : '';
-  main.style.display = loggedIn ? '' : 'none';
-}
-let _centeringPickerBusy = false;
-async function pickCenteringImage(side, source) {
-  const input = document.querySelector(`input[data-centering-file="${side}${source === 'camera' ? '-camera' : ''}"]`);
-  if (!input || _centeringPickerBusy) return;
-  const capacitor = window.Capacitor;
-  const camera = capacitor?.Plugins?.Camera;
-  if (!capacitor?.isNativePlatform?.() || !camera?.getPhoto) {
-    input.value = '';
-    input.click();
-    return;
-  }
-  _centeringPickerBusy = true;
-  try {
-    const photo = await camera.getPhoto({
-      source: source === 'camera' ? 'CAMERA' : 'PHOTOS',
-      resultType: 'dataUrl', quality: 95, correctOrientation: true, saveToGallery: false
-    });
-    if (!photo.dataUrl) throw new Error('사진을 불러오지 못했습니다.');
-    const blob = await (await fetch(photo.dataUrl)).blob();
-    await loadCenteringImage(side, new File([blob], `${side}.${photo.format || 'jpeg'}`, { type: blob.type || 'image/jpeg' }));
-  } catch (error) {
-    const message = String(error?.message || error || '');
-    const cancelled = /cancel|취소/i.test(message) || ['OS-PLUG-CAMR-0006', 'OS-PLUG-CAMR-0020'].includes(error?.code);
-    if (!cancelled && typeof showToast === 'function') showToast('사진을 열 수 없습니다. 사진·카메라 접근 권한을 확인해 주세요.', 'error');
-  } finally {
-    _centeringPickerBusy = false;
-  }
-}
-function setupCentering() {
-  applyCenteringLoginGate();
-  ['front', 'back'].forEach(side => {
-    const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
-    if (!slot) return;
-    const fileAlbum = document.querySelector(`input[data-centering-file="${side}"]`);
-    const fileCamera = document.querySelector(`input[data-centering-file="${side}-camera"]`);
-    const btnAlbum = document.querySelector(`button[data-centering-btn="${side}-album"]`);
-    const btnCamera = document.querySelector(`button[data-centering-btn="${side}-camera"]`);
-
-    [fileAlbum, fileCamera].forEach(input => {
-      if (!input) return;
-      input.onclick = e => e.stopPropagation();
-      input.onchange = e => { const f = e.target.files[0]; if (f) loadCenteringImage(side, f); };
-    });
-    if (btnAlbum) btnAlbum.onclick = e => { e.stopPropagation(); pickCenteringImage(side, 'album'); };
-    if (btnCamera) btnCamera.onclick = e => { e.stopPropagation(); pickCenteringImage(side, 'camera'); };
-
-    slot.ondragover = e => { e.preventDefault(); slot.style.borderColor = '#3b82f6'; };
-    slot.ondragleave = e => { slot.style.borderColor = '#d1d5db'; };
-    slot.ondrop = e => {
-      e.preventDefault(); slot.style.borderColor = '#d1d5db';
-      const f = e.dataTransfer.files[0];
-      if (f && f.type.startsWith('image/')) loadCenteringImage(side, f);
-    };
-    slot.onclick = e => {
-      if (!e.target.closest('button, input')) pickCenteringImage(side, 'album');
-    };
-  });
-
-  const aiBtn = document.getElementById('centeringAIBtn');
-  if (aiBtn) aiBtn.onclick = aiAnalyzeCentering;
-  updateAICenteringCountUI();
-}
-
-async function loadCenteringImage(side, file) {
-  // HEIC/HEIF (iPhone/iPad 기본 포맷) 자동 변환 → JPEG
-  const isHeic = /\.(heic|heif)$/i.test(file.name) || /heic|heif/i.test(file.type || '');
-  if (isHeic) {
-    if (typeof showToast === 'function') showToast('HEIC 이미지 변환 중...', 'info');
-    try {
-      // heic2any 라이브러리 동적 로드 (CDN)
-      if (!window.heic2any) {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
-          s.onload = resolve;
-          s.onerror = () => reject(new Error('heic2any 라이브러리 로드 실패'));
-          document.head.appendChild(s);
-        });
-      }
-      const blob = await window.heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
-      file = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' });
-    } catch (e) {
-      if (typeof showToast === 'function') showToast('HEIC 변환 실패: ' + (e.message || e) + ' — JPEG/PNG 로 저장 후 다시 시도하세요', 'error');
-      return;
-    }
-  }
-
-  const reader = new FileReader();
-  reader.onerror = () => {
-    if (typeof showToast === 'function') showToast('파일 읽기 실패: ' + (reader.error?.message || 'unknown'), 'error');
-  };
-  reader.onload = e => {
-    const img = new Image();
-    img.onerror = () => {
-      if (typeof showToast === 'function') showToast('이미지 인식 실패 — 파일 형식: ' + (file.type || '알 수 없음') + ', 크기: ' + (file.size/1024/1024).toFixed(2) + 'MB. JPEG/PNG/HEIC 만 지원', 'error');
-    };
-    img.onload = () => {
-      const s = _CENTERING[side];
-      s.img = img;
-      s.naturalWidth = img.naturalWidth;
-      s.naturalHeight = img.naturalHeight;
-      const margin = Math.round(Math.min(img.naturalWidth, img.naturalHeight) * 0.06);
-      s.outer = { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
-      s.inner = { x: margin, y: margin, w: img.naturalWidth - margin * 2, h: img.naturalHeight - margin * 2 };
-
-      // 파일 입력과 버튼을 유지해 재진입·재선택 때도 사용할 수 있게 한다.
-      const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
-      if (slot) {
-        slot.style.borderColor = side === 'front' ? '#3b82f6' : '#10b981';
-        slot.style.background = side === 'front' ? '#eff6ff' : '#ecfdf5';
-        const thumb = slot.querySelector(`[data-centering-thumb="${side}"]`);
-        if (thumb) {
-          thumb.style.display = '';
-          thumb.textContent = '✅ 업로드 완료 · 앨범/카메라로 다시 선택';
-        }
-      }
-
-      // 둘 다 업로드 됐는지 체크
-      if (_CENTERING.front.img && _CENTERING.back.img) {
-        document.getElementById('centeringWorkspace').style.display = '';
-        drawCentering('front');
-        drawCentering('back');
-      }
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function resetCentering() {
-  ['front', 'back'].forEach(side => {
-    _CENTERING[side] = { img: null, outer: null, inner: null, scale: 1, dragHandle: null };
-    const thumb = document.querySelector(`[data-centering-thumb="${side}"]`);
-    if (thumb) { thumb.style.display = 'none'; thumb.innerHTML = ''; }
-    const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
-    if (slot) { slot.style.borderColor = '#d1d5db'; slot.style.background = ''; }
-    const fa = document.querySelector(`input[data-centering-file="${side}"]`);
-    const fc = document.querySelector(`input[data-centering-file="${side}-camera"]`);
-    if (fa) fa.value = ''; if (fc) fc.value = '';
-  });
-  document.getElementById('centeringWorkspace').style.display = 'none';
-  document.getElementById('centeringAIResult').style.display = 'none';
-}
-
-function drawCentering(side) {
-  const s = _CENTERING[side];
-  const c = document.querySelector(`canvas[data-centering-canvas="${side}"]`);
-  if (!c || !s.img) return;
-  const wrap = c.parentElement;
-  const maxW = wrap.clientWidth - 24;
-  const maxH = 480;
-  const ratio = s.naturalWidth / s.naturalHeight;
-  let cw = maxW, ch = maxW / ratio;
-  if (ch > maxH) { ch = maxH; cw = ch * ratio; }
-  c.width = cw; c.height = ch;
-  s.scale = cw / s.naturalWidth;
-
-  const ctx = c.getContext('2d');
-  ctx.drawImage(s.img, 0, 0, cw, ch);
-
-  const o = scaleRect(s.outer, s.scale);
-  const i = scaleRect(s.inner, s.scale);
-  ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
-  ctx.strokeRect(o.x, o.y, o.w, o.h);
-  ctx.strokeStyle = '#3b82f6'; ctx.setLineDash([6, 4]);
-  ctx.strokeRect(i.x, i.y, i.w, i.h);
-  ctx.setLineDash([]);
-  drawHandles(ctx, o, '#ec4899');
-  drawHandles(ctx, i, '#3b82f6');
-
-  updateCenteringMetrics(side);
-}
-
-function scaleRect(r, s) { return { x: r.x * s, y: r.y * s, w: r.w * s, h: r.h * s }; }
-
-function drawHandles(ctx, r, color) {
-  const pts = [
-    [r.x, r.y], [r.x + r.w / 2, r.y], [r.x + r.w, r.y],
-    [r.x, r.y + r.h / 2],            [r.x + r.w, r.y + r.h / 2],
-    [r.x, r.y + r.h], [r.x + r.w / 2, r.y + r.h], [r.x + r.w, r.y + r.h],
-  ];
-  ctx.fillStyle = '#fff';
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  pts.forEach(([x, y]) => {
-    ctx.fillRect(x - 6, y - 6, 12, 12);
-    ctx.strokeRect(x - 6, y - 6, 12, 12);
-  });
-}
-
-function getHandleAt(side, x, y) {
-  const s = _CENTERING[side];
-  for (const target of ['inner', 'outer']) {
-    const r = scaleRect(s[target], s.scale);
-    const pts = {
-      tl: [r.x, r.y], t: [r.x + r.w / 2, r.y], tr: [r.x + r.w, r.y],
-      l: [r.x, r.y + r.h / 2], rr: [r.x + r.w, r.y + r.h / 2],
-      bl: [r.x, r.y + r.h], b: [r.x + r.w / 2, r.y + r.h], br: [r.x + r.w, r.y + r.h],
-    };
-    for (const [name, [px, py]] of Object.entries(pts)) {
-      if (Math.abs(x - px) <= 10 && Math.abs(y - py) <= 10) {
-        return { target, point: name };
-      }
-    }
-  }
-  return null;
-}
-
-function updateCenteringMetrics(side) {
-  const s = _CENTERING[side];
-  const o = s.outer, i = s.inner;
-  const left = i.x - o.x;
-  const right = (o.x + o.w) - (i.x + i.w);
-  const top = i.y - o.y;
-  const bottom = (o.y + o.h) - (i.y + i.h);
-  const lrTotal = left + right;
-  const tbTotal = top + bottom;
-  const lPct = lrTotal > 0 ? Math.round(left / lrTotal * 100) : 50;
-  const rPct = 100 - lPct;
-  const tPct = tbTotal > 0 ? Math.round(top / tbTotal * 100) : 50;
-  const bPct = 100 - tPct;
-  const pxPerMm = o.w / 63;
-  const lMm = (left / pxPerMm).toFixed(2);
-  const rMm = (right / pxPerMm).toFixed(2);
-  const tMm = (top / pxPerMm).toFixed(2);
-  const bMm = (bottom / pxPerMm).toFixed(2);
-
-  document.querySelector(`[data-centering-lr="${side}"]`).textContent = `${lMm}mm / ${rMm}mm`;
-  document.querySelector(`[data-centering-lrpct="${side}"]`).textContent = `${lPct}% / ${rPct}%`;
-  document.querySelector(`[data-centering-tb="${side}"]`).textContent = `${tMm}mm / ${bMm}mm`;
-  document.querySelector(`[data-centering-tbpct="${side}"]`).textContent = `${tPct}% / ${bPct}%`;
-
-  const worse = Math.max(Math.abs(50 - lPct), Math.abs(50 - tPct));
-  const grades = estimateGrades(worse);
-  document.querySelector(`[data-centering-grades="${side}"]`).innerHTML =
-    `PSA: <b>${grades.psa}</b> · BGS: <b>${grades.bgs}</b>`;
-
-  // 측정값 저장 (AI 분석에 보냄)
-  s.metrics = { lPct, rPct, tPct, bPct, lMm, rMm, tMm, bMm, grades };
-}
-
-function estimateGrades(worse) {
-  // worse = 50% 와의 차이 (%) — 0 = perfect, 5 = 55/45
-  const psa = worse <= 5 ? '10' : worse <= 10 ? '9' : worse <= 15 ? '8' : '7-';
-  const bgs = worse <= 5 ? '10 (Pristine)' : worse <= 7 ? '9.5' : worse <= 10 ? '9' : '8.5-';
-  return { psa, bgs };
-}
-
-function setupCenteringDrag() {
-  ['front', 'back'].forEach(side => {
-    const c = document.querySelector(`canvas[data-centering-canvas="${side}"]`);
-    if (!c) return;
-    c.onmousedown = e => {
-      const rect = c.getBoundingClientRect();
-      _CENTERING[side].dragHandle = getHandleAt(side, e.clientX - rect.left, e.clientY - rect.top);
-    };
-    c.onmousemove = e => {
-      const s = _CENTERING[side];
-      if (!s.dragHandle) return;
-      const rect = c.getBoundingClientRect();
-      moveHandle(side, s.dragHandle, (e.clientX - rect.left) / s.scale, (e.clientY - rect.top) / s.scale);
-      drawCentering(side);
-    };
-    c.onmouseup = () => { _CENTERING[side].dragHandle = null; };
-    c.onmouseleave = () => { _CENTERING[side].dragHandle = null; };
-    c.ontouchstart = e => {
-      const t = e.touches[0]; const rect = c.getBoundingClientRect();
-      _CENTERING[side].dragHandle = getHandleAt(side, t.clientX - rect.left, t.clientY - rect.top);
-    };
-    c.ontouchmove = e => {
-      const s = _CENTERING[side];
-      if (!s.dragHandle) return;
-      e.preventDefault();
-      const t = e.touches[0]; const rect = c.getBoundingClientRect();
-      moveHandle(side, s.dragHandle, (t.clientX - rect.left) / s.scale, (t.clientY - rect.top) / s.scale);
-      drawCentering(side);
-    };
-    c.ontouchend = () => { _CENTERING[side].dragHandle = null; };
-  });
-}
-
-function moveHandle(side, handle, x, y) {
-  const r = _CENTERING[side][handle.target];
-  const right = r.x + r.w, bottom = r.y + r.h;
-  switch (handle.point) {
-    case 'tl': r.w = right - x; r.h = bottom - y; r.x = x; r.y = y; break;
-    case 't': r.h = bottom - y; r.y = y; break;
-    case 'tr': r.w = x - r.x; r.h = bottom - y; r.y = y; break;
-    case 'l': r.w = right - x; r.x = x; break;
-    case 'rr': r.w = x - r.x; break;
-    case 'bl': r.w = right - x; r.h = y - r.y; r.x = x; break;
-    case 'b': r.h = y - r.y; break;
-    case 'br': r.w = x - r.x; r.h = y - r.y; break;
-  }
-  if (r.w < 10) r.w = 10;
-  if (r.h < 10) r.h = 10;
-}
-
-async function aiAnalyzeCentering() {
-  if (typeof CURRENT_USER === 'undefined' || !CURRENT_USER) {
-    if (typeof openLoginModal === 'function') openLoginModal('AI 분석은 로그인 후 이용 가능합니다');
-    return;
-  }
-  if (!_CENTERING.front.img || !_CENTERING.back.img) {
-    alert('앞면 + 뒷면 이미지 둘 다 업로드해야 AI 분석 가능합니다.');
-    return;
-  }
-  // 테스트 기간 — 한도 제한 없음
-  const btn = document.getElementById('centeringAIBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳ AI 분석 중... (10~20초)';
-
-  // 두 캔버스 → 작게 리사이즈 (max 768px) → base64
-  // 데스크톱에서 큰 캔버스 그대로 보내면 Groq payload 크기 초과/시간 초과 발생
-  const toResizedJpeg = (srcCanvas, maxDim = 768, quality = 0.82) => {
-    const sw = srcCanvas.width, sh = srcCanvas.height;
-    const scale = Math.min(1, maxDim / Math.max(sw, sh));
-    const dw = Math.round(sw * scale), dh = Math.round(sh * scale);
-    const tmp = document.createElement('canvas');
-    tmp.width = dw; tmp.height = dh;
-    const ctx = tmp.getContext('2d');
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(srcCanvas, 0, 0, dw, dh);
-    return tmp.toDataURL('image/jpeg', quality).split(',')[1];
-  };
-  const frontCanvas = document.querySelector('canvas[data-centering-canvas="front"]');
-  const backCanvas = document.querySelector('canvas[data-centering-canvas="back"]');
-  const frontB64 = toResizedJpeg(frontCanvas);
-  const backB64 = toResizedJpeg(backCanvas);
-  console.log(`[ai] front ${(frontB64.length / 1024).toFixed(0)}KB, back ${(backB64.length / 1024).toFixed(0)}KB`);
-
-  const frontMetrics = _CENTERING.front.metrics || {};
-  const backMetrics = _CENTERING.back.metrics || {};
-
-  try {
-    const r = await fetch('/api/centering-ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        frontImage: frontB64,
-        backImage: backB64,
-        frontMetrics,
-        backMetrics,
-      }),
-    });
-    const fullErrText = !r.ok ? await r.text() : null;
-    if (!r.ok) {
-      // 422 = 비카드 이미지 (정상 흐름의 거부) — 횟수 차감 X, 안내만
-      if (r.status === 422) {
-        let errData = {};
-        try { errData = JSON.parse(fullErrText); } catch {}
-        const wrap = document.getElementById('centeringAIResult');
-        wrap.style.display = '';
-        const detailHint = errData.detail
-          ? `\n\n--- AI 원본 응답 ---\n${String(errData.detail).slice(0, 500)}`
-          : '';
-        wrap.querySelector('#centeringAIText').textContent =
-          (errData.message || '⚠️ 카드가 아닌 이미지로 인식되었습니다. 카드 사진을 다시 업로드해주세요.') + detailHint;
-        return;
-      }
-      // 503 = 모든 AI 공급자 실패 (일시적 오류) — 차감 X
-      if (r.status === 503) {
-        let errData = {};
-        try { errData = JSON.parse(fullErrText); } catch {}
-        const wrap = document.getElementById('centeringAIResult');
-        wrap.style.display = '';
-        const trail = (errData.debug_trail || []).join('\n  · ');
-        wrap.querySelector('#centeringAIText').textContent =
-          `⏳ ${errData.message || 'AI 분석 일시 중단'}\n\n잠시 후 다시 시도해주세요.\n\n--- 진단 정보 ---\n  · ${trail || '없음'}`;
-        return;
-      }
-      // 504 = timeout, 502 = bad gateway, 502 = OpenAI 측 오류
-      if (r.status === 504 || r.status === 502) {
-        const wrap = document.getElementById('centeringAIResult');
-        wrap.style.display = '';
-        let msg = '';
-        try { msg = JSON.parse(fullErrText).message || ''; } catch {}
-        wrap.querySelector('#centeringAIText').textContent =
-          msg || '⏰ AI 응답 지연. 잠시 후 다시 시도해주세요.';
-        return;
-      }
-      console.error('[ai] full error response:', fullErrText);
-      throw new Error(`API ${r.status}: ${fullErrText}`);
-    }
-    const d = await r.json();
-    // Backend 가 Cloudflare 의 502 HTML overlay 를 회피하려고 에러도 status 200 으로 wrap 함 — error 필드 확인
-    if (d.error) {
-      console.error('[ai] backend error:', d);
-      const wrap = document.getElementById('centeringAIResult');
-      wrap.style.display = '';
-      let msg = d.message || `❌ 에러: ${d.error}`;
-      if (d.upstreamStatus) msg += `\n\n(OpenAI 응답 코드: ${d.upstreamStatus})`;
-      if (d.detail) msg += `\n\n--- 상세 ---\n${String(d.detail).slice(0, 1000)}`;
-      wrap.querySelector('#centeringAIText').textContent = msg;
-      return;
-    }
-    incAICenteringCount();
-    // provider 정보를 화면에 작게 표시 (디버깅 + 사용자 확인용)
-    const wrap = document.getElementById('centeringAIResult');
-    wrap.style.display = '';
-    let providerEl = wrap.querySelector('#aiProviderTag');
-    if (!providerEl) {
-      providerEl = document.createElement('div');
-      providerEl.id = 'aiProviderTag';
-      providerEl.style.cssText = 'font-size:10px; color:#9ca3af; text-align:right; margin-top:8px; white-space:pre-wrap';
-      wrap.appendChild(providerEl);
-    }
-    let providerText = `⚙️ AI: ${d.provider || 'unknown'}`;
-    if (d.debug_trail && d.debug_trail.length) {
-      providerText += `\n진단: ${d.debug_trail.join(' | ')}`;
-    }
-    providerEl.textContent = providerText;
-    renderAICenteringResult(d.text || '');
-  } catch (e) {
-    console.error('[ai] failure:', e);
-    // 풀 에러 메시지 화면에 표시 (알럿 잘림 X)
-    const wrap = document.getElementById('centeringAIResult');
-    wrap.style.display = '';
-    wrap.querySelector('#centeringAIText').textContent = `❌ AI 분석 실패\n\n${e.message}\n\n(콘솔에서 전문 확인 가능)`;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8"></span>`;
-  }
-}
-
-// AI 응답 파싱 — [점수] / [분석] 섹션을 추출해서 4개 sub-score + final + analysis 로 렌더
-function renderAICenteringResult(text) {
-  const wrap = document.getElementById('centeringAIResult');
-  if (!wrap) return;
-  wrap.style.display = '';
-
-  // 점수 추출 — 다양한 라벨 시도 (한/영, **bold**, 콜론 변형 모두 지원)
-  const scoreMatch = (label) => {
-    // **Label:** 9.5, Label: 9.5, Label : 9.5, Label：9.5 등 모두 지원
-    const re = new RegExp(`\\*{0,2}\\s*${label}\\s*\\*{0,2}\\s*[:：]\\s*(\\d{1,2}(?:\\.\\d)?)`, 'i');
-    const m = text.match(re);
-    return m ? parseFloat(m[1]) : null;
-  };
-  const scores = {
-    centering: scoreMatch('센터링') ?? scoreMatch('Centering'),
-    corners:   scoreMatch('모서리') ?? scoreMatch('Corners'),
-    edges:     scoreMatch('엣지')   ?? scoreMatch('Edges'),
-    surface:   scoreMatch('표면')   ?? scoreMatch('Surface'),
-    final:     scoreMatch('종합')   ?? scoreMatch('Final')   ?? scoreMatch('최종') ?? scoreMatch('Overall'),
-  };
-  // 영어 응답 fallback — "PSA grade of 10", "PSA 10", "PSA10 (or higher)" 같은 패턴에서 final 추정
-  if (scores.final == null) {
-    const psaMatch = text.match(/PSA[\s_-]*(?:grade[\s_]*of[\s_]*)?(\d{1,2}(?:\.\d)?)/i);
-    if (psaMatch) {
-      const psa = parseFloat(psaMatch[1]);
-      if (psa >= 1 && psa <= 10) scores.final = psa;
-    }
-  }
-  // 종합 점수 누락 시 4 sub-score 의 가중 평균으로 자동 계산 (센터링 30 + 모서리 30 + 엣지 20 + 표면 20)
-  if (scores.final == null && scores.centering != null && scores.corners != null && scores.edges != null && scores.surface != null) {
-    const w = scores.centering * 0.3 + scores.corners * 0.3 + scores.edges * 0.2 + scores.surface * 0.2;
-    scores.final = Math.round(w * 2) / 2; // 0.5 단위 반올림
-  }
-  // 모든 점수가 null 이면 → 응답이 형식 어긋남 (echo / 빈 응답 등)
-  const allNull = !scores.centering && !scores.corners && !scores.edges && !scores.surface && !scores.final;
-  if (allNull) {
-    document.getElementById('centeringAIText').textContent =
-      `⚠️ AI 응답이 형식에 맞지 않아 점수를 추출할 수 없습니다.\n\n다시 시도하거나, 카드 사진이 선명한지 확인해주세요.\n\n--- AI 원본 응답 ---\n${text || '(빈 응답)'}`;
-    // 점수 박스는 - 로 유지
-    return;
-  }
-
-  // 분석 본문 추출 — [분석] 이후, [참고] 이전
-  let analysis = '';
-  const analysisMatch = text.match(/\[\s*분석\s*\]([\s\S]+?)(?:\[\s*참고\s*\]|$)/);
-  if (analysisMatch) analysis = analysisMatch[1].trim();
-  // [분석] 마커 없으면 [점수] 블록 이후 모든 텍스트
-  if (!analysis) {
-    const afterScores = text.replace(/\[\s*점수\s*\][\s\S]*?(?=\n\n|\n\[)/, '').trim();
-    analysis = afterScores;
-  }
-  // 마크다운 굵게 ** 제거 (LLM 이 가끔 무시함)
-  analysis = analysis.replace(/\*\*/g, '').replace(/\[\s*분석\s*\]/g, '').trim();
-
-  // 점수 표시 — 색상 코딩 (10=green, 9~9.5=light green, 8~8.5=yellow, <8=red)
-  const colorFor = v => {
-    if (v == null) return '#6b7280';
-    if (v >= 9.5) return '#10b981';
-    if (v >= 8.5) return '#84cc16';
-    if (v >= 7.5) return '#eab308';
-    if (v >= 6.5) return '#f97316';
-    return '#ef4444';
-  };
-  for (const [k, v] of Object.entries(scores)) {
-    const el = wrap.querySelector(`[data-score="${k}"]`);
-    if (!el) continue;
-    el.textContent = (v != null) ? v.toFixed(1) : '-';
-    el.style.color = k === 'final' ? '#fff' : colorFor(v);
-  }
-  // final 박스 색상 + 등급 라벨
-  const finalEl = wrap.querySelector('[data-score="final"]');
-  if (finalEl && scores.final != null) {
-    const finalBox = finalEl.parentElement;
-    const c = colorFor(scores.final);
-    finalEl.style.color = c;
-    finalBox.style.background = `linear-gradient(135deg, ${c}15, ${c}35)`;
-    finalBox.style.borderColor = c;
-    // PSA 등급 라벨 매핑
-    const gradeEl = wrap.querySelector('[data-score-grade="final"]');
-    if (gradeEl) {
-      let grade = '';
-      if (scores.final >= 9.75) grade = '🏆 PSA 10 GEM MINT 가능';
-      else if (scores.final >= 9.0) grade = '✅ PSA 9 MINT 권장';
-      else if (scores.final >= 8.0) grade = '⚪ PSA 8 NM-MT';
-      else if (scores.final >= 7.0) grade = '⚠️ PSA 7 NM';
-      else grade = '❌ 그레이딩 비추천';
-      gradeEl.textContent = grade;
-      gradeEl.style.color = c;
-    }
-  }
-  // 분석
-  document.getElementById('centeringAIText').textContent = analysis || text;
-}
-
-// 페이지 진입 시 셋업
-document.addEventListener('DOMContentLoaded', () => {
-  setupCentering();
-  setupCenteringDrag();
-});
-// SPA 라우팅 시 (page=centering 진입) 도 셋업
-window.addEventListener('hashchange', () => {
-  if (location.hash.includes('centering')) {
-    setTimeout(() => { setupCentering(); setupCenteringDrag(); updateAICenteringCountUI(); }, 100);
-  }
-});
+// Centering UI is loaded independently so display size never controls AI image quality.
+function setupCentering(){window.CenteringTool?.setup();}
+function setupCenteringDrag(){}
+function updateAICenteringCountUI(){}
+function applyCenteringLoginGate(){window.CenteringTool?.setup();}
+function resetCentering(){window.CenteringTool?.reset();}
 
 /* ─────────── 봉입 박스 섹션 (STEP E) ─────────── */
 // 이름에서 [세트코드 번호] 패턴 추출 — 예: "리자몽 ex [M2a 246]" → "M2a"

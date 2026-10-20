@@ -3,7 +3,7 @@ backfill_card_history.py — 카드 등급별 가격 + 통합 거래량 풀백�
 
 SNKRDUNK API 분석 (검증 완료):
 - /v1/apparels/{cid}/sales-chart/used?range=all&salesChartOptionId={ID}
-  → 등급별 일별 단가 점들. PSA10=22, PSA9=23, raw(D, 미개봉)=18
+  → 등급별 일별 단가 점들. PSA10=22, PSA9=23, A(raw)=18
 - /v1/apparels/{cid}/sales-history?page=N&per_page=100
   → 모든 거래. salesChartOptionId 무시함 → 등급 통합. 일별 거래량 + outlier-median 단가.
 
@@ -27,11 +27,13 @@ import sys
 import tempfile
 import time
 import urllib.request
+from urllib.parse import urlsplit
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = ROOT / "data"
 HISTORY_DIR = ROOT / "data" / "history"
 
 UA = (
@@ -40,7 +42,7 @@ UA = (
 )
 
 # SNKRDUNK 의 sales-chart/used?salesChartOptionId={ID} 등급 매핑
-# 옛 코드 기준: 18=raw(D, 미개봉), 22=PSA10, 23=PSA9
+# 공식 salesChartOption: 18=A(raw), 22=PSA10, 23=PSA9
 # BGS (cid 671486 으로 검증): 25=BGS10 BL(Black Label), 26=BGS10 GL(Gold Label), 27=BGS9.5
 # 검증: 풀백필 후 PSA10 > PSA9 > raw, BGS10 BL > BGS10 GL > BGS9.5 자연스러운지 가격 갭 보면 됨
 GRADE_OPTION_IDS = {
@@ -51,6 +53,9 @@ GRADE_OPTION_IDS = {
     "bgs10_gl": 26,
     "bgs95":    27,
 }
+# Verified from official 671486 option25 metadata; never infer labels from prices.
+GRADE_OPTION_LABELS = {18: 'A', 22: 'PSA10', 23: 'PSA9',
+                       25: 'BGS10 BL', 26: 'BGS10 GL', 27: 'BGS9.5'}
 
 
 class CollectionError(ValueError):
@@ -73,12 +78,27 @@ def source_json(url):
 
 def fetch_chart_grade(cid, opt_id):
     """sales-chart/used + 옵션 ID → {date: price} (일별 단가, SNKRDUNK 자체 산출)"""
+    if type(opt_id) is not int or opt_id not in GRADE_OPTION_LABELS:
+        raise CollectionError('Unsupported requested grade option for ' + str(cid))
     url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart/used"
            f"?range=all&salesChartOptionId={opt_id}")
     d = source_json(url)
     points = d.get("points")
     if not isinstance(points, list):
         raise CollectionError('Missing chart points array for ' + str(cid) + '/' + str(opt_id))
+    choices = d.get('salesChartOption')
+    if not isinstance(choices, list):
+        raise CollectionError('Missing chart option array for ' + str(cid) + '/' + str(opt_id))
+    labels = {}
+    for choice in choices:
+        if (not isinstance(choice, dict) or type(choice.get('id')) is not int
+                or not isinstance(choice.get('localizedName'), str) or not choice['localizedName'].strip()
+                or choice['id'] in labels):
+            raise CollectionError('Malformed or duplicate chart option for ' + str(cid) + '/' + str(opt_id))
+        labels[choice['id']] = choice['localizedName']
+    if ((points or opt_id in labels) and labels.get(opt_id) != GRADE_OPTION_LABELS[opt_id]):
+        raise CollectionError('Nonempty/mismatched chart without exact requested grade label for '
+                              + str(cid) + '/' + str(opt_id))
     by_date = {}
     for p in points:
         if not isinstance(p, list) or len(p) < 2:
@@ -190,6 +210,131 @@ def is_card_history(history):
     return False
 
 
+def explicit_non_graded_reason(row):
+    """Saved type/category evidence only; product names are never classification."""
+    if not isinstance(row, dict):
+        return None
+    kind = str(row.get('kind') or '').strip().lower()
+    categories = {str(row.get('categoryId'))} if row.get('categoryId') is not None else set()
+    if isinstance(row.get('categories'), list):
+        categories.update(str(item.get('id')) for item in row['categories'] if isinstance(item, dict))
+    if (kind == 'box' or '14' in categories) and '25' not in categories:
+        return 'explicit-box'
+    if kind == 'card' and str(row.get('packaging') or '').lower() == 'sealed':
+        return 'explicit-sealed-card'
+    return None
+
+
+def collect_non_graded_products():
+    """Match primary collection's explicit lists/catalogues, without browser imports."""
+    paths = set()
+    for pattern in ('top10-*.json', 'price-*.json', 'manual-boxes-*.json'):
+        paths.update(DATA_DIR.glob(pattern))
+    paths.update(DATA_DIR / name for name in ('cards-meta.json', 'cards-meta-index.json', 'all-cards.json',
+                                             'cards-detail.json', 'futuristic-market.json', 'anniversary-market.json'))
+    found = {}
+
+    def accept(row, key=None, box_list=False):
+        if not isinstance(row, dict):
+            return
+        cid = str(row.get('id') or key or '')
+        if not re.fullmatch(r'[1-9][0-9]*', cid) or (key is not None and str(key) != cid):
+            return
+        reason = explicit_non_graded_reason(row)
+        if reason:
+            found[cid] = reason
+        if box_list:
+            found[cid] = 'explicit-box-list'
+
+    for path in sorted(paths):
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_bytes())
+        except Exception as error:
+            raise CollectionError('Cannot read product classification ' + path.name) from error
+        if not isinstance(payload, dict):
+            continue
+        box_list = bool(re.fullmatch(r'(?:manual-boxes-(?:pokemon|onepiece)|price-(?:pokemon|onepiece)-box)\.json', path.name))
+        for field in ('products', 'cards', 'details', 'boxes'):
+            rows = payload.get(field)
+            if isinstance(rows, list):
+                for row in rows:
+                    if field == 'boxes' and type(row) in (str, int):
+                        accept({'id': row}, box_list=True)
+                    else:
+                        accept(row, box_list=box_list or field == 'boxes')
+            elif isinstance(rows, dict):
+                for cid, row in rows.items():
+                    accept(row, cid, box_list=box_list or field == 'boxes')
+        for cid, row in payload.items():
+            if str(cid).isdigit():
+                accept(row, cid, box_list=box_list)
+        verified_boxes = payload.get('collection', {}).get('verifiedBoxIds', []) if isinstance(payload.get('collection'), dict) else []
+        if not isinstance(verified_boxes, list):
+            raise CollectionError('Malformed verified box IDs in ' + path.name)
+        for cid in verified_boxes:
+            if type(cid) not in (str, int) or not re.fullmatch(r'[1-9][0-9]*', str(cid)):
+                raise CollectionError('Invalid verified box ID in ' + path.name)
+            found[str(cid)] = 'verified-box-id'
+    found.update(verified_scope_exclusions())
+    return found
+
+
+def verified_scope_exclusions():
+    """Reuse only the index's explicit, officially evidenced non-single reason."""
+    policy = DATA_DIR / 'market-price-index-dynamic-policy.json'
+    if not policy.is_file():
+        return {}
+    try:
+        scope_path = json.loads(policy.read_bytes()).get('scope', {}).get('exclusionsSourcePath')
+        if scope_path is None:
+            return {}
+        relative = Path(scope_path)
+        if relative.is_absolute() or not relative.parts or relative.parts[0] != 'data':
+            raise CollectionError('Scope exclusions must remain within data')
+        path = (DATA_DIR / Path(*relative.parts[1:])).resolve()
+        if not path.is_relative_to(DATA_DIR.resolve()):
+            raise CollectionError('Scope exclusions must remain within data')
+        document = json.loads(path.read_bytes())
+        if (not isinstance(document, dict) or document.get('schemaVersion') != 1
+                or document.get('reportKind') != 'card-index-platform-scope-exclusions'
+                or document.get('source') != 'SNKRDUNK' or not isinstance(document.get('exclusions'), list)):
+            raise CollectionError('Invalid verified scope-exclusion contract')
+        found = {}
+        for row in document['exclusions']:
+            if not isinstance(row, dict):
+                raise CollectionError('Invalid scope-exclusion record')
+            if row.get('reason') != 'verified-not-single':
+                continue
+            cid = row.get('productId')
+            url = urlsplit(str(row.get('evidenceUrl', '')))
+            if (not isinstance(cid, str) or not re.fullmatch(r'[1-9][0-9]*', cid) or cid in found
+                    or row.get('appliesTo') != 'all-observed-history'
+                    or not isinstance(row.get('evidence'), str) or not row['evidence'].strip()
+                    or url.scheme != 'https' or url.hostname != 'snkrdunk.com' or not url.path
+                    or datetime.strptime(row.get('verifiedAt', ''), '%Y-%m-%d').date() > datetime.now(timezone.utc).date()):
+                raise CollectionError('Invalid officially verified non-single exclusion')
+            found[cid] = 'verified-not-single'
+        return found
+    except CollectionError:
+        raise
+    except Exception as error:
+        raise CollectionError('Cannot read verified scope exclusions') from error
+
+
+def is_box_only_history(history):
+    """A positive saved box quote with no card-grade/raw fields is box evidence."""
+    has_box_quote = False
+    for row in history:
+        if any(key.endswith('_price') and key not in ('box_price', 'total_price') for key in row):
+            return False
+        price = row.get('box_price')
+        if type(price) in (int, float) and math.isfinite(price) and price > 0:
+            has_box_quote = True
+    return has_box_quote
+
+
 def atomic_history(path, payload, original):
     """Replace only after all source calls succeeded; retain exact old bytes on error."""
     raw = json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False).encode('utf-8')
@@ -255,6 +400,12 @@ def main():
     # 카드 ID 추출 — history 폴더에서 카드 history 만
     targets = []
     read_failures = 0
+    skipped_non_graded = defaultdict(int)
+    try:
+        non_graded = collect_non_graded_products()
+    except CollectionError as error:
+        print('::error::' + str(error) + '; existing history retained')
+        return 1
     only_ids_set = set(only_ids) if only_ids else None
     for f in sorted(HISTORY_DIR.glob("*.json")):
         cid = f.stem
@@ -272,7 +423,13 @@ def main():
                     raise CollectionError('Existing history has malformed/duplicate dated rows')
                 datetime.strptime(row['date'], '%Y-%m-%d')
                 seen_dates.add(row['date'])
-            # only_ids 명시 시 카드/박스 가리지 않고 처리 (강제 카드로 재백필)
+            reason = non_graded.get(cid) or explicit_non_graded_reason(d)
+            if reason is None and is_box_only_history(history):
+                reason = 'saved-box-only-history'
+            if reason:
+                skipped_non_graded[reason] += 1
+                continue  # IDs/--fresh must not force non-graded products through grade APIs.
+            # Explicit IDs still include ambiguous/unknown products, as before.
             if only_ids_set or is_card_history(history):
                 # resume 모드 — 이미 valid 한 JSON 이면 skip (only_ids 없을 때만 의미)
                 if resume and not only_ids_set:
@@ -286,7 +443,7 @@ def main():
     if batch_of > 1:
         targets = targets[batch_n::batch_of]
         print(f"[배치] {batch_n + 1}/{batch_of} 만 처리 (스트라이드)")
-    print(f"카드 history 파일: {len(targets)} 개\n")
+    print(f"카드 history 파일: {len(targets)} 개 / 등급 대상 제외: {dict(skipped_non_graded)}\n")
     success = 0
     unchanged = 0
     fail = read_failures

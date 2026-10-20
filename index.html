@@ -2611,7 +2611,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/admin-editor.css?v=20260907-admin2">
 <script src="/assets/admin-editor.js?v=20260907-admin2"></script>
 <link rel="stylesheet" href="/assets/portfolio-screen.css?v=20260907-pf8-release">
-<script src="/assets/portfolio-screen.js?v=20260907-favorites1"></script>
+<script src="/assets/portfolio-screen.js?v=20261020-chart2"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
 <script>
 "use strict";
@@ -2654,6 +2654,7 @@ function go(pageOrPath) {
   if (target) target.classList.add('active');
   // body 에 현재 페이지 표시 (CSS 셀렉터용)
   document.body.dataset.page = page;
+  if (page !== 'portfolio') window.PortfolioScreen?.cancelChart();
   // 네비 활성화 (사이드바 + 모바일)
   document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.nav === page);
@@ -2744,6 +2745,8 @@ window.addEventListener('popstate', e => {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const target = document.querySelector(`.page[data-page="${page}"]`);
   if (target) target.classList.add('active');
+  document.body.dataset.page = page;
+  if (page !== 'portfolio') window.PortfolioScreen?.cancelChart();
   document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.nav === page);
   });
@@ -9615,44 +9618,90 @@ async function fetchCardMeta(cardId) {
 }
 
 let _PF_OWNER_ID = null;
-async function refreshPortfolio() {
+let _PF_SESSION_OWNER = null;
+let _PF_REFRESH_RUN = 0;
+let _PF_REFRESH_WORK = null;
+let _PF_REFRESH_USER = null;
+function syncPortfolioOwner() {
+  const owner = CURRENT_USER ? String(CURRENT_USER.id) : null;
+  if (owner === _PF_SESSION_OWNER) return;
+  _PF_SESSION_OWNER = owner;
+  _PF_OWNER_ID = null;
+  _PF_REFRESH_RUN++;
+  _PF_REFRESH_WORK = null;
+  _PF_REFRESH_USER = null;
+  _HOME_ASSET_RUN++;
+  HOLDINGS = []; WATCHLIST = []; PSA_CERTS = [];
+  window.PortfolioScreen?.cancelChart({clear: true});
+}
+function refreshPortfolio({force = false} = {}) {
+  syncPortfolioOwner();
   const userAtStart = CURRENT_USER;
   const gate = document.getElementById('pfLoginGate');
   const main = document.getElementById('pfMain');
-  if (!CURRENT_USER) {
+  if (!userAtStart) {
     gate.style.display = '';
     main.style.display = 'none';
-    return;
+    return Promise.resolve();
   }
   gate.style.display = 'none';
   main.style.display = '';
-  if (_PF_OWNER_ID !== CURRENT_USER.id && window.PortfolioScreen) {
-    _PF_OWNER_ID = CURRENT_USER.id;
-    HOLDINGS = []; WATCHLIST = []; PSA_CERTS = [];
-    renderHoldings(); renderWatchlist(); renderAggChart(); renderDistributionCharts();
+  // Navigation/auth notifications share the entire in-flight refresh, including rendering.
+  if (!force && _PF_REFRESH_WORK && _PF_REFRESH_USER === userAtStart) return _PF_REFRESH_WORK;
+  const run = ++_PF_REFRESH_RUN;
+  const current = () => run === _PF_REFRESH_RUN && CURRENT_USER === userAtStart;
+  const visible = () => document.body.dataset.page === 'portfolio';
+  if (force) {
+    // A successful mutation must not join an older read or be overwritten by its response.
+    _PORTFOLIO_READY = null;
+    _PORTFOLIO_USER = null;
+    _HOME_ASSET_RUN++;
+    window.PortfolioScreen?.cancelChart();
   }
-  if (window.PortfolioScreen) PortfolioScreen.status('포트폴리오를 불러오는 중입니다.');
-  const data = await loadPortfolio();
-  if (CURRENT_USER !== userAtStart) return;
-  if (!data) { if (window.PortfolioScreen) PortfolioScreen.status('데이터를 불러오지 못했습니다. 다시 접속해 주세요.',true); return; }
-  HOLDINGS = data.holdings || [];
-  WATCHLIST = data.watchlists || [];
-  window.CardFavorites?.sync();
-  PSA_CERTS = data.psa_certs || [];
-  await ensureBoxIdSet(); // 박스/카드 판별용 — PSA Cert# 입력란 차단
-
-  document.getElementById('pfHoldCount').textContent = HOLDINGS.length;
-  document.getElementById('pfWatchCount').textContent = WATCHLIST.length;
-
-  // 메타 미리 로드
-  const cardIds = new Set([...HOLDINGS, ...WATCHLIST].map(row => String(row.card_id)));
-  await Promise.all([...cardIds].map(id => loadCardMeta(id)));
-  if (CURRENT_USER !== userAtStart) return;
-  if (window.PortfolioScreen) PortfolioScreen.status('');
-  renderHoldings();
-  renderWatchlist();
-  renderAggChart();
-  renderDistributionCharts();
+  if (_PF_OWNER_ID !== userAtStart.id && window.PortfolioScreen) {
+    _PF_OWNER_ID = userAtStart.id;
+    if (visible()) { renderHoldings(); renderWatchlist(); renderDistributionCharts(); }
+  }
+  if (visible()) window.PortfolioScreen?.status('포트폴리오를 불러오는 중입니다.');
+  const pending = (async () => {
+    const data = await (force ? fetchPortfolio() : loadPortfolio());
+    if (!current()) return;
+    if (!data) {
+      if (visible()) window.PortfolioScreen?.status('데이터를 불러오지 못했습니다. 다시 접속해 주세요.', true);
+      return;
+    }
+    const holdings = data.holdings || [];
+    const watchlists = data.watchlists || [];
+    HOLDINGS = holdings;
+    WATCHLIST = watchlists;
+    PSA_CERTS = data.psa_certs || [];
+    window.CardFavorites?.sync();
+    await ensureBoxIdSet();
+    if (!current()) return;
+    if (visible()) {
+      document.getElementById('pfHoldCount').textContent = holdings.length;
+      document.getElementById('pfWatchCount').textContent = watchlists.length;
+    }
+    const cardIds = new Set([...holdings, ...watchlists].map(row => String(row.card_id)));
+    await Promise.all([...cardIds].map(id => loadCardMeta(id)));
+    if (!current()) return;
+    if (!visible()) {
+      if (document.body.dataset.page === 'home') renderHomeAsset();
+      return;
+    }
+    window.PortfolioScreen?.status('');
+    renderHoldings();
+    renderWatchlist();
+    renderDistributionCharts();
+    renderAggChart();
+  })().catch(() => {
+    if (current() && visible()) window.PortfolioScreen?.status('데이터를 불러오지 못했습니다. 다시 접속해 주세요.', true);
+  }).finally(() => {
+    if (_PF_REFRESH_WORK === pending) { _PF_REFRESH_WORK = null; _PF_REFRESH_USER = null; }
+  });
+  _PF_REFRESH_WORK = pending;
+  _PF_REFRESH_USER = userAtStart;
+  return pending;
 }
 
 function renderHoldings() {
@@ -9868,7 +9917,7 @@ window.navDetailTo = function(cardId) {
 async function removeHoldingApi(id) {
   if (!confirm('이 카드를 포트폴리오에서 삭제할까요?')) return;
   const r = await fetch(`/api/portfolio/holding/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (r.ok) { showToast('삭제되었습니다', 'info'); refreshPortfolio(); }
+  if (r.ok) { showToast('삭제되었습니다', 'info'); refreshPortfolio({force: true}); }
   else showToast('삭제 실패', 'error');
 }
 
@@ -9898,7 +9947,7 @@ window.registerPsaCert = async function(holdingId, cardId, expectedGrade) {
   const onSuccess = (data) => {
     closePsaCertPopup();
     showToast(data.message || '✅ 인증 완료', 'success');
-    refreshPortfolio();
+    refreshPortfolio({force: true});
   };
   const onFail = (r, data) => {
     closePsaCertPopup();
@@ -10068,18 +10117,19 @@ window.registerBgsCert = async function(cardId, inpId) {
 window.removePsaCert = async function(certId) {
   if (!confirm('이 Cert 등록을 제거할까요? (POP 카운트도 차감됨)')) return;
   const r = await fetch(`/api/psa/cert/${certId}`, { method: 'DELETE', credentials: 'include' });
-  if (r.ok) { showToast('제거되었습니다', 'info'); refreshPortfolio(); }
+  if (r.ok) { showToast('제거되었습니다', 'info'); refreshPortfolio({force: true}); }
   else showToast('제거 실패', 'error');
 };
 
 async function removeWatchlistApi(id) {
   const r = await fetch(`/api/portfolio/watchlist/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (r.ok) { WATCHLIST = WATCHLIST.filter(w => String(w.id) !== String(id)); window.CardFavorites?.sync(); showToast('관심에서 제거', 'info'); refreshPortfolio(); }
+  if (r.ok) { WATCHLIST = WATCHLIST.filter(w => String(w.id) !== String(id)); window.CardFavorites?.sync(); showToast('관심에서 제거', 'info'); refreshPortfolio({force: true}); }
   else showToast('제거 실패', 'error');
 }
 
 // 합산 평가액 차트 — 일자별 holdings 가치 합산
 async function renderAggChart() {
+  if (document.body.dataset.page !== 'portfolio') return;
   if (window.PortfolioScreen) return PortfolioScreen.chart();
   if (!HOLDINGS.length) return;
   await loadChartJs();
@@ -10318,6 +10368,7 @@ async function fetchAuthMe() {
 }
 
 function renderAuthStatus() {
+  syncPortfolioOwner();
   window.CardFavorites?.sessionChanged();
   syncAdminAccess();
   if (window.AdminEditorUI) AdminEditorUI.access(CURRENT_USER);
@@ -11195,6 +11246,7 @@ window.submitAddPortfolio = async function(cardId) {
     if (r.ok && d.ok) {
       closeAnyModal();
       showToast('포트폴리오에 추가되었습니다 ✓', 'success');
+      refreshPortfolio({force: true});
     } else {
       msg.style.color = '#dc2626';
       msg.textContent = d.message || d.error || '추가 실패';

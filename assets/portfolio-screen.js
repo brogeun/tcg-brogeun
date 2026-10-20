@@ -17,7 +17,72 @@
   return dates.map(date=>{let total=0,complete=items.length>0;for(const s of states){while(s.i<s.points.length&&s.points[s.i].date<=date){const p=s.points[s.i++][s.h.grade+'_price'];if(p!=null&&Number.isFinite(Number(p))&&num(p)>=0)s.last=num(p);}if(s.last==null)complete=false;else total+=s.last*num(s.h.qty);}return {date,value:complete?Math.floor(total*fx):null};}).filter(p=>p.value!=null);
  }
  function paginate(items,page=1,size=10){const pages=Math.max(1,Math.ceil(items.length/size));page=Math.max(1,Math.min(pages,Math.floor(num(page))||1));return {page,pages,start:(page-1)*size,items:items.slice((page-1)*size,page*size)};}
- const api={rows,series,money,pct,paginate,compactHoldings:true};root.PortfolioScreen=api;
+ // Histories are immutable loadCardMeta snapshots. Replacing a snapshot (or
+ // appending to it) invalidates its prepared dates and prices automatically.
+ let historyRecords=new WeakMap(),historyId=0;
+ const emptyHistory=[],chartResults=new Map(),cancelled=Symbol('cancelled');
+ const clock=()=>typeof performance==='undefined'?Date.now():performance.now();
+ function chartSnapshot(holdings,cache,range,fx,now,boxIds){
+  const today=new Date(now).toISOString().slice(0,10),cutoff=new Date(now-(range-1)*86400000).toISOString().slice(0,10);
+  const items=holdings.map(h=>{const meta=cache[h.card_id]||{},history=Array.isArray(meta.history)?meta.history:emptyHistory;
+   let record=historyRecords.get(history);if(!record||record.length!==history.length){record={id:++historyId,length:history.length,history,grades:new Map(),dates:null};historyRecords.set(history,record);}
+   return {record,cardId:String(h.card_id),qty:num(h.qty),grade:h.grade==='box'||meta.kind==='box'||boxIds.has(String(h.card_id))?'box':h.grade};});
+  return {items,today,cutoff,fx,key:JSON.stringify([range,fx,today,items.map(h=>[h.cardId,h.record.id,h.grade,h.qty])])};
+ }
+ function lowerBound(points,date,key){let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>>1;if((key?points[mid][key]:points[mid])<date)lo=mid+1;else hi=mid;}return lo;}
+ function upperBound(points,date,key){let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>>1;if((key?points[mid][key]:points[mid])<=date)lo=mid+1;else hi=mid;}return lo;}
+ async function computeChart(snapshot,isCurrent=()=>true){
+  if(!isCurrent())throw cancelled;
+  if(chartResults.has(snapshot.key))return chartResults.get(snapshot.key);
+  let sliceStart=clock();
+  async function yieldIfNeeded(force=false){if(!isCurrent())throw cancelled;if(force||clock()-sliceStart>=6){await new Promise(resolve=>setTimeout(resolve,0));sliceStart=clock();if(!isCurrent())throw cancelled;}}
+  // Paint the loading state and allow navigation before the first large pass.
+  await yieldIfNeeded(true);
+  const states=[],dates=new Set();let best=null,completeStart=snapshot.cutoff,allHavePrices=snapshot.items.length>0;
+  for(let index=0;index<snapshot.items.length;index++){
+   const item=snapshot.items[index],record=item.record;let points=record.grades.get(item.grade);
+   if(!points){
+    const byDate=new Map(),allDates=record.dates?null:new Set(),field=item.grade+'_price';
+    for(let i=0;i<record.history.length;i++){const point=record.history[i],date=point.date,value=point[field];
+     if(allDates)allDates.add(date);
+     // Stable date sorting previously kept the last valid quote on a date.
+     if(value!=null&&Number.isFinite(Number(value))&&num(value)>=0)byDate.set(date,num(value));
+     if((i&255)===255)await yieldIfNeeded();
+    }
+    points=[...byDate].map(([date,value])=>({date,value})).sort((a,b)=>a.date.localeCompare(b.date));
+    if(allDates)record.dates=[...allDates].sort();record.grades.set(item.grade,points);
+   }
+   const first=lowerBound(record.dates,snapshot.cutoff),end=upperBound(record.dates,snapshot.today);
+   const firstPrice=points[0],validStart=firstPrice?lowerBound(record.dates,firstPrice.date):end,start=Math.max(first,validStart);
+   if(end-start>1){
+    const firstPoint=points[upperBound(points,record.dates[start],'date')-1],lastPoint=points[upperBound(points,record.dates[end-1],'date')-1];
+    const firstValue=firstPoint?Math.floor(firstPoint.value*item.qty*snapshot.fx):0,lastValue=lastPoint?Math.floor(lastPoint.value*item.qty*snapshot.fx):0;
+    const p=firstValue>0?(lastValue-firstValue)/firstValue:null;
+    if(p!=null&&(!best||p>best.p))best={index,p};
+   }
+   if(!firstPrice||firstPrice.date>snapshot.today)allHavePrices=false;else if(firstPrice.date>completeStart)completeStart=firstPrice.date;
+   states.push({points,record,end,qty:item.qty});
+   await yieldIfNeeded();
+  }
+  // Earlier dates cannot produce a complete portfolio total. Skip them rather
+  // than repeatedly summing and then discarding those same incomplete dates.
+  if(allHavePrices)for(const state of states){
+   const first=lowerBound(state.record.dates,completeStart);for(let i=first;i<state.end;i++){dates.add(state.record.dates[i]);if((i&255)===255)await yieldIfNeeded();}
+   state.i=upperBound(state.points,completeStart,'date');state.last=state.i?state.points[state.i-1].value:null;await yieldIfNeeded();
+  }
+  const data=[],orderedDates=[...dates].sort();
+  for(const date of orderedDates){let total=0,complete=states.length>0;
+   for(let index=0;index<states.length;index++){const state=states[index];while(state.i<state.points.length&&state.points[state.i].date<=date)state.last=state.points[state.i++].value;
+    if(state.last==null)complete=false;else total+=state.last*state.qty;
+    if((index&255)===255)await yieldIfNeeded();
+   }
+   if(complete)data.push({date,value:Math.floor(total*snapshot.fx)});await yieldIfNeeded();
+  }
+  if(!isCurrent())throw cancelled;
+  const result={data,best};chartResults.set(snapshot.key,result);while(chartResults.size>4)chartResults.delete(chartResults.keys().next().value);return result;
+ }
+ async function chartData(holdings,cache,range,fx,now=Date.now(),boxIds=new Set(),isCurrent=()=>true){return computeChart(chartSnapshot(holdings,cache,range,fx,now,boxIds),isCurrent);}
+ const api={rows,series,chartData,calculateChart:chartData,money,pct,paginate,compactHoldings:true};root.PortfolioScreen=api;
  if(typeof module!=='undefined')module.exports=api;
  if(typeof document==='undefined')return;
  const $=id=>document.getElementById(id),decode=s=>{const e=document.createElement('textarea');e.innerHTML=String(s||'');return e.value;};
@@ -65,16 +130,35 @@
    return `<article class="pfx-watch pfx-surface"><button type="button" class="pfx-watch-image" data-pfx-open="${esc(w.card_id)}" data-pfx-from="watchlist">${image(m)}</button><div class="pfx-watch-copy"><div class="pfx-watch-top">${brand(m.brand)}<button type="button" class="pfx-star card-favorite" data-watch-id="${esc(w.card_id)}" aria-label="${esc(name(m))} 관심 해제" aria-pressed="true">${icon('star')}</button></div><button type="button" class="pfx-watch-name" data-pfx-open="${esc(w.card_id)}" data-pfx-from="watchlist" title="${esc(name(m))}">${esc(name(m))}</button><small title="${esc(decode(m.pack||''))}">${esc(decode(m.pack||'확장팩 정보 미등록'))}</small><span class="pfx-grade">${esc(gradeLabels[grade]||grade)}</span><div class="pfx-watch-price"><span>${p==null?'시세 미등록':'¥'+num(p).toLocaleString()+' · 원화 환산'}</span><strong>${p==null?'—':money(p*JPY_KRW)}</strong></div></div></article>`;
   }).join('');
  };
- let chartRun=0;
- api.chart=async function(){
-  const run=++chartRun,data=series(HOLDINGS,_PF_PRICE_CACHE,_PF_RANGE,JPY_KRW,Date.now(),BOX_ID_SET||new Set()),values=data.map(p=>p.value),change=values.length>1&&values[0]>0?(values.at(-1)-values[0])/values[0]*100:null;
-  $('pfChartWrap').style.display='';$('pfxChartEmpty').textContent='평가액 추이를 계산할 시세 이력이 없습니다.';$('pfxChartEmpty').hidden=values.length>0;$('pfAggChart').hidden=!values.length;
+ let chartRun=0,chartPending=null,renderedChartKey=null,renderedChartOwner=null;
+ api.cancelChart=function({clear=false}={}){
+  chartRun++;chartPending=null;
+  if(clear){chartResults.clear();historyRecords=new WeakMap();renderedChartKey=null;renderedChartOwner=null;
+   if(_PF_AGG_CHART){_PF_AGG_CHART.destroy();_PF_AGG_CHART=null;}
+   $('pfAggChart').hidden=true;$('pfxChartEmpty').hidden=true;$('pfxChartMetrics').replaceChildren();
+  }
+ };
+ api.chart=function(){
+  const owner=CURRENT_USER;if(!owner||document.body.dataset.page!=='portfolio')return Promise.resolve();
+  const holdings=HOLDINGS.slice(),snapshot=chartSnapshot(holdings,_PF_PRICE_CACHE,_PF_RANGE,JPY_KRW,Date.now(),BOX_ID_SET||new Set());
+  if(chartPending?.key===snapshot.key&&chartPending.owner===owner)return chartPending.promise;
+  if(renderedChartKey===snapshot.key&&renderedChartOwner===owner){_PF_AGG_CHART?.resize();return Promise.resolve();}
+  const run=++chartRun,current=()=>run===chartRun&&CURRENT_USER===owner&&document.body.dataset.page==='portfolio';renderedChartKey=null;
+  $('pfChartWrap').style.display='';$('pfxChartEmpty').textContent='평가액 추이를 계산하고 있습니다.';$('pfxChartEmpty').hidden=false;$('pfAggChart').hidden=true;
   document.querySelectorAll('#pfChartRange button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.r)===_PF_RANGE)));
-  const best=HOLDINGS.map(h=>{const points=series([h],_PF_PRICE_CACHE,_PF_RANGE,JPY_KRW,Date.now(),BOX_ID_SET||new Set());return {h,p:points.length>1&&points[0].value>0?(points.at(-1).value-points[0].value)/points[0].value:null};}).filter(x=>x.p!=null).sort((a,b)=>b.p-a.p)[0];
-  $('pfxChartMetrics').innerHTML=[['최고 평가액',values.length?money(Math.max(...values)):'—'],['최저 평가액',values.length?money(Math.min(...values)):'—'],['기간 시세 수익률',pct(change)],['최고 수익 카드 · 선택 기간',best?name(_PF_PRICE_CACHE[best.h.card_id]||{}):'—']].map(([l,v])=>`<div><span>${l}</span><strong class="${v.startsWith('▲')?'up':v.startsWith('▼')?'down':''}" title="${esc(v)}">${esc(v)}</strong></div>`).join('');
-  if(_PF_AGG_CHART){_PF_AGG_CHART.destroy();_PF_AGG_CHART=null;}if(!data.length)return;
-  try{await loadChartJs();if(run!==chartRun)return;_PF_AGG_CHART=new Chart($('pfAggChart'),{type:'line',data:{labels:data.map(p=>p.date),datasets:[{label:'평가액',data:values,borderColor:'#16A34A',backgroundColor:'#DCFCE766',borderWidth:2,fill:true,tension:.15,pointRadius:data.length===1?4:0,pointHoverRadius:4}]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:4,maxRotation:0,color:'#888780',font:{size:11}}},y:{ticks:{maxTicksLimit:4,color:'#888780',font:{size:11},callback:v=>Math.abs(v)>=10000?'₩'+Number((v/10000).toFixed(1))+'만':money(v)}}}}});}
-  catch{$('pfAggChart').hidden=true;$('pfxChartEmpty').hidden=false;$('pfxChartEmpty').textContent='차트를 불러오지 못했습니다. 기간을 다시 선택해 주세요.';}
+  const task={key:snapshot.key,owner,promise:null};
+  task.promise=(async()=>{try{
+   const {data,best}=await computeChart(snapshot,current);if(!current())return;
+   const values=data.map(p=>p.value),change=values.length>1&&values[0]>0?(values.at(-1)-values[0])/values[0]*100:null;
+   if(data.length){await loadChartJs();if(!current())return;}
+   $('pfxChartEmpty').textContent='평가액 추이를 계산할 시세 이력이 없습니다.';$('pfxChartEmpty').hidden=values.length>0;$('pfAggChart').hidden=!values.length;
+   $('pfxChartMetrics').innerHTML=[['최고 평가액',values.length?money(Math.max(...values)):'—'],['최저 평가액',values.length?money(Math.min(...values)):'—'],['기간 시세 수익률',pct(change)],['최고 수익 카드 · 선택 기간',best?name(_PF_PRICE_CACHE[holdings[best.index].card_id]||{}):'—']].map(([l,v])=>`<div><span>${l}</span><strong class="${v.startsWith('▲')?'up':v.startsWith('▼')?'down':''}" title="${esc(v)}">${esc(v)}</strong></div>`).join('');
+   if(_PF_AGG_CHART){_PF_AGG_CHART.destroy();_PF_AGG_CHART=null;}
+   if(data.length)_PF_AGG_CHART=new Chart($('pfAggChart'),{type:'line',data:{labels:data.map(p=>p.date),datasets:[{label:'평가액',data:values,borderColor:'#16A34A',backgroundColor:'#DCFCE766',borderWidth:2,fill:true,tension:.15,pointRadius:data.length===1?4:0,pointHoverRadius:4}]},options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>money(c.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:4,maxRotation:0,color:'#888780',font:{size:11}}},y:{ticks:{maxTicksLimit:4,color:'#888780',font:{size:11},callback:v=>Math.abs(v)>=10000?'₩'+Number((v/10000).toFixed(1))+'만':money(v)}}}}});
+   renderedChartKey=snapshot.key;renderedChartOwner=owner;
+  }catch(error){if(error===cancelled||!current())return;$('pfAggChart').hidden=true;$('pfxChartEmpty').hidden=false;$('pfxChartEmpty').textContent='차트를 불러오지 못했습니다. 기간을 다시 선택해 주세요.';}
+  finally{if(chartPending===task)chartPending=null;}})();
+  chartPending=task;return task.promise;
  };
  api.distributions=function(){const items=rows(HOLDINGS,_PF_PRICE_CACHE,BOX_ID_SET||new Set()),brands={},grades={};items.forEach(h=>{brands[h.meta.brand||'unknown']=(brands[h.meta.brand||'unknown']||0)+h.value;grades[h.grade]=(grades[h.grade]||0)+h.value;});
   function donut(id,map,labels){const entries=Object.entries(map).filter(([,v])=>v>0),total=entries.reduce((a,[,v])=>a+v,0);let offset=0;

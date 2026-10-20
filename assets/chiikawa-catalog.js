@@ -6,7 +6,7 @@
   'use strict';
   if (window.ChiikawaCatalog) return;
 
-  const VERSION = '20261020-ui1';
+  const VERSION = '20261020-ko2';
   const DATA_URL = '/data/chiikawa-catalog.json';
   const PAGE_SIZE = 18;
   const BRAND = 'chiikawa';
@@ -32,8 +32,19 @@
   // Search conveniences; these are not asserted to be official translations.
   const ALIASES = [
     ['치이카와', 'chiikawa', 'ちいかわ'],
-    ['하치와레', 'hachiware', 'ハチワレ'],
-    ['우사기', 'usagi', 'うさぎ'],
+    ['하치와레', '가르마', 'hachiware', 'ハチワレ'],
+    ['우사기', '토끼', 'usagi', 'うさぎ'],
+    ['모몽가', '하늘다람쥐', 'momonga', 'モモンガ'],
+    ['밤만쥬', '밤만주', '쿠리만쥬', '쿠리만주', 'kurimanju', 'くりまんじゅう'],
+    ['랏코', '해달', 'rakko', 'ラッコ'],
+    ['시사', '시이사', 'shisa', 'シーサー'],
+    ['헌책방', '카니', '후루혼야', 'furuhonya', '古本屋'],
+    ['데카츠요', '크고강한녀석', 'dekatsuyo', 'でかつよ'],
+    ['아노코', '그아이', '그녀석', 'anoko', 'あのこ'],
+    ['포셰트갑옷씨', '포쉐트갑옷씨', '미니백갑옷씨', 'ポシェットの鎧さん'],
+    ['노동갑옷씨', '노동의갑옷씨', '労働の鎧さん'],
+    ['라멘갑옷씨', '라면갑옷씨', 'ラーメンの鎧さん'],
+    ['오데', 'ode', 'オデ'],
   ];
   const RARITIES = new Set(['N', 'R', 'RR', 'BR', 'SP', 'SSP', 'SEC', 'SD', 'PR']);
   const ICONS = {

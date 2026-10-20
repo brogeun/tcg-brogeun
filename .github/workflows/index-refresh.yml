@@ -1,0 +1,75 @@
+name: Refresh Verified Home Card Index Daily
+
+on:
+  schedule:
+    - cron: '23 9 * * *'  # 18:23 KST; source collection may take about 4 hours.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# This slow, read-only collection runs separately from the main daily updater.
+# Preserve disjoint newer commits; a changed target always stops publication.
+concurrency:
+  group: index-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify concurrent publication preserves unrelated edits
+        run: python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
+
+      - name: Install index solver and public-source dependencies
+        run: pip install "numpy>=1.26,<3" "scipy>=1.11,<2" "requests>=2.31,<3"
+
+      - name: Restore the last committed index source pair
+        id: sources
+        uses: actions/cache/restore@v4
+        with:
+          path: data/_card-index-source-cache
+          key: card-index-source-main-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            card-index-source-main-
+
+      - name: Check packaged dependencies and exact prior-source hashes
+        run: python -B scripts/update_dynamic_card_index.py --preflight-only
+
+      - name: Refresh complete source, independently verify, and promote as one set
+        id: refresh
+        timeout-minutes: 305
+        run: timeout --signal=TERM --kill-after=30s 300m python -B scripts/update_dynamic_card_index.py --workers 4
+        env:
+          PYTHONUNBUFFERED: '1'
+          OPENBLAS_NUM_THREADS: '1'
+          OMP_NUM_THREADS: '1'
+
+      - name: Publish only verified outputs while preserving disjoint newer commits
+        run: >-
+          python -B scripts/publish_data_snapshot.py
+          --message 'data: refresh independently verified home card index'
+          --files data/market-price-index.json data/market-price-index-model-state.json
+          data/market-price-index-validation.json data/market-price-index-independent-verification.json
+
+      - name: Keep only the source pair bound to the committed index
+        run: python -B scripts/update_dynamic_card_index.py --prune-source-cache
+
+      - name: Save raw evidence outside the public bundle and Git history
+        uses: actions/cache/save@v4
+        with:
+          path: data/_card-index-source-cache
+          key: card-index-source-main-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Explain collection or verification failures
+        if: failure()
+        run: |
+          echo '::error::Index refresh, exact-source preflight, verification, or push failed. The previously committed verified index remains active; inspect the failed step before retrying. A missing source cache must be restored, not bypassed.'

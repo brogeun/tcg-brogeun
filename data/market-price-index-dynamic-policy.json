@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "reportKind": "dynamic-card-index-policy",
+  "version": "20261012-19",
+  "methodId": "dynamic-equal-initial-amount-card-basket-v1",
+  "configurationFrozen": true,
+  "purpose": "Track changing prices of a virtual basket with equal initial capital per product on admission and fixed subsequent quantities; neutral entries and verified exits.",
+  "scope": {
+    "source": "SNKRDUNK",
+    "brands": [
+      "pokemon",
+      "onepiece"
+    ],
+    "printedLanguages": "all",
+    "productTypes": [
+      "single-card"
+    ],
+    "maximumProducts": null,
+    "selectionUsesCurrentRankOrReturns": false,
+    "exclusionsSourcePath": "data/card-index-platform-scope-exclusions-20261012.json"
+  },
+  "config": {
+    "base_date": "2024-01-01",
+    "window_days": 30,
+    "eligibility_window_days": 30,
+    "minimum_observations": 3,
+    "seasoning_days": 30,
+    "review_frequency": "monthly",
+    "condition_policy": "split-fixed",
+    "weighting": "equal-amount-fixed",
+    "grouping": "global",
+    "minimum_group_products": 10,
+    "stale_after_days": 90,
+    "validate_holdouts": true,
+    "select_prediction": false,
+    "candidate_groupings": [
+      "global",
+      "grade_price",
+      "grade_set"
+    ],
+    "development_seeds": [
+      0
+    ],
+    "validation_seeds": [
+      19,
+      23
+    ],
+    "holdout_days": [
+      30,
+      90,
+      365
+    ],
+    "exit_events": [],
+    "prediction_rule": "native-price-anchor",
+    "training_representation": "native-daily",
+    "minimum_model_factor_days": 15,
+    "candidate_prediction_rules": [
+      "native-price-anchor",
+      "window-price-anchor"
+    ],
+    "grouping_by_brand": {
+      "pokemon": "global",
+      "onepiece": "global"
+    },
+    "prediction_rule_by_brand": {
+      "pokemon": "native-price-anchor",
+      "onepiece": "native-price-anchor"
+    }
+  },
+  "selectionRationale": {
+    "weighting": "Whole-product initial capital equality was selected after the one-copy policy produced 98.35% Pokemon PSA10 value exposure in the preliminary source audit. The change addresses high-price/condition concentration, not the size or shape of the index. Actual prices and fixed subsequent quantities still determine subsequent value weights.",
+    "membership": "All eligible products, not top 30 or today's winners. The cutoff is yesterday; missing prices alone never remove an admitted product.",
+    "review": "Monthly admissions with fixed existing quantities, no repeated equal-return chaining or automatic condition replacement.",
+    "baseline": "Explicit operating baseline; older single-product source dates are not presented as a full-platform history.",
+    "missingPriceModel": "Actual same-condition native quote date must anchor the missing-price estimate. Rolling-window-end anchors fail the exact common-trend calendar invariant and are benchmark-only. Choose the native grouping by disjoint development price-blackout error, never curve magnitude; freeze and run final held-out prices separately."
+  },
+  "priceUnitVerified": false,
+  "historicalUniverseComplete": false,
+  "representativeMarketIndex": false,
+  "weightingReview": {
+    "path": "artifacts/market-price-index-19-weighting-review.json",
+    "preliminary": true,
+    "reason": "high-price and grade concentration",
+    "usesIndexMagnitudeAsSelectionCriterion": false
+  },
+  "predictionDevelopmentReview": {
+    "path": "artifacts/market-price-index-19-prediction-development.json",
+    "sha256": "46c458daca7cc792d4256a77eeafcd5510e384422bed46e7978b8e4a88e79050",
+    "choice": "both brands global/native-price-anchor",
+    "hardConstraint": "actual native quote date alignment; rolling-window-end anchors are benchmark-only",
+    "selectionUsesIndexMagnitude": false,
+    "usesDisjointFinalTargets": true
+  }
+}

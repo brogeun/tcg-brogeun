@@ -1,0 +1,64 @@
+name: Chinese Auction Prices Daily
+
+on:
+  schedule:
+    - cron: '0 18 * * *'  # 03:00 KST; ahead of the 04:00 website bundle.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chinese-auction-prices
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check preservation and request bounds offline
+        run: python -m unittest discover -s scripts -p 'test_chinese_daily.py'
+      - name: Verify concurrent publication preserves unrelated edits
+        run: python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
+      - name: Restore resumable public auction archive
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .cache/chinese-price-backfill/cardhobby
+            .cache/chinese-daily
+            .cache/chinese-card-source-*.json
+          key: chinese-auctions-v1-${{ runner.os }}-${{ hashFiles('automation-sources/chinese-bootstrap-*.tar.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            chinese-auctions-v1-${{ runner.os }}-${{ hashFiles('automation-sources/chinese-bootstrap-*.tar.gz') }}-
+      - name: Refresh with strict public request limits
+        id: refresh
+        timeout-minutes: 10
+        run: python scripts/run_chinese_daily.py
+      - name: Preserve complete or interrupted archive progress
+        if: always() && steps.cache.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .cache/chinese-price-backfill/cardhobby
+            .cache/chinese-daily
+            .cache/chinese-card-source-*.json
+          key: chinese-auctions-v1-${{ runner.os }}-${{ hashFiles('automation-sources/chinese-bootstrap-*.tar.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Record refresh result
+        if: always()
+        run: |
+          if test -f .cache/chinese-daily/last-run.json; then
+            { echo '### Chinese auction refresh'; echo '```json'; cat .cache/chinese-daily/last-run.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Commit only the completely validated market snapshot
+        if: success() && steps.refresh.outcome == 'success'
+        run: >-
+          python -B scripts/publish_data_snapshot.py
+          --message 'Update validated Chinese auction prices'
+          --files data/chinese-market.json

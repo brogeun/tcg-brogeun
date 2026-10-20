@@ -21,7 +21,7 @@ jobs:
     # bot 의 자동 commit (data 자동 갱신) 으로 인한 무한 trigger 방지
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # 최근 발매 카드 ~400장 추가 수집 여유분
+    timeout-minutes: 90  # Existing daily collection plus bounded full search-price pagination.
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -44,6 +44,12 @@ jobs:
           node scripts/test_chinese_catalog.cjs
           node scripts/test_fx_display.cjs
           python -m unittest discover -s scripts -p test_fx_rates.py
+
+      - name: Validate bounded search collection and snapshot preservation
+        run: |
+          python -m unittest discover -s scripts -p test_refresh_search_prices.py
+          python -m unittest discover -s scripts -p test_update_health.py
+          python -m unittest discover -s scripts -p test_prepare_public_bundle.py
 
       - name: Setup Chrome browser
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
@@ -72,12 +78,21 @@ jobs:
 
       - name: Fetch FX rates (Naver USD/KRW, JPY/KRW, CNY/KRW)
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
-        run: python scripts/fetch_fx_rates.py || echo "fx fetch failed (non-fatal)"
+        id: daily-fx
+        continue-on-error: true  # Keep the last snapshot; the final check reports failure.
+        run: python scripts/fetch_fx_rates.py
         env:
           PYTHONUNBUFFERED: "1"
 
-      - name: Split all-cards.json (cards-meta + cards-prices)
-        run: python scripts/split_all_cards.py || echo "split failed (non-fatal)"
+      - name: Refresh full search catalogue and prices with bounded anonymous requests
+        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        id: search-prices
+        continue-on-error: true  # Atomic collector retains all previous files on incomplete fetch.
+        run: python scripts/refresh_search_prices.py --delay 1 --max-pages 500
+
+      - name: Record daily data freshness
+        id: daily-health
+        run: python scripts/check_daily_freshness.py --output data/update-health.json
 
       - name: Rebuild Japanese promo search metadata from the collected catalogue
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
@@ -121,7 +136,9 @@ jobs:
         run: |
           rm -rf _deploy
           mkdir -p _deploy
-          cp -r index.html _redirects data _deploy/ 2>/dev/null || true
+          cp -r index.html _redirects data _deploy/
+          cp _routes.json _deploy/_routes.json
+          python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data
           # 추가 정적 파일들 (있을 때만 복사)
           for f in mobile.html manifest.json sw.js favicon.ico robots.txt privacy.html terms.html _headers ads.txt; do
             [ -f "$f" ] && cp "$f" _deploy/ || true
@@ -210,3 +227,10 @@ jobs:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: pages deploy _deploy --project-name=tcghubrogeun --branch=main --commit-dirty=true
+
+
+      - name: Report incomplete daily collection after retaining valid independent updates
+        if: always() && (steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || steps.daily-health.outputs.status == 'incomplete')
+        run: |
+          echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
+          exit 1

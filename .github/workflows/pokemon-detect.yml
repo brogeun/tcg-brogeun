@@ -1,6 +1,7 @@
 name: Pokemon New Set Auto-Sync
 
-# 매주 월요일 오전 9시 KST — 신규 세트 감지 + 자동 fetch + commit + deploy
+# 매주 월요일 18:00 KST — 신규 세트 후보 감지.
+# 실제 데이터 변경은 다음 일일 수집 워크플로우의 검증된 배포에 반영.
 on:
   schedule:
     - cron: '0 9 * * 1'
@@ -27,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4 imagehash pillow
 
-      - name: Detect & sync new Pokemon sets
+      - name: Detect new Pokemon set candidates
         id: sync
         run: |
-          python scripts/sync_pokemon.py 2>&1 | tee sync_output.txt
-          if grep -q "🆕 신규 후보\|✓ 신규 세트 fetch" sync_output.txt; then
+          python scripts/sync_pokemon.py 2>&1 | tee "$RUNNER_TEMP/pokemon-sync-output.txt"
+          if grep -q "🆕 신규 후보\|✓ 신규 세트 fetch" "$RUNNER_TEMP/pokemon-sync-output.txt"; then
             echo "has_new=true" >> $GITHUB_OUTPUT
           else
             echo "has_new=false" >> $GITHUB_OUTPUT
@@ -41,12 +42,18 @@ jobs:
         if: steps.sync.outputs.has_new == 'true'
         run: python scripts/build_card_to_box.py
 
-      - name: Check changes
+      - name: Stage intended data files and check changes
         id: changes
         run: |
-          if [[ -n "$(git status --porcelain)" ]]; then
+          paths=(data/cards-by-set data/card-to-box.json images/sets index.html)
+          for path in "${paths[@]}"; do
+            if [[ -e "$path" ]] || git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+              git add -- "$path"
+            fi
+          done
+          if ! git diff --cached --quiet; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            git status --short
+            git diff --cached --stat
           else
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
@@ -56,21 +63,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/cards-by-set/ data/card-to-box.json images/sets/ index.html 2>/dev/null || true
           git commit -m "🤖 Pokemon 신규 세트 자동 동기화"
           git push
-
-      - name: Verify public home card index before deploy
-        if: steps.changes.outputs.has_changes == 'true'
-        run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir .
-
-      - name: Deploy to Cloudflare Pages
-        if: steps.changes.outputs.has_changes == 'true'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          npx wrangler@latest pages deploy . --project-name=tcghubrogeun --commit-dirty=true --branch=main
 
       - name: Create issue if sync failed
         if: failure() && steps.sync.outputs.has_new == 'true'
@@ -78,7 +72,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const output = fs.readFileSync('sync_output.txt', 'utf8');
+            const output = fs.readFileSync(`${process.env.RUNNER_TEMP}/pokemon-sync-output.txt`, 'utf8');
             const today = new Date().toISOString().split('T')[0];
             await github.rest.issues.create({
               owner: context.repo.owner,

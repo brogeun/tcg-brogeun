@@ -38,16 +38,9 @@ jobs:
 
       - name: Fetch Beezie prices
         run: python scripts/fetch_beezie.py
-        continue-on-error: true
 
-      - name: Verify output
-        run: |
-          if [ ! -f data/beezie-prices.json ]; then
-            echo "❌ data/beezie-prices.json not generated"
-            exit 1
-          fi
-          cat data/beezie-prices.json | head -c 500
-          echo ""
+      - name: Verify fresh and complete output before publishing
+        run: python scripts/verify_beezie_snapshot.py --path data/beezie-prices.json
 
       - name: Commit to data-beezie branch (orphan)
         run: |

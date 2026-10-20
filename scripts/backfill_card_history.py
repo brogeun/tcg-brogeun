@@ -20,8 +20,11 @@ SNKRDUNK API 분석 (검증 완료):
   python scripts/backfill_card_history.py --days 90  # 최근 90일치만
 """
 import json
+import math
+import os
 import re
 import sys
+import tempfile
 import time
 import urllib.request
 from collections import defaultdict
@@ -50,30 +53,47 @@ GRADE_OPTION_IDS = {
 }
 
 
+class CollectionError(ValueError):
+    """A failed or incomplete source must never replace a saved history."""
+
+
+def source_json(url):
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA, "Accept": "application/json", "Referer": "https://snkrdunk.com/",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception as error:
+        raise CollectionError(type(error).__name__ + ': ' + str(error) + '; source=' + url) from error
+    if not isinstance(payload, dict):
+        raise CollectionError('Source JSON must be an object: ' + url)
+    return payload
+
+
 def fetch_chart_grade(cid, opt_id):
     """sales-chart/used + 옵션 ID → {date: price} (일별 단가, SNKRDUNK 자체 산출)"""
     url = (f"https://snkrdunk.com/v1/apparels/{cid}/sales-chart/used"
            f"?range=all&salesChartOptionId={opt_id}")
-    req = urllib.request.Request(url, headers={
-        "User-Agent": UA, "Accept": "application/json",
-        "Referer": "https://snkrdunk.com/",
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            d = json.loads(r.read().decode("utf-8"))
-    except Exception:
-        return {}
-    points = d.get("points") or []
+    d = source_json(url)
+    points = d.get("points")
+    if not isinstance(points, list):
+        raise CollectionError('Missing chart points array for ' + str(cid) + '/' + str(opt_id))
     by_date = {}
     for p in points:
-        if isinstance(p, list) and len(p) >= 2:
-            ts_ms, price = p[0], p[1]
-            try:
-                date = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-                # 같은 날에 여러 점 → 마지막으로 덮음 (또는 median 가능, 일단 마지막)
-                by_date[date] = int(price)
-            except Exception:
-                pass
+        if not isinstance(p, list) or len(p) < 2:
+            raise CollectionError('Malformed chart point for ' + str(cid))
+        ts_ms, price = p[:2]
+        if any(type(value) not in (int, float) or not math.isfinite(value) for value in (ts_ms, price)) or price <= 0:
+            raise CollectionError('Invalid chart timestamp/price for ' + str(cid))
+        if int(price) <= 0:
+            raise CollectionError('Chart price is below the saved JPY precision for ' + str(cid))
+        try:
+            # Keep the legacy UTC contract used by downstream archive normalization.
+            day = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+        except (ValueError, OSError, OverflowError) as error:
+            raise CollectionError('Invalid chart timestamp for ' + str(cid)) from error
+        by_date[day] = int(price)
     return by_date
 
 
@@ -84,51 +104,69 @@ def fetch_volume(cid, days_limit=None, max_pages=9999):
     prices = defaultdict(list)
     today = datetime.now()
     cutoff = (today - timedelta(days=days_limit)).strftime("%Y-%m-%d") if days_limit else "0000-00-00"
-    stopped_early = False
+    previous_day = None
+    cutoff_page = None
+    seen_pages = set()
+    completed = False
     for page in range(1, max_pages + 1):
         url = f"https://snkrdunk.com/v1/apparels/{cid}/sales-history?page={page}&per_page=100"
-        req = urllib.request.Request(url, headers={
-            "User-Agent": UA, "Accept": "application/json",
-            "Referer": "https://snkrdunk.com/",
-        })
-        try:
-            with urllib.request.urlopen(req, timeout=15) as r:
-                d = json.loads(r.read().decode("utf-8"))
-        except Exception:
-            break
-        items = d.get("history") or []
+        d = source_json(url)
+        items = d.get("history")
+        if not isinstance(items, list):
+            raise CollectionError('Missing sales-history array for ' + str(cid) + ' page ' + str(page))
         if not items:
+            completed = True
             break
+        fingerprint = json.dumps(items, sort_keys=True, separators=(',', ':'), allow_nan=False)
+        if fingerprint in seen_pages:
+            raise CollectionError('Repeated sales-history page for ' + str(cid) + ' page ' + str(page))
+        seen_pages.add(fingerprint)
         for it in items:
+            if not isinstance(it, dict) or not isinstance(it.get('date'), str):
+                raise CollectionError('Malformed sales-history row for ' + str(cid))
             date_str = (it.get("date") or "").strip()
             m = re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
             if m:
                 d2 = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+                try:
+                    datetime.strptime(d2, '%Y-%m-%d')
+                except ValueError as error:
+                    raise CollectionError('Invalid sales-history date for ' + str(cid)) from error
             else:
-                m2 = re.match(r"(\d+)\s*(日|day|時間|分|秒|hour|min)", date_str)
-                if m2 and m2.group(2) in ("日", "day"):
-                    d2 = (today - timedelta(days=int(m2.group(1)))).strftime("%Y-%m-%d")
-                else:
-                    d2 = today.strftime("%Y-%m-%d")
+                m2 = re.fullmatch(r"(\d+)\s*(日|時間|分|秒|days?|hours?|minutes?|mins?|seconds?)(?:前|\s+ago)?", date_str, re.I)
+                if not m2:
+                    raise CollectionError('Unrecognized sales-history date for ' + str(cid))
+                amount, unit = int(m2.group(1)), m2.group(2).lower()
+                field = 'days' if unit == '日' or unit.startswith('day') else 'hours' if unit == '時間' or unit.startswith('hour') else 'minutes' if unit == '分' or unit.startswith('min') else 'seconds'
+                d2 = (today - timedelta(**{field: amount})).strftime('%Y-%m-%d')
+            if previous_day is not None and d2 > previous_day:
+                raise CollectionError('Sales-history dates increased within/across pages for ' + str(cid) + ' page ' + str(page))
+            previous_day = d2
             if d2 < cutoff:
-                stopped_early = True
+                if cutoff_page is None:
+                    cutoff_page = page
                 continue
             pr_raw = it.get("price")
             if isinstance(pr_raw, str):
-                pm = re.search(r"([\d,]+)", pr_raw.replace("¥", ""))
+                pm = re.fullmatch(r"\s*(?:[¥￥]|JPY)?\s*([0-9][0-9,]*)\s*", pr_raw)
                 pr = int(pm.group(1).replace(",", "")) if pm else None
-            elif isinstance(pr_raw, (int, float)):
+            elif type(pr_raw) in (int, float) and math.isfinite(pr_raw):
                 pr = int(pr_raw)
             else:
                 pr = None
-            if pr is None:
-                continue
+            if pr is None or pr <= 0:
+                raise CollectionError('Invalid sales-history JPY price for ' + str(cid))
             counts[d2] += 1
             prices[d2].append(pr)
-        if stopped_early:
+        # A cutoff inside one page alone is insufficient: confirm the whole
+        # following page is still chronologically older (or explicitly empty).
+        if cutoff_page is not None and page > cutoff_page:
+            completed = True
             break
         # SNKRDUNK 가 per_page 무시하고 ~20건씩 줘 — items 비어야 진짜 끝
         time.sleep(0.25)
+    if not completed:
+        raise CollectionError('Sales-history page limit reached before completion for ' + str(cid))
     # 일별 outlier 제거 + median (다수 매수로 인한 가격 spike 제거)
     avg_prices = {}
     for dt, p in prices.items():
@@ -150,6 +188,23 @@ def is_card_history(history):
         if any(k in r for k in ("psa10_price", "psa9_price", "raw_price")):
             return True
     return False
+
+
+def atomic_history(path, payload, original):
+    """Replace only after all source calls succeeded; retain exact old bytes on error."""
+    raw = json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False).encode('utf-8')
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=path.name + '.', suffix='.tmp', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(raw)
+        json.loads(temporary.read_bytes())
+        if path.read_bytes() != original:
+            raise CollectionError('History changed during collection; preserving the newer local file')
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
 
 
 def main():
@@ -186,7 +241,11 @@ def main():
             print(f"[--ids-file] {ids_file} 에서 {len(only_ids)} ID 로드")
         except Exception as e:
             print(f"⚠ ids-file 읽기 실패: {e}")
-            return
+            return 1
+
+    if (days_limit is not None and days_limit < 1) or batch_of < 0 or batch_n < 0 or (batch_of and batch_n >= batch_of):
+        print('::error::Invalid days/batch bounds')
+        return 1
 
     print("=" * 60)
     print("카드 백필 v2 — sales-chart/used (등급별) + sales-history (통합 거래량)")
@@ -195,35 +254,33 @@ def main():
 
     # 카드 ID 추출 — history 폴더에서 카드 history 만
     targets = []
+    read_failures = 0
     only_ids_set = set(only_ids) if only_ids else None
     for f in sorted(HISTORY_DIR.glob("*.json")):
         cid = f.stem
         if only_ids_set and cid not in only_ids_set:
             continue
         try:
-            raw = f.read_bytes().replace(b"\x00", b"").rstrip()
-            try:
-                d = json.loads(raw)
-                valid_json = True
-            except json.JSONDecodeError:
-                last = raw.rfind(b"}")
-                if last > 0:
-                    try:
-                        d = json.loads(raw[:last + 1] + b"\n  ]\n}")
-                        valid_json = False
-                    except Exception:
-                        continue
-                else:
-                    continue
-            history = d.get("history", [])
+            raw = f.read_bytes()
+            d = json.loads(raw)
+            if not isinstance(d, dict) or str(d.get('id')) != cid or not isinstance(d.get('history'), list):
+                raise CollectionError('Existing history identity/schema is invalid')
+            history = d['history']
+            seen_dates = set()
+            for row in history:
+                if not isinstance(row, dict) or not isinstance(row.get('date'), str) or row['date'] in seen_dates:
+                    raise CollectionError('Existing history has malformed/duplicate dated rows')
+                datetime.strptime(row['date'], '%Y-%m-%d')
+                seen_dates.add(row['date'])
             # only_ids 명시 시 카드/박스 가리지 않고 처리 (강제 카드로 재백필)
             if only_ids_set or is_card_history(history):
                 # resume 모드 — 이미 valid 한 JSON 이면 skip (only_ids 없을 때만 의미)
-                if resume and valid_json and not only_ids_set:
+                if resume and not only_ids_set:
                     continue
-                targets.append((cid, f, d))
+                targets.append((cid, f, d, raw))
         except Exception as e:
             print(f"  [{cid}] read fail: {e}")
+            read_failures += 1
             continue
 
     if batch_of > 1:
@@ -231,63 +288,59 @@ def main():
         print(f"[배치] {batch_n + 1}/{batch_of} 만 처리 (스트라이드)")
     print(f"카드 history 파일: {len(targets)} 개\n")
     success = 0
-    fail = 0
-    for i_t, (cid, path, existing) in enumerate(targets, 1):
+    unchanged = 0
+    fail = read_failures
+    for i_t, (cid, path, existing, original) in enumerate(targets, 1):
         print(f"[{i_t}/{len(targets)}] {cid}", end=" ", flush=True)
         existing_by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
         by_date = {} if fresh else dict(existing_by_date)
         any_new = False
-        # 1. 등급별 가격 (sales-chart/used + 옵션 ID 별 호출)
         grade_counts = {}
-        for grade, opt_id in GRADE_OPTION_IDS.items():
-            chart = fetch_chart_grade(cid, opt_id)
-            grade_counts[grade] = len(chart)
-            for date, price in chart.items():
+        try:
+            # Every grade and the complete requested sales range must succeed.
+            # In-memory partial results are discarded on any failure below.
+            for grade, opt_id in GRADE_OPTION_IDS.items():
+                chart = fetch_chart_grade(cid, opt_id)
+                grade_counts[grade] = len(chart)
+                for date, price in chart.items():
+                    if date not in by_date:
+                        by_date[date] = {"date": date}
+                    by_date[date][f"{grade}_price"] = price
+                    any_new = True
+                time.sleep(0.2)
+            vols, sh_prices = fetch_volume(cid, days_limit=days_limit)
+            for date, count in vols.items():
                 if date not in by_date:
                     by_date[date] = {"date": date}
-                by_date[date][f"{grade}_price"] = price
+                by_date[date]["total_vol"] = count
                 any_new = True
-            time.sleep(0.2)
-        # 2. 통합 거래량 + 통합 단가 (sales-history 페이지네이션)
-        vols, sh_prices = fetch_volume(cid, days_limit=days_limit)
-        for date, count in vols.items():
-            if date not in by_date:
-                by_date[date] = {"date": date}
-            by_date[date]["total_vol"] = count
-            any_new = True
-        for date, price in sh_prices.items():
-            if date not in by_date:
-                by_date[date] = {"date": date}
-            by_date[date]["total_price"] = price
-        if not any_new:
-            print("(no data — keep existing)")
+            for date, price in sh_prices.items():
+                if date not in by_date:
+                    by_date[date] = {"date": date}
+                by_date[date]["total_price"] = price
+        except Exception as error:
+            print('SOURCE FAILED; previous bytes and timestamp retained: ' + str(error))
             fail += 1
             continue
+        if not any_new:
+            print("(verified empty sources; existing bytes and timestamp retained)")
+            unchanged += 1
+            continue
         new_history = sorted(by_date.values(), key=lambda h: h.get("date", ""))
+        if new_history == existing.get('history'):
+            print('(verified unchanged sources; existing bytes and timestamp retained)')
+            unchanged += 1
+            continue
         out = {
+            **existing,
             "id": str(cid),
             "updatedAt": datetime.now(timezone.utc).isoformat(),
             "source": "backfill v2 (sales-chart/used per grade + sales-history vol)",
             "history": new_history,
         }
-        # Atomic write — tmp 파일에 쓰고 JSON 검증 후 os.replace
-        # (이전 path.unlink() + write_bytes() 는 atomic 아니라 중단 시 partial-write 발생)
-        import os as _os
-        tmp_path = path.with_suffix(".tmp")
-        json_bytes = json.dumps(out, ensure_ascii=False, indent=2).encode('utf-8')
         try:
-            # 1. 임시 파일에 쓰기
-            tmp_path.write_bytes(json_bytes)
-            # 2. JSON 유효성 검증 (write 후 다시 읽어서 parse 시도)
-            json.loads(tmp_path.read_text(encoding='utf-8'))
-            # 3. 원자적 교체 (Windows/Unix 둘 다 atomic)
-            _os.replace(str(tmp_path), str(path))
+            atomic_history(path, out, original)
         except Exception as e:
-            # 검증 실패 — 임시파일 삭제, 원본 보존
-            try:
-                tmp_path.unlink()
-            except Exception:
-                pass
             print(f"⚠ atomic-write fail (원본 유지): {e}")
             fail += 1
             continue
@@ -305,8 +358,9 @@ def main():
         success += 1
         time.sleep(0.3)
 
-    print(f"\nDone: OK {success} / Fail {fail}")
+    print(f"\nDone: OK {success} / Unchanged {unchanged} / Fail {fail}")
+    return 1 if fail else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -13,6 +13,7 @@ permissions:
 concurrency:
   group: scrape            # scrape.yml 과 같은 그룹 → 동시 실행 방지
   cancel-in-progress: false
+  queue: max
 
 jobs:
   rotate:
@@ -25,19 +26,41 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Verify history failure preservation and concurrent publication
+        run: |
+          python -B -m unittest discover -s scripts -p test_backfill_card_history_safety.py
+          python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
+
       - name: Compute batch index (day-of-year mod 7)
         id: b
         run: echo "n=$(( $(date +%j) % 7 ))" >> "$GITHUB_OUTPUT"
 
       - name: Backfill 1/7 of all cards (last 40 days volume)
+        id: collect
+        continue-on-error: true
         run: python scripts/backfill_card_history.py --batch ${{ steps.b.outputs.n }} --of 7 --days 40
         env:
           PYTHONUNBUFFERED: "1"
 
-      - name: Commit history updates
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🤖 History rotate batch (full-catalog 거래량)"
-          file_pattern: "data/history/*.json"
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Publish completed histories while preserving concurrent changes
+        if: steps.collect.outcome == 'success' || steps.collect.outcome == 'failure'
+        run: |
+          python -B - <<'PY'
+          import json, os, re, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from publish_data_snapshot import PublicationError, daily_files, publish
+          root = Path.cwd().resolve()
+          base = os.environ['GITHUB_SHA']
+          files = daily_files(root, base)
+          if any(not re.fullmatch(r'data/history/[1-9][0-9]{0,19}\.json', name) for name in files):
+              raise PublicationError('History rotate may publish only generated history JSON')
+          print(json.dumps(publish(root, base, files,
+              'data: refresh completed history rotation targets', daily=True)))
+          PY
+
+      - name: Report incomplete collection after retaining completed histories
+        if: always() && steps.collect.outcome == 'failure'
+        run: |
+          echo '::error::History collection was incomplete. Failed cards retained their prior bytes and dates; completed independent histories were offered for guarded publication.'
+          exit 1

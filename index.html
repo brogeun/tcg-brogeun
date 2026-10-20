@@ -3975,6 +3975,34 @@ function applyCenteringLoginGate() {
   gate.style.display = loggedIn ? 'none' : '';
   main.style.display = loggedIn ? '' : 'none';
 }
+let _centeringPickerBusy = false;
+async function pickCenteringImage(side, source) {
+  const input = document.querySelector(`input[data-centering-file="${side}${source === 'camera' ? '-camera' : ''}"]`);
+  if (!input || _centeringPickerBusy) return;
+  const capacitor = window.Capacitor;
+  const camera = capacitor?.Plugins?.Camera;
+  if (!capacitor?.isNativePlatform?.() || !camera?.getPhoto) {
+    input.value = '';
+    input.click();
+    return;
+  }
+  _centeringPickerBusy = true;
+  try {
+    const photo = await camera.getPhoto({
+      source: source === 'camera' ? 'CAMERA' : 'PHOTOS',
+      resultType: 'dataUrl', quality: 95, correctOrientation: true, saveToGallery: false
+    });
+    if (!photo.dataUrl) throw new Error('사진을 불러오지 못했습니다.');
+    const blob = await (await fetch(photo.dataUrl)).blob();
+    await loadCenteringImage(side, new File([blob], `${side}.${photo.format || 'jpeg'}`, { type: blob.type || 'image/jpeg' }));
+  } catch (error) {
+    const message = String(error?.message || error || '');
+    const cancelled = /cancel|취소/i.test(message) || ['OS-PLUG-CAMR-0006', 'OS-PLUG-CAMR-0020'].includes(error?.code);
+    if (!cancelled && typeof showToast === 'function') showToast('사진을 열 수 없습니다. 사진·카메라 접근 권한을 확인해 주세요.', 'error');
+  } finally {
+    _centeringPickerBusy = false;
+  }
+}
 function setupCentering() {
   applyCenteringLoginGate();
   ['front', 'back'].forEach(side => {
@@ -3985,10 +4013,13 @@ function setupCentering() {
     const btnAlbum = document.querySelector(`button[data-centering-btn="${side}-album"]`);
     const btnCamera = document.querySelector(`button[data-centering-btn="${side}-camera"]`);
 
-    if (fileAlbum) fileAlbum.onchange = e => { const f = e.target.files[0]; if (f) loadCenteringImage(side, f); };
-    if (fileCamera) fileCamera.onchange = e => { const f = e.target.files[0]; if (f) loadCenteringImage(side, f); };
-    if (btnAlbum) btnAlbum.onclick = e => { e.stopPropagation(); fileAlbum.click(); };
-    if (btnCamera) btnCamera.onclick = e => { e.stopPropagation(); fileCamera.click(); };
+    [fileAlbum, fileCamera].forEach(input => {
+      if (!input) return;
+      input.onclick = e => e.stopPropagation();
+      input.onchange = e => { const f = e.target.files[0]; if (f) loadCenteringImage(side, f); };
+    });
+    if (btnAlbum) btnAlbum.onclick = e => { e.stopPropagation(); pickCenteringImage(side, 'album'); };
+    if (btnCamera) btnCamera.onclick = e => { e.stopPropagation(); pickCenteringImage(side, 'camera'); };
 
     slot.ondragover = e => { e.preventDefault(); slot.style.borderColor = '#3b82f6'; };
     slot.ondragleave = e => { slot.style.borderColor = '#d1d5db'; };
@@ -3998,7 +4029,7 @@ function setupCentering() {
       if (f && f.type.startsWith('image/')) loadCenteringImage(side, f);
     };
     slot.onclick = e => {
-      if (e.target.tagName !== 'BUTTON') fileAlbum.click();
+      if (!e.target.closest('button, input')) pickCenteringImage(side, 'album');
     };
   });
 
@@ -4049,22 +4080,16 @@ async function loadCenteringImage(side, file) {
       s.outer = { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
       s.inner = { x: margin, y: margin, w: img.naturalWidth - margin * 2, h: img.naturalHeight - margin * 2 };
 
-      // 업로드 완료 표시 (슬롯 컨텐츠 간소화)
+      // 파일 입력과 버튼을 유지해 재진입·재선택 때도 사용할 수 있게 한다.
       const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
       if (slot) {
         slot.style.borderColor = side === 'front' ? '#3b82f6' : '#10b981';
         slot.style.background = side === 'front' ? '#eff6ff' : '#ecfdf5';
-        const sideLabel = side === 'front' ? '앞면 (FRONT)' : '뒷면 (BACK)';
-        slot.innerHTML = `
-          <div style="font-size:11px; font-weight:800; color:${side === 'front' ? '#3b82f6' : '#10b981'}; margin-bottom:6px">${sideLabel}</div>
-          <div style="font-size:24px; margin-bottom:6px">✅</div>
-          <div style="font-size:12px; color:#374151; font-weight:700">업로드 완료</div>
-          <button class="btn" type="button" data-centering-reupload="${side}" style="margin-top:8px; cursor:pointer; padding:4px 12px; font-size:11px">↻ 다시 선택</button>
-        `;
-        slot.querySelector(`[data-centering-reupload="${side}"]`).onclick = (e) => {
-          e.stopPropagation();
-          location.reload();  // 재선택 시 페이지 reload (간단)
-        };
+        const thumb = slot.querySelector(`[data-centering-thumb="${side}"]`);
+        if (thumb) {
+          thumb.style.display = '';
+          thumb.textContent = '✅ 업로드 완료 · 앨범/카메라로 다시 선택';
+        }
       }
 
       // 둘 다 업로드 됐는지 체크
@@ -4084,6 +4109,8 @@ function resetCentering() {
     _CENTERING[side] = { img: null, outer: null, inner: null, scale: 1, dragHandle: null };
     const thumb = document.querySelector(`[data-centering-thumb="${side}"]`);
     if (thumb) { thumb.style.display = 'none'; thumb.innerHTML = ''; }
+    const slot = document.querySelector(`.centering-upload-slot[data-side="${side}"]`);
+    if (slot) { slot.style.borderColor = '#d1d5db'; slot.style.background = ''; }
     const fa = document.querySelector(`input[data-centering-file="${side}"]`);
     const fc = document.querySelector(`input[data-centering-file="${side}-camera"]`);
     if (fa) fa.value = ''; if (fc) fc.value = '';

@@ -16,6 +16,37 @@ import tempfile
 ALLOWED = {'data/market-price-index.json', 'data/market-price-index-model-state.json',
            'data/market-price-index-validation.json', 'data/market-price-index-independent-verification.json',
            'data/chinese-market.json'}
+DAILY_NEW_FILES = {'data/update-health.json', 'data/all-cards.json', 'data/cards-meta.json',
+    'data/cards-prices.json', 'data/fx-rates.json', 'data/cards-detail.json', 'data/news.json',
+    'data/promo-search.json', 'data/anniversary-market.json', 'data/anniversary-audit.json',
+    'data/futuristic-market.json', 'data/futuristic-audit.json',
+    'data/top10-pokemon.json', 'data/top10-onepiece.json',
+    'data/price-pokemon-box.json', 'data/price-pokemon-card.json',
+    'data/price-onepiece-box.json', 'data/price-onepiece-card.json',
+    'data/cards-by-set/M6a.json', 'data/cards-by-set/MF.json'}
+
+
+def daily_path(name):
+    if name in ALLOWED or name in ('data/secrets.json', 'data/credentials.json'):
+        return False
+    return bool(re.fullmatch(r'data/[A-Za-z0-9][A-Za-z0-9_.-]*\.json', name)
+                or re.fullmatch(r'data/history/[1-9][0-9]{0,19}\.json', name)
+                or name in ('data/cards-by-set/M6a.json', 'data/cards-by-set/MF.json'))
+
+
+def daily_files(root, base):
+    """Pick generated JSON changes; arbitrary new documents are never added."""
+    if not re.fullmatch(r'[0-9a-fA-F]{40}', base or ''):
+        raise PublicationError('Daily publication requires the exact collection commit')
+    tracked = set(git(root, 'ls-tree', '-r', '--name-only', '-z', base, '--', 'data').stdout.split('\0'))
+    changed = set(git(root, 'diff', '--no-renames', '--name-only', '-z', base, '--').stdout.split('\0'))
+    changed.update(git(root, 'ls-files', '--others', '--exclude-standard', '-z').stdout.split('\0'))
+    selected = sorted(name for name in changed if daily_path(name) and
+                      (name in tracked or name in DAILY_NEW_FILES or re.fullmatch(r'data/history/[1-9][0-9]{0,19}\.json', name)))
+    search = {'data/all-cards.json', 'data/cards-meta.json', 'data/cards-prices.json'}
+    if set(selected) & search and not search <= set(selected):
+        raise PublicationError('Refusing a partial three-file search snapshot')
+    return selected
 
 
 class PublicationError(RuntimeError):
@@ -44,13 +75,17 @@ def tree_entry(root, revision, name):
     return mode, digest
 
 
-def publish(root, base, files, message, attempts=3, temp_parent=None):
+def publish(root, base, files, message, attempts=3, temp_parent=None, daily=False):
     root = Path(root).resolve()
     if not re.fullmatch(r'[0-9a-fA-F]{40}', base or '') or not 1 <= attempts <= 3:
         raise PublicationError('Use an exact original commit and at most three push attempts')
-    if (len(files) != len(set(files))
+    if daily and set(files) != set(daily_files(root, base)):
+        raise PublicationError('Daily output selection changed before publication')
+    if not daily and (len(files) != len(set(files))
             or set(files) not in (ALLOWED - {'data/chinese-market.json'}, {'data/chinese-market.json'})):
         raise PublicationError('Publish the complete four-file verified index set or the single Chinese market snapshot')
+    if daily and not files:
+        return {'status': 'unchanged', 'collectionCommit': base, 'files': []}
     git(root, 'cat-file', '-e', base + '^{commit}')
     snapshots = {}
     original = {name: tree_entry(root, base, name) for name in files}
@@ -97,15 +132,44 @@ def publish(root, base, files, message, attempts=3, temp_parent=None):
     raise PublicationError('Publication did not complete')
 
 
+def prepare_deploy(root, temp_parent=None):
+    """Materialize one current-main commit for every bundle and deployment check."""
+    root = Path(root).resolve()
+    parent = Path(temp_parent or os.environ.get('RUNNER_TEMP') or tempfile.gettempdir()).resolve()
+    worktree = parent / 'tcg-deploy-source'
+    if worktree.exists() or worktree.is_symlink():
+        raise PublicationError('Deployment source already exists; refusing to replace it: ' + str(worktree))
+    git(root, 'fetch', '--no-tags', '--depth=1', 'origin', 'refs/heads/main')
+    head = git(root, 'rev-parse', 'FETCH_HEAD').stdout.strip()
+    git(root, 'worktree', 'add', '--detach', str(worktree), head)
+    return {'status': 'prepared', 'source': str(worktree), 'commit': head}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--base', default=os.environ.get('GITHUB_SHA'))
-    parser.add_argument('--files', nargs='+', required=True)
-    parser.add_argument('--message', required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--files', nargs='+')
+    mode.add_argument('--daily', action='store_true')
+    mode.add_argument('--prepare-deploy', action='store_true')
+    parser.add_argument('--message')
     args = parser.parse_args()
     try:
-        print(json.dumps(publish(args.root, args.base, args.files, args.message)))
+        if args.prepare_deploy:
+            result = prepare_deploy(args.root)
+            environment = os.environ.get('GITHUB_ENV')
+            if environment:
+                if any('\n' in value or '\r' in value for value in (result['source'], result['commit'])):
+                    raise PublicationError('Unsafe deployment environment value')
+                with open(environment, 'a', encoding='utf-8') as stream:
+                    stream.write('DEPLOY_SOURCE=' + result['source'] + '\nDEPLOY_COMMIT=' + result['commit'] + '\n')
+            print(json.dumps(result))
+            return 0
+        if not args.message:
+            parser.error('--message is required for snapshot publication')
+        files = daily_files(args.root.resolve(), args.base) if args.daily else args.files
+        print(json.dumps(publish(args.root, args.base, files, args.message, daily=args.daily)))
         return 0
     except (PublicationError, OSError, ValueError) as error:
         print('::error::' + str(error))

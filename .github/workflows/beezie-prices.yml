@@ -1,8 +1,8 @@
 name: Beezie EV prices
 
-# 10분 간격 cron — Beezie 4머신 가격 자동 fetch + data-beezie 브랜치에 commit
+# 10분 간격 cron — Beezie 현재 공식 목록·운영 상태·가격 확인
 # (메인 브랜치 안 건드림 → Cloudflare Pages 빌드 트리거 X)
-# 워크플로우 1회 실행 ≈ 2-3분 (Playwright 설치 1분 + 4 페이지 렌더 1-2분)
+# 활성 머신만 공식 화면의 평균값까지 확인합니다.
 
 on:
   schedule:
@@ -30,7 +30,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 하이브리드: API(price) + Playwright(avg) — Beezie 표시값과 100% 일치
+      - name: Validate current catalogue, unavailable sources and manual-input preservation
+        run: |
+          python -m unittest discover -s scripts -p test_fetch_beezie.py
+          node --test scripts/test_beezie_availability_ui.cjs
+
+      # 활성 머신은 API(price) + 공식 렌더 화면(avg)을 함께 확인합니다.
       - name: Install Playwright + chromium
         run: |
           pip install playwright

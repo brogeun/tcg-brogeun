@@ -215,12 +215,89 @@ const STORAGE_KEY = "beezie_ev_state_v2";
 const LEGACY_KEYS = ["beezie_ev_state_v3", "beezie_ev_state"];
 
 /* 최근 참고용 시드값 (첫 방문 시 기본으로 깔림 — 실제 Beezie 화면 숫자로 덮어써주세요) */
-const SEED = [
-  {price:500, avg:554, updatedAt:null}, // Platinum TCG
-  {price:250, avg:268, updatedAt:null}, // Gold TCG
-  {price:100, avg:108, updatedAt:null}, // Silver TCG
-  {price:50,  avg:54,  updatedAt:null}, // Wildcard
-];
+const SEED = MACHINES.map(() => ({price:null, avg:null, updatedAt:null, fieldSources:{}}));
+
+function normalizeStoredState(value){
+  return {...value, machines:value.machines.map(item => {
+    const row = {...item, fieldSources:{...(item.fieldSources || {})}};
+    for(const key of ['price','avg']){
+      if(!row.fieldSources[key] && row[key] != null){
+        // Old storage never distinguished manual edits from automatic values.
+        // Preserve those values and label them as unverified manual inputs.
+        row.fieldSources[key] = row.source === 'auto' ? 'auto' : 'legacy';
+      }
+    }
+    return row;
+  })};
+}
+function hasManualValues(row){
+  return ['price','avg'].some(key => row[key] != null && ['manual','legacy'].includes(row.fieldSources?.[key]));
+}
+function machineNotice(row){
+  const manual = hasManualValues(row);
+  const suffix = manual ? ' · 수동 입력값 보존 · 현재 자동시세 아님' : '';
+  if(row.availability === 'paused') return 'Beezie 일시 중지 · 재고 없음 · 자동시세 없음' + suffix;
+  if(row.availability === 'out-of-stock') return 'Beezie 재고 없음 · 자동시세 없음' + suffix;
+  if(row.availability === 'retired') return '현재 Beezie 공식 목록에 없음 · 자동시세 없음' + suffix;
+  if(row.availability === 'stale') return '자동시세 확인 시점이 오래됨' + suffix;
+  if(manual) return '수동 입력값으로 계산 · 현재 자동시세와 다를 수 있음';
+  return row.updatedAt ? '자동시세 확인 · ' + timeAgo(row.updatedAt) : '현재 자동시세 없음 · 직접 입력 가능';
+}
+function unavailableSource(row){
+  return ['paused','out-of-stock','retired','stale'].includes(row.availability);
+}
+function machineVerdict(row){
+  if(unavailableSource(row)) return hasManualValues(row) ? '수동 계산 · 공급자 시세 없음' : '현재 자동시세 없음';
+  return hasManualValues(row) ? '수동 계산' : verdictText(calcEv(row));
+}
+function applyBeezieSnapshot(current, data, definitions = MACHINES, now = Date.now()){
+  if(!data || data.ok !== true || !Array.isArray(data.results)) throw new Error('Invalid Beezie snapshot');
+  const fresh = Number.isFinite(data.fetchedAt) && now - data.fetchedAt >= 0 && now - data.fetchedAt <= 30*60*1000;
+  const complete = data.schemaVersion === 2 && data.catalogue?.complete === true;
+  const normalizeTier = name => name === 'Silver' ? 'Silver TCG' : name;
+  const rows = new Map();
+  for(const row of data.results){
+    const tier = normalizeTier(row.tier || row.sourceName);
+    if(!tier || rows.has(tier)) throw new Error('Ambiguous Beezie machine label');
+    rows.set(tier, row);
+  }
+  const next = normalizeStoredState(current);
+  let automaticQuotes = 0, unavailable = 0, manualPreserved = 0;
+  definitions.forEach((definition, index) => {
+    const item = next.machines[index];
+    const row = rows.get(definition.tier);
+    const missing = !row && complete;
+    if(row && fresh && typeof row.url === 'string' && /^https:\/\/beezie\.com\/claw\/[A-Za-z0-9-]+$/.test(row.url)) item.sourceUrl = row.url;
+    if(missing) item.sourceUrl = 'https://beezie.com/claw';
+    const blocked = !fresh || missing || (row && ['paused','out-of-stock'].includes(row.status));
+    if(blocked){
+      item.availability = !fresh ? 'stale' : missing ? 'retired' : row.status;
+      item.sourceCheckedAt = fresh ? data.checkedAt || data.fetchedAt : null;
+      item.automaticQuote = null;
+      for(const key of ['price','avg']){
+        if(['auto','seed'].includes(item.fieldSources[key])){ item[key] = null; delete item.fieldSources[key]; }
+      }
+      if(!hasManualValues(item)) item.updatedAt = null;
+      else manualPreserved++;
+      unavailable++;
+      return;
+    }
+    if(!row || row.ok !== true || !Number.isFinite(row.price) || row.price <= 0 || !Number.isFinite(row.avg) || row.avg <= 0) return;
+    item.availability = 'active';
+    item.sourceCheckedAt = row.checkedAt || data.fetchedAt;
+    item.automaticQuote = {price:row.price, avg:row.avg, checkedAt:item.sourceCheckedAt};
+    for(const key of ['price','avg']){
+      if(!['manual','legacy'].includes(item.fieldSources[key])){
+        item[key] = row[key]; item.fieldSources[key] = 'auto';
+      }
+    }
+    if(hasManualValues(item)) manualPreserved++;
+    else item.updatedAt = item.sourceCheckedAt;
+    if(typeof row.url === 'string' && /^https:\/\/beezie\.com\/claw\/[A-Za-z0-9-]+$/.test(row.url)) item.sourceUrl = row.url;
+    automaticQuotes++;
+  });
+  return {state:next, automaticQuotes, unavailable, manualPreserved, fresh};
+}
 
 /* State: { machines: [{price, avg, updatedAt}] } */
 function loadState(){
@@ -230,7 +307,7 @@ function loadState(){
     if(raw){
       const parsed = JSON.parse(raw);
       if(parsed && Array.isArray(parsed.machines) && parsed.machines.length === MACHINES.length){
-        return parsed;
+        return normalizeStoredState(parsed);
       }
     }
   }catch(e){ console.warn("loadState(primary) failed", e); }
@@ -243,14 +320,14 @@ function loadState(){
         const parsed = JSON.parse(raw);
         if(parsed && Array.isArray(parsed.machines) && parsed.machines.length === MACHINES.length){
           console.log("Migrated state from legacy key:", key);
-          return parsed;
+          return normalizeStoredState(parsed);
         }
       }
     }catch(e){}
   }
 
   // 3) 최초 방문: 시드값으로 시작
-  return { machines: SEED.map(s => ({...s})) };
+  return normalizeStoredState({ machines: SEED.map(s => ({...s})) });
 }
 function saveState(){
   try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -310,7 +387,7 @@ function renderCards(){
   grid.innerHTML = MACHINES.map((m, i) => {
     const s  = state.machines[i];
     const ev = calcEv(s);
-    const klass = classify(ev);
+    const klass = unavailableSource(s) ? 'empty' : classify(ev);
     const tsStr = timeAgo(s.updatedAt);
     return `
       <div class="card ${klass}" id="card-${i}">
@@ -319,7 +396,7 @@ function renderCards(){
             <div class="tier-label">${m.tier.split(" ")[0]}</div>
             <div class="machine-name">${m.tier}</div>
           </div>
-          <a class="card-link" href="${m.url}" target="_blank" rel="noopener">Beezie ↗</a>
+          <a class="card-link" href="${s.sourceUrl || m.url}" target="_blank" rel="noopener">Beezie ↗</a>
         </div>
         <div class="input-row">
           <div class="input-box">
@@ -341,10 +418,10 @@ function renderCards(){
             </div>
           </div>
         </div>
-        <div class="timestamp ${s.updatedAt ? 'saved' : ''}" id="ts-${i}">${tsStr ? '💾 ' + tsStr : '※ Beezie에서 숫자 확인 후 입력하세요'}</div>
+        <div class="timestamp ${s.updatedAt ? 'saved' : ''}" id="ts-${i}">${machineNotice(s)}</div>
         <div class="ev-row">
-          <span class="ev-badge" id="ev-${i}">EV ${ev == null ? '—' : fmtPct(ev)}</span>
-          <span class="ev-verdict" id="vd-${i}">${verdictText(ev)}</span>
+          <span class="ev-badge" id="ev-${i}">${hasManualValues(s) ? '수동 EV' : 'EV'} ${ev == null ? '—' : fmtPct(ev)}</span>
+          <span class="ev-verdict" id="vd-${i}">${machineVerdict(s)}</span>
         </div>
       </div>`;
   }).join("");
@@ -364,23 +441,27 @@ function onInputChange(e){
   const raw = e.target.value.trim();
   const parsed = parseFloat(raw.replace(/[^\d.]/g, ""));
   const s = state.machines[i];
-  s[field] = (raw === "" || isNaN(parsed)) ? null : parsed;
+  const value = (raw === "" || isNaN(parsed)) ? null : parsed;
+  if(value !== s[field] || e.type === 'input'){
+    s.fieldSources = {...(s.fieldSources || {}), [field]:'manual'};
+  }
+  s[field] = value;
   s.updatedAt = (s.price != null || s.avg != null) ? Date.now() : null;
   saveState();
 
   const ev = calcEv(s);
   const card = $("card-" + i);
   card.classList.remove("good","ok","bad","empty");
-  card.classList.add(classify(ev));
-  $("ev-"+i).textContent = "EV " + (ev == null ? "—" : fmtPct(ev));
-  $("vd-"+i).textContent = verdictText(ev);
+  card.classList.add(unavailableSource(s) ? 'empty' : classify(ev));
+  $("ev-"+i).textContent = (hasManualValues(s) ? '수동 EV ' : 'EV ') + (ev == null ? "—" : fmtPct(ev));
+  $("vd-"+i).textContent = machineVerdict(s);
   const tsEl = $("ts-"+i);
   if(s.updatedAt){
     tsEl.className = "timestamp saved";
-    tsEl.textContent = "💾 " + timeAgo(s.updatedAt);
+    tsEl.textContent = machineNotice(s);
   } else {
     tsEl.className = "timestamp";
-    tsEl.textContent = "※ Beezie에서 숫자 확인 후 입력하세요";
+    tsEl.textContent = machineNotice(s);
   }
 
   renderSummary();
@@ -390,7 +471,7 @@ function onInputChange(e){
 function renderSummary(){
   const results = MACHINES.map((m, i) => ({
     name: m.tier,
-    ev: calcEv(state.machines[i]),
+    ev: unavailableSource(state.machines[i]) ? null : calcEv(state.machines[i]),
   }));
   const valid = results.filter(r => r.ev != null);
   if(valid.length === 0){
@@ -432,7 +513,7 @@ function resetAll(){
 }
 
 function openAll(){
-  MACHINES.forEach(m => window.open(m.url, "_blank", "noopener,noreferrer"));
+  MACHINES.forEach((m,i) => window.open(state.machines[i]?.sourceUrl || m.url, "_blank", "noopener,noreferrer"));
   showToast("머신 4개 창 열림");
 }
 
@@ -472,21 +553,16 @@ async function tryAuto(){
       return;
     }
 
-    let got = 0;
-    data.results.forEach((r, i) => {
-      if(i >= state.machines.length) return;
-      const s = state.machines[i];
-      let changed = false;
-      if(r.price != null && r.price !== s.price){ s.price = r.price; changed = true; }
-      if(r.avg   != null && r.avg   !== s.avg  ){ s.avg   = r.avg;   changed = true; }
-      if(changed){ s.updatedAt = Date.now(); got++; }
-    });
+    const applied = applyBeezieSnapshot(state, data);
+    state = applied.state;
 
     saveState();
     renderCards();
 
-    if(got > 0){
-      showToast(got + "개 머신 업데이트 완료");
+    if(applied.unavailable > 0){
+      showToast('Beezie 일시 중지·재고 없음 또는 공식 목록 제외 · 자동시세 없음' + (applied.manualPreserved ? ' · 수동 입력값 보존' : ''));
+    } else if(applied.automaticQuotes > 0){
+      showToast(applied.automaticQuotes + '개 머신 확인' + (applied.manualPreserved ? ' · 수동 입력값 보존' : ' · 자동시세 갱신'));
     } else {
       // 서버는 응답했지만 값이 못 뽑힘 (Beezie가 페이지 구조를 바꿨을 때)
       showToast("Beezie에서 가격을 찾지 못했습니다 — 수동 입력 필요");

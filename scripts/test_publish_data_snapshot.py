@@ -98,6 +98,89 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'rev-parse', 'refs/heads/main'), self.base)
         self.assertEqual(len(list(self.root.glob('tcg-data-publication-*/attempt-*'))), 3)
 
+    def daily_fixture(self):
+        self.search = ['data/all-cards.json', 'data/cards-meta.json', 'data/cards-prices.json']
+        for name in [*self.search, 'data/chinese-market.json', 'data/history/123.json']:
+            path = self.writer / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('{"old":true}', encoding='utf-8')
+        self.git(self.writer, 'add', 'data')
+        self.git(self.writer, 'commit', '-m', 'Daily fixture baseline')
+        self.git(self.writer, 'push', 'origin', 'main')
+        self.runner = self.root / 'daily-runner'
+        self.git(self.root, 'clone', '--branch', 'main', str(self.remote), str(self.runner))
+        self.base = self.git(self.runner, 'rev-parse', 'HEAD')
+        for name in self.search:
+            (self.runner / name).write_text('{"verified":true}', encoding='utf-8')
+        (self.runner / 'data/update-health.json').write_text('{"status":"healthy"}', encoding='utf-8')
+
+    def publish_daily(self):
+        env = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'safe.directory', 'GIT_CONFIG_VALUE_0': '*'}
+        with patch.dict(os.environ, env):
+            files = target.daily_files(self.runner, self.base)
+            return target.publish(self.runner, self.base, files, 'Daily verified fixture',
+                                  temp_parent=self.root, daily=True)
+
+    def test_daily_search_and_new_health_commit_preserves_concurrent_chinese_snapshot(self):
+        self.daily_fixture()
+        self.advance('data/chinese-market.json', '{"newChinese":true}')
+        result = self.publish_daily()
+        self.assertEqual(self.remote_content('data/chinese-market.json'), '{"newChinese":true}')
+        self.assertTrue(all(json.loads(self.remote_content(name)) == {'verified': True} for name in self.search))
+        expected = set(self.search + ['data/update-health.json'])
+        changed = set(self.git(self.root, '--git-dir', str(self.remote), 'diff-tree', '--no-commit-id', '--name-only', '-r', result['commit']).splitlines())
+        self.assertEqual(changed, expected)
+
+    def test_daily_untracked_unrelated_paths_are_not_selected(self):
+        self.daily_fixture()
+        ignored = ['data/unrelated-user-document.json', 'data/secrets.json', 'notes.txt',
+                   'scripts/unrelated.py', 'data/cards-by-set/OTHER.json', 'data/_source-cache/raw.json']
+        for name in ignored:
+            path = self.runner / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('{"preserve":true}', encoding='utf-8')
+        selected = target.daily_files(self.runner, self.base)
+        self.assertEqual(set(selected), set(self.search + ['data/update-health.json']))
+        self.publish_daily()
+        self.assertEqual(self.remote_content('notes.txt'), 'original')
+        for name in ignored:
+            if name != 'notes.txt':
+                self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'ls-tree', 'refs/heads/main', '--', name), '')
+            self.assertEqual((self.runner / name).read_text('utf-8'), '{"preserve":true}')
+
+    def test_daily_true_history_overlap_rejects_all_outputs(self):
+        self.daily_fixture()
+        (self.runner / 'data/history/123.json').write_text('{"generated":true}', encoding='utf-8')
+        self.advance('data/history/123.json', '{"userHistory":true}')
+        with self.assertRaisesRegex(target.PublicationError, 'target files changed'):
+            self.publish_daily()
+        self.assertEqual(self.remote_content('data/history/123.json'), '{"userHistory":true}')
+        self.assertTrue(all(self.remote_content(name) == '{"old":true}' for name in self.search))
+
+    def test_daily_invalid_json_fails_before_publication(self):
+        self.daily_fixture()
+        (self.runner / 'data/update-health.json').write_text('invalid JSON', encoding='utf-8')
+        with self.assertRaises(ValueError):
+            self.publish_daily()
+        self.assertTrue(all(self.remote_content(name) == '{"old":true}' for name in self.search))
+
+    def test_deploy_source_contains_latest_ui_chinese_and_published_search(self):
+        self.daily_fixture()
+        self.advance('data/chinese-market.json', '{"newChinese":true}')
+        self.advance('index.html', '<main>New user UI</main>')
+        publication = self.publish_daily()
+        env = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'safe.directory', 'GIT_CONFIG_VALUE_0': '*'}
+        with patch.dict(os.environ, env):
+            result = target.prepare_deploy(self.runner, temp_parent=self.root)
+        source = Path(result['source'])
+        self.assertEqual(result['commit'], publication['commit'])
+        self.assertEqual((source / 'index.html').read_text('utf-8'), '<main>New user UI</main>')
+        self.assertEqual(json.loads((source / 'data/chinese-market.json').read_bytes()), {'newChinese': True})
+        self.assertTrue(all(json.loads((source / name).read_bytes()) == {'verified': True} for name in self.search))
+        self.assertEqual(self.git(self.runner, 'rev-parse', 'HEAD'), self.base)
+        self.assertEqual((self.runner / 'data/chinese-market.json').read_text('utf-8'), '{"old":true}')
+        self.assertTrue(all((self.runner / name).read_text('utf-8') == '{"verified":true}' for name in self.search))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -121,17 +121,17 @@ jobs:
 
       - name: Commit JSON updates (if any)
         if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🤖 Daily SNKRDUNK scrape — auto-update"
-          file_pattern: "data/*.json data/history/*.json data/fx-rates.json data/cards-by-set/M6a.json data/cards-by-set/MF.json"
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+        run: python -B scripts/publish_data_snapshot.py --daily --message '🤖 Daily SNKRDUNK scrape — auto-update'
+
+      - name: Prepare a current-main deployment source without changing collected files
+        run: python -B scripts/publish_data_snapshot.py --prepare-deploy
 
       - name: Validate Kanto151 account saves and original Pokemon preservation
+        working-directory: ${{ env.DEPLOY_SOURCE }}
         run: node --test scripts/test_kanto151_account_client.mjs scripts/test_kanto151_account_game.mjs scripts/test_kanto151_account_save.mjs
 
       - name: Prepare deploy bundle (정적 + admin function 만)
+        working-directory: ${{ env.DEPLOY_SOURCE }}
         # 옛날 functions/api/*.js 들은 deploy 깨뜨려서 제외, admin.js 만 포함
         run: |
           rm -rf _deploy
@@ -203,12 +203,15 @@ jobs:
           ls _deploy/data/ 2>/dev/null | wc -l
 
       - name: Verify Japanese catalogue and Korean search before deploy
+        working-directory: ${{ env.DEPLOY_SOURCE }}
         run: node scripts/test_ja_production_gate.cjs --bundle-dir _deploy
 
       - name: Verify public home card index before deploy
+        working-directory: ${{ env.DEPLOY_SOURCE }}
         run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
 
       - name: Verify account save files and keep Johto development unpublished
+        working-directory: ${{ env.DEPLOY_SOURCE }}
         run: |
           test -s _deploy/games/kanto151/account-save.css
           test -s _deploy/games/kanto151/src/account-save.mjs
@@ -218,12 +221,22 @@ jobs:
           test -s _deploy/functions/_shared/kanto151-save.js
           test ! -d _deploy/games/kanto151/johto
 
+      - name: Refuse a stale deployment snapshot
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: |
+          current_main=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [[ "$current_main" != "$DEPLOY_COMMIT" ]]; then
+            echo '::error::Main changed after bundle preparation. Refusing to publish an older site snapshot.'
+            exit 1
+          fi
+
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
         uses: cloudflare/wrangler-action@v3
         with:
+          workingDirectory: ${{ env.DEPLOY_SOURCE }}
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: pages deploy _deploy --project-name=tcghubrogeun --branch=main --commit-dirty=true

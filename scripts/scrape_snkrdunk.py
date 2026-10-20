@@ -5,13 +5,17 @@ GitHub Actions 가 매일 04:00 KST 에 실행
 """
 
 import json
+import copy
+import math
+import os
 import re
 import time
 import sys
+import tempfile
 import urllib.request
 import urllib.error
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -47,7 +51,6 @@ CARD_BRACKET_RE = re.compile(r'\[[^\]]*\d+[^\]]*\]')
 HARD_BOX_KEYWORDS = ('ボックス', 'BOX', 'スペシャルBOX', 'スターターデッキ')
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-DATA_DIR.mkdir(exist_ok=True)
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -391,7 +394,26 @@ def preserve_product_metadata(filename: str, products: list) -> list:
     return products
 
 
+def atomic_json(path, payload):
+    """Prepare complete bytes before replacing a generated snapshot."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    body = (json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + '\n').encode('utf-8')
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.' + path.name + '-', suffix='.tmp', delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(body)
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+
+
 def save_payload(filename: str, label: str, products: list, fetched_at: str):
+    expected = 10 if filename.startswith('top10-') else 30
+    if len(products) != expected or len({str(product.get('id')) for product in products}) != expected:
+        raise ValueError(f'Incomplete {filename}: expected {expected} distinct current products; previous file retained')
     products = preserve_product_metadata(filename, products)
     payload = {
         "ok": True,
@@ -402,8 +424,7 @@ def save_payload(filename: str, label: str, products: list, fetched_at: str):
     }
     out_path = DATA_DIR / filename
     # write_bytes 로 LF 강제 — write_text 는 platform 따라 CRLF 변환할 수 있음
-    txt = json.dumps(payload, ensure_ascii=False, indent=2)
-    out_path.write_bytes(txt.encode("utf-8"))
+    atomic_json(out_path, payload)
     print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
 
 
@@ -490,19 +511,30 @@ def fetch_grade_min_prices(card_id: str) -> dict:
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             html = resp.read().decode("utf-8", errors="replace")
-    except Exception:
-        return {}
+    except Exception as error:
+        raise ValueError('Official grade source unavailable for ' + str(card_id)) from error
 
     grade_by_condition = {22: "psa10", 23: "psa9", 18: "raw"}
     grades = {}
+    checked_conditions = set()
     # chip 객체에는 중첩 객체가 없으며 conditionId 뒤에 usedMinPrice가 위치한다.
     for obj in re.findall(r'\{[^{}]{0,1200}"conditionId":(?:18|22|23)[^{}]{0,1200}\}', html):
         cond_match = re.search(r'"conditionId":(18|22|23)', obj)
         price_match = re.search(r'"usedMinPrice":(\d+)', obj)
-        if not cond_match or not price_match:
+        if not cond_match:
             continue
+        # The official page omits usedMinPrice when this exact condition is
+        # explicitly marked hasListing:false. This is verified absence, not a
+        # failed request or an empty/partially parsed page.
+        if not price_match:
+            if re.search(r'"hasListing"\s*:\s*false', obj):
+                checked_conditions.add(int(cond_match.group(1)))
+            continue
+        checked_conditions.add(int(cond_match.group(1)))
         grade = grade_by_condition[int(cond_match.group(1))]
         price = int(price_match.group(1))
+        if price > 0 and re.search(r'"hasListing"\s*:\s*false', obj):
+            raise ValueError('Conflicting official grade listing availability')
         if price <= 0:
             continue
         info = {
@@ -514,6 +546,8 @@ def fetch_grade_min_prices(card_id: str) -> dict:
         if count_match:
             info["active_count"] = int(count_match.group(1))
         grades[grade] = info
+    if checked_conditions != set(grade_by_condition):
+        raise ValueError('Incomplete official grade chips for ' + str(card_id) + '; previous grades retained')
     return grades
 
 
@@ -677,6 +711,37 @@ def collect_card_ids() -> set:
     return ids
 
 
+def refresh_cards_detail(card_ids, box_ids, fetched_at, usd_jpy, fetcher=None):
+    """Any failed/ambiguous card source keeps the complete previous snapshot."""
+    fetcher = fetcher or fetch_grade_min_prices
+    path = DATA_DIR / 'cards-detail.json'
+    existing = json.loads(path.read_bytes()) if path.exists() else {}
+    cards = copy.deepcopy(existing.get('cards', {}))
+    if not isinstance(cards, dict):
+        raise ValueError('Existing card grades are malformed; original snapshot retained')
+    for cid in card_ids:
+        grades = fetcher(cid)
+        if not isinstance(grades, dict):
+            raise ValueError('Invalid grade source result for ' + str(cid))
+        previous = cards.get(str(cid), {})
+        cards[str(cid)] = {**previous, 'id': str(cid), 'grades': grades, 'fetchedAt': fetched_at}
+        time.sleep(.2)
+    for bid in box_ids:
+        cards.setdefault(str(bid), {'id': str(bid), 'grades': {}})
+    if not card_ids:
+        raise ValueError('No card grade targets; previous snapshot retained')
+    payload = copy.deepcopy(existing)
+    payload.update(ok=True, usdJpy=usd_jpy, count=len(cards), cards=cards,
+                   collection={'status': 'complete-for-requested-cards', 'completedAt': fetched_at,
+                               'checkedCardIds': sorted(str(cid) for cid in card_ids)})
+    # Unrequested saved cards are preserved and must not inherit a new global
+    # freshness timestamp. Successful rows carry their own source check time.
+    expected = {str(cid) for cid in card_ids} | {str(cid) for cid in box_ids}
+    if set(cards) <= expected:
+        payload['fetchedAt'] = fetched_at
+    atomic_json(path, payload)
+
+
 def main():
     fetched_at = datetime.now(timezone.utc).isoformat()
     fail_count = 0
@@ -774,45 +839,13 @@ def main():
     all_ids = sorted(collect_card_ids())
     card_ids = [cid for cid in all_ids if cid not in box_ids]
     print(f"  전체 추적 ID: {len(all_ids)}개  /  박스 제외 카드만: {len(card_ids)}개")
-    cards_detail = {}
-    debug_count = 0
-    for i, cid in enumerate(card_ids, 1):
-        grades = {}
-        debug_this = (debug_count < 3)
-        if debug_this:
-            print(f"  [DEBUG] card {cid}:")
-        # 상품 페이지의 usedMinPrice는 SNKRDUNK 등급 탭에 표시되는 JPY 최저가다.
-        # 낮은 매물을 이상치로 제거하지 않고 화면 값 그대로 저장한다.
-        grades = fetch_grade_min_prices(cid)
-        if debug_this:
-            summary = {g: info.get("lowest_ask") for g, info in grades.items()}
-            print(f"    SNKRDUNK usedMinPrice(JPY): {summary}")
-
-        if debug_this:
-            debug_count += 1
-        cards_detail[cid] = {
-            "id": cid,
-            "grades": grades,
-        }
-        if i % 10 == 0 or i == len(card_ids):
-            non_empty = sum(1 for v in grades.values() if v.get("recent_avg") or v.get("lowest_ask"))
-            print(f"  [{i}/{len(card_ids)}] {cid} → 등급 채워진 칸: {non_empty}/3")
-        time.sleep(0.2)
-
-    # 박스 placeholder 등록
-    for bid in box_ids:
-        cards_detail.setdefault(bid, {"id": bid, "grades": {}})
-
-    out_path = DATA_DIR / "cards-detail.json"
-    detail_txt = json.dumps({
-        "ok": True,
-        "fetchedAt": fetched_at,
-        "usdJpy": usd_jpy,
-        "count": len(cards_detail),
-        "cards": cards_detail,
-    }, ensure_ascii=False, indent=2)
-    out_path.write_bytes(detail_txt.encode("utf-8"))
-    print(f"  → 저장: {out_path.relative_to(DATA_DIR.parent)}")
+    total += 1
+    try:
+        refresh_cards_detail(card_ids, box_ids, fetched_at, usd_jpy)
+        print('  → 저장: data/cards-detail.json')
+    except Exception as error:
+        fail_count += 1
+        print('  카드 등급 수집 미완료; 기존 파일 보존: ' + str(error))
 
     # ─────────── Phase A — history 누적 (sales-chart 기반) ───────────
     # 백필과 동일한 데이터 소스 사용 (실거래가) → line 끊김 없음
@@ -824,7 +857,7 @@ def main():
 
     GRADE_OPTION_IDS_HIST = {"psa10": 22, "psa9": 23, "raw": 18}
 
-    def fetch_chart_grade(cid, opt_id):
+    def fetch_chart_grade(cid, opt_id, chart_timezone=timezone.utc):
         """sales-chart/used + 옵션 ID → {date: price}
         ⚠ FIX (2026-05): 이전 버전은 sales-history?salesChartOptionId={} 를 사용했으나
                           sales-history API 는 salesChartOptionId 를 무시함 (등급 통합 데이터 반환).
@@ -840,18 +873,27 @@ def main():
             })
             with urllib.request.urlopen(req, timeout=15) as r:
                 d = json.loads(r.read().decode("utf-8"))
-        except Exception:
-            return {}
-        points = d.get("points") or []
+        except Exception as error:
+            raise ValueError('Official chart source unavailable') from error
+        points = d.get('points')
+        if not isinstance(points, list):
+            raise ValueError('Official chart response lacks points array')
         by_date = {}
         for p in points:
             if isinstance(p, list) and len(p) >= 2:
                 ts_ms, price = p[0], p[1]
+                if (type(ts_ms) not in (int, float) or not math.isfinite(ts_ms)
+                        or type(price) not in (int, float) or not math.isfinite(price)):
+                    raise ValueError('Invalid chart observation')
+                if price <= 0:
+                    continue
                 try:
-                    date = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+                    date = datetime.fromtimestamp(ts_ms / 1000, tz=chart_timezone).strftime("%Y-%m-%d")
                     by_date[date] = int(price)
-                except Exception:
-                    pass
+                except Exception as error:
+                    raise ValueError('Invalid chart date') from error
+            else:
+                raise ValueError('Malformed chart point')
         return by_date
 
     appended = 0
@@ -859,21 +901,19 @@ def main():
     all_ids = collect_card_ids()
     print(f"  대상 ID: {len(all_ids)} 개")
     for cid in sorted(all_ids):
+        total += 1
         hist_path = history_dir / f"{cid}.json"
         existing = {"history": []}
         if hist_path.exists():
             try:
-                raw = hist_path.read_bytes().replace(b"\x00", b"").rstrip()
+                raw = hist_path.read_bytes()
                 existing = json.loads(raw)
-            except Exception:
-                # 깨진 JSON 복구 시도
-                try:
-                    last = raw.rfind(b"}")
-                    if last > 0:
-                        existing = json.loads(raw[:last+1] + b"\n  ]\n}")
-                except Exception:
-                    existing = {"history": []}
+            except Exception as error:
+                fail_count += 1
+                print(f'  {cid}: 기존 history 읽기 오류; 원본 보존: {error}')
+                continue
         by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
+        history_timezone = timezone(timedelta(hours=9)) if existing.get('historyTimezone') == 'Asia/Tokyo' else timezone.utc
 
         # 박스/카드 분기 — 이름에 [세트코드 번호] 있으면 카드, 없으면 박스
         # 정확한 분류는 product 페이지에서 확인할 수도 있지만, 기존 데이터 키로 추정
@@ -885,6 +925,8 @@ def main():
             is_box = True
 
         any_new = False
+        history_error = False
+        history_limited = False
         if is_box:
             # 박스: sales-history 페이지네이션 (size==1 거래만)
             from collections import defaultdict as _dd
@@ -897,23 +939,35 @@ def main():
                     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json", "Referer": "https://snkrdunk.com/"})
                     with urllib.request.urlopen(req, timeout=15) as r:
                         d2 = json.loads(r.read().decode("utf-8"))
-                except Exception:
+                except Exception as error:
+                    history_error = True
+                    print(f'  {cid}: 박스 history 원본 조회 실패; 기존 파일 보존: {error}')
                     break
-                items = d2.get("history") or []
+                items = d2.get('history')
+                if not isinstance(items, list):
+                    history_error = True
+                    break
                 if not items: break
-                today_now = _dt.now()
+                today_now = _dt.now(history_timezone)
                 for it in items:
                     date_str = (it.get("date") or "").strip()
                     m = re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
                     if m: dt_str = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
                     else:
-                        m2 = re.match(r"(\d+)\s*(日|day)", date_str)
-                        dt_str = (today_now - _td(days=int(m2.group(1)))).strftime("%Y-%m-%d") if m2 else today_now.strftime("%Y-%m-%d")
+                        m2 = re.fullmatch(r"(\d+)\s*(日|時間|分|秒|days?|hours?|minutes?|mins?|seconds?)(?:前|\s+ago)?", date_str, re.I)
+                        if not m2:
+                            history_error = True
+                            break
+                        amount, unit = int(m2.group(1)), m2.group(2).lower()
+                        field = 'days' if unit == '日' or unit.startswith('day') else 'hours' if unit == '時間' or unit.startswith('hour') else 'minutes' if unit == '分' or unit.startswith('min') else 'seconds'
+                        dt_str = (today_now - _td(**{field: amount})).strftime('%Y-%m-%d')
                     pr = it.get("price")
                     if isinstance(pr, str):
                         pm = re.search(r"([\d,]+)", pr.replace("¥", ""))
                         pr = int(pm.group(1).replace(",", "")) if pm else None
-                    if pr is None: continue
+                    if type(pr) not in (int, float) or not math.isfinite(pr) or pr <= 0:
+                        history_error = True
+                        break
                     sz_val = None
                     for sk in ("quantity", "count", "qty", "size", "amount", "num",
                                "size_text", "sizeText", "lot_size", "set_size",
@@ -934,8 +988,11 @@ def main():
                     if sz_val != 1: continue
                     box_prices[dt_str].append(pr)
                     box_vols[dt_str] += 1
-                if len(items) < 20: break
+                if history_error or len(items) < 20: break
                 time.sleep(0.2)
+            else:
+                # The page budget cannot prove a complete final-day volume.
+                history_limited = True
             # median — 같은 날 거래 list 중앙값. outlier 영향 0
             for date, prs in box_prices.items():
                 sorted_prs = sorted(prs)
@@ -946,10 +1003,19 @@ def main():
                 by_date[date]["box_vol"] = box_vols[date]
                 any_new = True
 
+        if history_limited:
+            print(f'::warning::{cid}: bounded box history page limit reached; previous file and timestamp retained. Full-history workflow handles deeper pages.')
+            continue
+
         if is_card:
             # 카드: 등급별 sales-chart/used 사용 (sales-history 는 등급 무시 → 동일값 버그)
             for grade, opt_id in GRADE_OPTION_IDS_HIST.items():
-                chart = fetch_chart_grade(cid, opt_id)
+                try:
+                    chart = fetch_chart_grade(cid, opt_id, history_timezone)
+                except Exception as error:
+                    history_error = True
+                    print(f'  {cid}: 등급 history 원본 조회 실패; 기존 파일 보존: {error}')
+                    break
                 for date, price in chart.items():
                     if date not in by_date:
                         by_date[date] = {"date": date}
@@ -957,27 +1023,31 @@ def main():
                     any_new = True
                 time.sleep(0.2)
 
-        if not any_new and not by_date:
+        if history_error:
+            fail_count += 1
+            continue
+        if not any_new:
             continue
 
         new_history = sorted(by_date.values(), key=lambda h: h.get("date", ""))
-        out = json.dumps({
+        payload = {**existing,
             "id": str(cid),
             "updatedAt": fetched_at,
             "source": "daily (sales-history 1ea)",
             "history": new_history,
-        }, ensure_ascii=False, indent=2)
+        }
         try:
-            hist_path.unlink()
-        except Exception:
-            pass
-        hist_path.write_bytes(out.encode("utf-8"))
+            atomic_json(hist_path, payload)
+        except Exception as error:
+            fail_count += 1
+            print(f'  {cid}: history 저장 실패; 기존 파일 보존: {error}')
+            continue
         appended += 1
 
     print(f"  → history 갱신: {appended} 카드/박스")
     print(f"\n완료. 실패 {fail_count}/{total}")
-    if fail_count == total:
-        print("All failed -> exit 1")
+    if fail_count:
+        print("Collection incomplete -> exit 1 (failed snapshots retained)")
         sys.exit(1)
 
 

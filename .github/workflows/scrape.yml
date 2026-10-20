@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: '0 19 * * *'  # 04:00 KST 매일
   workflow_dispatch:  # 수동 실행 가능
+  workflow_run:
+    workflows: ['Refresh Verified Home Card Index Daily', 'Chinese Auction Prices Daily']
+    types: [completed]
+    branches: [main]
   push:
     branches: [main]
     # paths-ignore 제거 — 사용자 push 는 항상 trigger.
@@ -15,13 +19,21 @@ permissions:
 concurrency:
   group: scrape
   cancel-in-progress: false
+  queue: max
 
 jobs:
   scrape:
     # bot 의 자동 commit (data 자동 갱신) 으로 인한 무한 trigger 방지
-    if: github.actor != 'github-actions[bot]'
+    if: >-
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository) ||
+      (github.event_name != 'workflow_run' && github.actor != 'github-actions[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 90  # Existing daily collection plus bounded full search-price pagination.
+    env:
+      COLLECT_DATA: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[refresh-prices]')) }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -50,34 +62,39 @@ jobs:
           python -m unittest discover -s scripts -p test_refresh_search_prices.py
           python -m unittest discover -s scripts -p test_update_health.py
           python -m unittest discover -s scripts -p test_prepare_public_bundle.py
+          python -B -m unittest discover -s scripts -p test_scrape_snapshot_safety.py
+          python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
+          node --test scripts/test_beezie_snapshot_api.cjs
 
       - name: Setup Chrome browser
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         uses: browser-actions/setup-chrome@latest
         with:
           chrome-version: stable
 
       - name: Install Python dependencies
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install "selenium>=4.20.0" "webdriver-manager>=4.0.0" "beautifulsoup4>=4.12,<5" requests
 
       - name: Run scraper
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
+        id: daily-primary
+        continue-on-error: true  # Retain failed-source snapshots; collect independent FX/search updates.
         run: python scripts/scrape_snkrdunk.py
         env:
           PYTHONUNBUFFERED: "1"
 
       - name: Run news scraper (한국 포켓몬·원피스 공식 소식)
-        if: github.event_name != 'push'
+        if: env.COLLECT_DATA == 'true' && github.event_name != 'push'
         continue-on-error: true  # 한 사이트 장애가 가격 수집·배포 전체를 막지 않도록 경고 처리
         run: python scripts/scrape_news.py
         env:
           PYTHONUNBUFFERED: "1"
 
       - name: Fetch FX rates (Naver USD/KRW, JPY/KRW, CNY/KRW)
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         id: daily-fx
         continue-on-error: true  # Keep the last snapshot; the final check reports failure.
         run: python scripts/fetch_fx_rates.py
@@ -85,7 +102,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
 
       - name: Refresh full search catalogue and prices with bounded anonymous requests
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         id: search-prices
         continue-on-error: true  # Atomic collector retains all previous files on incomplete fetch.
         run: python scripts/refresh_search_prices.py --delay 1 --max-pages 500
@@ -95,19 +112,19 @@ jobs:
         run: python scripts/check_daily_freshness.py --output data/update-health.json
 
       - name: Rebuild Japanese promo search metadata from the collected catalogue
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         continue-on-error: true  # Keep the last successful promo catalogue on an upstream failure.
         run: node scripts/build_promo_search.cjs
 
       - name: Update anniversary Japanese grade prices and missing versions
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         continue-on-error: true # Last complete snapshot is kept when any source fails.
         run: python scripts/sync_anniversary_market.py
         env:
           PYTHONUNBUFFERED: "1"
 
       - name: Update Futuristic Box promo prices and complete public sales history
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         continue-on-error: true # Collector retains previous snapshot if any product fails.
         run: python scripts/sync_futuristic_market.py
         env:
@@ -120,11 +137,18 @@ jobs:
         run: node scripts/test_futuristic_market.mjs
 
       - name: Commit JSON updates (if any)
-        if: github.event_name != 'push' || contains(github.event.head_commit.message, '[refresh-prices]')
+        if: env.COLLECT_DATA == 'true'
         run: python -B scripts/publish_data_snapshot.py --daily --message '🤖 Daily SNKRDUNK scrape — auto-update'
 
       - name: Prepare a current-main deployment source without changing collected files
         run: python -B scripts/publish_data_snapshot.py --prepare-deploy
+
+      - name: Record freshness of the exact deployment data
+        id: deployment-health
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: |
+          python scripts/check_daily_freshness.py --output data/update-health.json
+          python -c "import json; from pathlib import Path; d=json.loads(Path('data/update-health.json').read_text(encoding='utf-8')); assert d.get('status') in ('healthy','incomplete') and isinstance(d.get('datasets'),list); print('Deployment update-health JSON:', d['status'])"
 
       - name: Validate Kanto151 account saves and original Pokemon preservation
         working-directory: ${{ env.DEPLOY_SOURCE }}
@@ -208,7 +232,9 @@ jobs:
 
       - name: Verify public home card index before deploy
         working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
+        run: |
+          node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
+          python -c "import json; from pathlib import Path; d=json.loads(Path('_deploy/data/update-health.json').read_text(encoding='utf-8')); assert d.get('status') in ('healthy','incomplete') and isinstance(d.get('datasets'),list); print('Required public update-health JSON:', d['status'])"
 
       - name: Verify account save files and keep Johto development unpublished
         working-directory: ${{ env.DEPLOY_SOURCE }}
@@ -243,7 +269,7 @@ jobs:
 
 
       - name: Report incomplete daily collection after retaining valid independent updates
-        if: always() && (steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || steps.daily-health.outputs.status == 'incomplete')
+        if: always() && (steps.daily-primary.outcome == 'failure' || steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || steps.deployment-health.outputs.status == 'incomplete')
         run: |
           echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
           exit 1

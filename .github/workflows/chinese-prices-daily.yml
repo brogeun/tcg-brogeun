@@ -39,7 +39,7 @@ jobs:
             chinese-auctions-v1-${{ runner.os }}-${{ hashFiles('automation-sources/chinese-bootstrap-*.tar.gz') }}-
       - name: Refresh with strict public request limits
         id: refresh
-        timeout-minutes: 10
+        timeout-minutes: 12
         run: python scripts/run_chinese_daily.py
       - name: Preserve complete or interrupted archive progress
         if: always() && steps.cache.outcome == 'success'

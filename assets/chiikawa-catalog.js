@@ -6,7 +6,7 @@
   'use strict';
   if (window.ChiikawaCatalog) return;
 
-  const VERSION = '20261020-desc2';
+  const VERSION = '20261020-ui1';
   const DATA_URL = '/data/chiikawa-catalog.json';
   const PAGE_SIZE = 18;
   const BRAND = 'chiikawa';
@@ -73,14 +73,6 @@
   const shell = () => modal()?.querySelector('[data-ck-shell]');
   const rarityLabel = card => card.rarityNotApplicable ? '해당 없음' : card.rarity || '확인 중';
   const inclusionLabel = card => card.kind === 'collection_bonus' ? '컬렉션 특전' : INCLUSION[card.inclusionType] || '';
-  const REVIEW_LABELS = {
-    rarity_conflict: '레어도 표기 확인 중',
-    promo_distribution_unverified: '배포 경로 확인 중',
-  };
-  const REVIEW_NOTES = {
-    rarity_conflict: '레어도 표기가 출처마다 달라 확인 중입니다.',
-    promo_distribution_unverified: '프로모의 배포 시기·수록 경로를 확인 중입니다.',
-  };
 
   function localImage(value) {
     // No external image requests, URL schemes, encoded paths or traversals.
@@ -221,6 +213,11 @@
     return `<div class="ck-catalog-note"><div><strong>치이카와 · 일본판</strong><span>바이스슈발츠 브라우 · ${data.cardCount}개 카드</span></div>${partial ? '<p>수록 목록 확인 중 · 등록된 카드 기준으로 표시합니다.</p>' : ''}</div>`;
   }
 
+  function releaseHTML(set, tag = 'span') {
+    if (set.productType === 'promo_collection') return '';
+    return `<${tag}>${set.release ? '발매일: ' + esc(set.release) : '발매일 확인 중'}</${tag}>`;
+  }
+
   async function render(force = false) {
     const list = document.getElementById('cardInfoList');
     if (!list || !inOwnTab()) return;
@@ -236,7 +233,7 @@
         const bonus = set.cards.filter(card => card.kind === 'collection_bonus').length;
         return `<button type="button" class="ck-set-tile" data-ck-set="${esc(set.code)}" aria-label="${esc(set.name)} 수록 카드 보기">
           <span class="ck-cover ck-cover-${esc(set.productType)}${set.boxImage ? ' ck-cover-photo' : ''}">${set.boxImage ? `<img data-ck-box-image src="${esc(set.boxImage)}" alt="${esc(set.name)} 상품 박스 이미지" loading="lazy" decoding="async"><span class="ck-box-fallback" hidden>${esc(set.name)}</span>` : `<span class="ck-cover-label">WEISS SCHWARZ BLAU</span><strong>치이카와</strong><span>${esc(PRODUCT_TYPES[set.productType])}</span><span class="ck-cover-code">${esc(set.code)}</span>`}</span>
-          <span class="ck-set-body"><span class="ck-set-code">${esc(set.code)}</span><strong>${esc(set.name)}</strong><span>${set.cards.length}개 카드${bonus ? ' · 컬렉션 특전 ' + bonus + '개 포함' : ''}</span><span>${set.release ? '발매일: ' + esc(set.release) : '발매일 확인 중'}</span>${setFactsHTML(set, true)}</span>
+          <span class="ck-set-body"><span class="ck-set-code">${esc(set.code)}</span><strong>${esc(set.name)}</strong><span>${set.cards.length}개 카드${bonus ? ' · 컬렉션 특전 ' + bonus + '개 포함' : ''}</span>${releaseHTML(set)}${setFactsHTML(set, true)}</span>
         </button>`;
       }).join('') + (sets.length ? '' : '<div class="ck-message">검색 결과가 없습니다. 박스 이름 또는 세트 코드를 확인해 주세요.</div>');
     } catch (error) {
@@ -296,8 +293,7 @@
   }
 
   function badges(card) {
-    const reviews = [...new Set(card.needsReview.map(reason => REVIEW_LABELS[reason] || '정보 확인 중'))];
-    return `<span class="ck-badge">${esc(rarityLabel(card))}</span>${inclusionLabel(card) ? `<span class="ck-badge ck-badge-kind">${esc(inclusionLabel(card))}</span>` : ''}${reviews.map(label => `<span class="ck-badge ck-badge-review">${esc(label)}</span>`).join('')}`;
+    return `<span class="ck-badge">${esc(rarityLabel(card))}</span>${inclusionLabel(card) ? `<span class="ck-badge ck-badge-kind">${esc(inclusionLabel(card))}</span>` : ''}`;
   }
 
   function pager(current, total) {
@@ -325,7 +321,7 @@
   function gridPanel(restore = false) {
     if (!activeSet) return;
     selectedCard = null;
-    present(`${toolbar()}<div class="ck-set-heading"><span>${esc(PRODUCT_TYPES[activeSet.productType])} · ${esc(activeSet.code)}</span><h2 id="ckPanelTitle">${esc(activeSet.name)}</h2>${activeSet.nameJa && activeSet.nameJa !== activeSet.name ? `<p lang="ja">${esc(activeSet.nameJa)}</p>` : ''}<p>${activeSet.release ? '발매일: ' + esc(activeSet.release) : '발매일 확인 중'}</p></div><label class="ck-search">카드 검색<input id="ckCardSearch" type="search" autocomplete="off" placeholder="이름·번호·레어도 (예: 하치와레, SSP)" value="${esc(cardQuery)}"></label><div class="ck-scroll" id="ckPanelScroll">${setFactsHTML(activeSet)}<p class="ck-count" id="ckCardCount" role="status" aria-live="polite"></p><div class="ck-card-grid" id="ckCardGrid"></div></div><nav class="ck-pages" id="ckCardPages" aria-label="수록 카드 페이지 이동"></nav>`, 'ckPanelTitle');
+    present(`${toolbar()}<div class="ck-set-heading"><span>${esc(PRODUCT_TYPES[activeSet.productType])} · ${esc(activeSet.code)}</span><h2 id="ckPanelTitle">${esc(activeSet.name)}</h2>${activeSet.nameJa && activeSet.nameJa !== activeSet.name ? `<p lang="ja">${esc(activeSet.nameJa)}</p>` : ''}${releaseHTML(activeSet, 'p')}</div><label class="ck-search">카드 검색<input id="ckCardSearch" type="search" autocomplete="off" placeholder="이름·번호·레어도 (예: 하치와레, SSP)" value="${esc(cardQuery)}"></label><div class="ck-scroll" id="ckPanelScroll">${setFactsHTML(activeSet)}<p class="ck-count" id="ckCardCount" role="status" aria-live="polite"></p><div class="ck-card-grid" id="ckCardGrid"></div></div><nav class="ck-pages" id="ckCardPages" aria-label="수록 카드 페이지 이동"></nav>`, 'ckPanelTitle');
     gridBody();
     if (restore) {
       const scroll = document.getElementById('ckPanelScroll');
@@ -360,8 +356,7 @@
     if (card.promoInfo) rows.push(['특전·입수 경로', card.promoInfo]);
     const links = card.sourceUrls.map(url => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(sourceName(url))} ↗</a>`).join('');
     const original = card.imageOriginal && /\.(png|jpe?g|webp|gif)(?:$|[?#])/i.test(card.imageOriginal) ? `<a href="${esc(card.imageOriginal)}" target="_blank" rel="noopener noreferrer nofollow">원본 이미지 ↗</a>` : '';
-    const reviewNotes = [...new Set(card.needsReview.map(reason => REVIEW_NOTES[reason] || '일부 카드 정보를 확인 중입니다.'))].join(' ');
-    present(`${toolbar(true)}<div class="ck-scroll ck-detail-scroll"><article class="ck-detail">${imageHTML(card, true)}<div class="ck-detail-copy"><span class="ck-eyebrow">바이스슈발츠 브라우 · 치이카와</span><h2 id="ckCardTitle">${esc(card.name)}</h2>${card.nameJa && card.nameJa !== card.name ? `<p class="ck-japanese-name" lang="ja">${esc(card.nameJa)}</p>` : ''}<p class="ck-detail-number">${esc(card.number)}</p><div class="ck-badges">${badges(card)}</div><p class="ck-price-note">시세 정보는 제공하지 않습니다.</p><dl class="ck-facts">${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>${reviewNotes ? `<p class="ck-review-note">${esc(reviewNotes)}</p>` : ''}${links || original ? `<section class="ck-sources" aria-label="카드 정보 출처"><h3>출처</h3><div>${links}${original}</div></section>` : ''}<button type="button" class="ck-button ck-back-button" data-ck-back>수록 카드로 돌아가기</button></div></article></div>`, 'ckCardTitle', modalRequest, '[data-ck-back]');
+    present(`${toolbar(true)}<div class="ck-scroll ck-detail-scroll"><article class="ck-detail">${imageHTML(card, true)}<div class="ck-detail-copy"><span class="ck-eyebrow">바이스슈발츠 브라우 · 치이카와</span><h2 id="ckCardTitle">${esc(card.name)}</h2>${card.nameJa && card.nameJa !== card.name ? `<p class="ck-japanese-name" lang="ja">${esc(card.nameJa)}</p>` : ''}<p class="ck-detail-number">${esc(card.number)}</p><div class="ck-badges">${badges(card)}</div><p class="ck-price-note">시세 정보는 제공하지 않습니다.</p><dl class="ck-facts">${rows.map(([label, value]) => `<div><dt>${label}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>${links || original ? `<section class="ck-sources" aria-label="카드 정보 출처"><h3>출처</h3><div>${links}${original}</div></section>` : ''}<button type="button" class="ck-button ck-back-button" data-ck-back>수록 카드로 돌아가기</button></div></article></div>`, 'ckCardTitle', modalRequest, '[data-ck-back]');
   }
 
   async function open(code, cardId = '', force = false) {

@@ -9,7 +9,7 @@
   const fold = value => decode(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').normalize('NFC').replace(/\s+/g,' ').trim();
   const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  function language(card) {
+  function inferredLanguage(card) {
     const c = typeof card === 'string' ? {name:card} : card || {};
     const text = [c.name,c.originalName,c.productNumber,c.setCode,c.code,c.id].map(decode).join(' ');
     // Explicit edition markers outrank an absent or incorrect catalogue language.
@@ -89,9 +89,26 @@
       cache.clear();
       return api;
     }
+    function marketReview(card) {
+      // Reviewed market identities never propagate through a printed card's
+      // productId, or to another game's products and sealed products.
+      if (!card || typeof card !== 'object' || card._catalogue ||
+          card.brand !== 'pokemon' || card.kind !== 'card' ||
+          !/^[1-9][0-9]*$/.test(String(card.id || ''))) return null;
+      const review = data?.byId?.[String(card.id)];
+      return review && typeof review === 'object' ? review : null;
+    }
+    function language(card) {
+      const reviewed = marketReview(card)?.language;
+      return typeof reviewed === 'string' ? inferredLanguage({language:reviewed}) : inferredLanguage(card);
+    }
+    function candidateCatalogueId(card) {
+      const candidate = marketReview(card)?.candidateCatalogueId;
+      return typeof candidate === 'string' && candidate.startsWith('JP:') ? candidate : null;
+    }
     async function ensureData() {
       if (data) return api;
-      if (!ready) ready = fetch('/data/japanese-card-names-ko.json?v=20261014-jp3',{signal:AbortSignal.timeout(12000)}).then(response=>{
+      if (!ready) ready = fetch('/data/japanese-card-names-ko.json?v=20261021-reviews1',{signal:AbortSignal.timeout(12000)}).then(response=>{
         if (!response.ok) throw new Error('Japanese card names HTTP '+response.status);
         return response.json();
       }).then(configure).catch(error=>{ready=null;throw error});
@@ -173,7 +190,7 @@
       const label = visible.replace(/안농\s*(?:\[[A-Z!?]\]|\([A-Z!?]\)|[A-Z!?](?![A-Za-z]))/g,'안농').replace(/(?<![A-Za-z])(?:V-UNION|LV\.X|ACE\s*SPEC|HANDY(?:505|910is)|GFPD|WLFM|TS-[12]|G-\d{3}|CS\d{4}|SC2|B\/RGB|G\/RGB|R\/RGB|MC|PRO|VIP|UB|MAX|FF|WP|AZ|PP|DX|GB2?|AD|SIR|SUR|BWR|TV|ex|EX|GX|V|VMAX|VSTAR|BREAK|LEGEND|SP|SAR|SR|RR|RRR|AR|R|U|C|P|HR|UR|SSR|S|CHR|CSR|MA|MUR|SA|K|A|B|D|F|G|H|M|W|GL|FB|E4|C4|X|Y|Z|N|HP|PR|L|TR|ACE|No\.?\s*\d+)(?![A-Za-z])/g,'');
       return /[A-Za-z\u3040-\u30ff\u4e00-\u9fff]/.test(label) ? label.replace(/\s+/g,' ').trim() : '';
     }
-    const api = {configure,ensureData,title,searchText,normalizeQuery,language,unresolved,parts};
+    const api = {configure,ensureData,title,searchText,normalizeQuery,language,candidateCatalogueId,unresolved,parts};
     if (initial) configure(initial);
     return api;
   }

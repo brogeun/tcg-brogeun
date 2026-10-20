@@ -38,6 +38,17 @@
     if (!catalog) return rows = products;
     const byId = new Map(products.map(product => [String(product.id), product]));
     const covered = new Set();
+    const canonical = new Map(catalog.cards.map(card => [card.id, card]));
+    for (const product of products) {
+      if (product.brand !== 'pokemon' || product.kind !== 'card' || !japanese(product)) continue;
+      const candidate = canonical.get(names()?.candidateCatalogueId?.(product));
+      if (candidate && candidate.brand === 'pokemon' && candidate.kind === 'card' &&
+          candidate.language === 'ja' && japanese(candidate)) {
+        // A reviewed duplicate is hidden only in search. It never supplies the
+        // printed card's productId, price, artwork, or destination.
+        covered.add(String(product.id));
+      }
+    }
     const sets = new Map(catalog.sets.map(set => [set.code, set]));
     const printed = catalog.cards.map(card => {
       // Candidate IDs suppress duplicate market listings, never supply a price.

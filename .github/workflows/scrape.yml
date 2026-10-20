@@ -47,6 +47,11 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Record the source actually checked out after waiting in the queue
+        run: echo "COLLECTION_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -75,6 +80,7 @@ jobs:
           python -B -m unittest discover -s scripts -p test_scrape_snapshot_safety.py
           python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
           node --test scripts/test_beezie_snapshot_api.cjs
+          node --test scripts/test_japanese_market_reviews.cjs
 
       - name: Setup Chrome browser
         if: env.COLLECT_PRIMARY == 'true'
@@ -148,7 +154,7 @@ jobs:
 
       - name: Commit JSON updates (if any)
         if: env.COLLECT_DATA == 'true'
-        run: python -B scripts/publish_data_snapshot.py --daily --message '🤖 Daily SNKRDUNK scrape — auto-update'
+        run: python -B scripts/publish_data_snapshot.py --daily --base "$COLLECTION_COMMIT" --message '🤖 Daily SNKRDUNK scrape — auto-update'
 
       - name: Prepare a current-main deployment source without changing collected files
         run: python -B scripts/publish_data_snapshot.py --prepare-deploy

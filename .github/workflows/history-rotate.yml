@@ -21,6 +21,11 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Record the source actually checked out after waiting in the queue
+        run: echo "COLLECTION_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
@@ -51,7 +56,7 @@ jobs:
           sys.path.insert(0, 'scripts')
           from publish_data_snapshot import PublicationError, daily_files, publish
           root = Path.cwd().resolve()
-          base = os.environ['GITHUB_SHA']
+          base = os.environ['COLLECTION_COMMIT']
           files = daily_files(root, base)
           if any(not re.fullmatch(r'data/history/[1-9][0-9]{0,19}\.json', name) for name in files):
               raise PublicationError('History rotate may publish only generated history JSON')

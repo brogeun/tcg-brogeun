@@ -1,0 +1,705 @@
+{
+  "schemaVersion": 1,
+  "translationPolicy": "Application display translations of marketplace wording and identifying attributes. These are not claims that an unreleased Japanese card has an official Korean printing. Original names, numbers, languages, and product IDs remain unchanged.",
+  "sources": [
+    {
+      "path": "data/cards-meta.json",
+      "scope": "Original marketplace names and variant descriptions"
+    },
+    {
+      "path": "data/promo-search.json",
+      "scope": "Original Japanese promotional-product names"
+    },
+    {
+      "path": "data/pokemon-names-pokeapi.json",
+      "scope": "Korean species spellings"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Forina",
+      "scope": "Forina / Fance place-name spelling; Korean 파운스"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Rota",
+      "scope": "Rota movie-location identity; marketplace wording 'of the rotor'"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Spiky-eared_Pichu",
+      "scope": "Spiky-eared Pichu Korean form spelling: 삐쭉귀 피츄"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Michina_Town",
+      "scope": "Michina Korean place spelling: 미케나"
+    },
+    {
+      "url": "https://www.pokemonkorea.co.kr/news/3/10219",
+      "scope": "Koko Korean character spelling: 코코"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/38886/regu/all",
+      "scope": "Plump Musician original Japanese title; application display translation"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/36742",
+      "scope": "Lieutenant Yoshida original Japanese title and SMP2 025/024 identity; application display translation"
+    },
+    {
+      "url": "https://www.pokemon-card.com/20th/topics/",
+      "scope": "Suzuki-san Japanese entertainment-unit identity; application Korean transliteration 스즈키상"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/32353/",
+      "scope": "M Sachiko EX printed identity XY-P298; application Korean transliteration 메가사치코 EX"
+    },
+    {
+      "url": "https://www.pokemon-card.com/ex/article/abareru-deck/index.html",
+      "scope": "Abareru-kun original Japanese spelling あばれる君; application Korean transliteration"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/OOYAMA",
+      "scope": "Ooyama/Oyama illustrator identity; application transliteration 오야마"
+    },
+    {
+      "url": "https://wikiwiki.jp/pcg-base-neo/%E3%83%8F%E3%83%9E%E3%81%A1%E3%82%83%E3%82%93%E3%81%AE%E3%83%A4%E3%83%89%E3%82%AD%E3%83%B3%E3%82%B0%EF%BC%88%E3%83%97%E3%83%AD%E3%83%A2%EF%BC%89",
+      "scope": "Hama-chan original Japanese printed title; application transliteration ハマちゃん→하마짱"
+    },
+    {
+      "path": "data/pokemon-names-pokeapi.json",
+      "scope": "Victreebell supplier spelling aliases canonical Victreebel; original name stays unchanged"
+    },
+    {
+      "path": "data/cards-meta.json",
+      "scope": "Supplier Cal titles: reviewed original photos 92111/93301/93304/93305/93302 all say ひかる. Exact title aliases, not a guessed owner"
+    },
+    {
+      "path": "data/cards-meta.json",
+      "scope": "Fokelore Lucario source photo109953 says 伝承のルカリオex 006/015; distinct from 波導のルカリオex006/012"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Shining_Imakuni_%28%22P%22_Promo_18%29",
+      "scope": "Cal Imakuni 018/P exact supplier alias for ひかるイマクニ?; original product number preserved"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/21263",
+      "scope": "G-101 Energy Gain Japanese title and actual Pt1 088/096 identity confirmed by source audit; preserve G-101"
+    },
+    {
+      "path": "data/cards-meta.json",
+      "scope": "Basic Basic Fire Energy supplier duplicate Basic word: exact label alias to Basic Fire Energy; printed SV-P080 preserved"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/46452",
+      "scope": "Technical Machine Machine is the actual Japanese title わざマシンマシン SV-P189; apparent machine repetition is meaningful"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SMP0000000090",
+      "scope": "Beast Ball Korean terminology 울트라볼; effect trades Ultra Beast from prizes"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SP000000110",
+      "scope": "Cram-o-matic Korean terminology 윽우지로봇; discard item then coin flip search"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SP000000141",
+      "scope": "Spicy Seasoned Curry Korean terminology 매운맛 스파이시 카레; burn and heal active Pokemon"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/49605",
+      "scope": "Influencer Introduction actual MP1019/023 Japanese title/effect; application translation"
+    },
+    {
+      "url": "https://www.pokemon-card.com/ex/classic/",
+      "scope": "Sun Seed actual Classic new Venusaur tool title 太陽のタネ; application translation"
+    },
+    {
+      "url": "https://shopping.fullcomp.jp/products/pdwf9q5yxd8o?variant=43215800041566",
+      "scope": "Grisham M-P099 actual title グリ; distinct from Gwynn ムク"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Grisham",
+      "scope": "Grisham Korean character spelling 그리, distinct from Gwynn 무쿠"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Samson_Oak",
+      "scope": "Samson Oak Korean character spelling 송호 오"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Scott",
+      "scope": "Scott Korean character spelling 금작화"
+    },
+    {
+      "url": "https://bulbapedia.bulbagarden.net/wiki/Riley",
+      "scope": "Riley Korean character spelling 현"
+    },
+    {
+      "path": "data/japanese-catalog.json",
+      "scope": "Deoxys Normal Forme: Korean species+Normal forme. Energy Pickup: reviewed app translation, not a Korean printing claim"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SP000000129",
+      "scope": "Korean official wording and effect reviewed: Blunder Policy 허탕보험; coin-flip tails draw3 effect"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SP000000034",
+      "scope": "Korean official wording and effect reviewed: Struggle Gloves 역경글러브; weakness type equals opponent active type grants+30"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SVP000000048",
+      "scope": "Korean official wording and effect reviewed: Moonlight Hill 달이 빛나는 언덕; discard PsychicEnergy healall30"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SVP000000101",
+      "scope": "Korean official wording and effect reviewed: Billy & O'Nare 빌리오&나리아; draw2 then2 if10cards"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SP000000181",
+      "scope": "Korean official wording and effect reviewed: Digging Duo 구멍파기형제; coin8/3 bottom deck then choose1"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SVP000000179",
+      "scope": "Korean official wording and effect reviewed: TeamRocketHypnoticDevice 로켓단의 최면장치; attackedRocketPokemon causes sleep"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SVP000000082",
+      "scope": "Korean official wording and effect reviewed: Roto-Stick 로토무셀카봉; top4 takeanysupporter"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/BS2023016131",
+      "scope": "Korean official wording and effect reviewed: Youngster 반바지 꼬마; shuffle handdraw5"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SMP000000250",
+      "scope": "Korean official wording and effect reviewed: Rainbowflower 무지개꽃; GXmaximumHP+20 andbenchprotection"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SMP000000170",
+      "scope": "Korean official wording and effect reviewed: Energy Spinner 에너지 스피너; search1basicenergy,3ifgoingsecondfirstturn"
+    },
+    {
+      "url": "https://pokemoncard.co.kr/cards/detail/SP000000149",
+      "scope": "Korean official wording and effect reviewed: Riley 현이; opponent chooses2discardfromtop5"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/17009/regu/DP",
+      "scope": "EnergyPickup original Japanese エネルギーパッチ; app 에너지패치. Distinct from EnergyRetrieval 에너지회수"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/45799",
+      "scope": "Roto-Stick JP160 effect matches Korean82; naming only, not set-number join"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/43834/regu/all",
+      "scope": "Youngster JP132/139 effect matches Korean131"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/44033",
+      "scope": "MoonlightHill JP095 effect matches Korean48"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/41953",
+      "scope": "DiggingDuo JP300 effect matches Korean181"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/37998",
+      "scope": "StruggleGloves JP045 effect matches Korean34"
+    },
+    {
+      "url": "https://www.pokemon-card.com/card-search/details.php/card/46131",
+      "scope": "BillyONare JP170 effect matches Korean101"
+    },
+    {
+      "url": "https://snkrdunk.com/apparels/93303",
+      "scope": "Exact original supplier Japanese title and corresponding English Cal/Kaen/Kairiki label reviewed; app Korean display terminology only"
+    },
+    {
+      "url": "https://snkrdunk.com/apparels/92104",
+      "scope": "Exact original supplier Japanese title and corresponding English Cal/Kaen/Kairiki label reviewed; app Korean display terminology only"
+    },
+    {
+      "url": "https://snkrdunk.com/apparels/93308",
+      "scope": "Exact original supplier Japanese title and corresponding English Cal/Kaen/Kairiki label reviewed; app Korean display terminology only"
+    },
+    {
+      "url": "https://snkrdunk.com/apparels/93306",
+      "scope": "Exact original supplier Japanese title and corresponding English Cal/Kaen/Kairiki label reviewed; app Korean display terminology only"
+    },
+    {
+      "url": "https://snkrdunk.com/apparels/92158",
+      "scope": "Exact original supplier Japanese title and corresponding English Cal/Kaen/Kairiki label reviewed; app Korean display terminology only"
+    },
+    {
+      "url": "https://snkrdunk.com/apparels/93335",
+      "scope": "Exact original supplier Japanese title and corresponding English Cal/Kaen/Kairiki label reviewed; app Korean display terminology only"
+    }
+  ],
+  "owners": {
+    "Tohoku": "도호쿠",
+    "Hiroshima": "히로시마",
+    "Fukuoka": "후쿠오카",
+    "Kanazawa": "가나자와",
+    "Pokepark": "포케파크",
+    "Pokemon Center": "포켓몬센터",
+    "Team Flare": "플레어단",
+    "Team Skull": "스컬단",
+    "Team Galactic": "갤럭시단",
+    "Kasumi": "이슬",
+    "Sakaki": "비주기",
+    "Forina": "파운스",
+    "Fance": "파운스",
+    "Barry": "용식",
+    "Honey": "미진",
+    "Professor Willow": "윌로우박사",
+    "Karasuba": "카라스바",
+    "Koko": "코코",
+    "Marie": "마리",
+    "Oyama": "오야마",
+    "Ooyama": "오야마",
+    "Hama-chan": "하마짱",
+    "Samson Oak": "송호오",
+    "Grisham": "그리",
+    "Chairman Rose": "로즈",
+    "Scott": "금작화",
+    "Riley": "현이"
+  },
+  "species": {
+    "Achamo": "아차모",
+    "Mizugorou": "물짱이",
+    "Gombe": "먹고자",
+    "Showers": "샤미드",
+    "Galados": "갸라도스",
+    "Victreebell": "우츠보트"
+  },
+  "names": {
+    "Players Ceremony": "플레이어스세레모니",
+    "Celebrate Fanfare": "축하 팡파르",
+    "Mario Pikachu": "마리오 피카츄",
+    "Luigi Pikachu": "루이지 피카츄",
+    "Spiky Eared Pichu": "삐쭉귀 피츄",
+    "Spiky-eared Pichu": "삐쭉귀 피츄",
+    "Rocket's Admin": "로켓단의 간부",
+    "Team Rocket's Admin.": "로켓단의 간부",
+    "Team Rocket's Admin": "로켓단의 간부",
+    "Computer Crashes!": "컴퓨터 고장!",
+    "Misty's Competition": "이슬의 승부",
+    "Elegant Attack": "우아한 공격",
+    "Deoxys of The Sky": "하늘의 테오키스",
+    "Precious Carry": "프레셔스캐리",
+    "Paradise Resort": "파라다이스 리조트",
+    "Space-Time Distortion": "시공의 왜곡",
+    "Time-Space Distortion": "시공의 왜곡",
+    "Pichu Brothers": "피츄 형제",
+    "Pichu Bros": "피츄 형제",
+    "Battle Road Stadium": "배틀로드 스타디움",
+    "Etiquette": "예절",
+    "MiracleBerry": "기적의 열매",
+    "Prime Catcher": "프라임캐처",
+    "Hero's Cape": "히어로망토",
+    "Master's Book": "마스터의 서",
+    "Champions Festival": "챔피언스 페스티벌",
+    "Hall of Fame Book": "명예의 전당의 서",
+    "Tropical Wind": "트로피컬윈드",
+    "Tropical Tidal Wave": "열대의 해일",
+    "Touch Exchange!": "터치 교환!",
+    "Touch Exchange": "터치 교환",
+    "Touch Generation Change!": "터치 세대교체!",
+    "Pokemon Center's Big sister": "포켓몬센터 누나",
+    "Boss Pikachu Team Rocket": "보스 피카츄 로켓단",
+    "Boss Pikachu Team Galactic": "보스 피카츄 갤럭시단",
+    "Boss Pikachu Team Aqua": "보스 피카츄 아쿠아단",
+    "Boss Pikachu Team Plasma": "보스 피카츄 플라스마단",
+    "Boss Pikachu Team Flare": "보스 피카츄 플레어단",
+    "Boss Pikachu Team Magma": "보스 피카츄 마그마단",
+    "Member Pretend Pikachu": "단원 흉내 피카츄",
+    "Gyarados Pretend Pikachu": "갸라도스 흉내 피카츄",
+    "Magikarp Pretend Pikachu": "잉어킹 흉내 피카츄",
+    "Dark Galados": "나쁜갸라도스",
+    "Rocket's Thunder": "로켓단의 썬더",
+    "Mischievous Pichu": "장난꾸러기 피츄",
+    "The Tree of Beginnings Mew": "시작의 나무의 뮤",
+    "Japanese National Team Pikachu": "일본 국가대표 피카츄",
+    "Crystal Tower Entei": "결정탑의 앤테이",
+    "Visitor of The Sky Deoxys": "하늘의 방문자 테오키스",
+    "Hero of Waves Lucario": "파동의 용사 루카리오",
+    "Pitch Pikachu Dribble": "경기장 피카츄 드리블",
+    "Pitch Pikachu Shoot": "경기장 피카츄 슛",
+    "Counterattack Mewtwo": "역습의 뮤츠",
+    "Explosive Birth Lugia": "폭발탄생 루기아",
+    "City of Water Latios": "물의 도시의 라티오스",
+    "City of Water Latias": "물의 도시의 라티아스",
+    "Ice Sky Shaymin": "빙공의 쉐이미",
+    "Gentleman Pikachu": "신사 피카츄",
+    "Tea Party Pikachu": "다과회 피카츄",
+    "Pikachu playing in the sea": "바다에서 노는 피카츄",
+    "Pikachu Flying in the sky": "하늘을 나는 피카츄",
+    "Cosplay Pikachu": "코스프레 피카츄",
+    "Gourmet Snorlax": "미식가 잠만보",
+    "Michina Shrine": "미케나 신전",
+    "Great Rocket's Mewtwo": "위대한 로켓단의 뮤츠",
+    "Hakama Pikachu": "하카마 피카츄",
+    "Fake Okido's Counterattack": "가짜 오박사의 역습",
+    "Throw it down! Challenge": "덤벼라! 도전",
+    "Sabrina's Eye": "초련의 눈",
+    "Please Change It!": "교환해주세요!",
+    "Mini Skirt": "짧은치마",
+    "The Battlefield is Full of Holes!": "배틀장은 구멍투성이!",
+    "Team Rocket Is Here!": "로켓단 등장!",
+    "Eevee Fan Club": "이브이 팬클럽",
+    "Ocean Drops": "바다의 물방울",
+    "Imakuni?'s Computer": "이마쿠니의 컴퓨터",
+    "Mysterious Pearl": "신비한 진주",
+    "The Masked Royal": "로열마스크",
+    "Book of Fame": "명예의 서",
+    "Drops of the Heart": "마음의 물방울",
+    "Pokemon Card Fan": "포켓몬카드 팬",
+    "A Bundle of Energy": "에너지 묶음",
+    "How to Be a Boss": "보스가 되는 방법",
+    "Nighttime Trash Collection": "밤의 쓰레기 수거",
+    "Potion Energy Content": "에너지 충전 약",
+    "Remind": "기억해내기",
+    "Headband of Love": "사랑의 머리띠",
+    "Pokemon Gear": "포켓몬 기어",
+    "Pokedex HANDY505": "포켓몬도감 HANDY505",
+    "Plus Power": "플러스파워",
+    "Alph's Stone Slab": "알프의 석판",
+    "Koga Secret, Transformer": "독수의 비기 변신술",
+    "Misty's Treatment": "이슬의 치료",
+    "Sakakis Scheme": "비주기의 계략",
+    "Misty's Anchor": "이슬의 닻",
+    "Pokemon Card Gym Medal": "포켓몬카드짐 메달",
+    "Hall of Fame Belt": "명예의 전당 벨트",
+    "Pokemon Card Laboratory": "포켓몬카드 연구소",
+    "Dance! Neo Imakuni": "춤춰라! 네오 이마쿠니",
+    "Master Key": "마스터키",
+    "Pokemon Illustrator": "포켓몬 일러스트레이터",
+    "Wonder Platinum": "원더플래티넘",
+    "Miracle Diamond": "기적의 다이아몬드",
+    "Card Trainer Certification": "카드 트레이너 인증서",
+    "Technical Machine Machine": "기술머신 머신",
+    "Team Plasma's Poke Ball": "플라스마단의 몬스터볼",
+    "Pokemon Card Research Institute": "포켓몬카드 연구소",
+    "The Door of Beginnings": "시작의 문",
+    "Phantom Zoroark": "환영의 조로아크",
+    "Koga's Ninja Gym": "독수의 닌자짐",
+    "Legendary Lava Cave": "전설의 용암동굴",
+    "Legendary Summit": "전설의 정상",
+    "Legendary Trench": "전설의 해구",
+    "Pikachu Osaka": "오사카 피카츄",
+    "Pikachu Nagoya": "나고야 피카츄",
+    "Pikachu Fukuoka": "후쿠오카 피카츄",
+    "Tohoku Pikachu": "도호쿠 피카츄",
+    "Shibuya Pikachu": "시부야 피카츄",
+    "Sapporo Pikachu": "삿포로 피카츄",
+    "Pikachu World Hobby Fair": "피카츄 월드 하비 페어",
+    "Team Flare's Grunt": "플레어단의 조무래기",
+    "Team Flare'sGrunt": "플레어단의 조무래기",
+    "Team Magma'sGrunt": "마그마단의 조무래기",
+    "Team Aqua'sGrunt": "아쿠아단의 조무래기",
+    "Team Plasma's Grunt": "플라스마단의 조무래기",
+    "Team Rocket's Trap": "로켓단의 함정",
+    "Team Rocket's Harassment": "로켓단의 괴롭힘",
+    "Mew Mysterious Tail": "뮤 신비한 꼬리",
+    "Pikachu Wagon": "피카츄 왜건",
+    "Kanazawa Pikachu With Mark": "가나자와 피카츄 마크 있음",
+    "Pikachu and Cramorant": "피카츄와 윽우지",
+    "Pikachu Green": "피카츄 녹색",
+    "High Class Pack VSTAR Universe AR 9 Piece Set": "하이클래스팩 VSTAR 유니버스 AR 9장 세트",
+    "Marie Extra Battle Day": "마리 엑스트라 배틀의 날",
+    "Marnie's Pride": "마리의 프라이드",
+    "Friends in Alolan": "알로라의 동료",
+    "Pokemon Card Game YU NAGABA x Pokemon Card Game Eevees Promotional Pack Complete Set": "포켓몬 카드 게임 나가바 유 × 포켓몬 카드 게임 이브이 프로모팩 완성 세트",
+    "Pokemon Card Game Kanazawa's Pikachu: Promo (unmarked) Milotic &Sobble": "포켓몬 카드 게임 가나자와 피카츄 · 프로모 (마크 없음) 밀로틱 & 울머기",
+    "Extinguisher Pikachu": "소방대 피카츄",
+    "Okuge Sama and Maiko Han Pikachu": "오쿠게사마와 마이코한 피카츄",
+    "Timeless Celebi": "시간을 초월한 세레비",
+    "Seven Nights Jirachi": "칠야의 지라치",
+    "Sakura Afro Pikachu": "벚꽃 아프로 피카츄",
+    "Inverted World Giratina": "반전세계의 기라티나",
+    "Real World Giratina": "현실세계의 기라티나",
+    "Cool Porygon": "쿨 폴리곤",
+    "Pikachu Libre": "마스크드 피카츄",
+    "Sleep! Sleep!": "잠들어라! 잠들어라!",
+    "All night party": "올나이트 파티",
+    "Easter's Pikachu": "부활절 피카츄",
+    "Team Skull Pikachu": "스컬단 피카츄",
+    "Pikachu Blue": "피카츄 파란색",
+    "Team Rocket's Lady": "로켓단의 누나",
+    "Shopping Pikachu": "쇼핑 피카츄",
+    "Prince of The Blue Sea Manaphy": "푸른 바다의 왕자 마나피",
+    "Gombe of Pokepark": "포케파크의 먹고자",
+    "Boss Pikachu Team Skull": "보스 피카츄 스컬단",
+    "Kasumi's Water Command": "이슬의 수중지령",
+    "Lass Recommendation": "미니스커트의 추천",
+    "Lass Recommendation P": "미니스커트의 추천 P",
+    "Pikachu Nicole": "니콜 피카츄",
+    "Illusion's Zorua": "환영의 조로아",
+    "Fance Absol": "파운스의 앱솔",
+    "Dark Fearow": "나쁜깨비드릴조",
+    "Hole Digging Shovel": "땅굴파기 삽",
+    "MC's talk": "MC의 토크",
+    "Explorer": "탐험가",
+    "Cynthia's Thought": "난천의 마음",
+    "Cynthia's Feelings": "난천의 마음",
+    "Team Plasma Badge": "플라스마단 배지",
+    "Endurance Charm": "인내 부적",
+    "Rich Energy": "리치 에너지",
+    "Bede \"Bede's Determination\"": "비트 \"비트의 결심\"",
+    "Hop \"Hop's Daily routine\"": "호브 \"호브의 일상\"",
+    "The Guy From Oshie Tv": "오시에 TV의 아저씨",
+    "Shadow Lugia": "다크루기아",
+    "Honey": "미진",
+    "Barry": "용식",
+    "Koko": "코코",
+    "Professor Willow": "윌로우박사",
+    "Plump Musician": "통통한 뮤지션",
+    "Lieutenant Yoshida": "요시다 경부보",
+    "Imakuni?": "이마쿠니",
+    "Blacksmith": "대장장이",
+    "Legendary Lava Lake": "전설의 용암호수",
+    "Legendary Ocean Trench": "전설의 해구",
+    "Abareru-kun": "아바레루군",
+    "Suzuki-san": "스즈키상",
+    "M Sachiko EX": "메가사치코 EX",
+    "Team Skull Pikachu & Member Pretend Pikachu": "스컬단 피카츄 & 단원 흉내 피카츄",
+    "Pokemon Enterprise": "포켓몬 엔터프라이즈",
+    "Pokémon Enterprise": "포켓몬 엔터프라이즈",
+    "Pokemon Enterprise Director Golgo": "포켓몬 엔터프라이즈 골고 사장",
+    "Pokemon Enterprise Manager Shokotan": "포켓몬 엔터프라이즈 쇼코탄 부장",
+    "Pokemon Enterprise Manager Lucario": "포켓몬 엔터프라이즈 루카리오 부장",
+    "Zekrom 15th": "제크로무 15주년",
+    "Shining Imakuni?": "빛나는 이마쿠니",
+    "Oyama's Pikachu": "오야마의 피카츄",
+    "Ooyama's Pikachu": "오야마의 피카츄",
+    "Hama-chan's Slowking": "하마짱의 야도킹",
+    "Cal Magikarp": "빛나는 잉어킹",
+    "Cal Mewtwo": "빛나는 뮤츠",
+    "Cal Kabutops": "빛나는 투구푸스",
+    "Cal Steelix": "빛나는 강철톤",
+    "Cal Tyranitar": "빛나는 마기라스",
+    "Cal Imakuni?": "빛나는 이마쿠니",
+    "Fokelore's Lucario EX": "전승의 루카리오 ex",
+    "Fokelore's Lucario ex": "전승의 루카리오 ex",
+    "Team Galactic's Invention G-101 Energy Gain": "갤럭시단의 발명 G-101 에너지게인",
+    "Team Galactic's Invention G 101 Energy Gain": "갤럭시단의 발명 G-101 에너지게인",
+    "Basic Basic Fire Energy": "기본 불꽃 에너지",
+    "Samson Oak": "송호오",
+    "Beast Ball": "울트라볼",
+    "Cram-o-matic": "윽우지로봇",
+    "Spicy Seasoned Curry": "매운맛 스파이시 카레",
+    "Influencer's Introduction": "인플루언서의 소개",
+    "Sun Seed": "태양의 씨앗",
+    "Grisham": "그리",
+    "Chairman Rose": "로즈",
+    "Exchange Please": "교환해주세요!",
+    "Migawari Robo Team Flare Gear": "대타출동로봇 (플레어단 기어)",
+    "Scott": "금작화",
+    "Deoxys Normal Forme": "테오키스 노말폼",
+    "Energy Pickup": "에너지패치",
+    "Riley": "현이",
+    "Billy & O'Nare": "빌리오&나리아",
+    "Blunder Policy": "허탕보험",
+    "Digging Duo": "구멍파기형제",
+    "Moonlight Hill": "달이 빛나는 언덕",
+    "Rainbow flower": "무지개꽃",
+    "Roto-Stick": "로토무셀카봉",
+    "Struggle Gloves": "역경글러브",
+    "Team Rocket's Hypnotic Device": "로켓단의 최면장치",
+    "Youngster": "반바지 꼬마",
+    "Energy Spinner": "에너지 스피너",
+    "Cal Celebi": "빛나는 세레비",
+    "Cal Charizard": "빛나는 리자몽",
+    "Cal Gyarados": "빛나는 갸라도스",
+    "Cal Raichu": "빛나는 라이츄",
+    "Charizard (Kaen Charizard)": "리자몽 (화염 리자몽)",
+    "Charizard (Kairiki Charizard)": "리자몽 (괴력 리자몽)"
+  },
+  "terms": {
+    "Spiky Eared": "삐쭉귀",
+    "Spiky-eared": "삐쭉귀",
+    "Pokemon Pal City": "포켓몬 팰시티",
+    "Poke Park": "포케파크",
+    "Pokemon Center": "포켓몬센터",
+    "Poketele AD": "포케테레 AD",
+    "CoroCoro Comic": "코로코로코믹",
+    "Illustration Collection": "일러스트 컬렉션",
+    "Full Illustration": "전체 일러스트",
+    "Manzai play": "만담 공연",
+    "Rescue DX": "구조대 DX",
+    "Summer PokeCard": "여름 포켓몬카드",
+    "Anniversary Festa": "주년 페스타",
+    "Anniversary": "주년",
+    "Festa": "페스타",
+    "World Hobby Fair": "월드 하비 페어",
+    "Family Tournament": "가족 대회",
+    "Champion Road": "챔피언로드",
+    "Authorized Voluntary Events": "공인 자율 행사",
+    "Battle Festa": "배틀 페스타",
+    "Gold Medal": "금메달",
+    "Silver": "은색",
+    "Gold": "금색",
+    "Mark Before Revision": "수정 전 마크",
+    "Mark After Revision": "수정 후 마크",
+    "Error Previous ver.": "오류 초기판",
+    "Early Revised ver.": "초기 수정판",
+    "Wizards Notation": "위저즈 표기",
+    "Unopend": "미개봉",
+    "Unopen": "미개봉",
+    "Error": "오류",
+    "Normal": "일반",
+    "Star": "스타",
+    "Players": "플레이어스",
+    "Berkemeja Batik": "바틱 셔츠",
+    "Flower": "꽃",
+    "Pattern": "문양",
+    "Toyota Auto": "도요타 오토",
+    "Seven-Eleven": "세븐일레븐",
+    "7 Eleven": "세븐일레븐",
+    "Lawson": "로손",
+    "FamilyMart CircleKSunkus": "패밀리마트 서클K 선쿠스",
+    "Chubu": "주부",
+    "Kanto": "관동",
+    "Kansai": "관서",
+    "Tohoku": "도호쿠",
+    "Hokkaido": "홋카이도",
+    "Kyushu": "규슈",
+    "Chugoku Shikoku": "주고쿠·시코쿠",
+    "Pokemon GAME SHOW": "포켓몬 게임쇼",
+    "Fan Club": "팬클럽",
+    "Marnie Practice": "마리 연습",
+    "of the rotor": "로타의",
+    "In the Sky": "하늘의",
+    "Pokemon Card Game": "포켓몬 카드 게임",
+    "In A Sleeve": "슬리브 포장",
+    "Art Collection": "아트 컬렉션",
+    "Gari-Gari Kun": "가리가리군",
+    "Late Revised ver.": "후기 수정판",
+    "Gym Challenge": "짐 챌린지",
+    "Bullet train": "신칸센",
+    "Mega Battle": "메가 배틀",
+    "Basic": "기본",
+    "Illustration Grand Prix": "일러스트 그랑프리",
+    "at Poke Park": "포케파크의",
+    "at Pokepark": "포케파크의",
+    "of Pokepark": "포케파크의",
+    "kira": "홀로",
+    "Osaka": "오사카",
+    "Gym": "체육관",
+    "Team Flare Gear": "플레어단 기어",
+    "Delta": "델타",
+    "Celebration": "기념",
+    "Challenge Road": "챌린지로드",
+    "Tropical Mega Battle": "트로피컬 메가 배틀",
+    "Commemoration Of Participation": "참가 기념",
+    "Tamamushi University": "무지개대학",
+    "Hiding Darkness Energy": "하이드 악 에너지",
+    "Team Skull": "스컬단",
+    "Pretend": "흉내",
+    "x 6": "× 6",
+    "x 2": "× 2",
+    "Member Pretend Pikachu": "단원 흉내 피카츄",
+    "Grunt": "조무래기",
+    "Imakuni?": "이마쿠니",
+    "luster": "유광",
+    "matt": "무광",
+    "Gym Leader": "짐리더",
+    "Ganba Lillie": "힘내라 릴리에",
+    "Light Blue": "하늘색",
+    "Purple": "보라색",
+    "Error ver.": "오류판",
+    "Energy Spinner": "에너지 스피너"
+  },
+  "byId": {
+    "391128": {
+      "candidateCatalogueId": "JP:CP4:113/131",
+      "kind": "reviewed-print-candidate",
+      "scope": "Search duplicate suppression only; not a verified price or product link.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/992b280d-ed80-4379-9cc7-fd9b0926049e.webp?size=m",
+        "canonicalImage": "https://cdn.pooka.app/card/ja-cp4-113.png?size=small",
+        "printedLanguage": "ja",
+        "printedNumber": "113/131",
+        "samePrintedCardVerified": true
+      }
+    },
+    "427857": {
+      "candidateCatalogueId": "JP:VS:009/141",
+      "kind": "reviewed-print-candidate",
+      "scope": "Search duplicate suppression only; not a verified price or product link.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/91b35b19-be9a-4680-a7c3-f8e92a9fca1c.webp?size=m",
+        "canonicalImage": "https://cdn.pooka.app/card/ja-pok-mon-vs-9.png?size=small",
+        "printedLanguage": "ja",
+        "printedNumber": "009/141",
+        "samePrintedCardVerified": true
+      }
+    },
+    "435166": {
+      "candidateCatalogueId": "JP:VS-MANAPHY:001/019",
+      "kind": "reviewed-print-candidate",
+      "scope": "Search duplicate suppression only; not a verified price or product link.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/0396e99d-593f-4217-b7f7-5b5c13be1417.webp?size=m",
+        "canonicalImage": "https://cdn.pooka.app/card/ja-movie-commemoration-vs-pack-seas-manaphy-1.png?size=small",
+        "printedLanguage": "ja",
+        "printedNumber": "001/019",
+        "samePrintedCardVerified": true
+      }
+    },
+    "488126": {
+      "language": "en",
+      "kind": "reviewed-market-edition",
+      "scope": "Edition classification only; preserve original product name, ID, image, and price.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/2a264b36-2567-48be-8992-59dfd4e3e80f.webp?size=m",
+        "printedLanguage": "en",
+        "printedEdition": "Astral Radiance 160/189"
+      }
+    },
+    "488127": {
+      "language": "en",
+      "kind": "reviewed-market-edition",
+      "scope": "Edition classification only; preserve original product name, ID, image, and price.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/a8a8d4c0-6671-4ab5-8b0e-f596ad20fd59.webp?size=m",
+        "printedLanguage": "en",
+        "printedEdition": "Astral Radiance 161/189"
+      }
+    },
+    "509330": {
+      "language": "en",
+      "kind": "reviewed-market-edition",
+      "scope": "Edition classification only; preserve original product name, ID, image, and price.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/f3dde553-4b80-4c00-a1b8-c4842c2836de.webp?size=m",
+        "printedLanguage": "en",
+        "printedEdition": "XY158"
+      }
+    },
+    "739358": {
+      "language": "en",
+      "kind": "reviewed-market-edition",
+      "scope": "Edition classification only; preserve original product name, ID, image, and price.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/170b311b-8cfd-4f8f-b55c-0b85005b78af.webp?size=m",
+        "printedLanguage": "en",
+        "printedEdition": "XY157"
+      }
+    },
+    "739359": {
+      "language": "en",
+      "kind": "reviewed-market-edition",
+      "scope": "Edition classification only; preserve original product name, ID, image, and price.",
+      "reviewedAt": "2026-10-20",
+      "reviewEvidence": {
+        "image": "https://cdn.snkrdunk.com/upload_bg_removed/afd95cde-4afa-495e-a760-bffe27489cf3.webp?size=m",
+        "printedLanguage": "en",
+        "printedEdition": "XY159"
+      }
+    }
+  }
+}

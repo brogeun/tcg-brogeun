@@ -93,6 +93,17 @@ check('all catalogue labels are Korean apart from printed model codes', () => {
 });
 
 const market = metadata.cards.map(card => ({...card, id:String(card.id), nameLower:String(card.name || '').toLowerCase(), productNumber:String(card.productNumber || '').toLowerCase()}));
+const reviewedDuplicates = {
+  '391128':'JP:CP4:113/131',
+  '427857':'JP:VS:009/141',
+  '435166':'JP:VS-MANAPHY:001/019'
+};
+for (const id of Object.keys(reviewedDuplicates)) {
+  const product = market.find(card => card.id === id);
+  assert(product, 'Reviewed duplicate fixture absent: ' + id);
+  product.minPrice = 987654321;
+  product.currency = 'JPY';
+}
 // A nonzero candidate price proves that an unverified artwork cannot supply it.
 for (const [id, value] of [['96640',123456], ['454482',999999]]) {
   const product = market.find(card => card.id === id);
@@ -114,6 +125,26 @@ assert(searchStart >= 0 && searchEnd > searchStart, 'The deployed search handler
 vm.runInContext(html.slice(searchStart, searchEnd), browser);
 const search = query => browser.searchCards(query, Infinity);
 const bees = search('독침붕');
+check('reviewed foreign editions and duplicate market IDs cannot alter Japanese printing identities', () => {
+  for (const id of ['488126','488127','509330','739358','739359']) {
+    const product = market.find(card => card.id === id);
+    assert(product, 'Reviewed foreign fixture absent: ' + id);
+    assert.equal(names.language(product), 'en');
+    assert.equal(search(id).length, 0, id + ' is a reviewed English printing');
+  }
+  for (const [id, target] of Object.entries(reviewedDuplicates)) {
+    assert.equal(names.candidateCatalogueId(market.find(card => card.id === id)), target);
+    assert.equal(api.find(id), undefined, id + ' must not duplicate the existing printing');
+    const row = api.find(target), original = catalogue.cards.find(card => card.id === target);
+    assert(row && original);
+    assert.equal(row.productId, null);
+    assert.deepEqual(row.productIds, []);
+    assert.equal(row.minPrice, undefined, 'A reviewed duplicate is not a price link');
+    assert.equal(row.thumbnailUrl, original.thumbnailUrl || original.image || '');
+    assert.equal(api.href(row), '/?' + new URLSearchParams({set:original.boxCode || original.setCode,
+      card:original.number || original.sourceId || original.id}) + '#cardinfo');
+  }
+});
 check('Japanese Beedrill search returns all 33 cards in Korean', () => {
   assert.equal(bees.length, 33);
   assert.equal(new Set(bees.map(card => card.id)).size, 33);

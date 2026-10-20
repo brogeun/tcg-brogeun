@@ -50,12 +50,6 @@ CARD_BRACKET_RE = re.compile(r'\[[^\]]*\d+[^\]]*\]')
 # 강제 박스 키워드 (대괄호 있어도 박스로 분류 — 예: 박스 상품에 카드번호 표기될 일 거의 없으나 안전장치)
 HARD_BOX_KEYWORDS = ('ボックス', 'BOX', 'スペシャルBOX', 'スターターデッキ')
 
-# Verified official product, not an inferred ID/name match:
-# https://snkrdunk.com/apparels/136031 is the One Piece OP01 Romance Dawn BOX.
-# It has no card-condition grade chips; old wrongly classified grade rows stay
-# preserved but must never be fetched/relabelled as current card quotes.
-VERIFIED_BOX_IDS = frozenset({'136031'})
-
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 UA = (
@@ -279,10 +273,51 @@ def scrape_url(label: str, url: str, max_items: int = 10) -> list:
         driver.quit()
 
 
+def collect_explicit_box_ids(include_catalogue=True) -> set:
+    """Use explicit saved box membership/types, never a name-only inference."""
+    paths = set()
+    for pattern in ('top10-*.json', 'price-*.json', 'manual-boxes-*.json'):
+        paths.update(DATA_DIR.glob(pattern))
+    if include_catalogue:
+        paths.update(DATA_DIR / name for name in ('cards-meta.json', 'cards-meta-index.json', 'all-cards.json'))
+    found = set()
+    def accept(row, key=None, box_list=False):
+        if not isinstance(row, dict):
+            return
+        cid = str(row.get('id') or key or '')
+        if not re.fullmatch(r'[1-9][0-9]*', cid):
+            return
+        categories = row.get('categories')
+        category_box = row.get('categoryId') in (14, '14') or (
+            isinstance(categories, list) and any(isinstance(item, dict) and item.get('id') in (14, '14') for item in categories))
+        if box_list or str(row.get('kind') or '').lower() == 'box' or category_box:
+            found.add(cid)
+    for path in sorted(paths):
+        if not path.is_file():
+            continue
+        payload = json.loads(path.read_bytes())
+        if not isinstance(payload, dict):
+            continue
+        box_list = bool(re.fullmatch(r'(?:manual-boxes-(?:pokemon|onepiece)|price-(?:pokemon|onepiece)-box)\.json', path.name))
+        for field in ('products', 'cards', 'details', 'boxes'):
+            rows = payload.get(field)
+            if isinstance(rows, list):
+                for row in rows:
+                    if field == 'boxes' and isinstance(row, (str, int)):
+                        accept({'id': row}, box_list=True)
+                    else:
+                        accept(row, box_list=box_list or field == 'boxes')
+            elif isinstance(rows, dict):
+                for cid, row in rows.items():
+                    accept(row, cid, box_list=box_list or field == 'boxes')
+        for cid, row in payload.items():
+            if str(cid).isdigit():
+                accept(row, cid)
+    return found
+
+
 def is_box_product(product) -> bool:
     """카드: [세트코드 번호] 대괄호 있음. 박스: 대괄호 없거나 ボックス/BOX 단어 직접 포함."""
-    if isinstance(product, dict) and str(product.get('id') or '') in VERIFIED_BOX_IDS:
-        return True
     if isinstance(product, dict):
         explicit_kind = str(product.get("kind") or "").strip().lower()
         if explicit_kind in ("box", "card"):
@@ -319,6 +354,7 @@ def preserve_product_metadata(filename: str, products: list) -> list:
     끊기므로, 동일 ID의 기존 파일·수동 박스 카탈로그·카드 메타 인덱스를 보조 소스로
     사용한다.
     """
+    explicit_boxes = collect_explicit_box_ids(include_catalogue=False)
     sources = []
     current_path = DATA_DIR / filename
     if current_path.exists():
@@ -389,7 +425,7 @@ def preserve_product_metadata(filename: str, products: list) -> list:
             pass
 
     for product in products:
-        if str(product.get('id') or '') in VERIFIED_BOX_IDS:
+        if str(product.get('id') or '') in explicit_boxes:
             product['kind'] = 'box'
         old = known.get(str(product.get("id") or ""))
         if not old:
@@ -503,6 +539,48 @@ def fetch_grade_listings(card_id: str, condition_id: int = 22, only_on_sale: boo
     return all_items
 
 
+class VerifiedBoxProduct(ValueError):
+    """The requested official product explicitly belongs to box/pack category 14."""
+
+
+def official_product_kind(html, product_id):
+    """Read only ID-bound official apparelData; recommendations are not evidence."""
+    bodies = [html]
+    for match in re.finditer(r'self\.__next_f\.push\((\[.*?\])\)</script>', html, re.S):
+        try:
+            chunk = json.loads(match.group(1))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(chunk, list) and len(chunk) > 1 and isinstance(chunk[1], str):
+            bodies.append(chunk[1])
+    bodies.append(''.join(bodies[1:]))
+    decoder = json.JSONDecoder()
+    seen_ids, matched_id = set(), False
+    for body in bodies:
+        for match in re.finditer(r'"apparelData"\s*:\s*', body):
+            try:
+                product, _ = decoder.raw_decode(body, match.end())
+            except ValueError:
+                continue
+            if not isinstance(product, dict):
+                continue
+            seen_ids.add(str(product.get('id')))
+            if str(product.get('id')) != str(product_id):
+                continue
+            matched_id = True
+            categories = product.get('categories')
+            if not isinstance(categories, list):
+                continue
+            category_ids = {str(row.get('id')) for row in categories if isinstance(row, dict)}
+            if '14' in category_ids and '25' in category_ids:
+                raise ValueError('Conflicting official product categories for ' + str(product_id))
+            if '14' in category_ids:
+                return 'box'
+    if seen_ids and not matched_id:
+        raise ValueError('Official product identity mismatch for ' + str(product_id))
+    return None
+
+
 def fetch_grade_min_prices(card_id: str) -> dict:
     """상품 페이지가 표시하는 등급별 현재 출품 최저가를 JPY로 반환한다.
 
@@ -523,6 +601,9 @@ def fetch_grade_min_prices(card_id: str) -> dict:
             html = resp.read().decode("utf-8", errors="replace")
     except Exception as error:
         raise ValueError('Official grade source unavailable for ' + str(card_id)) from error
+
+    if official_product_kind(html, card_id) == 'box':
+        raise VerifiedBoxProduct('Official category 14 box/pack: ' + str(card_id))
 
     grade_by_condition = {22: "psa10", 23: "psa9", 18: "raw"}
     grades = {}
@@ -729,24 +810,32 @@ def refresh_cards_detail(card_ids, box_ids, fetched_at, usd_jpy, fetcher=None):
     cards = copy.deepcopy(existing.get('cards', {}))
     if not isinstance(cards, dict):
         raise ValueError('Existing card grades are malformed; original snapshot retained')
+    checked_ids = []
     for cid in card_ids:
-        grades = fetcher(cid)
+        try:
+            grades = fetcher(cid)
+        except VerifiedBoxProduct:
+            box_ids.add(str(cid))
+            print('  ' + str(cid) + ': official category 14; box metadata retained without refreshing old grades')
+            time.sleep(.2)
+            continue
         if not isinstance(grades, dict):
             raise ValueError('Invalid grade source result for ' + str(cid))
         previous = cards.get(str(cid), {})
         cards[str(cid)] = {**previous, 'id': str(cid), 'grades': grades, 'fetchedAt': fetched_at}
+        checked_ids.append(str(cid))
         time.sleep(.2)
     for bid in box_ids:
-        cards.setdefault(str(bid), {'id': str(bid), 'grades': {}})
-    if not card_ids:
+        cards[str(bid)] = {**cards.get(str(bid), {'id': str(bid), 'grades': {}}), 'kind': 'box'}
+    if not checked_ids and not box_ids:
         raise ValueError('No card grade targets; previous snapshot retained')
     payload = copy.deepcopy(existing)
     payload.update(ok=True, usdJpy=usd_jpy, count=len(cards), cards=cards,
                    collection={'status': 'complete-for-requested-cards', 'completedAt': fetched_at,
-                               'checkedCardIds': sorted(str(cid) for cid in card_ids)})
+                               'checkedCardIds': sorted(checked_ids), 'verifiedBoxIds': sorted(box_ids)})
     # Unrequested saved cards are preserved and must not inherit a new global
     # freshness timestamp. Successful rows carry their own source check time.
-    expected = {str(cid) for cid in card_ids} | {str(cid) for cid in box_ids}
+    expected = set(checked_ids)
     if set(cards) <= expected:
         payload['fetchedAt'] = fetched_at
     atomic_json(path, payload)
@@ -837,16 +926,8 @@ def main():
     print("=" * 60)
     usd_jpy = fetch_usd_jpy()
     # 박스 ID 모으기 (등급 없으니 스킵)
-    box_ids = set(VERIFIED_BOX_IDS)
-    for f in ("price-pokemon-box.json", "price-onepiece-box.json"):
-        try:
-            d = json.loads((DATA_DIR / f).read_text(encoding="utf-8"))
-            for p in d.get("products", []):
-                if p.get("id"):
-                    box_ids.add(str(p["id"]))
-        except Exception:
-            pass
     all_ids = sorted(collect_card_ids())
+    box_ids = collect_explicit_box_ids() & {str(cid) for cid in all_ids}
     card_ids = [cid for cid in all_ids if str(cid) not in box_ids]
     print(f"  전체 추적 ID: {len(all_ids)}개  /  박스 제외 카드만: {len(card_ids)}개")
     total += 1

@@ -212,34 +212,138 @@ class DailySnapshotSafetyTests(unittest.TestCase):
                 target.save_payload(path.name, 'pokemon-card', products(29), 'new timestamp')
             self.assertEqual(path.read_bytes(), b'last complete category bytes')
 
-    def test_verified_op01_box_is_not_requested_as_graded_card_and_old_grade_row_is_retained(self):
+    def test_manual_boxes_outside_current_top_thirty_are_excluded_and_old_grades_retained(self):
         with tempfile.TemporaryDirectory() as folder:
             data, _ = self.fixture(folder)
             path = data / 'cards-detail.json'
             payload = json.loads(path.read_bytes())
             old_box_row = {'id': '136031', 'grades': {'raw': {'lowest_ask': 999}}, 'fetchedAt': 'old', 'custom': 'keep'}
             payload['cards']['136031'] = old_box_row
+            payload['cards']['136033'] = {**old_box_row, 'id': '136033'}
             path.write_text(json.dumps(payload))
+            (data / 'manual-boxes-onepiece.json').write_text(json.dumps({'products': [
+                {'id': '136031', 'name': 'Romance Dawn Box'},
+                {'id': '136033', 'name': 'Pillars Of Strength Box'}]}))
             (data / 'history/136031.json').write_text(json.dumps({'id': '136031', 'updatedAt': 'old',
                 'history': [{'date': '2020-01-01', 'box_price': 99, 'raw_price': 999}]}))
             visited = []
             def source(request, **kwargs):
                 visited.append(request.full_url)
-                if '/136031/' in request.full_url:
+                if any('/' + cid + '/' in request.full_url for cid in ('136031', '136033')):
                     self.assertIn('/sales-history?', request.full_url)
                     return Response(b'{"history":[]}')
-                if request.full_url.endswith('/136031'):
+                if any(request.full_url.endswith('/' + cid) for cid in ('136031', '136033')):
                     self.fail('Verified box must never request card grade chips')
                 if '/sales-chart/' in request.full_url:
                     return Response(b'{"points":[]}')
                 return Response(b'{"conditionId":18,"usedMinPrice":20}{"conditionId":22,"usedMinPrice":100}{"conditionId":23,"usedMinPrice":50}')
-            with self.main_patches(data, products(10), source), patch.object(target, 'collect_card_ids', lambda: {'1', '136031'}):
+            with self.main_patches(data, products(10), source), patch.object(target, 'collect_card_ids', lambda: {'1', '136031', '136033'}):
                 target.main()
             refreshed = json.loads(path.read_bytes())
-            self.assertEqual(refreshed['cards']['136031'], old_box_row)
+            self.assertEqual(refreshed['cards']['136031'], {**old_box_row, 'kind': 'box'})
+            self.assertEqual(refreshed['cards']['136033'], {**old_box_row, 'id': '136033', 'kind': 'box'})
+            self.assertEqual(refreshed['fetchedAt'], payload['fetchedAt'])
             self.assertEqual(refreshed['collection']['checkedCardIds'], ['1'])
-            self.assertTrue(target.is_box_product({'id': '136031', 'kind': 'card', 'name': 'legacy wrong kind'}))
             self.assertTrue(any('/136031/sales-history?' in url for url in visited))
+
+    def test_explicit_box_sources_cover_same_tracked_inputs_without_name_guesses(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data = Path(folder)
+            sources = {
+                'price-onepiece.json': {'products': [{'id': '1', 'name': 'Unknown Box'},
+                    {'id': '2', 'name': 'Box promotion [P-002]', 'kind': 'card'},
+                    {'id': '3', 'name': 'Explicit old box', 'kind': 'box'}]},
+                'top10-pokemon.json': {'products': [{'id': '4', 'categoryId': 14}]},
+                'manual-boxes-onepiece.json': {'products': [{'id': '5'}]},
+                'price-pokemon-box.json': {'products': [{'id': '6'}]},
+                'cards-meta.json': {'cards': [{'id': '7', 'kind': 'box'}, {'id': '8', 'kind': 'card'}]},
+                'cards-meta-index.json': {'9': {'kind': 'box'}, '10': {'name': 'Ambiguous Box'}},
+                'all-cards.json': {'details': [{'id': '11', 'kind': 'box'}], 'boxes': ['12']},
+            }
+            for name, document in sources.items():
+                (data / name).write_text(json.dumps(document))
+            with patch.object(target, 'DATA_DIR', data):
+                self.assertEqual(target.collect_explicit_box_ids(), {'3', '4', '5', '6', '7', '9', '11', '12'})
+                self.assertEqual(target.collect_explicit_box_ids(False), {'3', '4', '5', '6'})
+                result = target.preserve_product_metadata('price-onepiece-card.json', [
+                    {'id': '5', 'kind': 'card', 'name': 'old wrong kind'}, {'id': '2', 'kind': 'card', 'name': 'Box promotion [P-002]'}])
+            self.assertEqual(result[0]['kind'], 'box')
+            self.assertEqual(result[1]['kind'], 'card')
+
+    def official_html(self, cid='136033', categories=(14,)):
+        product = {'id': int(cid), 'name': 'ONE PIECE Card Game Booster Pack Pillars Of Strength Box',
+                   'categories': [{'id': key, 'name': 'trading_card'} for key in categories],
+                   'apparelInfo': {'isTradingCard': False}}
+        return '<script>self.__next_f.push(' + json.dumps([1, json.dumps({'apparelData': product})]) + ')</script>'
+
+    def test_official_id_bound_category_fourteen_replaces_no_missing_grade_chips(self):
+        body = self.official_html().encode()
+        with patch.object(target.urllib.request, 'urlopen', lambda *a, **k: Response(body)):
+            with self.assertRaises(target.VerifiedBoxProduct):
+                target.fetch_grade_min_prices('136033')
+        complete_chips = '{"conditionId":18,"usedMinPrice":20}{"conditionId":22,"usedMinPrice":100}{"conditionId":23,"usedMinPrice":50}'
+        for body in (self.official_html('999'), self.official_html('999') + complete_chips,
+                     self.official_html(categories=(25,)), self.official_html(categories=(14, 25)), 'Unclassified Box'):
+            with self.subTest(body=body), patch.object(target.urllib.request, 'urlopen', lambda *a, **k: Response(body.encode())):
+                with self.assertRaises(ValueError) as result:
+                    target.fetch_grade_min_prices('136033')
+                self.assertNotIsInstance(result.exception, target.VerifiedBoxProduct)
+
+    def test_box_only_metadata_does_not_claim_any_grade_price_was_checked(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data, _ = self.fixture(folder)
+            before = json.loads((data / 'cards-detail.json').read_bytes())
+            with patch.object(target, 'DATA_DIR', data):
+                target.refresh_cards_detail([], {'2'}, 'new source check', 150,
+                                            lambda _: self.fail('No box should request card grades'))
+            after = json.loads((data / 'cards-detail.json').read_bytes())
+            self.assertEqual(after['fetchedAt'], before['fetchedAt'])
+            self.assertEqual(after['cards']['1'], before['cards']['1'])
+            self.assertEqual(after['cards']['2'], {'id': '2', 'grades': {}, 'kind': 'box'})
+            self.assertEqual(after['collection']['checkedCardIds'], [])
+
+    def test_new_official_box_uses_box_history_and_keeps_prior_grade_prices_and_time(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data, _ = self.fixture(folder)
+            path = data / 'cards-detail.json'
+            previous = json.loads(path.read_bytes())
+            box_row = {'id': '216885', 'grades': {'raw': {'lowest_ask': 999}}, 'fetchedAt': 'old', 'kind': 'card'}
+            previous['cards']['216885'] = box_row
+            path.write_text(json.dumps(previous))
+            (data / 'history/216885.json').write_text(json.dumps({'id': '216885', 'updatedAt': 'old',
+                'history': [{'date': '2020-01-01', 'raw_price': 999}]}))
+            visited = []
+            def source(request, **kwargs):
+                url = request.full_url
+                visited.append(url)
+                if url.endswith('/216885'):
+                    return Response(self.official_html('216885').encode())
+                if '/216885/' in url:
+                    self.assertIn('/sales-history?', url)
+                    return Response(b'{"history":[]}')
+                if '/sales-chart/' in url:
+                    return Response(b'{"points":[]}')
+                return Response(b'{"conditionId":18,"usedMinPrice":20}{"conditionId":22,"usedMinPrice":100}{"conditionId":23,"usedMinPrice":50}')
+            with self.main_patches(data, products(10), source), patch.object(target, 'collect_card_ids', lambda: {'1', '216885'}):
+                target.main()
+            result = json.loads(path.read_bytes())
+            self.assertEqual(result['cards']['216885'], {**box_row, 'kind': 'box'})
+            self.assertEqual(result['fetchedAt'], previous['fetchedAt'])
+            self.assertEqual(result['collection']['checkedCardIds'], ['1'])
+            self.assertEqual(result['collection']['verifiedBoxIds'], ['216885'])
+            self.assertTrue(any('/216885/sales-history?' in url for url in visited))
+
+    def test_official_box_discovery_does_not_hide_another_real_card_failure(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data, original = self.fixture(folder)
+            def fetch(cid):
+                if cid == '2':
+                    raise target.VerifiedBoxProduct('official ID-bound category 14 fixture')
+                raise ValueError('Real incomplete card source')
+            with patch.object(target, 'DATA_DIR', data), patch.object(target.time, 'sleep', lambda _: None):
+                with self.assertRaises(ValueError):
+                    target.refresh_cards_detail(['2', '1'], set(), 'new check', 150, fetch)
+            self.assertEqual((data / 'cards-detail.json').read_bytes(), original['cards-detail.json'])
 
 
 if __name__ == '__main__':

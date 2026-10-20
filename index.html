@@ -3426,7 +3426,9 @@ window.matchMedia('(max-width:480px)').addEventListener('change', e => {
   if (e.matches && CURRENT_USER) loadMobileHomeNews();
 });
 
+let _HOME_ASSET_RUN = 0;
 async function renderHomeAsset() {
+  const run = ++_HOME_ASSET_RUN;
   syncHomeAuthView();
   const valEl = document.getElementById('homeAssetValue');
   const changeEl = document.getElementById('homeAssetChange');
@@ -3448,6 +3450,7 @@ async function renderHomeAsset() {
   if ((typeof HOLDINGS === 'undefined' || !HOLDINGS.length) && typeof loadPortfolio === 'function') {
     try {
       const data = await loadPortfolio();
+      if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user) return;
       if (data) {
         HOLDINGS = data.holdings || [];
         WATCHLIST = data.watchlists || [];
@@ -3472,7 +3475,7 @@ async function renderHomeAsset() {
 
   // 가격 캐시 + BOX_ID_SET 준비 (renderHoldings / drawAnalytics 와 동일 로직 재사용)
   const cache = (typeof _PF_PRICE_CACHE !== 'undefined') ? _PF_PRICE_CACHE : {};
-  const missingIds = holdings.filter(h => !cache[h.card_id]).map(h => h.card_id);
+  const missingIds = [...new Set(holdings.filter(h => !cache[h.card_id]).map(h => String(h.card_id)))];
   if (missingIds.length) {
     valEl.textContent = '계산 중…';
     valEl.style.fontSize = '16px';
@@ -3487,6 +3490,8 @@ async function renderHomeAsset() {
   } else if (typeof ensureBoxIdSet === 'function' && (typeof BOX_ID_SET === 'undefined' || !BOX_ID_SET)) {
     try { await ensureBoxIdSet(); } catch {}
   }
+
+  if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user) return;
 
   // renderHoldings (line ~7134) / drawAnalytics (line ~7410) 와 동일한 평가액 계산
   const boxSet = (typeof BOX_ID_SET !== 'undefined') ? BOX_ID_SET : null;
@@ -3654,8 +3659,15 @@ window.closePriceDetail = function() {
 
 /* ─────────── 카드 상세 (등급별 가격) 캐시 ─────────── */
 let CARDS_DETAIL_CACHE = null;
-async function loadCardsDetail() {
-  if (CARDS_DETAIL_CACHE) return CARDS_DETAIL_CACHE;
+let _CARDS_DETAIL_READY = null;
+function loadCardsDetail() {
+  if (CARDS_DETAIL_CACHE) return Promise.resolve(CARDS_DETAIL_CACHE);
+  if (!_CARDS_DETAIL_READY) {
+    _CARDS_DETAIL_READY = fetchCardsDetail().finally(() => { _CARDS_DETAIL_READY = null; });
+  }
+  return _CARDS_DETAIL_READY;
+}
+async function fetchCardsDetail() {
   try {
     const r = await fetch(`/data/cards-detail.json?t=${Math.floor(Date.now()/3600000)}`);
     if (!r.ok) return null;
@@ -4818,13 +4830,38 @@ async function renderGradesPanel(productId, product) {
 let _ALL_CARDS_INDEX = null;
 let _SEARCH_ALIASES = null;
 
-async function loadCardSearchData() {
-  if (_ALL_CARDS_INDEX) {
-    if (window.PromoSearch?.needsRetry()) _ALL_CARDS_INDEX = await PromoSearch.merge(_ALL_CARDS_INDEX);
-    await window.JapaneseCatalog?.ensureData();
-    window.JapaneseCatalog?.setProducts(_ALL_CARDS_INDEX);
-    return;
+let _CARD_SEARCH_READY = null;
+function loadCardSearchData() {
+  // Home, search and every holding share one complete initialization.
+  if (_CARD_SEARCH_READY) return _CARD_SEARCH_READY;
+  if (_ALL_CARDS_INDEX && !window.PromoSearch?.needsRetry()) return Promise.resolve();
+  _CARD_SEARCH_READY = (async () => {
+    if (_ALL_CARDS_INDEX) {
+      _ALL_CARDS_INDEX = await PromoSearch.merge(_ALL_CARDS_INDEX);
+      _CARD_PRODUCTS_CACHE = _ALL_CARDS_INDEX;
+      window.JapaneseCatalog?.setProducts(_ALL_CARDS_INDEX);
+    } else {
+      await buildCardSearchData();
+    }
+  })().catch(error => {
+    _ALL_CARDS_INDEX = null;
+    throw error;
+  }).finally(() => { _CARD_SEARCH_READY = null; });
+  return _CARD_SEARCH_READY;
+}
+let _CARD_PRODUCTS_CACHE = null;
+let _CARD_PRODUCTS_READY = null;
+function loadCardProductData() {
+  if (_CARD_PRODUCTS_CACHE) return Promise.resolve(_CARD_PRODUCTS_CACHE);
+  if (!_CARD_PRODUCTS_READY) {
+    _CARD_PRODUCTS_READY = buildCardProductData().then(products => {
+      _CARD_PRODUCTS_CACHE = products;
+      return products;
+    }).finally(() => { _CARD_PRODUCTS_READY = null; });
   }
+  return _CARD_PRODUCTS_READY;
+}
+async function buildCardProductData() {
   const t = Math.floor(Date.now() / 3600000);
   if (!_PRICE_BOX_NAME_OVERRIDES) {
     try {
@@ -4914,11 +4951,14 @@ async function loadCardSearchData() {
       } catch {}
     }
   }
-  _ALL_CARDS_INDEX = [...cardItems, ...boxItems];
+  const products = [...cardItems, ...boxItems];
   await window.AnniversaryMarket?.load();
-  _ALL_CARDS_INDEX = [...new Map([..._ALL_CARDS_INDEX,...(window.AnniversaryMarket?.products() || [])].map(p=>[String(p.id),p])).values()];
-  if (window.PromoSearch) _ALL_CARDS_INDEX = await PromoSearch.merge(_ALL_CARDS_INDEX);
-  console.log(`[search] 카드 ${cardItems.length} + 박스 ${boxItems.length} 인덱싱`);
+  const combined = [...new Map([...products,...(window.AnniversaryMarket?.products() || [])].map(p=>[String(p.id),p])).values()];
+  return window.PromoSearch ? PromoSearch.merge(combined) : combined;
+}
+async function buildCardSearchData() {
+  _ALL_CARDS_INDEX = await loadCardProductData();
+  console.log(`[search] 상품 ${_ALL_CARDS_INDEX.length} 인덱싱`);
   // search-aliases.json 로딩
   try {
     const r = await fetch('/data/search-aliases.json?t=' + Math.floor(Date.now() / 3600000));
@@ -5045,11 +5085,8 @@ document.addEventListener('input', e => {
 function _warmSearchIndex() {
   try { loadCardSearchData().catch(() => {}); } catch (e) {}
 }
-if ('requestIdleCallback' in window) {
-  requestIdleCallback(_warmSearchIndex, { timeout: 8000 });
-} else {
-  setTimeout(_warmSearchIndex, 3500);
-}
+// Build the full printed-card search catalogue when search is used.
+// Automatic warming on home competes with valuation and blocks slower phones.
 // 유휴 콜백보다 먼저 검색창에 들어온 경우 — 포커스 시점에 보장 (setTimeout 으로 포커스 인터랙션 자체는 안 막음)
 document.addEventListener('focusin', e => {
   if (e.target.id === 'cardSearchInput' || e.target.id === 'homeSearchInput') setTimeout(_warmSearchIndex, 0);
@@ -9351,8 +9388,15 @@ let BOX_ID_SET = null; // 박스 ID Set (PSA Cert# 입력 차단용)
  * 박스 ID Set 로드 — 모든 박스 (포켓몬 + 원피스, price + manual) 한번만
  * holdings 의 card_id 가 이 set 에 있으면 박스 → PSA Cert# 입력란 숨김
  */
-async function ensureBoxIdSet() {
-  if (BOX_ID_SET) return BOX_ID_SET;
+let _BOX_IDS_READY = null;
+function ensureBoxIdSet() {
+  if (BOX_ID_SET) return Promise.resolve(BOX_ID_SET);
+  if (!_BOX_IDS_READY) {
+    _BOX_IDS_READY = buildBoxIdSet().finally(() => { _BOX_IDS_READY = null; });
+  }
+  return _BOX_IDS_READY;
+}
+async function buildBoxIdSet() {
   const ids = new Set();
   const t = Math.floor(Date.now() / 3600000);
   for (const brand of ['pokemon', 'onepiece']) {
@@ -9378,8 +9422,19 @@ const GRADE_LABEL = { psa10: 'PSA 10', psa9: 'PSA 9', raw: 'A급', box: '박스'
 const GRADE_COLOR = { psa10: '#fbbf24', psa9: '#9ca3af', raw: '#06b6d4', box: '#a78bfa' };
 const BRAND_COLOR = { pokemon: '#fbbf24', onepiece: '#dc2626', unknown: '#6b7280' };
 
-async function loadPortfolio() {
-  if (!CURRENT_USER) return null;
+let _PORTFOLIO_READY = null;
+let _PORTFOLIO_USER = null;
+function loadPortfolio() {
+  if (!CURRENT_USER) return Promise.resolve(null);
+  if (_PORTFOLIO_READY && _PORTFOLIO_USER === CURRENT_USER) return _PORTFOLIO_READY;
+  _PORTFOLIO_USER = CURRENT_USER;
+  const pending = fetchPortfolio().finally(() => {
+    if (_PORTFOLIO_READY === pending) _PORTFOLIO_READY = null;
+  });
+  _PORTFOLIO_READY = pending;
+  return pending;
+}
+async function fetchPortfolio() {
   try {
     const r = await fetch('/api/portfolio', { credentials: 'include' });
     if (!r.ok) return null;
@@ -9388,10 +9443,36 @@ async function loadPortfolio() {
 }
 
 // 카드 메타데이터 + 최신 가격 lookup (all-cards.json + history/{id}.json)
-async function loadCardMeta(cardId) {
-  if (_PF_PRICE_CACHE[cardId]) return _PF_PRICE_CACHE[cardId];
-  await loadCardSearchData();
-  let meta = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(cardId));
+const _PF_META_PENDING = new Map();
+const _PF_META_QUEUE = [];
+let _PF_META_ACTIVE = 0;
+function loadCardMeta(cardId) {
+  cardId = String(cardId);
+  if (_PF_PRICE_CACHE[cardId]) return Promise.resolve(_PF_PRICE_CACHE[cardId]);
+  if (_PF_META_PENDING.has(cardId)) return _PF_META_PENDING.get(cardId);
+  const pending = new Promise((resolve, reject) => {
+    _PF_META_QUEUE.push({cardId, resolve, reject});
+  });
+  _PF_META_PENDING.set(cardId, pending);
+  drainCardMetaQueue();
+  return pending;
+}
+function drainCardMetaQueue() {
+  // Bound downloads and JSON work across home and portfolio together.
+  while (_PF_META_ACTIVE < 6 && _PF_META_QUEUE.length) {
+    const {cardId, resolve, reject} = _PF_META_QUEUE.shift();
+    _PF_META_ACTIVE++;
+    fetchCardMeta(cardId).then(resolve, reject).finally(() => {
+      _PF_META_PENDING.delete(cardId);
+      _PF_META_ACTIVE--;
+      // Give taps, scrolling and painting a turn between completed cards.
+      setTimeout(drainCardMetaQueue, 0);
+    });
+  }
+}
+async function fetchCardMeta(cardId) {
+  const products = await loadCardProductData();
+  let meta = products.find(c => String(c.id) === String(cardId));
 
   // 1순위: cards-detail.json — TOP10 인기 카드의 lowest_ask (카드 시세 페이지와 동일 데이터)
   let detailGrades = null;
@@ -9434,7 +9515,7 @@ async function loadCardMeta(cardId) {
   // 2순위: history 파일 — 백필된 6,600+ 카드 모두
   let history = null;
   try {
-    const r = await fetch(`/data/history/${cardId}.json?t=${Math.floor(Date.now()/3600000)}`);
+    const r = await fetch(`/data/history/${cardId}.json?t=${Math.floor(Date.now()/3600000)}`, {signal: AbortSignal.timeout?.(15000)});
     if (r.ok) history = await r.json();
   } catch {}
 
@@ -9537,10 +9618,8 @@ async function refreshPortfolio() {
   document.getElementById('pfWatchCount').textContent = WATCHLIST.length;
 
   // 메타 미리 로드
-  await Promise.all([
-    ...HOLDINGS.map(h => loadCardMeta(h.card_id)),
-    ...WATCHLIST.map(w => loadCardMeta(w.card_id)),
-  ]);
+  const cardIds = new Set([...HOLDINGS, ...WATCHLIST].map(row => String(row.card_id)));
+  await Promise.all([...cardIds].map(id => loadCardMeta(id)));
   if (CURRENT_USER !== userAtStart) return;
   if (window.PortfolioScreen) PortfolioScreen.status('');
   renderHoldings();

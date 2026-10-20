@@ -1,0 +1,198 @@
+/* Chiikawa-specific selectors only. Existing TCG Hub panels remain unchanged. */
+#cardInfoList.ck-set-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.ck-catalog-note {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding: 16px 18px;
+  border: 1px solid #e7e1df;
+  border-radius: 14px;
+  background: #fffcfb;
+  color: #69605b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ck-catalog-note strong { display: block; font-size: 14px; color: #302b29; }
+.ck-catalog-note span { display: block; }
+.ck-catalog-note p { margin: 0; }
+.ck-set-tile {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+  color: #302b29;
+  border: 1px solid #e5dfdb;
+  border-radius: 18px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+.ck-set-tile:hover { border-color: #d69b98; transform: translateY(-2px); box-shadow: 0 5px 20px #a16a5d13; }
+.ck-cover {
+  display: flex;
+  min-height: 170px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px 14px;
+  background: linear-gradient(150deg, #fff0ed, #ffe6ea);
+  color: #7b4c51;
+  text-align: center;
+}
+.ck-cover-starter_deck { background: linear-gradient(150deg, #fff8e9, #fbefcf); color: #7e6338; }
+.ck-cover-promo_collection { background: linear-gradient(150deg, #f5f2ff, #eae4fa); color: #6b558d; }
+.ck-cover > strong { display: block; font-size: 28px; letter-spacing: -.04em; font-weight: 750; line-height: 1.25; }
+.ck-cover-label { font-size: 9px; font-weight: 650; letter-spacing: .13em; opacity: .85; }
+.ck-cover > span:not(.ck-cover-label):not(.ck-cover-code) { font-size: 13px; }
+.ck-cover-code { margin-top: 8px; font: 500 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; opacity: .8; }
+.ck-set-body { display: flex; flex-direction: column; gap: 7px; padding: 17px; }
+.ck-set-body > strong { font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+.ck-set-body > span { color: #817973; font-size: 12px; line-height: 1.5; }
+.ck-set-body > .ck-set-code { color: #a76b70; font: 500 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.ck-message { grid-column: 1 / -1; width: 100%; padding: 30px 18px; color: #746c66; text-align: center; font-size: 14px; line-height: 1.7; }
+.ck-message strong { display: block; color: #403b37; }
+.ck-message p { margin: 8px 0 18px; }
+.ck-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #d7cdca;
+  border-radius: 10px;
+  background: #fff;
+  color: #624a4d;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.ck-shell { display: flex; flex: 1; flex-direction: column; width: 100%; height: 100%; min-height: 0; color: #302b29; background: #fff; }
+.ck-shell *, .ck-set-tile *, .ck-catalog-note * { box-sizing: border-box; }
+.ck-toolbar { flex-shrink: 0; display: flex; align-items: center; gap: 5px; padding: 6px 12px; border-bottom: 1px solid #eee7e4; min-height: 58px; }
+.ck-toolbar > span { margin-right: auto; padding: 0 8px; font-size: 14px; font-weight: 650; white-space: nowrap; }
+.ck-toolbar > span > span { color: #91817a; font-size: 12px; font-weight: 450; }
+.ck-toolbar button { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; padding: 10px; border: 0; border-radius: 10px; background: transparent; color: #74615c; cursor: pointer; }
+.ck-toolbar button:hover { background: #fff1ed; }
+.ck-toolbar svg { width: 20px; height: 20px; }
+.ck-set-heading { flex-shrink: 0; padding: 20px 22px 14px; border-bottom: 1px solid #f1ece9; }
+.ck-set-heading > span, .ck-eyebrow { font-size: 11px; line-height: 1.5; color: #ad7377; letter-spacing: .02em; }
+.ck-set-heading h2 { margin: 6px 0; font-size: 20px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.ck-set-heading p { margin: 4px 0; color: #887a73; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.ck-search { display: block; flex-shrink: 0; padding: 14px 20px 12px; font-size: 12px; color: #78685f; }
+.ck-search input { display: block; width: 100%; min-height: 44px; margin-top: 7px; padding: 10px 13px; border: 1px solid #ded5d0; border-radius: 10px; background: #fffdfc; color: #302b29; font-size: 14px; line-height: 1.5; }
+.ck-search input::placeholder { color: #ab9e97; }
+.ck-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 20px 24px; }
+.ck-count { margin: 0 0 14px; color: #88796f; font-size: 12px; line-height: 1.6; }
+.ck-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ck-card { display: flex; min-width: 0; flex-direction: column; padding: 0; overflow: hidden; text-align: left; border: 1px solid #e7dfd9; border-radius: 13px; background: #fff; color: inherit; font: inherit; cursor: pointer; }
+.ck-card:hover { border-color: #cc9699; }
+.ck-art { display: flex; position: relative; align-items: center; justify-content: center; width: 100%; aspect-ratio: 0.72; min-width: 0; overflow: hidden; padding: 10px; background: #f8f5f1; }
+.ck-art img { display: block; width: 100%; height: 100%; max-height: 100%; object-fit: contain; }
+.ck-art img[hidden], .ck-image-placeholder[hidden] { display: none; }
+.ck-image-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: 100%; color: #b8a79b; font-size: 26px; font-weight: 300; letter-spacing: .1em; }
+.ck-image-placeholder > span { font-size: 11px; font-weight: 450; letter-spacing: 0; }
+.ck-card-copy { display: flex; flex: 1; flex-direction: column; gap: 7px; padding: 12px 10px; }
+.ck-card-copy strong { font-size: 13px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; }
+.ck-card-number, .ck-detail-number { color: #897368; font: 500 10px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+.ck-card-copy > .ck-badges { margin-top: auto; padding-top: 2px; }
+.ck-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+.ck-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 6px; border-radius: 5px; background: #f5e9e9; color: #8a5b60; font-size: 10px; font-weight: 600; line-height: 1.4; }
+.ck-badge-kind { color: #7e6e55; background: #f4f0e6; }
+.ck-badge-review { color: #94722c; background: #fff4d5; }
+.ck-pages { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid #eee7e1; background: #fff; }
+.ck-pages[hidden] { display: none; }
+.ck-pages button { min-width: 35px; min-height: 40px; padding: 8px; border: 0; border-radius: 8px; background: transparent; color: #87756a; font-size: 13px; cursor: pointer; }
+.ck-pages button[aria-current="page"] { background: #f4e5e4; color: #8c5159; font-weight: 700; }
+.ck-pages button:disabled { color: #d8cdc5; cursor: default; }
+.ck-detail-scroll { padding: 24px 22px calc(24px + env(safe-area-inset-bottom, 0px)); }
+.ck-detail { display: grid; grid-template-columns: minmax(170px, .9fr) minmax(220px, 1.1fr); gap: 26px; align-items: start; }
+.ck-art-detail { border: 1px solid #e8dfd9; border-radius: 13px; padding: 12px; }
+.ck-detail-copy { min-width: 0; }
+.ck-detail-copy h2 { margin: 8px 0; font-size: 21px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.ck-japanese-name { margin: 0 0 10px; color: #938078; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.ck-detail-number { margin: 10px 0; font-size: 12px; }
+.ck-price-note { margin: 17px 0; padding: 11px 12px; border-radius: 9px; color: #8f7c72; background: #faf6f2; font-size: 12px; line-height: 1.6; }
+.ck-facts { margin: 0 0 20px; font-size: 12px; line-height: 1.65; }
+.ck-facts > div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 9px; padding: 11px 0; border-bottom: 1px solid #f0e8e2; }
+.ck-facts dt { color: #9a8376; }
+.ck-facts dd { margin: 0; color: #55463d; overflow-wrap: anywhere; }
+.ck-review-note { padding: 12px; color: #8e6d34; background: #fffaeb; border-radius: 9px; font-size: 12px; line-height: 1.7; }
+.ck-sources h3 { margin: 17px 0 8px; color: #938078; font-size: 12px; font-weight: 500; }
+.ck-sources > div { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.ck-sources a { color: #9f656c; text-decoration: underline; text-underline-offset: 3px; font-size: 12px; line-height: 1.8; }
+.ck-back-button { margin-top: 22px; }
+.ck-loading-title { margin: 24px 10px 6px; font-size: 18px; line-height: 1.6; }
+.ck-share-status { flex-shrink: 0; color: #8e6767; font-size: 12px; line-height: 1.7; }
+.ck-share-status:not(:empty) { padding: 12px 20px; border-top: 1px solid #f0e7e4; background: #fffaf7; }
+.ck-share-status input { width: 100%; margin-top: 6px; padding: 8px; border: 1px solid #dfd4cc; border-radius: 6px; font-size: 12px; color: #665448; background: #fff; }
+.ck-set-tile:focus-visible, .ck-shell button:focus-visible, .ck-shell a:focus-visible, .ck-shell input:focus-visible, .ck-button:focus-visible { outline: 3px solid #c68f98; outline-offset: 3px; }
+
+@media (min-width: 1000px) {
+  #anyModal.ci-expanded .ck-card-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  #anyModal.ci-expanded .ck-detail { grid-template-columns: minmax(240px, 360px) minmax(260px, 560px); justify-content: center; gap: 48px; }
+}
+@media (max-width: 680px) {
+  #cardInfoList.ck-set-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .ck-catalog-note { padding: 13px 14px; }
+  .ck-cover { min-height: 142px; padding: 18px 10px; }
+  .ck-cover > strong { font-size: 23px; }
+  .ck-cover-label { font-size: 7px; letter-spacing: .08em; }
+  .ck-set-body { gap: 6px; padding: 12px; }
+  .ck-set-body > strong { font-size: 13px; }
+  .ck-set-body > span { font-size: 11px; }
+  .ck-toolbar { padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px; gap: 2px; }
+  .ck-toolbar > span { padding: 0 4px; font-size: 13px; }
+  .ck-toolbar > span > span { font-size: 11px; }
+  .ck-toolbar button { width: 40px; height: 44px; padding: 10px; }
+  .ck-set-heading { padding: 15px 16px 10px; }
+  .ck-set-heading h2 { font-size: 17px; }
+  .ck-search { padding: 11px 14px; }
+  .ck-search input { font-size: 16px; }
+  .ck-scroll { padding: 6px 14px 20px; }
+  .ck-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .ck-card-copy { padding: 10px 8px; }
+  .ck-card-copy strong { font-size: 12px; }
+  .ck-card-number { font-size: 10px; }
+  .ck-art { padding: 8px; }
+  .ck-pages { gap: 2px; padding-left: 8px; padding-right: 8px; }
+  .ck-pages button { min-width: 32px; min-height: 42px; padding: 6px; }
+  .ck-detail-scroll { padding: 20px 18px calc(24px + env(safe-area-inset-bottom, 0px)); }
+  .ck-detail { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .ck-art-detail { width: min(290px, 100%); margin: 0 auto; padding: 12px; }
+  .ck-detail-copy h2 { font-size: 21px; }
+}
+@media (max-width: 360px) {
+  .ck-toolbar > span > span { display: none; }
+  .ck-cover-label { font-size: 6px; }
+  .ck-pages button { min-width: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ck-set-tile { transition: none; }
+}
+
+/* Chiikawa box package photos; promo keeps its existing cover. */
+.ck-cover-photo { height: 200px; min-height: 200px; padding: 14px; background: #fff; }
+.ck-cover-photo > img { width: 100%; height: 100%; max-height: 172px; object-fit: contain; display: block; }
+.ck-cover-photo > img[hidden], .ck-cover-photo > .ck-box-fallback[hidden] { display: none; }
+.ck-cover-photo > .ck-box-fallback:not([hidden]) { display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #755961; }
+@media (max-width: 540px) { .ck-cover-photo { height: 170px; min-height: 170px; padding: 9px; } .ck-cover-photo > img { max-height: 152px; } }
+
+/* Chiikawa product/promo descriptions - v1 */
+.ck-facts-teaser { display: flex; flex-direction: column; gap: 3px; padding-top: 6px; margin-top: 2px; border-top: 1px solid #efe6e1; }
+.ck-set-body > .ck-facts-teaser > span { color: #655752; font-size: 11px; line-height: 1.5; }
+.ck-product-info { margin: 4px 0 20px; padding: 14px 16px; border: 1px solid #eadbd4; border-radius: 12px; background: #fffaf7; }
+.ck-product-info > strong { display: block; font-size: 14px; font-weight: 700; color: #60474d; margin-bottom: 8px; }
+.ck-product-info ul { margin: 0; padding-left: 19px; color: #514842; font-size: 13px; line-height: 1.8; }
+.ck-product-info li { padding: 1px 0; }
+.ck-product-info p { margin: 10px 0 0; font-size: 12px; line-height: 1.65; color: #866d5f; }
+.ck-product-info .ck-facts-caution { font-size: 11px; color: #907d71; }
+@media (max-width:680px) { .ck-product-info { padding: 12px; } .ck-product-info ul { font-size: 12px; } }

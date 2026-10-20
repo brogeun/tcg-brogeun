@@ -52,11 +52,21 @@ class FixtureTests(unittest.TestCase):
         return target.fx_basis(fx(), NOW)
 
     def test_full_two_brand_fetch_preserves_metadata_and_checks_each_product(self):
-        documents = target.build_documents(old_catalogue(), self.basis(), complete_pages,
+        calls = []
+        def pages(brand, order, page, per_page):
+            calls.append((brand, order, page))
+            if order == 'popular':
+                raise AssertionError('A repeated popularity ranking must not block the complete new-order catalogue')
+            return complete_pages(brand, order, page, per_page)
+        documents = target.build_documents(old_catalogue(), self.basis(), pages,
                                            per_page=2, now=lambda: NOW)
         combined = documents["all-cards.json"]
         self.assertEqual(combined["customMetadata"], {"keep": True})
-        self.assertEqual(len(combined["searchPriceRefresh"]["streams"]), 4)
+        self.assertEqual(len(combined["searchPriceRefresh"]["streams"]), 2)
+        self.assertEqual(calls, [('pokemon', 'new', 1), ('pokemon', 'new', 2),
+                                 ('onepiece', 'new', 1), ('onepiece', 'new', 2)])
+        self.assertTrue(all(row['terminal'] == 'empty-page'
+                            for row in combined['searchPriceRefresh']['streams']))
         self.assertEqual(len(combined["details"]), 3)
         self.assertEqual(combined["details"][0]["name"], "Preserve 1")
         self.assertEqual(combined["details"][0]["userField"], "keep")
@@ -127,8 +137,11 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(missing["name"], "Preserve 5")
         self.assertIsNone(missing["minPrice"])
         self.assertIsNone(missing["listingCount"])
-        self.assertEqual(missing["priceStatus"], "not-listed")
-        self.assertEqual(missing["priceCheckedAt"], NOW.isoformat())
+        self.assertEqual(missing["priceStatus"], "not-observed")
+        self.assertIsNone(missing["priceCheckedAt"])
+        self.assertEqual(missing['priceSource']['status'],
+                         'not-observed-in-completed-new-order-public-listing')
+        self.assertFalse(documents['all-cards.json']['searchPriceRefresh']['platformUniverseVerified'])
 
     def test_drastic_shrink_fails(self):
         with self.assertRaisesRegex(target.RefreshError, "80%"):
@@ -157,7 +170,7 @@ class FixtureTests(unittest.TestCase):
     def test_saved_public_listing_samples_parse_without_external_requests(self):
         samples = Path(__file__).resolve().parents[2] / "samples"
         paths = [samples / (brand + "-" + order + "-100.json")
-                 for brand in target.BRANDS for order in target.ORDERS]
+                 for brand in target.BRANDS for order in ('popular', 'new')]
         if not all(path.is_file() for path in paths):
             self.skipTest("Audit-only saved public samples are not packaged with the script")
         total = 0

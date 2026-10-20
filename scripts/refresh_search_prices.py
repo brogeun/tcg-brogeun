@@ -21,7 +21,10 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 BRANDS = ("pokemon", "onepiece")
-ORDERS = ("popular", "new")
+# The popular ranking repeated an already-seen page in production even after
+# revalidation. Traverse the full new-order catalogue to an explicit empty page;
+# a changing popularity ranking must not prevent a complete catalogue refresh.
+ORDERS = ("new",)
 META_FIELDS = ("id", "name", "productNumber", "thumbnailUrl", "releasedAt", "brand", "kind")
 UTC = timezone.utc
 
@@ -293,7 +296,7 @@ def build_documents(old, basis, get_page, per_page=100, max_pages=500, now=None)
     completed = now().astimezone(UTC).isoformat()
     details = []
     counts = {brand: {"checked": 0, "available": 0, "no-listings": 0,
-                      "price-unavailable": 0, "not-listed": 0} for brand in BRANDS}
+                      "price-unavailable": 0, "not-observed": 0} for brand in BRANDS}
     for cid, original in previous.items():
         row = copy.deepcopy(original)
         if cid in fetched:
@@ -304,8 +307,12 @@ def build_documents(old, basis, get_page, per_page=100, max_pages=500, now=None)
             for field in ("minPrice", "currency", "listingCount", "priceCheckedAt", "priceStatus", "priceSource"):
                 row[field] = fresh[field]
         elif row.get("brand") in BRANDS and row.get("kind", "card") == "card":
-            row.update(minPrice=None, listingCount=None, priceStatus="not-listed", priceCheckedAt=completed)
-            row["priceSource"] = {"type": "listing-ask", "status": "absent-from-completed-public-listing"}
+            # Absence from this public ordering is not evidence of zero stock or
+            # a newly checked individual quote. Never redate an old price.
+            row.update(minPrice=None, listingCount=None, priceStatus="not-observed", priceCheckedAt=None)
+            row["priceSource"] = {"type": "listing-ask",
+                                  "status": "not-observed-in-completed-new-order-public-listing",
+                                  "listingTraversalCompletedAt": completed}
         details.append(row)
     details.extend(fetched[cid] for cid in sorted(fetched, key=int))
     for row in details:
@@ -317,8 +324,11 @@ def build_documents(old, basis, get_page, per_page=100, max_pages=500, now=None)
     cards = [str(row["id"]) for row in details if row.get("kind", "card") == "card"]
     boxes = [str(row["id"]) for row in details if row.get("kind") == "box"]
     summary = {"source": "SNKRDUNK public category-25 listing asks", "completedAt": completed,
+               "collectionStrategy": "new-order-to-explicit-empty-page",
+               "orders": list(ORDERS), "platformUniverseVerified": False,
+               "coverage": "Completed both brands' newest public listings; not every platform SKU",
                "complete": True, "streams": streams, "countsByBrand": counts,
-               "absencePolicy": "preserve metadata; unavailable price and count become null",
+               "absencePolicy": "preserve metadata; unobserved price/count/check time become null; absence does not establish zero stock",
                "currencyNormalization": basis}
     output.update(fetchedAt=completed, details=details, cards=sorted(cards), boxes=sorted(boxes),
                   all=sorted(str(row["id"]) for row in details),

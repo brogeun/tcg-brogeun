@@ -1,0 +1,101 @@
+name: Daily Collection and Single Deployment
+
+on:
+  schedule:
+    - cron: '17 19 * * *'  # 04:17 KST; GitHub may start later.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write  # Preserve the existing weekly Pokemon failure notification.
+
+concurrency:
+  group: daily-collection-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      weekly: ${{ steps.plan.outputs.weekly }}
+      box_days: ${{ steps.plan.outputs.box_days }}
+      history_batch: ${{ steps.plan.outputs.history_batch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/daily_cycle.py
+            scripts/test_daily_cycle.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify calendar boundaries and truthful failure reporting
+        run: python -B -m unittest discover -s scripts -p test_daily_cycle.py
+      - name: Plan this actual Korean collection day
+        id: plan
+        run: python -B scripts/daily_cycle.py plan
+
+  pokemon:
+    needs: plan
+    if: needs.plan.outputs.weekly == 'true'
+    uses: ./.github/workflows/pokemon-detect.yml
+
+  onepiece:
+    needs: [plan, pokemon]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.weekly == 'true'
+    uses: ./.github/workflows/onepiece-sync.yml
+
+  history:
+    needs: [plan, pokemon, onepiece]
+    if: always() && !cancelled() && needs.plan.result == 'success'
+    uses: ./.github/workflows/history-rotate.yml
+    with:
+      batch: ${{ needs.plan.outputs.history_batch }}
+
+  boxes:
+    needs: [plan, history]
+    if: always() && !cancelled() && needs.plan.result == 'success'
+    uses: ./.github/workflows/backfill-box-weekly.yml
+    with:
+      mode: recent
+      days: ${{ needs.plan.outputs.box_days }}
+
+  chinese:
+    needs: [plan, boxes]
+    if: always() && !cancelled() && needs.plan.result == 'success'
+    uses: ./.github/workflows/chinese-prices-daily.yml
+
+  site:
+    needs: [plan, chinese]
+    if: always() && !cancelled() && needs.plan.result == 'success'
+    uses: ./.github/workflows/scrape.yml
+    with:
+      collect_scope: all
+    secrets: inherit
+
+  report:
+    needs: [plan, pokemon, onepiece, history, boxes, chinese, site]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout-cone-mode: false
+          sparse-checkout: scripts/daily_cycle.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Report every source and the one deployment without hiding failures
+        run: python -B scripts/daily_cycle.py report
+        env:
+          DAILY_RESULTS: ${{ toJSON(needs) }}
+          WEEKLY_EXPECTED: ${{ needs.plan.outputs.weekly || 'false' }}

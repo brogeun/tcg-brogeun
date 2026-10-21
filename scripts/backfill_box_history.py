@@ -288,6 +288,7 @@ def main():
 
     fetched_at = datetime.now(timezone.utc).isoformat()
     success = 0
+    failures = 0
     for i, b in enumerate(box_ids, 1):
         cid = b['id']
         print(f"  [{i}/{len(box_ids)}] {cid} {b['name'][:40]}")
@@ -322,6 +323,7 @@ def main():
         # 안전장치 — 중간 fetch 실패 시 불완전한 거래량으로 기존 값을 덮어쓰지 않음
         if not volume_completed:
             print("      거래량 수집 미완료 — 기존 history 유지")
+            failures += 1
             continue
         for date, count in vols.items():
             if date not in by_date:
@@ -370,8 +372,9 @@ def main():
             print(f"        valid {sum(1 for h in new_hist if h.get('box_vol', 0) > 0)} days")
         time.sleep(0.35)
 
-    print(f"\nBox backfill complete - {success}/{len(box_ids)} updated")
+    print(f"\nBox backfill complete - {success}/{len(box_ids)} updated; {failures} failed")
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

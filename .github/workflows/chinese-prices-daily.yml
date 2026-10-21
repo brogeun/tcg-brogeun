@@ -1,16 +1,16 @@
 name: Chinese Auction Prices Daily
 
 on:
-  schedule:
-    - cron: '7 18 * * *'  # 03:07 KST; ahead of the daily website bundle.
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: chinese-auction-prices
+  group: scrape
   cancel-in-progress: false
+  queue: max
 
 jobs:
   refresh:
@@ -19,6 +19,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Record the actual source after preceding collectors
+        run: echo "COLLECTION_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -61,4 +65,4 @@ jobs:
         run: >-
           python -B scripts/publish_data_snapshot.py
           --message 'Update validated Chinese auction prices'
-          --files data/chinese-market.json
+          --base "$COLLECTION_COMMIT" --files data/chinese-market.json

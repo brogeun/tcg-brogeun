@@ -1,15 +1,19 @@
 name: Pokemon New Set Auto-Sync
 
-# 매주 월요일 18:00 KST — 신규 세트 후보 감지.
+# Single daily cycle: Monday only — 신규 세트 후보 감지.
 # 실제 데이터 변경은 다음 일일 수집 워크플로우의 검증된 배포에 반영.
 on:
-  schedule:
-    - cron: '0 9 * * 1'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   sync:
@@ -19,6 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: ${{ github.ref }}
 
       - name: Setup Python
         uses: actions/setup-python@v5

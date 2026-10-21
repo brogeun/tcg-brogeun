@@ -1,8 +1,16 @@
 name: Scrape SNKRDUNK Daily
 
 on:
-  schedule:
-    - cron: '17 19 * * *'  # 04:17 KST; avoid the busy start of the hour.
+  workflow_call:
+    inputs:
+      collect_scope:
+        type: string
+        default: all
+    secrets:
+      CF_API_TOKEN:
+        required: false
+      CF_ACCOUNT_ID:
+        required: false
   workflow_dispatch:  # 수동 실행 가능
     inputs:
       collect_scope:
@@ -14,7 +22,7 @@ on:
           - all
           - search-only
   workflow_run:
-    workflows: ['Refresh Verified Home Card Index Daily', 'Chinese Auction Prices Daily']
+    workflows: ['Refresh Verified Home Card Index Daily']
     types: [completed]
     branches: [main]
   push:
@@ -76,6 +84,8 @@ jobs:
         run: |
           python -m unittest discover -s scripts -p test_refresh_search_prices.py
           python -m unittest discover -s scripts -p test_update_health.py
+          python -B -m unittest discover -s scripts -p test_daily_cycle.py
+          python -B -m unittest discover -s scripts -p 'test_backfill_box_*.py'
           python -m unittest discover -s scripts -p test_prepare_public_bundle.py
           python -B -m unittest discover -s scripts -p test_scrape_snapshot_safety.py
           python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py

@@ -1,13 +1,18 @@
 name: Update All Box Volume (Daily)
 
-# 매일 02:00 KST 전 박스 거래량 갱신.
+# The single 04:17 KST daily cycle calls this collector; manual runs remain available.
 # 월~토: 최근 14일을 겹쳐 수집, 일요일: 최근 90일 재검증.
-# UTC 기준 일요일~금요일은 KST 월요일~토요일이다.
+# The parent plans the 14/90-day window from the actual Korean day.
 
 on:
-  schedule:
-    - cron: '0 17 * * 0-5'  # 월~토 02:00 KST — 최근 14일
-    - cron: '0 17 * * 6'    # 일요일 02:00 KST — 최근 90일
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        default: recent
+      days:
+        type: string
+        default: '14'
   workflow_dispatch:
     inputs:
       mode:
@@ -27,8 +32,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: backfill-box
+  group: scrape
   cancel-in-progress: false
+  queue: max
 
 jobs:
   backfill:
@@ -37,6 +43,11 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Record the actual source after history rotation
+        run: echo "COLLECTION_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -44,9 +55,11 @@ jobs:
           python-version: '3.11'
 
       - name: Verify card histories are excluded from box updates
-        run: python -B -m unittest discover -s scripts -p test_backfill_box_identity.py
+        run: python -B -m unittest discover -s scripts -p 'test_backfill_box_*.py'
 
       - name: Update every box volume
+        id: collect
+        continue-on-error: true  # Preserve completed products, then truthfully report any failed source.
         shell: bash
         run: |
           run_four_shards() {
@@ -63,30 +76,47 @@ jobs:
             return "$failed"
           }
 
-          if [[ "${{ github.event_name }}" == "schedule" && "${{ github.event.schedule }}" == "0 17 * * 6" ]]; then
-            echo "Sunday 90-day reconciliation"
-            run_four_shards --days 90 --range threeMonths
-          elif [[ "${{ inputs.mode }}" == "full" ]]; then
+          if [[ "$BOX_MODE" == "full" ]]; then
             echo "Manual full reconciliation"
             run_four_shards
           else
-            DAYS="${{ inputs.days }}"
-            DAYS="${DAYS:-14}"
-            echo "Daily recent reconciliation: ${DAYS} days"
-            run_four_shards --days "${DAYS}" --range oneMonth
+            DAYS="${BOX_DAYS:-14}"
+            [[ "$DAYS" =~ ^[1-9][0-9]*$ ]] || { echo 'Invalid box day count'; exit 1; }
+            RANGE=oneMonth
+            if (( DAYS > 30 )); then RANGE=threeMonths; fi
+            echo "Reconciliation: ${DAYS} days"
+            run_four_shards --days "$DAYS" --range "$RANGE"
           fi
         env:
           PYTHONUNBUFFERED: "1"
+          BOX_MODE: ${{ inputs.mode }}
+          BOX_DAYS: ${{ inputs.days }}
 
       - name: Audit all box history files
+        if: always() && !cancelled() && (steps.collect.outcome == 'success' || steps.collect.outcome == 'failure')
         run: python scripts/audit_box_history.py
         env:
           PYTHONIOENCODING: "utf-8"
 
-      - name: Commit history updates
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🤖 Daily all-box volume update"
-          file_pattern: "data/history/*.json"
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Publish completed box histories without overwriting concurrent edits
+        if: always() && !cancelled() && (steps.collect.outcome == 'success' || steps.collect.outcome == 'failure')
+        run: |
+          python -B - <<'PY'
+          import json, os, re, sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from publish_data_snapshot import PublicationError, daily_files, publish
+          root = Path.cwd().resolve()
+          base = os.environ['COLLECTION_COMMIT']
+          files = daily_files(root, base)
+          if any(not re.fullmatch(r'data/history/[1-9][0-9]{0,19}\.json', name) for name in files):
+              raise PublicationError('Box collection may publish only generated history JSON')
+          print(json.dumps(publish(root, base, files,
+              'data: refresh completed box volume targets', daily=True)))
+          PY
+
+      - name: Report incomplete box sources after retaining valid products
+        if: always() && steps.collect.outcome == 'failure'
+        run: |
+          echo '::error::Box source collection was incomplete; failed products retained their prior histories.'
+          exit 1

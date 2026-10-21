@@ -3,8 +3,11 @@ name: History Full Rotate
 # 전체 카드 거래량을 매일 1/7씩 순환 → 주간 전체 1바퀴.
 # collect_card_ids() 가 인기/신상만 모으는 한계를 보완 (롱테일 ~6,600장 커버).
 on:
-  schedule:
-    - cron: '0 15 * * *'   # 00:00 KST 매일 (scrape.yml 19 UTC 와 시간 분리)
+  workflow_call:
+    inputs:
+      batch:
+        type: string
+        default: ''
   workflow_dispatch:
 
 permissions:
@@ -36,9 +39,20 @@ jobs:
           python -B -m unittest discover -s scripts -p test_backfill_card_history_safety.py
           python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
 
-      - name: Compute batch index (day-of-year mod 7)
+      - name: Use the planned UTC rotation batch, or compute one for a manual run
         id: b
-        run: echo "n=$(( $(date +%j) % 7 ))" >> "$GITHUB_OUTPUT"
+        env:
+          REQUESTED_BATCH: ${{ inputs.batch }}
+        run: |
+          python -B - <<'PY'
+          from datetime import datetime, timezone
+          import os
+          value = os.environ.get('REQUESTED_BATCH') or str(datetime.now(timezone.utc).timetuple().tm_yday % 7)
+          if value not in {str(n) for n in range(7)}:
+              raise ValueError('History batch must be 0..6')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('n=' + value + '\n')
+          PY
 
       - name: Backfill 1/7 of all cards (last 40 days volume)
         id: collect

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 2,
+  "ok": true,
+  "fetchedAt": 1792612559650,
+  "checkedAt": 1792612559650,
+  "status": "unavailable",
+  "pricesFresh": false,
+  "source": "official current Beezie catalogue + machine status API + labelled page average for active machines",
+  "timestampMeaning": "current official source check; unavailable rows contain no current quote",
+  "catalogue": {
+    "url": "https://beezie.com/claw",
+    "httpStatus": 200,
+    "complete": true,
+    "machineIds": [
+      98,
+      100,
+      104
+    ],
+    "sourceNames": [
+      "Wildcard",
+      "Gold TCG",
+      "Silver"
+    ],
+    "htmlSha256": "27103b1ff0910b1b06d6db9ab8f37fba81327dbdbfb67b64febb392739ea9abb"
+  },
+  "results": [
+    {
+      "id": 98,
+      "tier": "Wildcard",
+      "sourceName": "Wildcard",
+      "url": "https://beezie.com/claw/Wildcard-98",
+      "ok": true,
+      "checkedAt": 1792612559187,
+      "stockCount": 0,
+      "sourceEvidence": {
+        "httpStatus": 200,
+        "sourceStatus": "paused",
+        "stockCount": 0,
+        "sourceName": "Wildcard",
+        "machineId": 98,
+        "url": "https://api.beezie.com/claw/by-id/98",
+        "checkedAt": 1792612559187
+      },
+      "status": "paused",
+      "price": null,
+      "avg": null,
+      "ev": null,
+      "method": "official-status; no current quote",
+      "error": "Beezie 일시 중지 · 재고 없음"
+    },
+    {
+      "id": 100,
+      "tier": "Gold TCG",
+      "sourceName": "Gold TCG",
+      "url": "https://beezie.com/claw/Gold-TCG-100",
+      "ok": true,
+      "checkedAt": 1792612559420,
+      "stockCount": 0,
+      "sourceEvidence": {
+        "httpStatus": 200,
+        "sourceStatus": "paused",
+        "stockCount": 0,
+        "sourceName": "Gold TCG",
+        "machineId": 100,
+        "url": "https://api.beezie.com/claw/by-id/100",
+        "checkedAt": 1792612559420
+      },
+      "status": "paused",
+      "price": null,
+      "avg": null,
+      "ev": null,
+      "method": "official-status; no current quote",
+      "error": "Beezie 일시 중지 · 재고 없음"
+    },
+    {
+      "id": 104,
+      "tier": "Silver TCG",
+      "sourceName": "Silver",
+      "url": "https://beezie.com/claw/Silver-104",
+      "ok": true,
+      "checkedAt": 1792612559650,
+      "stockCount": 0,
+      "sourceEvidence": {
+        "httpStatus": 200,
+        "sourceStatus": "paused",
+        "stockCount": 0,
+        "sourceName": "Silver",
+        "machineId": 104,
+        "url": "https://api.beezie.com/claw/by-id/104",
+        "checkedAt": 1792612559650
+      },
+      "status": "paused",
+      "price": null,
+      "avg": null,
+      "ev": null,
+      "method": "official-status; no current quote",
+      "error": "Beezie 일시 중지 · 재고 없음"
+    }
+  ]
+}

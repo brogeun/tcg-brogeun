@@ -41,6 +41,19 @@ def load_json(p):
     return json.loads(Path(p).read_bytes().rstrip(b'\x00').rstrip().decode('utf-8'))
 
 
+def verified_card_ids():
+    """Card-specific collectors own these histories, including sealed promos."""
+    result = set()
+    for filename in ('anniversary-market.json', 'futuristic-market.json'):
+        path = DATA / filename
+        if not path.exists():
+            continue
+        for pid, product in load_json(path).get('products', {}).items():
+            if product.get('kind') == 'card':
+                result.add(str(pid))
+    return result
+
+
 def fetch_json(url, timeout=20, retries=3):
     """일시적인 429/5xx/네트워크 오류를 재시도한 뒤 JSON 반환."""
     last_error = None
@@ -235,6 +248,13 @@ def main():
             seen_ids.add(pid)
             box_ids.append({'id': pid, 'name': p.get('name', ''), 'code': p.get('code')})
 
+    # A stale box catalogue can still contain sealed promo cards. Do not let
+    # --only/--fresh or the box-field normalization rewrite their card history.
+    card_ids = verified_card_ids()
+    excluded = [b['id'] for b in box_ids if b['id'] in card_ids]
+    box_ids = [b for b in box_ids if b['id'] not in card_ids]
+    if excluded:
+        print(f"  카드 전용 수집 대상 제외: {', '.join(excluded)}")
     print(f"  총 박스: {len(box_ids)} (price-*-box + manual-boxes 합산, 중복 제거)")
 
     if args.only:

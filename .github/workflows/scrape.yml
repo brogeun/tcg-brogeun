@@ -285,7 +285,9 @@ jobs:
 
 
       - name: Report incomplete daily collection after retaining valid independent updates
-        if: always() && (steps.daily-primary.outcome == 'failure' || steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || steps.deployment-health.outputs.status == 'incomplete')
+        # Deployment-only runs report stale datasets above, but did not request collection.
+        # Keep real collector failures and the full freshness gate for collection runs.
+        if: always() && (steps.daily-primary.outcome == 'failure' || steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || (env.COLLECT_DATA == 'true' && steps.deployment-health.outputs.status == 'incomplete'))
         run: |
           echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
           exit 1

@@ -38,7 +38,7 @@
   async function yieldIfNeeded(force=false){if(!isCurrent())throw cancelled;if(force||clock()-sliceStart>=6){await new Promise(resolve=>setTimeout(resolve,0));sliceStart=clock();if(!isCurrent())throw cancelled;}}
   // Paint the loading state and allow navigation before the first large pass.
   await yieldIfNeeded(true);
-  const states=[],dates=new Set();let best=null,completeStart=snapshot.cutoff,allHavePrices=snapshot.items.length>0;
+  const states=[],dates=new Set();let best=null,completeStart=snapshot.cutoff;
   for(let index=0;index<snapshot.items.length;index++){
    const item=snapshot.items[index],record=item.record;let points=record.grades.get(item.grade);
    if(!points){
@@ -60,13 +60,16 @@
     const p=firstValue>0?(lastValue-firstValue)/firstValue:null;
     if(p!=null&&(!best||p>best.p))best={index,p};
    }
-   if(!firstPrice||firstPrice.date>snapshot.today)allHavePrices=false;else if(firstPrice.date>completeStart)completeStart=firstPrice.date;
+   // A holding without quotes for its selected grade must not suppress every
+   // other holding's history. Keep one fixed, disclosed subset for the period.
+   if(!firstPrice||firstPrice.date>snapshot.today){await yieldIfNeeded();continue;}
+   if(firstPrice.date>completeStart)completeStart=firstPrice.date;
    states.push({points,record,end,qty:item.qty});
    await yieldIfNeeded();
   }
   // Earlier dates cannot produce a complete portfolio total. Skip them rather
   // than repeatedly summing and then discarding those same incomplete dates.
-  if(allHavePrices)for(const state of states){
+  for(const state of states){
    const first=lowerBound(state.record.dates,completeStart);for(let i=first;i<state.end;i++){dates.add(state.record.dates[i]);if((i&255)===255)await yieldIfNeeded();}
    state.i=upperBound(state.points,completeStart,'date');state.last=state.i?state.points[state.i-1].value:null;await yieldIfNeeded();
   }
@@ -79,7 +82,7 @@
    if(complete)data.push({date,value:Math.floor(total*snapshot.fx)});await yieldIfNeeded();
   }
   if(!isCurrent())throw cancelled;
-  const result={data,best};chartResults.set(snapshot.key,result);while(chartResults.size>4)chartResults.delete(chartResults.keys().next().value);return result;
+  const result={data,best,included:states.length,total:snapshot.items.length};chartResults.set(snapshot.key,result);while(chartResults.size>4)chartResults.delete(chartResults.keys().next().value);return result;
  }
  async function chartData(holdings,cache,range,fx,now=Date.now(),boxIds=new Set(),isCurrent=()=>true){return computeChart(chartSnapshot(holdings,cache,range,fx,now,boxIds),isCurrent);}
  const api={rows,series,chartData,calculateChart:chartData,money,pct,paginate,compactHoldings:true};root.PortfolioScreen=api;
@@ -148,7 +151,9 @@
   document.querySelectorAll('#pfChartRange button').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.r)===_PF_RANGE)));
   const task={key:snapshot.key,owner,promise:null};
   task.promise=(async()=>{try{
-   const {data,best}=await computeChart(snapshot,current);if(!current())return;
+   const {data,best,included,total}=await computeChart(snapshot,current);if(!current())return;
+   const note=$('pfChartWrap').querySelector('.pfx-note');
+   note.textContent=(included<total?`보유 ${total}종 중 선택 등급의 시세 이력이 있는 ${included}종 기준입니다. 이력이 없는 ${total-included}종은 차트에서 제외되어 총 평가액과 다를 수 있습니다. `:'')+'현재 보유 구성과 현재 환율로 과거 시세를 재구성한 참고 추이입니다. 매수·매도 시점과 입출금은 반영하지 않습니다.';
    const values=data.map(p=>p.value),change=values.length>1&&values[0]>0?(values.at(-1)-values[0])/values[0]*100:null;
    if(data.length){await loadChartJs();if(!current())return;}
    $('pfxChartEmpty').textContent='평가액 추이를 계산할 시세 이력이 없습니다.';$('pfxChartEmpty').hidden=values.length>0;$('pfAggChart').hidden=!values.length;

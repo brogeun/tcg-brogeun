@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-centering-original-20261021-v1';
+const CACHE_VERSION = 'tcghub-portfolio-chart-20261021-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;

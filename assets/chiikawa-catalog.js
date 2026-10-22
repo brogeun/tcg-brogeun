@@ -6,13 +6,14 @@
   'use strict';
   if (window.ChiikawaCatalog) return;
 
-  const VERSION = '20261020-ko2';
+  const VERSION = '20261022-pr009';
   const DATA_URL = '/data/chiikawa-catalog.json';
   const PAGE_SIZE = 18;
   const BRAND = 'chiikawa';
   const SET_ID = /^CIKW\/[A-Z0-9]{1,8}$/;
   const CARD_NUMBER = /^CIKW\/[A-Z0-9]{1,8}-[A-Z0-9]{2,16}$/;
   const SOURCE_HOSTS = new Set([
+    'arkblackcat.com', 'www.arkblackcat.com',
     'ws-blau.com', 'www.ws-blau.com',
     'c-labo-online.jp', 'www.c-labo-online.jp',
     'torecatchi-blau.com', 'www.torecatchi-blau.com',

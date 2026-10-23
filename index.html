@@ -690,9 +690,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/search-modal.css?v=20261014-mobile-art1">
 <link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
 <link rel="stylesheet" href="/assets/home-discovery.css?v=20260908-compact4">
-<link rel="stylesheet" href="/assets/centering-tool.css?v=20261021-v1">
-<script defer src="/assets/centering-geometry.js?v=20261021-v1"></script>
-<script defer src="/assets/centering-tool.js?v=20261021-v1"></script>
+<link rel="stylesheet" href="/assets/centering-tool.css?v=20261023-redesign-v1">
+<script defer src="/assets/centering-geometry.js?v=20261023-redesign-v1"></script>
+<script defer src="/assets/centering-tool.js?v=20261023-redesign-v1"></script>
 </head>
 <body>
 <script>
@@ -2040,135 +2040,45 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
     <!-- 센터링 툴 (카드 그레이딩 자가진단 + AI 분석) -->
     <section class="page" data-page="centering">
-      <div class="page-head">
-        <h1 class="page-title"><i data-lucide="ruler" style="width:24px;height:24px"></i> 카드 센터링 측정</h1>
-        <p class="page-sub">PSA · BGS 그레이딩 전 자가진단 · 앞/뒷면 동시 · AI 분석 (계정당 일 3회 무료)</p>
+  <div class="cr-app">
+    <header class="cr-heading">
+      <div><span class="cr-eyebrow">CARD CENTERING</span><h1>카드의 균형을 한눈에.</h1><p>사진을 크게 보고, 경계를 맞추고, 센터링을 확인하세요.</p></div>
+      <button type="button" class="cr-text-button" data-action="reset">새 카드 측정 <span aria-hidden="true">↗</span></button>
+    </header>
+    <div id="centeringLoginGate" class="cr-login" hidden>
+      <h2>로그인하고 센터링을 확인하세요.</h2><p>앞·뒷면 사진과 측정값은 이 화면에서 함께 관리할 수 있어요.</p><button type="button" class="cr-button cr-primary" data-action="login">로그인</button>
+    </div>
+    <div id="centeringMain" hidden>
+      <nav class="cr-flow" aria-label="측정 순서"><span data-flow="photo"><b>01</b> 사진 선택</span><i aria-hidden="true"></i><span data-flow="edit"><b>02</b> 경계 맞추기</span><i aria-hidden="true"></i><span data-flow="result"><b>03</b> 결과 확인</span></nav>
+      <div class="cr-layout">
+        <div class="cr-workspace">
+          <div class="cr-editor-top"><div class="cr-tabs" role="tablist" aria-label="카드 면 선택"><button type="button" role="tab" id="cr-front-tab" data-side-tab="front" aria-selected="true" aria-controls="cr-editor"><span>앞면</span><small data-side-status="front">사진 없음</small></button><button type="button" role="tab" id="cr-back-tab" data-side-tab="back" aria-selected="false" aria-controls="cr-editor"><span>뒷면</span><small data-side-status="back">사진 없음</small></button></div><button type="button" class="cr-text-button" data-action="replace" hidden>사진 변경</button></div>
+          <div id="cr-editor" class="cr-stage" role="tabpanel" aria-labelledby="cr-front-tab">
+            <div class="cr-empty" id="cr-empty"><div class="cr-card-outline" aria-hidden="true"><span></span><i></i></div><h2 id="cr-empty-title">앞면 사진을 선택하세요</h2><p>카드 네 모서리가 모두 보이는<br>선명한 사진이면 좋아요.</p><div class="cr-upload-actions"><button type="button" class="cr-button cr-primary" data-action="album"><span aria-hidden="true">＋</span> 사진 가져오기</button><button type="button" class="cr-button cr-camera" data-action="camera">카메라</button></div><span class="cr-drop-hint">또는 여기에 사진을 끌어 놓으세요</span></div>
+            <canvas id="cr-canvas" aria-label="카드 경계 편집. 점을 선택하거나 1부터 4까지 숫자키로 선택하고 방향키로 조정하세요." tabindex="0" hidden></canvas>
+            <div class="cr-stage-label" id="cr-stage-label" hidden><span class="cr-status-dot"></span><span id="cr-stage-title"></span></div>
+            <div class="cr-loupe" id="cr-loupe" hidden><canvas id="cr-loupe-canvas" width="144" height="144" aria-label="선택 위치 4배 확대"></canvas><span>선택 위치 · 4×</span></div>
+            <div class="cr-zoom" id="cr-zoom" hidden><button type="button" data-action="zoom-out" aria-label="사진 축소">−</button><button type="button" data-action="fit" id="cr-zoom-value" aria-label="사진 전체 보기">맞춤</button><button type="button" data-action="zoom-in" aria-label="사진 확대">＋</button></div>
+            <div class="cr-loading" id="cr-loading" hidden role="status"><span></span><b>사진을 준비하고 있어요</b></div>
+          </div>
+          <div class="cr-editor-bottom" id="cr-edit-tools" hidden><p id="cr-gesture-hint">점으로 조정 · 두 손가락으로 확대·이동</p><div class="cr-mobile-live" id="cr-mobile-live" hidden aria-live="off"><span>좌우 <b id="cr-live-lr"></b></span><span>상하 <b id="cr-live-tb"></b></span></div><div><button type="button" class="cr-text-button" data-action="undo" aria-label="마지막 경계 조정 되돌리기" disabled>↶</button><button type="button" class="cr-text-button" data-action="fine" aria-expanded="false" aria-controls="cr-fine">미세 조정 <span aria-hidden="true">⌄</span></button></div></div>
+          <div class="cr-fine" id="cr-fine" hidden><label>조정 위치<select id="cr-selected" aria-label="조정할 경계 선택"></select></label><div class="cr-arrows" aria-label="선택 위치 미세 이동"><button type="button" data-nudge="up" aria-label="위로 미세 이동">↑</button><button type="button" data-nudge="left" aria-label="왼쪽으로 미세 이동">←</button><button type="button" data-nudge="right" aria-label="오른쪽으로 미세 이동">→</button><button type="button" data-nudge="down" aria-label="아래로 미세 이동">↓</button></div><label>이동 간격<select id="cr-step"><option value="1">작게 · 1px</option><option value="10">크게 · 10px</option></select></label></div>
+          <div class="cr-action-area" id="cr-action-area" hidden><div><h2 id="cr-action-title"></h2><p id="cr-action-copy"></p></div><button type="button" class="cr-button cr-primary" id="cr-next" data-action="next"></button></div>
+          <div class="cr-secondary-actions" id="cr-secondary-actions" hidden><button type="button" class="cr-text-button" data-action="outer" hidden>카드 바깥선 다시 맞추기</button><button type="button" class="cr-text-button" data-action="borderless" aria-pressed="false" hidden>안쪽 테두리가 없는 카드</button><button type="button" class="cr-text-button" data-action="edit" hidden>테두리 수정</button></div>
+        </div>
+        <aside class="cr-sidebar">
+          <div class="cr-guide" id="cr-guide"><span class="cr-kicker">측정 전, 세 가지만.</span><h2>좋은 사진이<br>좋은 측정의 시작.</h2><ol><li><b>01</b><div><strong>카드만 꺼내서</strong><span>슬리브와 케이스를 벗겨 주세요.</span></div></li><li><b>02</b><div><strong>정면에서, 밝게</strong><span>반사를 피하고 네 모서리를 담아 주세요.</span></div></li><li><b>03</b><div><strong>경계를 한 번 확인</strong><span>찾아 둔 선이 실제 카드와 맞는지 봐 주세요.</span></div></li></ol><p>포켓몬·원피스 등 표준 비율 카드 기준</p></div>
+          <div class="cr-results" id="cr-results" hidden><div class="cr-result-heading"><h2>센터링</h2><span id="cr-result-status"></span></div><p class="cr-result-caption" id="cr-result-caption"></p><div id="cr-ratios"><div class="cr-ratio"><div><span>좌우</span><strong id="cr-lr">—</strong></div><div class="cr-balance" aria-hidden="true"><span id="cr-lr-bar"></span><i></i></div><div class="cr-ratio-labels"><span>왼쪽</span><span>오른쪽</span></div></div><div class="cr-ratio"><div><span>상하</span><strong id="cr-tb">—</strong></div><div class="cr-balance" aria-hidden="true"><span id="cr-tb-bar"></span><i></i></div><div class="cr-ratio-labels"><span>위쪽</span><span>아래쪽</span></div></div></div><p id="cr-reference" class="cr-reference"></p><details id="cr-dimensions"><summary>여백 길이 보기</summary><p id="cr-mm"></p><small>63 × 88mm 표준 카드와 확인한 경계를 가정한 참고값입니다.</small></details><p class="cr-measure-note">사진과 사용자가 맞춘 경계 기준의 참고 측정입니다. 실제 그레이딩 등급을 뜻하지 않습니다.</p></div>
+          <div class="cr-saved" id="cr-saved" hidden><div class="cr-saved-heading"><h2>이 카드의 측정</h2><span id="cr-saved-count">0 / 2</span></div><button type="button" data-summary-side="front"><span>앞면</span><b data-summary-value="front">아직 측정 전</b><i aria-hidden="true">↗</i></button><button type="button" data-summary-side="back"><span>뒷면</span><b data-summary-value="back">아직 측정 전</b><i aria-hidden="true">↗</i></button></div>
+          <div class="cr-ai" id="cr-ai" hidden><span class="cr-kicker">한 걸음 더</span><h2>사진 상태도 살펴볼까요?</h2><p>앞·뒷면을 모두 확인하면 모서리·엣지·표면을 AI로 함께 살펴볼 수 있어요.</p><button type="button" id="centeringAIBtn" class="cr-button cr-secondary" disabled>앞·뒷면 측정 후 이용</button><small id="centeringReadyHint">계정당 하루 3회 무료</small></div>
+        </aside>
       </div>
-      <!-- 비로그인 안내 — 로그인해야 센터링 사용 가능 -->
-      <div id="centeringLoginGate" style="display:none">
-        <div style="background:linear-gradient(135deg, #fafbff 0%, #eef0ff 100%); border:1px solid var(--line); border-radius:16px; padding:36px 24px 32px; text-align:center; margin-bottom:18px">
-          <div style="font-size:54px; margin-bottom:10px; line-height:1">🔐</div>
-          <div style="font-size:20px; font-weight:800; color:#111; margin-bottom:8px">센터링 측정은 로그인 후 이용 가능합니다</div>
-          <div style="font-size:13px; color:var(--ink-sub); margin-bottom:22px; line-height:1.7">이메일/Google/카카오 로그인 모두 지원합니다.<br>AI 분석은 <b>계정당 일 3회 무료</b> 사용 가능합니다.</div>
-          <button class="btn primary" onclick="openLoginModal('센터링 측정을 사용하려면 로그인이 필요합니다')" style="cursor:pointer; padding:12px 36px; font-size:14px; font-weight:700">📧 이메일로 로그인 →</button>
-        </div>
-      </div>
-      <div id="centeringMain" style="background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:18px">
-        <div style="font-size:13px; color:#6b7280; margin-bottom:14px; line-height:1.7">
-          💡 <b>사용법</b>: 슬리브 없는 카드 정면 사진 (단색 배경 권장) — 앞·뒷면 사진 선택 → 네 모서리 확인 → 촬영 각도 보정 → 테두리 확인 → AI 분석<br>AI에는 표시선 없는 원본 기반 고해상도 사진을 사용합니다. 센터링은 경계를 확인한 뒤 계산합니다.
-        </div>
-        <!-- 앞/뒤 업로드 영역 -->
-        <div id="centeringUploadArea" style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
-          <!-- 앞면 -->
-          <div class="centering-upload-slot" data-side="front" style="border:2px dashed #d1d5db; border-radius:10px; padding:24px 14px; text-align:center; cursor:pointer; transition:all 0.2s">
-            <div style="font-size:11px; font-weight:800; color:#3b82f6; margin-bottom:8px">앞면 (FRONT)</div>
-            <div style="font-size:36px; margin-bottom:8px; opacity:0.5">⬆️</div>
-            <div style="font-size:12px; color:#9ca3af; margin-bottom:10px">드래그앤드롭 또는 선택</div>
-            <input type="file" data-centering-file="front" accept="image/*,.heic,.heif,image/heic,image/heif" style="display:none">
-            <input type="file" data-centering-file="front-camera" accept="image/*,.heic,.heif,image/heic,image/heif" capture="environment" style="display:none">
-            <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap">
-              <button class="btn primary" type="button" data-centering-btn="front-album" style="cursor:pointer; padding:6px 14px; font-size:12px">📁 앨범</button>
-              <button class="btn" type="button" data-centering-btn="front-camera" style="cursor:pointer; padding:6px 14px; font-size:12px">📷 카메라</button>
-            </div>
-            <div data-centering-thumb="front" style="display:none; margin-top:10px"></div>
-          </div>
-          <!-- 뒷면 -->
-          <div class="centering-upload-slot" data-side="back" style="border:2px dashed #d1d5db; border-radius:10px; padding:24px 14px; text-align:center; cursor:pointer; transition:all 0.2s">
-            <div style="font-size:11px; font-weight:800; color:#10b981; margin-bottom:8px">뒷면 (BACK)</div>
-            <div style="font-size:36px; margin-bottom:8px; opacity:0.5">⬆️</div>
-            <div style="font-size:12px; color:#9ca3af; margin-bottom:10px">드래그앤드롭 또는 선택</div>
-            <input type="file" data-centering-file="back" accept="image/*,.heic,.heif,image/heic,image/heif" style="display:none">
-            <input type="file" data-centering-file="back-camera" accept="image/*,.heic,.heif,image/heic,image/heif" capture="environment" style="display:none">
-            <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap">
-              <button class="btn primary" type="button" data-centering-btn="back-album" style="cursor:pointer; padding:6px 14px; font-size:12px">📁 앨범</button>
-              <button class="btn" type="button" data-centering-btn="back-camera" style="cursor:pointer; padding:6px 14px; font-size:12px">📷 카메라</button>
-            </div>
-            <div data-centering-thumb="back" style="display:none; margin-top:10px"></div>
-          </div>
-        </div>
-
-        <!-- 측정 영역 (앞/뒤 둘 다 업로드 후 표시) -->
-        <div id="centeringWorkspace" style="display:none; margin-top:18px">
-          <div class="ct-measure-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px">
-            <!-- 앞면 측정 -->
-            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center">
-              <div style="font-size:12px; font-weight:800; color:#3b82f6; margin-bottom:8px; text-align:left">앞면</div>
-              <div class="ct-viewport"><canvas data-centering-canvas="front" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas></div><div data-centering-controls="front"></div>
-              <div style="margin-top:10px; font-size:12px; color:#374151; text-align:left">
-                좌/우: <span data-centering-lr="front">-</span> · <b data-centering-lrpct="front">-/-</b><br>
-                상/하: <span data-centering-tb="front">-</span> · <b data-centering-tbpct="front">-/-</b>
-              </div>
-            </div>
-            <!-- 뒷면 측정 -->
-            <div style="background:#fafafa; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center">
-              <div style="font-size:12px; font-weight:800; color:#10b981; margin-bottom:8px; text-align:left">뒷면</div>
-              <div class="ct-viewport"><canvas data-centering-canvas="back" style="max-width:100%; height:auto; cursor:crosshair; background:#fff; border-radius:6px; display:block; margin:0 auto"></canvas></div><div data-centering-controls="back"></div>
-              <div style="margin-top:10px; font-size:12px; color:#374151; text-align:left">
-                좌/우: <span data-centering-lr="back">-</span> · <b data-centering-lrpct="back">-/-</b><br>
-                상/하: <span data-centering-tb="back">-</span> · <b data-centering-tbpct="back">-/-</b>
-              </div>
-            </div>
-          </div>
-
-          <!-- 등급 추정 + AI -->
-          <div style="margin-top:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px">
-            <div style="background:linear-gradient(135deg,#fef3c7,#fde68a); border:1px solid #fcd34d; border-radius:10px; padding:14px">
-              <div style="font-size:11px; font-weight:700; color:#92400e; margin-bottom:6px">앞면 센터링 참고 기준</div>
-              <div data-centering-grades="front" style="font-size:13px; color:#78350f; line-height:1.7">-</div>
-            </div>
-            <div style="background:linear-gradient(135deg,#dbeafe,#bfdbfe); border:1px solid #93c5fd; border-radius:10px; padding:14px">
-              <div style="font-size:11px; font-weight:700; color:#1e3a8a; margin-bottom:6px">뒷면 센터링 참고 기준</div>
-              <div data-centering-grades="back" style="font-size:13px; color:#1e40af; line-height:1.7">-</div>
-            </div>
-          </div>
-
-          <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap">
-            <button class="btn primary" type="button" id="centeringAIBtn" style="cursor:pointer; padding:10px 18px; font-size:13px; font-weight:700; flex:1">
-              ✨ AI 종합 분석 (앞+뒤) <span id="centeringAICount" style="font-size:11px; opacity:0.8"></span>
-            </button>
-            <button class="btn" type="button" onclick="resetCentering()" style="cursor:pointer; padding:10px 16px; font-size:12px">↻ 다른 카드</button>
-          </div>
-          <p id="centeringReadyHint" class="ct-note" role="status">앞·뒷면의 카드 경계를 확인해 주세요.</p>
-          <!-- AI 분석 결과 — CGA 스타일 (4개 sub-score + Final + AI Note) -->
-          <div id="centeringAIResult" style="display:none; margin-top:14px">
-            <!-- 4개 sub-score 그리드 (밝은 테마) -->
-            <div id="aiScoreGrid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-bottom:12px">
-              <div class="ai-score" data-score-key="centering" style="background:#fffbeb; border-radius:12px; padding:16px; text-align:center; border:1px solid #fcd34d">
-                <div style="font-size:18px; margin-bottom:4px">🎯</div>
-                <div style="font-size:11px; font-weight:700; color:#92400e; letter-spacing:.5px; margin-bottom:8px">Centering · 센터링</div>
-                <div data-score="centering" style="font-size:24px; font-weight:900; color:#b45309">-</div>
-              </div>
-              <div class="ai-score" data-score-key="corners" style="background:#eff6ff; border-radius:12px; padding:16px; text-align:center; border:1px solid #93c5fd">
-                <div style="font-size:18px; margin-bottom:4px">⊞</div>
-                <div style="font-size:11px; font-weight:700; color:#1e40af; letter-spacing:.5px; margin-bottom:8px">Corners · 모서리</div>
-                <div data-score="corners" style="font-size:24px; font-weight:900; color:#1d4ed8">-</div>
-              </div>
-              <div class="ai-score" data-score-key="edges" style="background:#ecfdf5; border-radius:12px; padding:16px; text-align:center; border:1px solid #6ee7b7">
-                <div style="font-size:18px; margin-bottom:4px">▢</div>
-                <div style="font-size:11px; font-weight:700; color:#065f46; letter-spacing:.5px; margin-bottom:8px">Edges · 엣지</div>
-                <div data-score="edges" style="font-size:24px; font-weight:900; color:#047857">-</div>
-              </div>
-              <div class="ai-score" data-score-key="surface" style="background:#fdf2f8; border-radius:12px; padding:16px; text-align:center; border:1px solid #f9a8d4">
-                <div style="font-size:18px; margin-bottom:4px">✦</div>
-                <div style="font-size:11px; font-weight:700; color:#9d174d; letter-spacing:.5px; margin-bottom:8px">Surface · 표면</div>
-                <div data-score="surface" style="font-size:24px; font-weight:900; color:#be185d">-</div>
-              </div>
-            </div>
-            <!-- Final score (밝은 테마) -->
-            <div style="background:linear-gradient(135deg,#fef3c7,#fde68a); border-radius:12px; padding:18px; text-align:center; border:2px solid #f59e0b; margin-bottom:12px; box-shadow:0 2px 8px rgba(245,158,11,0.15)">
-              <div style="font-size:11px; font-weight:800; color:#92400e; letter-spacing:1px; margin-bottom:6px">사진 기반 참고 점수</div>
-              <div data-score="final" style="font-size:42px; font-weight:900; color:#78350f; line-height:1">-</div>
-              <div data-score-grade="final" style="font-size:13px; font-weight:700; color:#92400e; margin-top:4px"></div>
-            </div>
-            <!-- AI Note -->
-            <div style="background:#f0f9ff; border:1px solid #bfdbfe; border-radius:10px; padding:16px">
-              <div style="font-size:12px; font-weight:800; color:#1e40af; margin-bottom:8px; letter-spacing:.3px">🤖 AI Note</div>
-              <div id="centeringAIText" style="font-size:13px; color:#1f2937; line-height:1.75; white-space:pre-wrap"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+      <div class="cr-notice" id="cr-notice" role="status" aria-live="polite" hidden></div>
+      <section id="centeringAIResult" class="cr-ai-result" style="display:none" aria-label="AI 사진 상태 분석 결과"><div class="cr-ai-result-heading"><div><span class="cr-kicker">PHOTO REVIEW</span><h2>사진에서 확인한 상태</h2></div><span>사진 기반 참고 분석</span></div><div class="cr-scores"><div><span>센터링</span><strong data-score="centering">—</strong></div><div><span>모서리</span><strong data-score="corners">—</strong></div><div><span>엣지</span><strong data-score="edges">—</strong></div><div><span>표면</span><strong data-score="surface">—</strong></div><div><span>종합 참고</span><strong data-score="final">—</strong></div></div><p data-score-grade="final"></p><div id="centeringAIText"></div><p class="cr-measure-note">사진만으로 모든 결함을 확인하거나 실제 등급을 확정할 수 없습니다.</p></section>
+      <div class="cr-file-inputs" hidden><input type="file" accept="image/*,.heic,.heif" data-centering-file="front"><input type="file" accept="image/*" capture="environment" data-centering-file="front-camera"><input type="file" accept="image/*,.heic,.heif" data-centering-file="back"><input type="file" accept="image/*" capture="environment" data-centering-file="back-camera"></div>
+    </div>
+  </div>
+</section>
 
     <!-- TCG Casing — 관리자 전용 (확장 아트 시안 생성, Flux Pro 1.1 Ultra) -->
     <section class="page" data-page="casing">

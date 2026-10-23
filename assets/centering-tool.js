@@ -1,152 +1,301 @@
 (function () {
   'use strict';
-  const G=window.CenteringGeometry, sides=['front','back'];
-  const empty=()=>({image:null,url:null,quad:null,rectified:null,insets:null,phase:'outer',confirmed:false,borderless:false,zoom:1,drag:null,generation:0});
-  const state={front:empty(),back:empty()};let pickerBusy=false,analyzing=false,revision=0,lastQuota=null;
-  const $=s=>document.querySelector(s),id=s=>document.getElementById(s);
-  const label=s=>s==='front'?'앞면':'뒷면';
-  function message(text){if(typeof showToast==='function')showToast(text,'info');}
-  function invalidate(){revision++;lastQuota=null;if(id('centeringAIResult'))id('centeringAIResult').style.display='none';}
-  function gate(){const logged=typeof CURRENT_USER!=='undefined'&&!!CURRENT_USER; if(id('centeringLoginGate'))id('centeringLoginGate').style.display=logged?'none':'';if(id('centeringMain'))id('centeringMain').style.display=logged?'':'none';}
-  function updateButton(){
-    const ready=sides.every(s=>state[s].image&&state[s].confirmed);
-    const selector='[data-centering-controls] input,[data-centering-controls] button,[data-centering-btn],[data-centering-file],#centeringMain button[onclick="resetCentering()"]';
-    document.querySelectorAll(selector).forEach(el=>{el.disabled=analyzing;});
-    const b=id('centeringAIBtn');if(b){b.disabled=!ready||analyzing;b.textContent=analyzing?'사진을 분석하고 있습니다…':'✨ 원본 사진으로 AI 분석';}
-    const hint=id('centeringReadyHint');if(hint)hint.textContent=lastQuota?`오늘 AI 분석 ${lastQuota.used} / ${lastQuota.limit}회 사용`:ready?'앞·뒷면 경계 확인 완료 · 사진으로 보이는 상태를 분석합니다.':'앞·뒷면의 카드 모서리와 테두리를 각각 확인해 주세요.';
+  const G=window.CenteringGeometry,sides=['front','back'];
+  const id=name=>document.getElementById(name),$=selector=>document.querySelector(selector);
+  const label=side=>side==='front'?'앞면':'뒷면';
+  const cornerNames=['왼쪽 위','오른쪽 위','오른쪽 아래','왼쪽 아래'];
+  const edgeNames={left:'왼쪽',right:'오른쪽',top:'위쪽',bottom:'아래쪽'};
+  const empty=()=>({image:null,url:null,file:null,quad:null,rectified:null,insets:null,phase:'outer',confirmed:false,borderless:false,zoom:1,panX:0,panY:0,selected:0,step:1,fine:false,history:[],generation:0,loading:false});
+  const state={front:empty(),back:empty()};
+  let active='front',pickerBusy=false,analyzing=false,revision=0,lastQuota=null,bound=false;
+  const gesture={points:new Map(),drag:null,pinch:null};
+  const current=()=>state[active],source=s=>s.phase==='inner'?s.rectified:s.image;
+  const dimensions=image=>({w:image.naturalWidth||image.width,h:image.naturalHeight||image.height});
+  const show=(name,visible)=>{const el=id(name);if(el)el.hidden=!visible;};
+  const put=(name,text)=>{const el=id(name);if(el)el.textContent=text;};
+  const logged=()=>typeof CURRENT_USER!=='undefined'&&!!CURRENT_USER;
+  const ready=()=>sides.every(side=>state[side].image&&state[side].confirmed&&!state[side].loading);
+  function notice(text){put('cr-notice',text);show('cr-notice',!!text);}
+  function invalidate(){revision++;if(id('centeringAIResult'))id('centeringAIResult').style.display='none';}
+  function clearGesture(){gesture.points.clear();gesture.drag=null;gesture.pinch=null;}
+  function handles(s){
+    if(!s.image)return [];
+    if(s.phase==='outer')return s.quad.map((point,key)=>({...point,key,title:cornerNames[key]}));
+    if(s.borderless)return [];
+    const {width:w,height:h}=s.rectified,n=s.insets;
+    return [{key:'left',x:n.left*w,y:h/2},{key:'right',x:(1-n.right)*w,y:h/2},{key:'top',x:w/2,y:n.top*h},{key:'bottom',x:w/2,y:(1-n.bottom)*h}].map(p=>({...p,title:edgeNames[p.key]+' 테두리'}));
   }
-  async function pick(side,source){
+  function snapshot(s){return {quad:s.quad.map(p=>({...p})),insets:s.insets?{...s.insets}:null,borderless:s.borderless};}
+  function remember(s){s.history.push(snapshot(s));if(s.history.length>30)s.history.shift();}
+  function dirty(){current().confirmed=false;invalidate();draw();renderMetrics();renderFine();renderActions();}
+  function undo(){const s=current();if(analyzing||!s.history.length)return;Object.assign(s,s.history.pop());s.confirmed=false;invalidate();render();}
+  function fit(){const s=current();s.zoom=1;s.panX=0;s.panY=0;draw();}
+  function view(){
+    const c=id('cr-canvas'),s=current(),r=c.getBoundingClientRect(),dim=dimensions(source(s));
+    const scale=Math.min((r.width-56)/dim.w,(r.height-64)/dim.h)*s.zoom;
+    return {w:dim.w,h:dim.h,scale,x:(r.width-dim.w*scale)/2+s.panX,y:(r.height-dim.h*scale)/2+s.panY,viewportWidth:r.width,viewportHeight:r.height};
+  }
+  function clampPan(s,v){
+    const extraX=Math.max(0,(v.w*v.scale-v.viewportWidth)/2)+v.viewportWidth*.28;
+    const extraY=Math.max(0,(v.h*v.scale-v.viewportHeight)/2)+v.viewportHeight*.28;
+    s.panX=G.clamp(s.panX,-extraX,extraX);s.panY=G.clamp(s.panY,-extraY,extraY);
+  }
+  function zoomTo(value,anchor){
+    const s=current();if(!s.image||analyzing)return;
+    const v=view(),r=id('cr-canvas').getBoundingClientRect();
+    const x=anchor?anchor.x-r.left:v.viewportWidth/2,y=anchor?anchor.y-r.top:v.viewportHeight/2;
+    const sx=anchor?.sx??(x-v.x)/v.scale,sy=anchor?.sy??(y-v.y)/v.scale;
+    const next=G.clamp(value,1,6),ratio=next/s.zoom;s.zoom=next;
+    const scale=v.scale*ratio;
+    s.panX=x-(v.viewportWidth-v.w*scale)/2-sx*scale;
+    s.panY=y-(v.viewportHeight-v.h*scale)/2-sy*scale;
+    if(next===1){s.panX=0;s.panY=0;}else clampPan(s,{...v,scale});
+    draw();
+  }
+  function draw(){
+    const c=id('cr-canvas'),s=current();if(!c||!s.image||c.hidden)return;
+    const r=c.getBoundingClientRect();if(r.width<2||r.height<2)return;
+    const dpr=Math.min(window.devicePixelRatio||1,2);
+    const width=Math.round(r.width*dpr),height=Math.round(r.height*dpr);
+    if(c.width!==width||c.height!==height){c.width=width;c.height=height;}
+    const ctx=c.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,r.width,r.height);
+    let v=view();clampPan(s,v);v=view();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    ctx.drawImage(source(s),v.x,v.y,v.w*v.scale,v.h*v.scale);
+    const points=handles(s),color=s.confirmed?'#8ad6bb':'#9cb6ff';ctx.lineWidth=1.5;ctx.strokeStyle=color;
+    if(s.phase==='outer'){
+      ctx.fillStyle='#111a2b75';ctx.beginPath();ctx.rect(0,0,r.width,r.height);
+      s.quad.forEach((p,i)=>i?ctx.lineTo(v.x+p.x*v.scale,v.y+p.y*v.scale):ctx.moveTo(v.x+p.x*v.scale,v.y+p.y*v.scale));ctx.closePath();ctx.fill('evenodd');
+      ctx.beginPath();s.quad.forEach((p,i)=>i?ctx.lineTo(v.x+p.x*v.scale,v.y+p.y*v.scale):ctx.moveTo(v.x+p.x*v.scale,v.y+p.y*v.scale));ctx.closePath();ctx.stroke();
+    }else if(!s.borderless){
+      const n=s.insets,x=v.x+n.left*v.w*v.scale,y=v.y+n.top*v.h*v.scale,w=(1-n.left-n.right)*v.w*v.scale,h=(1-n.top-n.bottom)*v.h*v.scale;
+      ctx.strokeRect(x,y,w,h);ctx.setLineDash([3,5]);ctx.lineWidth=.5;ctx.strokeStyle='#ffffff50';
+      ctx.beginPath();ctx.moveTo(v.x+v.w*v.scale/2,v.y);ctx.lineTo(v.x+v.w*v.scale/2,v.y+v.h*v.scale);ctx.moveTo(v.x,v.y+v.h*v.scale/2);ctx.lineTo(v.x+v.w*v.scale,v.y+v.h*v.scale/2);ctx.stroke();ctx.setLineDash([]);
+    }
+    if(!s.confirmed)for(const p of points){
+      const x=v.x+p.x*v.scale,y=v.y+p.y*v.scale,selected=p.key===s.selected;
+      ctx.beginPath();ctx.arc(x,y,selected?9:7,0,Math.PI*2);ctx.fillStyle=selected?'#6888f6':'#fff';ctx.fill();ctx.strokeStyle=selected?'#fff':'#7e9af2';ctx.lineWidth=2;ctx.stroke();
+      if(selected){ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();}
+    }
+    put('cr-zoom-value',s.zoom===1?'맞춤':Math.round(s.zoom*100)+'%');
+    drawLoupe();
+  }
+  function drawLoupe(){
+    const s=current(),visible=!!s.image&&!s.confirmed&&!s.borderless&&(!!gesture.drag&&!gesture.drag.pan||s.fine);
+    show('cr-loupe',visible);if(!visible)return;
+    const p=handles(s).find(p=>p.key===s.selected);if(!p)return;
+    const c=id('cr-loupe-canvas'),ctx=c.getContext('2d'),span=c.getBoundingClientRect().width/4;
+    ctx.fillStyle='#273044';ctx.fillRect(0,0,144,144);ctx.imageSmoothingEnabled=false;
+    ctx.drawImage(source(s),p.x-span/2,p.y-span/2,span,span,0,0,144,144);
+    ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(72,0);ctx.lineTo(72,144);ctx.moveTo(0,72);ctx.lineTo(144,72);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#e850a2';ctx.stroke();
+  }
+  function gate(){show('centeringLoginGate',!logged());show('centeringMain',logged());}
+  function render(){
+    if(!id('cr-canvas'))return;gate();const s=current(),has=!!s.image,any=sides.some(side=>state[side].image);
+    document.querySelectorAll('[data-side-tab]').forEach(button=>{const side=button.dataset.sideTab;button.setAttribute('aria-selected',String(side===active));button.dataset.complete=String(state[side].confirmed);button.disabled=analyzing;});
+    id('cr-editor').setAttribute('aria-labelledby',`cr-${active}-tab`);
+    for(const side of sides)putSideStatus(side);
+    document.querySelectorAll('[data-flow]').forEach(el=>{if(el.dataset.flow===(!has?'photo':s.confirmed?'result':'edit'))el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
+    document.querySelector('[data-action="reset"]').hidden=!any;
+    document.querySelector('[data-action="replace"]').hidden=!has;
+    show('cr-empty',!has);show('cr-canvas',has);show('cr-stage-label',has);show('cr-zoom',has);show('cr-edit-tools',has&&!s.confirmed&&!s.borderless);show('cr-action-area',has);show('cr-secondary-actions',has);show('cr-loading',s.loading);
+    id('cr-editor').classList.toggle('has-image',has);put('cr-empty-title',label(active)+' 사진을 선택하세요');
+    id('cr-edit-tools').classList.toggle('has-metrics',has&&s.phase==='inner'&&!s.borderless);show('cr-mobile-live',has&&s.phase==='inner'&&!s.borderless);
+    put('cr-stage-title',s.confirmed?'측정 완료':s.phase==='outer'?'카드 바깥선':'안쪽 테두리');
+    show('cr-guide',!has||s.phase==='outer');show('cr-results',has&&s.phase==='inner');show('cr-saved',any);show('cr-ai',sides.some(side=>state[side].confirmed));
+    const guide=id('cr-guide');guide.querySelector('h2').innerHTML=has?'네 점을<br>모서리에 맞춰 주세요.':'좋은 사진이<br>좋은 측정의 시작.';
+    renderFine();renderMetrics();renderActions();renderSaved();updateButton();draw();
+  }
+  function putSideStatus(side){const s=state[side];document.querySelector(`[data-side-status="${side}"]`).textContent=s.loading?'불러오는 중':s.confirmed?'✓ 완료':s.image?'조정 중':'사진 없음';}
+  function renderFine(){
+    const s=current();show('cr-fine',!!s.image&&s.fine&&!s.confirmed&&!s.borderless);
+    const toggle=$('[data-action="fine"]');toggle.setAttribute('aria-expanded',String(s.fine));
+    const select=id('cr-selected'),points=handles(s),signature=s.phase+':'+points.map(p=>p.key).join(',');
+    if(select.dataset.phase!==signature){select.replaceChildren(...points.map(p=>{const option=document.createElement('option');option.value=p.key;option.textContent=p.title;return option;}));select.dataset.phase=signature;}
+    select.value=String(s.selected);id('cr-step').value=s.step;
+    document.querySelectorAll('[data-nudge]').forEach(b=>{const vertical=['up','down'].includes(b.dataset.nudge);b.hidden=s.phase==='inner'&&(vertical===['left','right'].includes(s.selected));});
+    const undoButton=$('[data-action="undo"]');if(undoButton)undoButton.disabled=analyzing||!s.history.length;
+  }
+  function renderMetrics(){
+    const s=current();if(!s.image||s.phase!=='inner')return;
+    const m=G.measure(s.insets,!s.borderless),status=id('cr-result-status');
+    id('cr-edit-tools').classList.toggle('has-metrics',!!m);show('cr-mobile-live',!!m);
+    status.textContent=s.confirmed?'확인 완료':'조정 중';status.dataset.confirmed=String(s.confirmed);
+    put('cr-result-caption',s.borderless?'테두리를 정의하기 어려운 카드입니다. 센터링 수치는 제외합니다.':s.confirmed?label(active)+' · 확인한 경계를 기준으로 측정했어요.':'선을 옮기면 비율도 함께 바뀝니다.');
+    show('cr-ratios',!!m);show('cr-dimensions',!!m);show('cr-reference',!!m);
+    if(!m)return;
+    put('cr-lr',`${m.lPct} : ${m.rPct}`);put('cr-tb',`${m.tPct} : ${m.bPct}`);
+    put('cr-live-lr',`${m.lPct}:${m.rPct}`);put('cr-live-tb',`${m.tPct}:${m.bPct}`);
+    id('cr-lr-bar').style.width=m.lPct+'%';id('cr-tb-bar').style.width=m.tPct+'%';
+    const limit=active==='front'?55:75,worst=Math.max(m.lPct,m.rPct,m.tPct,m.bPct);
+    put('cr-reference',s.confirmed?`PSA 10 센터링 참고치 ${limit}:${100-limit} ${worst<=limit?'이내':'초과'} · 전체 등급 판정은 아닙니다.`:'조정 중인 비율입니다. 선 위치를 확인한 뒤 측정을 완료해 주세요.');
+    put('cr-mm',`왼쪽 ${m.lMm} / 오른쪽 ${m.rMm}mm · 위 ${m.tMm} / 아래 ${m.bMm}mm`);
+  }
+  function renderActions(){
+    const s=current(),other=active==='front'?'back':'front';
+    if(!s.image)return;
+    put('cr-action-title',s.confirmed?label(active)+' 측정 완료':s.phase==='outer'?'네 모서리가 카드에 맞나요?':s.borderless?'이 면은 센터링을 제외합니다.':'안쪽 선을 테두리에 맞춰 주세요.');
+    put('cr-action-copy',s.confirmed?'다른 면도 이어서 측정하거나 사진 상태를 분석할 수 있어요.':s.phase==='outer'?'점을 끌어 실제 모서리에 맞추면 촬영 각도를 보정해 드려요.':s.borderless?'센터링 없이 모서리·엣지·표면을 AI로 살펴볼 수 있어요.':'그림과 바깥 테두리가 만나는 곳에 선을 맞추세요.');
+    put('cr-next',s.confirmed?(state[other].confirmed?'AI로 사진 상태 분석':label(other)+(state[other].image?' 이어서 측정':' 사진 추가')):s.phase==='outer'?'이 영역으로 계속':'측정 완료');
+    $('[data-action="outer"]').hidden=s.phase!=='inner'||s.confirmed;
+    const borderless=$('[data-action="borderless"]');borderless.hidden=s.phase!=='inner'||s.confirmed;borderless.setAttribute('aria-pressed',String(s.borderless));borderless.textContent=s.borderless?'✓ 테두리 없는 카드 · 다시 변경':'안쪽 테두리가 없는 카드';
+    $('[data-action="edit"]').hidden=!s.confirmed;
+    const undoButton=$('[data-action="undo"]');if(undoButton)undoButton.disabled=analyzing||!s.history.length;
+  }
+  function renderSaved(){
+    const count=sides.filter(side=>state[side].confirmed).length;put('cr-saved-count',count+' / 2');
+    for(const side of sides){const s=state[side],m=G.measure(s.insets,s.confirmed&&!s.borderless);$(`[data-summary-value="${side}"]`).textContent=s.confirmed?(m?`좌우 ${m.lPct}:${m.rPct} · 상하 ${m.tPct}:${m.bPct}`:'센터링 제외'):s.image?'경계 확인 필요':'아직 측정 전';}
+  }
+  function updateButton(){
+    const root=$('section[data-page="centering"]');if(!root)return;
+    root.querySelectorAll('button,input,select').forEach(el=>{el.disabled=analyzing;});
+    const s=current();id('cr-next').disabled=analyzing||s.loading;
+    id('centeringAIBtn').disabled=!ready()||analyzing;
+    put('centeringAIBtn',analyzing?'사진을 분석하고 있어요…':ready()?'AI로 사진 상태 분석':'앞·뒷면 측정 후 이용');
+    put('centeringReadyHint',lastQuota?`오늘 ${lastQuota.used} / ${lastQuota.limit}회 사용`:'계정당 하루 3회 무료');
+    const undoButton=$('[data-action="undo"]');if(undoButton)undoButton.disabled=analyzing||!s.history.length;
+  }
+  function switchSide(side){if(analyzing||!sides.includes(side))return;clearGesture();active=side;notice('');render();}
+  function canvasFor(image,maxDim){const c=document.createElement('canvas'),scale=Math.min(1,maxDim/Math.max(image.naturalWidth,image.naturalHeight));c.width=Math.max(1,Math.round(image.naturalWidth*scale));c.height=Math.max(1,Math.round(image.naturalHeight*scale));const ctx=c.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(image,0,0,c.width,c.height);return c;}
+  async function pick(side,sourceName){
     if(pickerBusy||analyzing)return;
-    const input=$(`[data-centering-file="${side}${source==='camera'?'-camera':''}"]`),cap=window.Capacitor,camera=cap?.Plugins?.Camera;
-    if(!input)return;
+    const input=$(`[data-centering-file="${side}${sourceName==='camera'?'-camera':''}"]`),cap=window.Capacitor,camera=cap?.Plugins?.Camera;
     if(!cap?.isNativePlatform?.()||!camera?.getPhoto){input.value='';input.click();return;}
     pickerBusy=true;
-    try{
-      const photo=await camera.getPhoto({source:source==='camera'?'CAMERA':'PHOTOS',resultType:'uri',quality:100,correctOrientation:true,saveToGallery:false});
-      if(!photo.webPath)throw new Error('사진 경로를 가져오지 못했습니다.');
-      const response=await fetch(photo.webPath);if(!response.ok)throw new Error('사진 읽기 실패');
-      const blob=await response.blob();await load(side,new File([blob],`${side}.${photo.format||'jpeg'}`,{type:blob.type||'image/jpeg'}));
-    }catch(e){if(!/cancel|취소/i.test(String(e?.message))&&!['OS-PLUG-CAMR-0006','OS-PLUG-CAMR-0020'].includes(e?.code))message('사진을 열 수 없습니다. 사진·카메라 접근 권한을 확인해 주세요.');}
+    try{const photo=await camera.getPhoto({source:sourceName==='camera'?'CAMERA':'PHOTOS',resultType:'uri',quality:100,correctOrientation:true,saveToGallery:false});if(!photo.webPath)throw new Error('no photo');const response=await fetch(photo.webPath);if(!response.ok)throw new Error('read failed');const blob=await response.blob();await load(side,new File([blob],`${side}.${photo.format||'jpeg'}`,{type:blob.type||'image/jpeg'}));}
+    catch(e){if(!/cancel|취소/i.test(String(e?.message))&&!['OS-PLUG-CAMR-0006','OS-PLUG-CAMR-0020'].includes(e?.code))notice('사진을 열지 못했어요. 사진·카메라 접근 권한을 확인해 주세요.');}
     finally{pickerBusy=false;}
   }
-  function canvasFor(image,maxDim){const c=document.createElement('canvas'),scale=Math.min(1,maxDim/Math.max(image.naturalWidth,image.naturalHeight));c.width=Math.max(1,Math.round(image.naturalWidth*scale));c.height=Math.max(1,Math.round(image.naturalHeight*scale));const ctx=c.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(image,0,0,c.width,c.height);return c;}
+  let heicLoader=null;
   async function load(side,file){
-    if(analyzing)return;
-    if(!file||file.size>40*1024*1024){message('40MB 이하의 사진을 선택해 주세요.');return;}
-    const generation=++state[side].generation;
-    if(/\.(heic|heif)$/i.test(file.name)||/heic|heif/i.test(file.type)){
-      try{if(!window.heic2any){await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}let converted=await window.heic2any({blob:file,toType:'image/jpeg',quality:0.95});if(Array.isArray(converted))converted=converted[0];file=converted;}
-      catch{message('사진 변환이 어렵습니다. JPEG 또는 PNG로 다시 선택해 주세요.');return;}
-    }
-    const url=URL.createObjectURL(file),image=new Image();
-    try{await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=url;});}
-    catch{URL.revokeObjectURL(url);message('사진을 읽지 못했습니다. JPEG 또는 PNG 사진을 선택해 주세요.');return;}
-    if(generation!==state[side].generation){URL.revokeObjectURL(url);return;}
-    if(image.naturalWidth<200||image.naturalHeight<200||image.naturalWidth*image.naturalHeight>50000000){URL.revokeObjectURL(url);message('200픽셀 이상, 5천만 화소 이하의 선명한 사진을 선택해 주세요.');return;}
-    const old=state[side];if(old.url)URL.revokeObjectURL(old.url);
-    state[side]={...empty(),image,url,file,generation};invalidate();
-    const sample=canvasFor(image,480),result=G.detectOuter(sample.getContext('2d').getImageData(0,0,sample.width,sample.height));
-    const w=image.naturalWidth,h=image.naturalHeight;
-    state[side].quad=result?result.quad.map(p=>({x:p.x*w/sample.width,y:p.y*h/sample.height})):[{x:w*.12,y:h*.1},{x:w*.88,y:h*.1},{x:w*.88,y:h*.9},{x:w*.12,y:h*.9}];
-    state[side].note=result?'경계 후보를 찾았습니다. 실제 카드의 네 모서리와 일치하는지 확인해 주세요.':'경계를 자동으로 찾기 어렵습니다. 네 점을 실제 카드 모서리에 맞춰 주세요.';
-    id('centeringWorkspace').style.display='';
-    const thumb=$(`[data-centering-thumb="${side}"]`);if(thumb){thumb.style.display='';thumb.textContent=`선택됨 · 원본 ${w} × ${h}`;}
-    panel(side);draw(side);updateButton();
-  }
-  function panel(side){
-    const s=state[side],host=$(`[data-centering-controls="${side}"]`);if(!host)return;
-    host.replaceChildren();
-    const note=document.createElement('p');note.className='ct-note';note.textContent=s.image?s.note:'사진을 먼저 선택해 주세요.';host.appendChild(note);
-    if(!s.image)return;
-    const zoom=document.createElement('label');zoom.className='ct-control';zoom.textContent='확대';const range=document.createElement('input');range.type='range';range.min='1';range.max='3';range.step='.25';range.value=s.zoom;range.setAttribute('aria-label',label(side)+' 사진 확대');range.oninput=()=>{s.zoom=Number(range.value);draw(side);};zoom.appendChild(range);host.appendChild(zoom);
-    if(s.phase==='inner'){
-      const check=document.createElement('label');check.className='ct-control';const box=document.createElement('input');box.type='checkbox';box.checked=s.borderless;box.onchange=()=>{if(analyzing)return;s.borderless=box.checked;s.confirmed=false;invalidate();panel(side);draw(side);updateButton();};check.append(box,document.createTextNode('테두리 없는 카드 · 센터링 제외'));host.appendChild(check);
-      if(!s.borderless)for(const [key,title]of [['left','왼쪽'],['right','오른쪽'],['top','위쪽'],['bottom','아래쪽']]){
-        const l=document.createElement('label');l.className='ct-control';const text=document.createElement('span');const set=()=>text.textContent=`${title} 여백 ${(s.insets[key]*100).toFixed(1)}%`;set();
-        const slider=document.createElement('input');slider.type='range';slider.min='.5';slider.max='20';slider.step='.1';slider.value=(s.insets[key]*100).toFixed(1);slider.setAttribute('aria-label',label(side)+' '+title+' 테두리');slider.oninput=()=>{if(analyzing)return;s.insets[key]=Number(slider.value)/100;s.confirmed=false;invalidate();set();draw(side);updateButton();};l.append(text,slider);host.appendChild(l);
+    if(analyzing||!sides.includes(side))return;
+    if(!file||file.size>40*1024*1024){notice('40MB 이하의 사진을 선택해 주세요.');return;}
+    const generation=++state[side].generation;state[side].loading=true;active=side;clearGesture();notice('');render();let url=null;
+    try{
+      if(/\.(heic|heif)$/i.test(file.name)||/heic|heif/i.test(file.type)){
+        if(!window.heic2any){if(!heicLoader)heicLoader=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';script.onload=resolve;script.onerror=()=>{heicLoader=null;reject(new Error('사진 변환기를 불러오지 못했어요. JPEG 또는 PNG를 선택해 주세요.'));};document.head.appendChild(script);});await heicLoader;}
+        let converted=await window.heic2any({blob:file,toType:'image/jpeg',quality:.95});file=Array.isArray(converted)?converted[0]:converted;
       }
-    }
-    const actions=document.createElement('div');actions.className='ct-actions';
-    const confirm=document.createElement('button');confirm.type='button';confirm.className='btn primary';confirm.textContent=s.phase==='outer'?'네 모서리 확인 → 각도 보정':s.confirmed?'✓ 테두리 확인 완료':'테두리 확인 완료';confirm.onclick=()=>{if(analyzing)return;if(s.phase==='outer')rectify(side);else{s.confirmed=true;s.note=s.borderless?'테두리를 정의하기 어려운 카드입니다. 센터링 수치 없이 사진 상태를 분석합니다.':'테두리 확인 완료. 표시된 비율은 사용자가 확인한 경계 기준입니다.';invalidate();panel(side);draw(side);updateButton();}};actions.appendChild(confirm);
-    if(s.phase==='inner'){const edit=document.createElement('button');edit.type='button';edit.className='btn';edit.textContent='카드 모서리 다시 맞추기';edit.onclick=()=>{if(analyzing)return;s.phase='outer';s.confirmed=false;invalidate();panel(side);draw(side);updateButton();};actions.appendChild(edit);}
-    host.appendChild(actions);
+      url=URL.createObjectURL(file);const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('사진을 읽지 못했어요. JPEG 또는 PNG 사진을 다시 선택해 주세요.'));image.src=url;});
+      if(generation!==state[side].generation){URL.revokeObjectURL(url);return;}
+      const w=image.naturalWidth,h=image.naturalHeight;
+      if(w<200||h<200||w*h>50000000)throw new Error('200픽셀 이상, 5천만 화소 이하의 선명한 사진을 선택해 주세요.');
+      const sample=canvasFor(image,480),found=G.detectOuter(sample.getContext('2d').getImageData(0,0,sample.width,sample.height));
+      const quad=found?found.quad.map(p=>({x:p.x*w/sample.width,y:p.y*h/sample.height})):[{x:w*.12,y:h*.1},{x:w*.88,y:h*.1},{x:w*.88,y:h*.9},{x:w*.12,y:h*.9}];
+      if(state[side].url)URL.revokeObjectURL(state[side].url);
+      state[side]={...empty(),image,url,file,quad,generation};url=null;invalidate();
+      if(!found&&active===side)notice('카드 바깥선을 찾기 어려워요. 네 점을 실제 모서리에 맞춰 주세요.');
+    }catch(e){if(url)URL.revokeObjectURL(url);if(generation===state[side].generation)notice(e.message||'사진을 준비하지 못했어요. 다른 사진을 선택해 주세요.');}
+    finally{if(generation===state[side].generation){state[side].loading=false;render();}}
   }
-  function rectify(side){
-    const s=state[side];if(!G.validQuad(s.quad,s.image.naturalWidth,s.image.naturalHeight)){message('네 모서리를 사진 안에서 시계 방향으로 맞춰 주세요.');return;}
-    const source=canvasFor(s.image,4096),scale=source.width/s.image.naturalWidth;
-    const quad=s.quad.map(p=>({x:p.x*scale,y:p.y*scale}));
-    const minEdge=Math.min(...quad.map((p,i)=>Math.hypot(p.x-quad[(i+1)%4].x,p.y-quad[(i+1)%4].y)));
-    const width=Math.max(64,Math.round(Math.min(1466,minEdge))),height=Math.round(width*88/63);
-    try{const pixels=G.warp(source.getContext('2d').getImageData(0,0,source.width,source.height),quad,width,height),c=document.createElement('canvas');c.width=width;c.height=height;c.getContext('2d').putImageData(new ImageData(pixels.data,width,height),0,0);s.rectified=c;s.phase='inner';s.confirmed=false;
-      const proposed=G.detectInner(pixels);s.insets=proposed||{left:.04,right:.04,top:.04,bottom:.04};
-      s.note=proposed?'테두리 후보를 찾았습니다. 그림과 테두리가 만나는 선에 맞춘 뒤 확인해 주세요.':'안쪽 테두리가 불확실합니다. 슬라이더로 선을 맞추거나 테두리 없는 카드로 선택해 주세요.';
-      if(width<480)s.note+=' 카드가 작게 찍혔습니다. 세부 상태를 보려면 카드를 더 크게 촬영해 주세요.';
-      invalidate();panel(side);draw(side);updateButton();
-    }catch(e){message(e.message||'각도 보정에 실패했습니다. 모서리를 다시 맞춰 주세요.');}
+  function rectify(side=active){
+    const s=state[side];if(analyzing||!s.image||s.loading)return false;
+    if(!G.validQuad(s.quad,s.image.naturalWidth,s.image.naturalHeight)){notice('네 점이 서로 겹치지 않도록 카드 모서리에 맞춰 주세요.');return false;}
+    try{
+      const original=canvasFor(s.image,4096),scale=original.width/s.image.naturalWidth,quad=s.quad.map(p=>({x:p.x*scale,y:p.y*scale}));
+      const edge=Math.min(...quad.map((p,i)=>Math.hypot(p.x-quad[(i+1)%4].x,p.y-quad[(i+1)%4].y)));
+      const width=Math.max(64,Math.round(Math.min(1466,edge))),height=Math.round(width*88/63);
+      const pixels=G.warp(original.getContext('2d').getImageData(0,0,original.width,original.height),quad,width,height),c=document.createElement('canvas');c.width=width;c.height=height;c.getContext('2d').putImageData(new ImageData(pixels.data,width,height),0,0);
+      s.rectified=c;s.phase='inner';s.selected='left';s.zoom=1;s.panX=s.panY=0;s.confirmed=false;s.borderless=false;s.fine=false;s.history=[];clearGesture();
+      const proposed=G.detectInner(pixels);s.insets=proposed||{left:.04,right:.04,top:.04,bottom:.04};invalidate();
+      notice(!proposed?'안쪽 테두리를 정확히 찾지 못했어요. 파란 선을 직접 맞추거나 테두리 없는 카드를 선택해 주세요.':width<480?'카드가 작게 찍혔어요. 센터링은 조정할 수 있지만 세부 상태 분석에는 더 큰 사진이 좋아요.':'');render();return true;
+    }catch(e){notice(e.message||'각도 보정에 실패했어요. 모서리를 다시 맞춰 주세요.');return false;}
   }
-  function draw(side){
-    const s=state[side],c=$(`canvas[data-centering-canvas="${side}"]`);if(!c)return;
-    const source=s.phase==='inner'?s.rectified:s.image;c.style.touchAction=s.phase==='outer'?'none':'pan-x pan-y';
-    if(!source){c.width=1;c.height=1;metrics(side);return;}
-    const sw=source.naturalWidth||source.width,sh=source.naturalHeight||source.height,ratio=Math.min(1,640/Math.max(sw,sh));c.width=Math.round(sw*ratio);c.height=Math.round(sh*ratio);c.style.width=`${s.zoom*100}%`;c.style.maxWidth='none';c.style.height='auto';
-    const ctx=c.getContext('2d');ctx.drawImage(source,0,0,c.width,c.height);ctx.lineWidth=2;ctx.strokeStyle='#ec4899';
+  function next(){
+    const s=current();if(analyzing||s.loading)return;
+    if(s.phase==='outer'){rectify();return;}
+    if(!s.confirmed){s.confirmed=true;s.fine=false;s.history=[];clearGesture();invalidate();notice('');render();return;}
+    const other=active==='front'?'back':'front';if(state[other].confirmed)analyze();else{switchSide(other);if(!state[other].image)pick(other,'album');}
+  }
+  function moveHandle(key,x,y,record=true){
+    const s=current();if(analyzing||s.confirmed||s.borderless)return false;
     if(s.phase==='outer'){
-      const q=s.quad.map(p=>({x:p.x*ratio,y:p.y*ratio}));ctx.beginPath();q.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.stroke();
-      q.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,9,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.stroke();ctx.fillStyle='#111';ctx.font='11px sans-serif';ctx.fillText(String(i+1),p.x-3,p.y+4);});
-    }else if(!s.borderless){ctx.strokeStyle=s.confirmed?'#059669':'#2563eb';ctx.strokeRect(s.insets.left*c.width,s.insets.top*c.height,(1-s.insets.left-s.insets.right)*c.width,(1-s.insets.top-s.insets.bottom)*c.height);}
-    metrics(side);
+      const dim=dimensions(s.image),next=s.quad.map(p=>({...p}));next[key]={x:G.clamp(x,0,dim.w-1),y:G.clamp(y,0,dim.h-1)};
+      if(!G.validQuad(next,dim.w,dim.h)||Math.hypot(next[key].x-s.quad[key].x,next[key].y-s.quad[key].y)<1e-5)return false;
+      if(record)remember(s);s.quad=next;
+    }else{
+      const {width:w,height:h}=s.rectified,value=G.clamp(key==='left'?x/w:key==='right'?1-x/w:key==='top'?y/h:1-y/h,.005,.2);
+      if(Math.abs(value-s.insets[key])<1e-8)return false;if(record)remember(s);s.insets[key]=value;
+    }
+    dirty();return true;
   }
-  function metrics(side){
-    const s=state[side],m=G.measure(s.insets,s.phase==='inner'&&s.confirmed&&!s.borderless);
-    const put=(key,value)=>{const el=$(`[data-centering-${key}="${side}"]`);if(el)el.textContent=value;};
-    put('lr',m?`${m.lMm.toFixed(1)} / ${m.rMm.toFixed(1)} mm`:'경계 확인 후 표시');put('tb',m?`${m.tMm.toFixed(1)} / ${m.bMm.toFixed(1)} mm`:'경계 확인 후 표시');put('lrpct',m?`${m.lPct} : ${m.rPct}`:'—');put('tbpct',m?`${m.tPct} : ${m.bPct}`:'—');
-    const limit=side==='front'?55:75,worst=m?Math.max(m.lPct,m.rPct,m.tPct,m.bPct):null;
-    put('grades',m?`PSA 10 센터링 참고 기준 (${limit}:${100-limit}) ${worst<=limit?'이내':'초과'} · 전체 등급을 뜻하지 않습니다.`:s.borderless&&s.confirmed?'테두리 없는 카드 · 센터링 판정 제외':'경계를 확인하면 센터링 참고 기준을 표시합니다.');
+  function nudge(dx,dy,multiplier=1){const s=current(),point=handles(s).find(p=>p.key===s.selected);if(point)moveHandle(point.key,point.x+dx*s.step*multiplier,point.y+dy*s.step*multiplier);}
+  function bindCanvas(){
+    const c=id('cr-canvas');
+    const point=e=>{const v=view(),r=c.getBoundingClientRect();return {x:(e.clientX-r.left-v.x)/v.scale,y:(e.clientY-r.top-v.y)/v.scale};};
+    const pinch=()=>{const [a,b]=[...gesture.points.values()],x=(a.x+b.x)/2,y=(a.y+b.y)/2,p=point({clientX:x,clientY:y});return {distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:current().zoom,sx:p.x,sy:p.y,x,y};};
+    c.onpointerdown=e=>{
+      const s=current();if(!s.image||analyzing||s.loading||(e.pointerType==='mouse'&&e.button!==0))return;
+      e.preventDefault();c.focus({preventScroll:true});c.setPointerCapture(e.pointerId);gesture.points.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      if(gesture.points.size>=2){gesture.drag=null;gesture.pinch=pinch();show('cr-loupe',false);return;}
+      const p=point(e),v=view();let closest=null,distance=28;
+      if(!s.confirmed)for(const h of handles(s)){const d=Math.hypot((h.x-p.x)*v.scale,(h.y-p.y)*v.scale);if(d<distance){distance=d;closest=h;}}
+      if(closest){s.selected=closest.key;gesture.drag={key:closest.key,dx:closest.x-p.x,dy:closest.y-p.y,recorded:false};renderFine();draw();}
+      else{gesture.drag={pan:true,x:e.clientX,y:e.clientY};c.style.cursor='grabbing';}
+    };
+    c.onpointermove=e=>{
+      if(!gesture.points.has(e.pointerId)||analyzing)return;e.preventDefault();gesture.points.set(e.pointerId,{x:e.clientX,y:e.clientY});
+      const s=current();if(gesture.pinch&&gesture.points.size>=2){const next=pinch(),start=gesture.pinch;zoomTo(start.zoom*next.distance/start.distance,{x:next.x,y:next.y,sx:start.sx,sy:start.sy});return;}
+      const drag=gesture.drag;if(!drag)return;
+      if(drag.pan){s.panX+=e.clientX-drag.x;s.panY+=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;clampPan(s,view());draw();return;}
+      const p=point(e);if(moveHandle(drag.key,p.x+drag.dx,p.y+drag.dy,!drag.recorded))drag.recorded=true;
+    };
+    const end=e=>{gesture.points.delete(e.pointerId);gesture.drag=null;if(gesture.points.size<2)gesture.pinch=null;c.style.cursor='crosshair';drawLoupe();};
+    c.onpointerup=c.onpointercancel=c.onlostpointercapture=end;
+    c.onkeydown=e=>{const s=current(),delta={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];if(delta){e.preventDefault();nudge(...delta,e.shiftKey?10:1);}else if(/^[1-4]$/.test(e.key)){const p=handles(s)[Number(e.key)-1];if(p){s.selected=p.key;renderFine();draw();}}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}};
+    c.addEventListener('wheel',e=>{if(!current().image||analyzing)return;e.preventDefault();zoomTo(current().zoom*Math.exp(-G.clamp(e.deltaY,-160,160)*.002),{x:e.clientX,y:e.clientY});},{passive:false});
+    if(window.ResizeObserver)new ResizeObserver(draw).observe(id('cr-editor'));
   }
-  function bindCanvas(side){const c=$(`canvas[data-centering-canvas="${side}"]`);if(!c)return;c.style.touchAction='none';
-    const point=e=>{const r=c.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width*state[side].image.naturalWidth,y:(e.clientY-r.top)/r.height*state[side].image.naturalHeight};};
-    c.onpointerdown=e=>{const s=state[side];if(analyzing||!s.image||s.phase!=='outer')return;const p=point(e),r=c.getBoundingClientRect(),radius=28/r.width*s.image.naturalWidth;let best=-1,d=radius;s.quad.forEach((q,i)=>{const dist=Math.hypot(q.x-p.x,q.y-p.y);if(dist<d){best=i;d=dist;}});if(best>=0||s.zoom>1){s.drag=best>=0?best:{pan:true,x:e.clientX,y:e.clientY};c.setPointerCapture(e.pointerId);e.preventDefault();}};
-    c.onpointermove=e=>{const s=state[side];if(s.drag===null||analyzing)return;if(s.drag.pan){c.parentElement.scrollLeft+=s.drag.x-e.clientX;c.parentElement.scrollTop+=s.drag.y-e.clientY;s.drag.x=e.clientX;s.drag.y=e.clientY;return;}const p=point(e);s.quad[s.drag]={x:G.clamp(p.x,0,s.image.naturalWidth-1),y:G.clamp(p.y,0,s.image.naturalHeight-1)};s.confirmed=false;invalidate();draw(side);updateButton();};
-    c.onpointerup=c.onpointercancel=c.onlostpointercapture=()=>{state[side].drag=null;};
-  }
-  function exportImage(side){
-    const s=state[side];if(!s.image||!s.rectified||!s.confirmed)throw new Error('먼저 카드 경계를 확인해 주세요.');
-    // Only the clean, original-derived canvas is exported. Display annotations never enter the payload.
-    return s.rectified.toDataURL('image/jpeg',0.94).split(',')[1];
-  }
+  function exportImage(side){const s=state[side];if(!s.image||!s.rectified||!s.confirmed)throw new Error('앞·뒷면 경계를 먼저 확인해 주세요.');return s.rectified.toDataURL('image/jpeg',.94).split(',')[1];}
   function renderResult(data){
     const result=data.analysis,wrap=id('centeringAIResult');wrap.style.display='';
     for(const key of ['centering','corners','edges','surface','final']){const el=wrap.querySelector(`[data-score="${key}"]`),value=result?.scores?.[key];if(el)el.textContent=typeof value==='number'?value.toFixed(1):'판독 보류';}
-    const grade=wrap.querySelector('[data-score-grade="final"]');if(grade)grade.textContent=result?.gradeRange||'사진만으로 전체 등급을 확정할 수 없습니다.';
-    id('centeringAIText').textContent=[result?.summary,...(result?.observations||[]),...(result?.retakeReasons||[]).map(x=>'재촬영: '+x),'사진 기반 참고 분석입니다. 실제 그레이딩 결과와 다를 수 있습니다.'].filter(Boolean).join('\n\n');
-    let tag=id('aiProviderTag');if(!tag){tag=document.createElement('div');tag.id='aiProviderTag';tag.className='ct-note';wrap.appendChild(tag);}tag.textContent='분석 모델: GPT-6 Astra';
-    lastQuota=data.quota||null;
+    wrap.querySelector('[data-score-grade="final"]').textContent=result?.gradeRange||'사진만으로 전체 등급을 확정할 수 없습니다.';
+    id('centeringAIText').textContent=[result?.summary,...(result?.observations||[]),...(result?.retakeReasons||[]).map(x=>'재촬영: '+x)].filter(Boolean).join('\n\n');lastQuota=data.quota||null;
+    wrap.scrollIntoView({block:'nearest',behavior:'auto'});
   }
   async function analyze(){
-    if(analyzing||!sides.every(s=>state[s].confirmed))return;
-    if(typeof CURRENT_USER==='undefined'||!CURRENT_USER){if(typeof openLoginModal==='function')openLoginModal('AI 분석은 로그인 후 이용할 수 있습니다.');return;}
+    if(analyzing||!ready())return;
+    if(!logged()){if(typeof openLoginModal==='function')openLoginModal('AI 분석은 로그인 후 이용할 수 있습니다.');return;}
     const requestRevision=revision;analyzing=true;updateButton();const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),80000);
     try{
-      const response=await fetch('/api/centering-ai',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({
-        analysisVersion:2,frontImage:exportImage('front'),backImage:exportImage('back'),
-        frontMetrics:G.measure(state.front.insets,!state.front.borderless&&state.front.confirmed),backMetrics:G.measure(state.back.insets,!state.back.borderless&&state.back.confirmed),
-        imageInfo:Object.fromEntries(sides.map(s=>[s,{originalWidth:state[s].image.naturalWidth,originalHeight:state[s].image.naturalHeight,width:state[s].rectified.width,height:state[s].rectified.height,borderless:state[s].borderless}]))
-      })});
-      const data=await response.json();if(requestRevision!==revision)return;
-      if(data.error)throw new Error(data.message||'분석을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-      if(!data.analysis)throw new Error('분석 결과를 읽지 못했습니다. 다시 시도해 주세요.');renderResult(data);
-    }catch(e){if(requestRevision===revision){id('centeringAIResult').style.display='';id('centeringAIText').textContent=e.name==='AbortError'?'분석 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.':e.message;for(const el of id('centeringAIResult').querySelectorAll('[data-score]'))el.textContent='—';const grade=$('[data-score-grade="final"]');if(grade)grade.textContent='';}}
+      const response=await fetch('/api/centering-ai',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({analysisVersion:2,frontImage:exportImage('front'),backImage:exportImage('back'),frontMetrics:G.measure(state.front.insets,!state.front.borderless&&state.front.confirmed),backMetrics:G.measure(state.back.insets,!state.back.borderless&&state.back.confirmed),imageInfo:Object.fromEntries(sides.map(side=>[side,{originalWidth:state[side].image.naturalWidth,originalHeight:state[side].image.naturalHeight,width:state[side].rectified.width,height:state[side].rectified.height,borderless:state[side].borderless}]))})});
+      const data=await response.json().catch(()=>{throw new Error('분석 결과를 읽지 못했어요. 잠시 후 다시 시도해 주세요.');});if(requestRevision!==revision)return;
+      if(!response.ok||data.error)throw new Error(data.message||'분석을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.');
+      if(!data.analysis)throw new Error('분석 결과를 읽지 못했어요. 다시 시도해 주세요.');renderResult(data);
+    }catch(e){if(requestRevision===revision){const wrap=id('centeringAIResult');wrap.style.display='';id('centeringAIText').textContent=e.name==='AbortError'?'분석 시간이 초과되었어요. 잠시 후 다시 시도해 주세요.':e.message;wrap.querySelectorAll('[data-score]').forEach(el=>el.textContent='—');wrap.querySelector('[data-score-grade="final"]').textContent='';}}
     finally{clearTimeout(timer);analyzing=false;updateButton();}
   }
-  function reset(){if(analyzing)return;sides.forEach(side=>{const s=state[side];if(s.url)URL.revokeObjectURL(s.url);state[side]={...empty(),generation:s.generation+1};const thumb=$(`[data-centering-thumb="${side}"]`);if(thumb){thumb.style.display='none';thumb.textContent='';}for(const suffix of ['', '-camera']){const input=$(`[data-centering-file="${side}${suffix}"]`);if(input)input.value='';}panel(side);draw(side);});invalidate();id('centeringWorkspace').style.display='none';updateButton();}
-  function setup(){gate();sides.forEach(side=>{
-    const slot=$(`.centering-upload-slot[data-side="${side}"]`);if(!slot)return;
-    for(const suffix of ['','-camera']){const input=$(`[data-centering-file="${side}${suffix}"]`);if(input){input.onclick=e=>e.stopPropagation();input.onchange=e=>{if(e.target.files[0])load(side,e.target.files[0]);};}}
-    for(const source of ['album','camera']){const b=$(`[data-centering-btn="${side}-${source}"]`);if(b)b.onclick=e=>{e.stopPropagation();pick(side,source);};}
-    slot.onclick=e=>{if(!e.target.closest('button,input'))pick(side,'album');};slot.ondragover=e=>e.preventDefault();slot.ondrop=e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f&&(f.type.startsWith('image/')||/\.(heic|heif)$/i.test(f.name)))load(side,f);};
-    bindCanvas(side);panel(side);draw(side);
-  });if(id('centeringAIBtn'))id('centeringAIBtn').onclick=analyze;updateButton();}
-  window.CenteringTool={setup,load,pick,reset,analyze,state,exportImage,rectify};
+  function reset(){if(analyzing)return;clearGesture();sides.forEach(side=>{const s=state[side];if(s.url)URL.revokeObjectURL(s.url);state[side]={...empty(),generation:s.generation+1};});active='front';document.querySelectorAll('[data-centering-file]').forEach(input=>input.value='');invalidate();notice('');render();}
+  function action(name){
+    if(analyzing)return;const s=current();
+    if(name==='album'||name==='camera')pick(active,name);
+    else if(name==='replace')pick(active,'album');
+    else if(name==='next')next();
+    else if(name==='zoom-in')zoomTo(s.zoom*1.35);
+    else if(name==='zoom-out')zoomTo(s.zoom/1.35);
+    else if(name==='fit')fit();
+    else if(name==='fine'){s.fine=!s.fine;renderFine();drawLoupe();}
+    else if(name==='undo')undo();
+    else if(name==='outer'){s.phase='outer';s.borderless=false;s.selected=0;s.fine=false;s.history=[];s.confirmed=false;clearGesture();fit();invalidate();notice('');render();}
+    else if(name==='borderless'){remember(s);s.borderless=!s.borderless;dirty();render();}
+    else if(name==='edit'){s.confirmed=false;s.fine=false;invalidate();render();}
+    else if(name==='reset')reset();
+    else if(name==='login'&&typeof openLoginModal==='function')openLoginModal('로그인 후 센터링을 이용해 주세요.');
+  }
+  function setup(){
+    if(!id('cr-canvas'))return;
+    if(!bound){bound=true;
+      const root=$('section[data-page="centering"]');root.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;if(b.dataset.action)action(b.dataset.action);else if(b.dataset.sideTab)switchSide(b.dataset.sideTab);else if(b.dataset.summarySide)switchSide(b.dataset.summarySide);else if(b.dataset.nudge){const d={up:[0,-1],left:[-1,0],right:[1,0],down:[0,1]}[b.dataset.nudge];nudge(...d);}});
+      root.querySelectorAll('[data-side-tab]').forEach(b=>b.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();switchSide(active==='front'?'back':'front');$(`[data-side-tab="${active}"]`).focus();}});
+      document.querySelectorAll('[data-centering-file]').forEach(input=>input.onchange=e=>{const file=e.target.files?.[0];if(file)load(input.dataset.centeringFile.replace('-camera',''),file);});
+      id('cr-selected').onchange=e=>{current().selected=current().phase==='outer'?Number(e.target.value):e.target.value;draw();renderFine();};
+      id('cr-step').onchange=e=>{current().step=Number(e.target.value);};
+      const stage=id('cr-editor');stage.ondragover=e=>{e.preventDefault();stage.classList.add('is-drop');};stage.ondragleave=e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('is-drop');};stage.ondrop=e=>{e.preventDefault();stage.classList.remove('is-drop');const file=e.dataTransfer.files?.[0];if(file)load(active,file);};
+      id('centeringAIBtn').onclick=analyze;bindCanvas();
+    }
+    render();
+  }
+  window.CenteringTool={setup,load,pick,reset,analyze,state,exportImage,rectify,switchSide,zoomTo,undo,get active(){return active;},getView:view};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
   window.addEventListener('hashchange',()=>{if(location.hash.includes('centering'))setup();});
 })();

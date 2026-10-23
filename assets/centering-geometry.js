@@ -63,7 +63,7 @@
   function detectInner({data,width:w,height:h}) {
     function scan(axis,reverse) {
       const length=axis==='x'?w:h,other=axis==='x'?h:w,values=[];
-      for(let d=Math.max(2,Math.round(length*0.012));d<length*0.18;d++) {
+      for(let d=Math.max(1,Math.floor(length*0.003));d<length*0.18;d++) {
         const pos=reverse?length-1-d:d,step=reverse?-1:1,scores=[];
         for(let t=Math.round(other*0.2);t<other*0.8;t+=Math.max(1,Math.round(other/90))) {
           const a=(axis==='x'?t*w+pos:pos*w+t)*4,b=(axis==='x'?t*w+pos+step*2:(pos+step*2)*w+t)*4;
@@ -72,8 +72,17 @@
         scores.sort((a,b)=>a-b);values.push({d,score:scores[Math.floor(scores.length*0.45)]});
       }
       const sorted=values.map(v=>v.score).sort((a,b)=>a-b),noise=sorted[Math.floor(sorted.length/2)]||0;
-      const best=values.reduce((a,b)=>a.score>b.score?a:b,{d:0,score:0});
-      return best.score>Math.max(24,noise*3)?{distance:best.d/length,signal:best.score}:null;
+      const strongest=values.reduce((a,b)=>a.score>b.score?a:b,{d:0,score:0});
+      const threshold=Math.max(24,noise*3,strongest.score*.25);
+      // Choose the first sustained boundary from the card edge. A stronger
+      // artwork frame farther inside must not replace an already visible border.
+      let group=[];
+      for(const value of [...values,{d:length,score:0}]){
+        if(value.score>threshold){group.push(value);continue;}
+        if(group.length>=2){const best=group.reduce((a,b)=>a.score>b.score?a:b);return {distance:(best.d+1)/length,signal:best.score};}
+        group=[];
+      }
+      return null;
     }
     const edges=[scan('x',false),scan('x',true),scan('y',false),scan('y',true)];
     if(edges.some(e=>!e))return null;

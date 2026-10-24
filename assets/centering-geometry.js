@@ -8,6 +8,22 @@
     for(let i=0;i<4;i++) { const a=q[i],b=q[(i+1)%4],c=q[(i+2)%4]; const cross=(b.x-a.x)*(c.y-b.y)-(b.y-a.y)*(c.x-b.x); if(cross<=1) return false; sign+=cross; }
     return sign>0 && area(q)>width*height*0.015;
   }
+  function planRectification(quad, imageWidth, imageHeight) {
+    if(!Number.isInteger(imageWidth)||!Number.isInteger(imageHeight)||imageWidth<1||imageHeight<1||!validQuad(quad,imageWidth,imageHeight))throw new Error('카드 네 모서리가 사진 안에서 서로 겹치지 않게 맞춰 주세요.');
+    // Crop the original first: empty photo margins must not consume the processing limit.
+    const x=Math.max(0,Math.floor(Math.min(...quad.map(p=>p.x)))-2),y=Math.max(0,Math.floor(Math.min(...quad.map(p=>p.y)))-2);
+    const right=Math.min(imageWidth,Math.ceil(Math.max(...quad.map(p=>p.x)))+3),bottom=Math.min(imageHeight,Math.ceil(Math.max(...quad.map(p=>p.y)))+3);
+    const crop={x,y,width:right-x,height:bottom-y},scale=Math.min(1,4096/Math.max(crop.width,crop.height));
+    const processing={width:Math.max(1,Math.round(crop.width*scale)),height:Math.max(1,Math.round(crop.height*scale))};
+    const scaleX=processing.width/crop.width,scaleY=processing.height/crop.height;
+    const mapped=quad.map(p=>({x:clamp((p.x-x)*scaleX,0,processing.width-1),y:clamp((p.y-y)*scaleY,0,processing.height-1)}));
+    if(!validQuad(mapped,processing.width,processing.height))throw new Error('카드 모서리 위치를 다시 맞춰 주세요.');
+    const edge=(a,b)=>Math.hypot(mapped[a].x-mapped[b].x,mapped[a].y-mapped[b].y);
+    const horizontal=Math.max(edge(0,1),edge(3,2)),vertical=Math.max(edge(0,3),edge(1,2))*63/88;
+    // Keep the better observed edge detail; do not let one foreshortened edge shrink all sides.
+    const width=Math.max(64,Math.round(Math.min(1466,horizontal,vertical))),height=Math.min(2048,Math.round(width*88/63));
+    return {crop,processing,quad:mapped,width,height,scaleX,scaleY};
+  }
   function detectOuter({data,width:w,height:h}) {
     // Background contrast proposes a boundary; the user must confirm all four corners.
     const samples=[];
@@ -95,6 +111,6 @@
     const round=x=>Math.round(x*10)/10;
     return {version:2,confirmed:true,method:'perspective-rectified',lPct:round(l/(l+r)*100),rPct:round(r/(l+r)*100),tPct:round(t/(t+b)*100),bPct:round(b/(t+b)*100),lMm:round(l*63),rMm:round(r*63),tMm:round(t*88),bMm:round(b*88)};
   }
-  const api={clamp,area,validQuad,detectOuter,homography,project,warp,detectInner,measure};
+  const api={clamp,area,validQuad,planRectification,detectOuter,homography,project,warp,detectInner,measure};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.CenteringGeometry=api;
 })(typeof window==='undefined'?globalThis:window);

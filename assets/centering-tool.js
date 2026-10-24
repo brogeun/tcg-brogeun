@@ -73,20 +73,25 @@
     }
     if(!s.confirmed)for(const p of points){
       const x=v.x+p.x*v.scale,y=v.y+p.y*v.scale,selected=p.key===s.selected;
-      ctx.beginPath();ctx.arc(x,y,selected?9:7,0,Math.PI*2);ctx.fillStyle=selected?'#6888f6':'#fff';ctx.fill();ctx.strokeStyle=selected?'#fff':'#7e9af2';ctx.lineWidth=2;ctx.stroke();
-      if(selected){ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();}
+      // Keep the exact corner visible; the larger invisible touch target is independent.
+      const arm=selected?13:10,gap=3;
+      ctx.beginPath();ctx.moveTo(x-arm,y);ctx.lineTo(x-gap,y);ctx.moveTo(x+gap,y);ctx.lineTo(x+arm,y);ctx.moveTo(x,y-arm);ctx.lineTo(x,y-gap);ctx.moveTo(x,y+gap);ctx.lineTo(x,y+arm);
+      ctx.lineWidth=4;ctx.strokeStyle='#101a2de6';ctx.stroke();
+      ctx.lineWidth=1.5;ctx.strokeStyle=selected?'#a3f2ff':'#fff';ctx.stroke();
     }
     put('cr-zoom-value',s.zoom===1?'맞춤':Math.round(s.zoom*100)+'%');
     drawLoupe();
   }
   function drawLoupe(){
-    const s=current(),visible=!!s.image&&!s.confirmed&&!s.borderless&&(!!gesture.drag&&!gesture.drag.pan||s.fine);
+    const s=current(),visible=!!s.image&&!s.confirmed&&!s.borderless;
     show('cr-loupe',visible);if(!visible)return;
     const p=handles(s).find(p=>p.key===s.selected);if(!p)return;
-    const c=id('cr-loupe-canvas'),ctx=c.getContext('2d'),span=c.getBoundingClientRect().width/4;
+    id('cr-loupe').querySelector('span').textContent=(s.phase==='outer'?cornerNames[s.selected]:edgeNames[s.selected]+' 테두리')+' · 8×';
+    const c=id('cr-loupe-canvas'),ctx=c.getContext('2d'),span=c.getBoundingClientRect().width/8;
     ctx.fillStyle='#273044';ctx.fillRect(0,0,144,144);ctx.imageSmoothingEnabled=false;
     ctx.drawImage(source(s),p.x-span/2,p.y-span/2,span,span,0,0,144,144);
-    ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(72,0);ctx.lineTo(72,144);ctx.moveTo(0,72);ctx.lineTo(144,72);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#e850a2';ctx.stroke();
+    ctx.beginPath();ctx.moveTo(72,0);ctx.lineTo(72,68);ctx.moveTo(72,76);ctx.lineTo(72,144);ctx.moveTo(0,72);ctx.lineTo(68,72);ctx.moveTo(76,72);ctx.lineTo(144,72);
+    ctx.strokeStyle='#101a2d';ctx.lineWidth=3;ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#a3f2ff';ctx.stroke();
   }
   function gate(){show('centeringLoginGate',!logged());show('centeringMain',logged());}
   function render(){
@@ -97,7 +102,7 @@
     document.querySelectorAll('[data-flow]').forEach(el=>{if(el.dataset.flow===(!has?'photo':s.confirmed?'result':'edit'))el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
     document.querySelector('[data-action="reset"]').hidden=!any;
     document.querySelector('[data-action="replace"]').hidden=!has;
-    show('cr-empty',!has);show('cr-canvas',has);show('cr-stage-label',has);show('cr-zoom',has);show('cr-edit-tools',has&&!s.confirmed&&!s.borderless);show('cr-action-area',has);show('cr-secondary-actions',has);show('cr-loading',s.loading);
+    show('cr-empty',!has);show('cr-canvas',has);show('cr-stage-label',has);show('cr-zoom',has);show('cr-edit-tools',has&&!s.confirmed&&!s.borderless);show('cr-action-area',has);show('cr-secondary-actions',has);show('cr-loading',s.loading);show('cr-loupe',has&&!s.confirmed&&!s.borderless);
     id('cr-editor').classList.toggle('has-image',has);put('cr-empty-title',label(active)+' 사진을 선택하세요');
     id('cr-edit-tools').classList.toggle('has-metrics',has&&s.phase==='inner'&&!s.borderless);show('cr-mobile-live',has&&s.phase==='inner'&&!s.borderless);
     put('cr-stage-title',s.confirmed?'측정 완료':s.phase==='outer'?'카드 바깥선':'안쪽 테두리');
@@ -107,8 +112,8 @@
   }
   function putSideStatus(side){const s=state[side];document.querySelector(`[data-side-status="${side}"]`).textContent=s.loading?'불러오는 중':s.confirmed?'✓ 완료':s.image?'조정 중':'사진 없음';}
   function renderFine(){
-    const s=current();show('cr-fine',!!s.image&&s.fine&&!s.confirmed&&!s.borderless);
-    const toggle=$('[data-action="fine"]');toggle.setAttribute('aria-expanded',String(s.fine));
+    const s=current(),editing=!!s.image&&!s.confirmed&&!s.borderless;show('cr-fine',editing);
+    const toggle=$('[data-action="fine"]');toggle.hidden=true;toggle.setAttribute('aria-expanded',String(editing));
     const select=id('cr-selected'),points=handles(s),signature=s.phase+':'+points.map(p=>p.key).join(',');
     if(select.dataset.phase!==signature){select.replaceChildren(...points.map(p=>{const option=document.createElement('option');option.value=p.key;option.textContent=p.title;return option;}));select.dataset.phase=signature;}
     select.value=String(s.selected);id('cr-step').value=s.step;
@@ -134,7 +139,7 @@
     const s=current(),other=active==='front'?'back':'front';
     if(!s.image)return;
     put('cr-action-title',s.confirmed?label(active)+' 측정 완료':s.phase==='outer'?'네 모서리가 카드에 맞나요?':s.borderless?'이 면은 센터링을 제외합니다.':'안쪽 선을 테두리에 맞춰 주세요.');
-    put('cr-action-copy',s.confirmed?'다른 면도 이어서 측정하거나 사진 상태를 분석할 수 있어요.':s.phase==='outer'?'점을 끌어 실제 모서리에 맞추면 촬영 각도를 보정해 드려요.':s.borderless?'센터링 없이 모서리·엣지·표면을 AI로 살펴볼 수 있어요.':'그림과 바깥 테두리가 만나는 곳에 선을 맞추세요.');
+    put('cr-action-copy',s.confirmed?'다른 면도 이어서 측정하거나 사진 상태를 분석할 수 있어요.':s.phase==='outer'?'확대창을 보며 십자선 중심을 맞추세요. 방향 버튼으로 1px씩 옮길 수 있어요.':s.borderless?'센터링 없이 모서리·엣지·표면을 AI로 살펴볼 수 있어요.':'그림과 바깥 테두리가 만나는 곳에 선을 맞추세요.');
     put('cr-next',s.confirmed?(state[other].confirmed?'AI로 사진 상태 분석':label(other)+(state[other].image?' 이어서 측정':' 사진 추가')):s.phase==='outer'?'이 영역으로 계속':'측정 완료');
     $('[data-action="outer"]').hidden=s.phase!=='inner'||s.confirmed;
     const borderless=$('[data-action="borderless"]');borderless.hidden=s.phase!=='inner'||s.confirmed;borderless.setAttribute('aria-pressed',String(s.borderless));borderless.textContent=s.borderless?'✓ 테두리 없는 카드 · 다시 변경':'안쪽 테두리가 없는 카드';

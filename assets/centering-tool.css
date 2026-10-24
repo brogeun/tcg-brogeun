@@ -53,18 +53,24 @@ section[data-page="centering"] .cr-zoom{position:absolute;bottom:16px;right:16px
 section[data-page="centering"] .cr-zoom button{height:40px;min-width:40px;border:0;background:none;color:#e2e8f3;font-size:17px}
 section[data-page="centering"] .cr-zoom #cr-zoom-value{font-size:10px;min-width:44px;color:#b9c5da}
 section[data-page="centering"] .cr-zoom button:hover{background:#ffffff12}
-section[data-page="centering"] .cr-loupe{position:absolute;right:16px;top:16px;width:104px;border:2px solid #fff;border-radius:12px;overflow:hidden;background:#111a2b;box-shadow:0 8px 24px #0004;pointer-events:none}
-section[data-page="centering"] .cr-loupe canvas{display:block;width:100%;height:100px}
-section[data-page="centering"] .cr-loupe span{display:block;padding:5px 0;text-align:center;color:#dce5f5;font-size:9px}
+section[data-page="centering"] .cr-loupe{position:relative;grid-area:loupe;justify-self:center;width:148px;max-width:100%;border:2px solid #fff;border-radius:12px;overflow:hidden;background:#111a2b;box-shadow:0 3px 14px #0002;pointer-events:none}
+section[data-page="centering"] .cr-loupe canvas{display:block;width:100%;height:auto;aspect-ratio:1}
+section[data-page="centering"] .cr-loupe span{display:block;padding:7px 2px;text-align:center;color:#dce5f5;font-size:10px}
 section[data-page="centering"] .cr-editor-bottom{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:0 20px;border-bottom:1px solid #f0f1f5;min-height:46px}
 section[data-page="centering"] .cr-editor-bottom p{font-size:10px;color:#9099a7;margin:0}
 section[data-page="centering"] .cr-mobile-live{display:none}
 section[data-page="centering"] .cr-editor-bottom>div:last-child{display:flex;align-items:center;gap:5px;flex-shrink:0}
-section[data-page="centering"] .cr-fine{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;background:#f8f9fc;border-bottom:1px solid var(--cr-line)}
+section[data-page="centering"] .cr-fine{display:grid;grid-template-columns:minmax(104px,1fr) 132px;grid-template-areas:"selection step" "loupe arrows";align-items:center;gap:12px;padding:14px 20px;background:#f8f9fc;border-bottom:1px solid var(--cr-line)}
 section[data-page="centering"] .cr-fine label{display:flex;flex-direction:column;gap:6px;font-size:10px;color:#7c8694;min-width:0}
+section[data-page="centering"] .cr-fine label:first-child{grid-area:selection}
+section[data-page="centering"] .cr-fine label:last-child{grid-area:step}
 section[data-page="centering"] .cr-fine select{border:1px solid #dfe4ed;border-radius:7px;padding:7px;background:white;color:#3b4759;font-size:11px;max-width:100%;min-height:40px}
-section[data-page="centering"] .cr-arrows{display:flex;gap:3px}
-section[data-page="centering"] .cr-arrows button{border:1px solid #dde3ef;background:#fff;border-radius:7px;width:38px;height:40px;color:#4d5f7e;font-size:17px}
+section[data-page="centering"] .cr-arrows{display:grid;grid-area:arrows;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);gap:0}
+section[data-page="centering"] .cr-arrows [data-nudge="up"]{grid-column:2;grid-row:1}
+section[data-page="centering"] .cr-arrows [data-nudge="left"]{grid-column:1;grid-row:2}
+section[data-page="centering"] .cr-arrows [data-nudge="right"]{grid-column:3;grid-row:2}
+section[data-page="centering"] .cr-arrows [data-nudge="down"]{grid-column:2;grid-row:3}
+section[data-page="centering"] .cr-arrows button{border:1px solid #dde3ef;background:#fff;border-radius:7px;width:44px;height:44px;color:#4d5f7e;font-size:17px}
 section[data-page="centering"] .cr-action-area{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:22px 20px 16px}
 section[data-page="centering"] .cr-action-area h2{font-size:14px;font-weight:700;margin:0 0 5px;letter-spacing:-.3px}
 section[data-page="centering"] .cr-action-area p{font-size:11px;line-height:1.65;color:#8993a2;margin:0;max-width:320px}
@@ -139,3 +145,4 @@ section[data-page="centering"] .cr-login p{font-size:12px;color:#8b96aa;line-hei
 @media(max-width:680px){section[data-page="centering"] .cr-editor-bottom.has-metrics #cr-gesture-hint{display:none}section[data-page="centering"] .cr-editor-bottom.has-metrics .cr-mobile-live{display:flex;gap:14px;align-items:center;color:#9ca8ba;font-size:9px}section[data-page="centering"] .cr-mobile-live b{font-size:11px;font-weight:650;color:#4f6389;margin-left:4px;font-variant-numeric:tabular-nums}section[data-page="centering"] .cr-ratio strong{font-size:clamp(18px,5.5vw,24px)}}
 @media(max-width:680px){section[data-page="centering"] .cr-heading p{font-size:12px}section[data-page="centering"] .cr-flow{font-size:11px}section[data-page="centering"] .cr-empty p{font-size:12px}section[data-page="centering"] .cr-button{font-size:14px;min-height:50px}section[data-page="centering"] .cr-action-area h2{font-size:14px}section[data-page="centering"] .cr-action-area p{font-size:11px}section[data-page="centering"] .cr-editor-bottom .cr-text-button{font-size:11px}section[data-page="centering"] .cr-secondary-actions .cr-text-button{font-size:10px}section[data-page="centering"] .cr-mobile-live b{font-size:12px}section[data-page="centering"] .cr-zoom button{height:44px;min-width:44px}}
 @media(prefers-reduced-motion:reduce){section[data-page="centering"] *{animation:none!important;transition:none!important}}
+@media(max-width:680px){section[data-page="centering"] .cr-fine{gap:8px}section[data-page="centering"] .cr-loupe{width:128px;right:auto;top:auto}section[data-page="centering"] .cr-loupe canvas{height:auto}section[data-page="centering"] .cr-arrows{width:132px;margin:0;order:0}section[data-page="centering"] .cr-arrows button{width:44px;height:44px}}

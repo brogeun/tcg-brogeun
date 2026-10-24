@@ -690,7 +690,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/search-modal.css?v=20261014-mobile-art1">
 <link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
 <link rel="stylesheet" href="/assets/home-discovery.css?v=20260908-compact4">
-<link rel="stylesheet" href="/assets/centering-tool.css?v=20261024-precision-v1">
+<link rel="stylesheet" href="/assets/centering-tool.css?v=20261025-label-v1">
 <script defer src="/assets/centering-geometry.js?v=20261023-redesign-v1"></script>
 <script defer src="/assets/centering-tool.js?v=20261024-precision-v1"></script>
 </head>
@@ -2053,10 +2053,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       <div class="cr-layout">
         <div class="cr-workspace">
           <div class="cr-editor-top"><div class="cr-tabs" role="tablist" aria-label="카드 면 선택"><button type="button" role="tab" id="cr-front-tab" data-side-tab="front" aria-selected="true" aria-controls="cr-editor"><span>앞면</span><small data-side-status="front">사진 없음</small></button><button type="button" role="tab" id="cr-back-tab" data-side-tab="back" aria-selected="false" aria-controls="cr-editor"><span>뒷면</span><small data-side-status="back">사진 없음</small></button></div><button type="button" class="cr-text-button" data-action="replace" hidden>사진 변경</button></div>
+          <div class="cr-stage-label" id="cr-stage-label" hidden><span class="cr-status-dot"></span><span id="cr-stage-title"></span></div>
           <div id="cr-editor" class="cr-stage" role="tabpanel" aria-labelledby="cr-front-tab">
             <div class="cr-empty" id="cr-empty"><div class="cr-card-outline" aria-hidden="true"><span></span><i></i></div><h2 id="cr-empty-title">앞면 사진을 선택하세요</h2><p>카드 네 모서리가 모두 보이는<br>선명한 사진이면 좋아요.</p><div class="cr-upload-actions"><button type="button" class="cr-button cr-primary" data-action="album"><span aria-hidden="true">＋</span> 사진 가져오기</button><button type="button" class="cr-button cr-camera" data-action="camera">카메라</button></div><span class="cr-drop-hint">또는 여기에 사진을 끌어 놓으세요</span></div>
             <canvas id="cr-canvas" aria-label="카드 경계 편집. 점을 선택하거나 1부터 4까지 숫자키로 선택하고 방향키로 조정하세요." tabindex="0" hidden></canvas>
-            <div class="cr-stage-label" id="cr-stage-label" hidden><span class="cr-status-dot"></span><span id="cr-stage-title"></span></div>
             <div class="cr-zoom" id="cr-zoom" hidden><button type="button" data-action="zoom-out" aria-label="사진 축소">−</button><button type="button" data-action="fit" id="cr-zoom-value" aria-label="사진 전체 보기">맞춤</button><button type="button" data-action="zoom-in" aria-label="사진 확대">＋</button></div>
             <div class="cr-loading" id="cr-loading" hidden role="status"><span></span><b>사진을 준비하고 있어요</b></div>
           </div>

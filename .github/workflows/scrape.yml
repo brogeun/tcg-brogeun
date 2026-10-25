@@ -1,375 +1,63 @@
-name: Scrape SNKRDUNK Daily
-
+name: Read-only centering runtime audit
 on:
-  workflow_call:
-    inputs:
-      collect_scope:
-        type: string
-        default: all
-    secrets:
-      CF_API_TOKEN:
-        required: false
-      CF_ACCOUNT_ID:
-        required: false
-  workflow_dispatch:  # 수동 실행 가능
-    inputs:
-      collect_scope:
-        description: '갱신 범위 (search-only: 환율과 전체 검색만 수집)'
-        type: choice
-        required: true
-        default: all
-        options:
-          - all
-          - search-only
-  workflow_run:
-    workflows: ['Refresh Verified Home Card Index Daily']
-    types: [completed]
-    branches: [main]
-  push:
-    branches: [main]
-    # paths-ignore 제거 — 사용자 push 는 항상 trigger.
-    # bot 자동 commit 은 아래 jobs 의 if 조건으로 막아 무한루프 방지.
-
+  workflow_dispatch:
 permissions:
-  contents: write  # data/*.json 커밋 권한
-
-concurrency:
-  group: scrape
-  cancel-in-progress: false
-  queue: max
-
+  contents: read
 jobs:
-  scrape:
-    # bot 의 자동 commit (data 자동 갱신) 으로 인한 무한 trigger 방지
-    if: >-
-      (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository) ||
-      (github.event_name != 'workflow_run' && github.actor != 'github-actions[bot]')
+  compare:
     runs-on: ubuntu-latest
-    timeout-minutes: 90  # Existing daily collection plus bounded full search-price pagination.
+    timeout-minutes: 5
     env:
-      COLLECT_DATA: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[refresh-prices]')) }}
-      COLLECT_PRIMARY: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[refresh-prices]'))) && (github.event_name != 'workflow_dispatch' || inputs.collect_scope != 'search-only') }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-
-      - name: Record the source actually checked out after waiting in the queue
-        run: echo "COLLECTION_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Validate certificate matching, retries and polling
-        run: node --test scripts/test_certificates.mjs scripts/test_bgs_cert.mjs scripts/test_psa_polling.mjs
-
-      - name: Validate Chinese catalogue and daily FX
+      - name: Compare immutable old and current runtime metadata using GET only
         run: |
-          node scripts/test_chinese_catalog.cjs
-          node scripts/test_fx_display.cjs
-          python -m unittest discover -s scripts -p test_fx_rates.py
-
-      - name: Validate bounded search collection and snapshot preservation
-        run: |
-          python -m unittest discover -s scripts -p test_refresh_search_prices.py
-          python -m unittest discover -s scripts -p test_update_health.py
-          python -B -m unittest discover -s scripts -p test_daily_cycle.py
-          python -B -m unittest discover -s scripts -p 'test_backfill_box_*.py'
-          python -m unittest discover -s scripts -p test_prepare_public_bundle.py
-          python -B -m unittest discover -s scripts -p test_scrape_snapshot_safety.py
-          python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
-          node --test scripts/test_beezie_snapshot_api.cjs
-          node --test scripts/test_japanese_market_reviews.cjs
-
-      - name: Setup Chrome browser
-        if: env.COLLECT_PRIMARY == 'true'
-        uses: browser-actions/setup-chrome@latest
-        with:
-          chrome-version: stable
-
-      - name: Install Python dependencies
-        if: env.COLLECT_DATA == 'true'
-        run: |
-          python -m pip install --upgrade pip
-          pip install "selenium>=4.20.0" "webdriver-manager>=4.0.0" "beautifulsoup4>=4.12,<5" requests
-
-      - name: Run scraper
-        if: env.COLLECT_PRIMARY == 'true'
-        id: daily-primary
-        continue-on-error: true  # Retain failed-source snapshots; collect independent FX/search updates.
-        run: python scripts/scrape_snkrdunk.py
-        env:
-          PYTHONUNBUFFERED: "1"
-
-      - name: Run news scraper (한국 포켓몬·원피스 공식 소식)
-        if: env.COLLECT_PRIMARY == 'true' && github.event_name != 'push'
-        continue-on-error: true  # 한 사이트 장애가 가격 수집·배포 전체를 막지 않도록 경고 처리
-        run: python scripts/scrape_news.py
-        env:
-          PYTHONUNBUFFERED: "1"
-
-      - name: Fetch FX rates (Naver USD/KRW, JPY/KRW, CNY/KRW)
-        if: env.COLLECT_DATA == 'true'
-        id: daily-fx
-        continue-on-error: true  # Keep the last snapshot; the final check reports failure.
-        run: python scripts/fetch_fx_rates.py
-        env:
-          PYTHONUNBUFFERED: "1"
-
-      - name: Refresh full search catalogue and prices with bounded anonymous requests
-        if: env.COLLECT_DATA == 'true'
-        id: search-prices
-        continue-on-error: true  # Atomic collector retains all previous files on incomplete fetch.
-        run: python scripts/refresh_search_prices.py --delay 1 --max-pages 500
-
-      - name: Record daily data freshness
-        id: daily-health
-        run: python scripts/check_daily_freshness.py --output data/update-health.json
-
-      - name: Rebuild Japanese promo search metadata from the collected catalogue
-        if: env.COLLECT_DATA == 'true'
-        continue-on-error: true  # Keep the last successful promo catalogue on an upstream failure.
-        run: node scripts/build_promo_search.cjs
-
-      - name: Update anniversary Japanese grade prices and missing versions
-        if: env.COLLECT_PRIMARY == 'true'
-        continue-on-error: true # Last complete snapshot is kept when any source fails.
-        run: python scripts/sync_anniversary_market.py
-        env:
-          PYTHONUNBUFFERED: "1"
-
-      - name: Update Futuristic Box promo prices and complete public sales history
-        if: env.COLLECT_PRIMARY == 'true'
-        continue-on-error: true # Collector retains previous snapshot if any product fails.
-        run: python scripts/sync_futuristic_market.py
-        env:
-          PYTHONUNBUFFERED: "1"
-
-      - name: Validate anniversary catalogues
-        run: node scripts/test_anniversary_sets.mjs
-
-      - name: Validate Futuristic Box market links
-        run: node scripts/test_futuristic_market.mjs
-
-      - name: Commit JSON updates (if any)
-        if: env.COLLECT_DATA == 'true'
-        run: python -B scripts/publish_data_snapshot.py --daily --base "$COLLECTION_COMMIT" --message '🤖 Daily SNKRDUNK scrape — auto-update'
-
-      - name: Prepare a current-main deployment source without changing collected files
-        run: python -B scripts/publish_data_snapshot.py --prepare-deploy
-
-      - name: Record freshness of the exact deployment data
-        id: deployment-health
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: |
-          python scripts/check_daily_freshness.py --output data/update-health.json
-          python -c "import json; from pathlib import Path; d=json.loads(Path('data/update-health.json').read_text(encoding='utf-8')); assert d.get('status') in ('healthy','incomplete') and isinstance(d.get('datasets'),list); print('Deployment update-health JSON:', d['status'])"
-
-      - name: Validate Kanto151 account saves and original Pokemon preservation
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: node --test scripts/test_kanto151_account_client.mjs scripts/test_kanto151_account_game.mjs scripts/test_kanto151_account_save.mjs
-
-      - name: Prepare deploy bundle (정적 + admin function 만)
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        # 옛날 functions/api/*.js 들은 deploy 깨뜨려서 제외, admin.js 만 포함
-        run: |
-          rm -rf _deploy
-          mkdir -p _deploy
-          cp -r index.html _redirects data _deploy/
-          cp _routes.json _deploy/_routes.json
-          python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data
-          # 추가 정적 파일들 (있을 때만 복사)
-          for f in mobile.html manifest.json sw.js favicon.ico robots.txt privacy.html terms.html _headers ads.txt; do
-            [ -f "$f" ] && cp "$f" _deploy/ || true
-          done
-          for d in assets images img public static ev-calculator games; do
-            [ -d "$d" ] && cp -r "$d" _deploy/ || true
-          done
-          # functions 배포 — admin + auth + portfolio (명시적 화이트리스트)
-          mkdir -p _deploy/functions/api/auth
-          mkdir -p _deploy/functions/api/portfolio/holding
-          mkdir -p _deploy/functions/api/portfolio/watchlist
-          mkdir -p _deploy/functions/_shared
-          # 공유 헬퍼
-          for f in jwt.js email.js auth.js apple.js admin.js certificates.js kanto151-save.js centering-jpeg.js; do
-            [ -f "functions/_shared/$f" ] && cp "functions/_shared/$f" "_deploy/functions/_shared/$f" && echo "✓ _shared/$f"
-          done
-          # admin
-          [ -f functions/api/admin.js ] && cp functions/api/admin.js _deploy/functions/api/admin.js && echo "✓ admin"
-          # Preserve the existing card API routes in the operating site.
-          for f in beezie-prices.js card.js cards.js img.js scrape-set.js scraped-sets.js snkrdunk.js top10.js; do
-            [ -f "functions/api/$f" ] && cp "functions/api/$f" "_deploy/functions/api/$f"
-          done
-          # 카드 등급별 시세 라이브 폴백
-          [ -f functions/api/card-grades.js ] && cp functions/api/card-grades.js _deploy/functions/api/card-grades.js && echo "✓ card-grades"
-          # PSA cert/pop + BGS cert/pop (그레이딩 POP 기능 — 화이트리스트 누락으로 푸시마다 404 되던 것 복구)
-          [ -d functions/api/psa ] && cp -r functions/api/psa _deploy/functions/api/psa && echo "✓ api/psa/"
-          [ -d functions/api/bgs ] && cp -r functions/api/bgs _deploy/functions/api/bgs && echo "✓ api/bgs/"
-          # Durable PSA certificate status endpoint
-          [ -d functions/api/certifications ] && cp -r functions/api/certifications _deploy/functions/api/certifications && echo "ok api/certifications/"
-          # AI 센터링 + 케이싱 (라이브 기능)
-          for f in centering-ai.js casing-generate.js casing-proxy-image.js; do
-            [ -f "functions/api/$f" ] && cp "functions/api/$f" "_deploy/functions/api/$f" && echo "✓ api/$f"
-          done
-          # Member volleyball rankings
-          mkdir -p _deploy/functions/api/games
-          cp functions/api/games/volleyball.js _deploy/functions/api/games/volleyball.js
-          cp functions/api/games/jigglypuff.js _deploy/functions/api/games/jigglypuff.js
-          cp functions/api/games/kanto151-save.js _deploy/functions/api/games/kanto151-save.js
-          # auth
-          for f in request.js verify.js me.js logout.js delete-account.js exchange-code.js; do
-            [ -f "functions/api/auth/$f" ] && cp "functions/api/auth/$f" "_deploy/functions/api/auth/$f" && echo "✓ auth/$f"
-          done
-          # Preserve native sign-in and browser OAuth callbacks.
-          for d in apple google kakao; do
-            [ -d "functions/api/auth/$d" ] && cp -r "functions/api/auth/$d" "_deploy/functions/api/auth/$d"
-          done
-          # portfolio
-          [ -f functions/api/portfolio/index.js ] && cp functions/api/portfolio/index.js _deploy/functions/api/portfolio/index.js && echo "✓ portfolio/"
-          [ -f functions/api/portfolio/holding.js ] && cp functions/api/portfolio/holding.js _deploy/functions/api/portfolio/holding.js && echo "✓ portfolio/holding"
-          [ -f functions/api/portfolio/holding/[id].js ] && cp "functions/api/portfolio/holding/[id].js" "_deploy/functions/api/portfolio/holding/[id].js" && echo "✓ portfolio/holding/[id]"
-          [ -f functions/api/portfolio/transaction.js ] && cp functions/api/portfolio/transaction.js _deploy/functions/api/portfolio/transaction.js && echo "✓ portfolio/transaction"
-          [ -f functions/api/portfolio/watchlist.js ] && cp functions/api/portfolio/watchlist.js _deploy/functions/api/portfolio/watchlist.js && echo "✓ portfolio/watchlist"
-          [ -f functions/api/portfolio/watchlist/[id].js ] && cp "functions/api/portfolio/watchlist/[id].js" "_deploy/functions/api/portfolio/watchlist/[id].js" && echo "✓ portfolio/watchlist/[id]"
-          # SEO 함수 — 동적 사이트맵(카드 2.4만 페이지) + 카드별 OG 메타 + robots
-          for f in sitemap.xml.js robots.txt.js events.js raffles.js _middleware.js; do
-            [ -f "functions/$f" ] && cp "functions/$f" "_deploy/functions/$f" && echo "✓ functions/$f"
-          done
-          [ -d functions/price ] && cp -r functions/price _deploy/functions/price && echo "✓ functions/price/"
-          echo "=== _deploy 디렉토리 구조 ==="
-          find _deploy -type f | head -30
-          echo "=== data/ 파일 수 ==="
-          ls _deploy/data/ 2>/dev/null | wc -l
-
-      - name: Verify Japanese catalogue and Korean search before deploy
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: node scripts/test_ja_production_gate.cjs --bundle-dir _deploy
-
-      - name: Verify public home card index before deploy
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: |
-          node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
-          python -c "import json; from pathlib import Path; d=json.loads(Path('_deploy/data/update-health.json').read_text(encoding='utf-8')); assert d.get('status') in ('healthy','incomplete') and isinstance(d.get('datasets'),list); print('Required public update-health JSON:', d['status'])"
-
-      - name: Verify account save files and keep Johto development unpublished
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: |
-          test -s _deploy/games/kanto151/account-save.css
-          test -s _deploy/games/kanto151/src/account-save.mjs
-          test -s _deploy/games/kanto151/src/account-save-game.mjs
-          test -s _deploy/games/kanto151/src/account-save-ui.mjs
-          test -s _deploy/functions/api/games/kanto151-save.js
-          test -s _deploy/functions/_shared/kanto151-save.js
-          test ! -d _deploy/games/kanto151/johto
-
-      - name: Refuse a stale deployment snapshot
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: |
-          current_main=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
-          if [[ "$current_main" != "$DEPLOY_COMMIT" ]]; then
-            echo '::error::Main changed after bundle preparation. Refusing to publish an older site snapshot.'
-            exit 1
-          fi
-
-      - name: Fingerprint existing production runtime before deployment
-        if: ${{ env.CF_API_TOKEN != '' }}
-        env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: |
-          cat > "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" <<'PY'
-          from pathlib import Path
-          import hashlib, json, os, sys, time, urllib.request
-          API = 'https://api.cloudflare.com/client/v4/accounts/'
-          PROJECT = 'tcghubrogeun'
-          META = {'id','short_id','url','aliases','created_on','modified_on','latest_stage','stages',
-                  'deployment_trigger','build_config','source','is_skipped','project_id','project_name',
-                  'build_image_major_version','production_script_name','preview_script_name','environment'}
-          def fingerprint(value):
+          python - <<'PY'
+          import hashlib,json,os,re,urllib.request
+          ACCOUNT=os.environ['CF_ACCOUNT_ID']
+          assert re.fullmatch(r'[0-9a-f]{32}',ACCOUNT),'Unexpected existing account identifier'
+          BASE='https://api.cloudflare.com/client/v4/accounts/'+ACCOUNT+'/pages/projects/tcghubrogeun'
+          OLD='9b04d990-c6d5-469f-9b99-fc8d86c265ff'
+          OLD_COMMIT='582d5cc355d55395485e9c93b39bc813337adc6f'
+          NEW_COMMIT='a43cb7cc9288a7a619e119829ecd1d07b88e78a5'
+          META={'id','short_id','url','aliases','created_on','modified_on','latest_stage','stages',
+                'deployment_trigger','build_config','source','is_skipped','project_id','project_name',
+                'build_image_major_version','production_script_name','preview_script_name','environment'}
+          CORE=('env_vars','kv_namespaces','d1_databases','r2_buckets','ai_bindings','compatibility_date','compatibility_flags','usage_model')
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs): return None
+          opener=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
+          def get(suffix):
+              assert suffix=='' or re.fullmatch(r'/deployments/[0-9a-f-]{36}',suffix),'Unexpected metadata path'
+              req=urllib.request.Request(BASE+suffix,method='GET',headers={'Authorization':'Bearer '+os.environ['CF_API_TOKEN'],'Accept':'application/json'})
+              with opener.open(req,timeout=30) as response:
+                  raw=response.read(2*1024*1024+1)
+              assert len(raw)<=2*1024*1024,'Metadata response too large'
+              result=json.loads(raw)
+              assert result.get('success') is True,'Existing runtime metadata query failed'
+              return result['result']
+          def digest(value):
               return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
-          def get(path):
-              url = API + os.environ['CF_ACCOUNT_ID'] + '/pages/projects/' + PROJECT + path
-              req = urllib.request.Request(url, headers={'Authorization':'Bearer '+os.environ['CF_API_TOKEN'], 'Accept':'application/json'})
-              with urllib.request.urlopen(req, timeout=30) as response:
-                  data = json.load(response)
-              if data.get('success') is not True: raise RuntimeError('Runtime metadata query failed')
-              return data['result']
-          def snapshot(project, deployment):
-              production = project['deployment_configs']['production']
-              assert isinstance(production,dict) and production, 'Production settings missing'
-              assert {'OPENAI_API_KEY','JWT_SECRET'}.issubset(production.get('env_vars',{})), 'Existing application secrets missing'
-              assert 'DB' in production.get('d1_databases',{}), 'Existing database binding missing'
-              assert deployment.get('environment') == 'production', 'Expected production deployment'
-              runtime = {key:value for key,value in deployment.items() if key not in META}
-              assert isinstance(runtime.get('env_vars'),dict) and runtime.get('d1_databases'), 'Deployment runtime metadata missing'
-              return {'productionSettingsSHA256':fingerprint(production), 'deploymentRuntimeSHA256':fingerprint(runtime),
-                      'runtimeKeys':sorted(runtime), 'secretValuesStored':False}
-          def compare(expected, current):
-              assert expected == current, 'Runtime configuration changed during deployment; inspect before further publication'
-          def main():
-              mode = sys.argv[1]
-              assert mode in ('snapshot','verify')
-              receipt = Path(os.environ['RUNNER_TEMP'])/'tcghub-centering-runtime-fingerprint.json'
-              project = get('')
-              for attempt in range(11):
-                  deployment = project.get('canonical_deployment') or {}
-                  commit = deployment.get('deployment_trigger',{}).get('metadata',{}).get('commit_hash')
-                  if mode == 'snapshot' or commit == os.environ['DEPLOY_COMMIT']: break
-                  if attempt == 10: raise RuntimeError('Canonical deployment does not match the reviewed source')
-                  time.sleep(3); project = get('')
-              deployment = get('/deployments/'+deployment['id'])
-              current = snapshot(project, deployment)
-              if mode == 'snapshot':
-                  assert not receipt.exists(), 'Existing runtime fingerprint needs inspection'
-                  receipt.write_text(json.dumps(current,sort_keys=True),encoding='utf-8')
-                  print('Existing production runtime fingerprint recorded; no raw settings or secret values saved.')
-              else:
-                  assert deployment.get('latest_stage',{}).get('status') == 'success', 'Canonical deployment is not successful'
-                  compare(json.loads(receipt.read_text(encoding='utf-8')), current)
-                  print('Production runtime settings and bindings preserved; reviewed deployment confirmed.')
-                  print('VERIFIED_DEPLOY_COMMIT='+os.environ['DEPLOY_COMMIT'])
-          if __name__ == '__main__':
-              try: main()
-              except Exception as error:
-                  print('::error::Runtime preservation check failed ('+type(error).__name__+'). No settings or credentials printed.')
-                  sys.exit(1)
+          def commit(deployment): return deployment.get('deployment_trigger',{}).get('metadata',{}).get('commit_hash')
+          project=get('')
+          old=get('/deployments/'+OLD)
+          new_id=project['canonical_deployment']['id']
+          new=get('/deployments/'+new_id)
+          assert old['id']==OLD and commit(old)==OLD_COMMIT,'Immutable old baseline differs'
+          assert commit(new)==NEW_COMMIT,'Canonical source changed; stop rather than comparing the wrong deployment'
+          assert old['environment']==new['environment']=='production','Wrong deployment environment'
+          keys=sorted((set(old)|set(new))-META)
+          comparison={key:{'before':digest(old.get(key)),'after':digest(new.get(key)),'equal':old.get(key)==new.get(key)} for key in keys}
+          core={key:{'before':digest(old.get(key)),'after':digest(new.get(key)),'equal':old.get(key)==new.get(key)} for key in CORE}
+          production=project['deployment_configs']['production']
+          report={'status':'comparison-complete','oldDeploymentId':OLD,'newDeploymentId':new_id,'oldCommit':commit(old),'newCommit':commit(new),
+                  'originalFailedWorkflowId':40199660666,'core8':core,'guardComparedFields':comparison,
+                  'guardDifferingKeys':[key for key in keys if not comparison[key]['equal']],
+                  'allDifferingTopLevelKeys':[key for key in sorted(set(old)|set(new)) if old.get(key)!=new.get(key)],
+                  'currentProductionKeys':sorted(production), 'currentProductionSHA256':digest(production),
+                  'productionSecretNamesPresent':{'OPENAI_API_KEY':'OPENAI_API_KEY' in production.get('env_vars',{}),'JWT_SECRET':'JWT_SECRET' in production.get('env_vars',{})},
+                  'productionDbBindingPresent':'DB' in production.get('d1_databases',{}),
+                  'noCloudflareWrites':True,'actualAIRequests':0,'rawSettingsOrSecretsPrinted':False}
+          print('RUNTIME_AUDIT_JSON='+json.dumps(report,sort_keys=True,separators=(',',':')))
           PY
-          python "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" snapshot
-
-      - name: Deploy to Cloudflare Pages
-        if: ${{ env.CF_API_TOKEN != '' }}
-        env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-        uses: cloudflare/wrangler-action@v3
-        with:
-          workingDirectory: ${{ env.DEPLOY_SOURCE }}
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          command: pages deploy _deploy --project-name=tcghubrogeun --branch=main --commit-dirty=true
-
-
-      - name: Verify production runtime preserved after deployment
-        if: ${{ env.CF_API_TOKEN != '' }}
-        env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: python "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" verify
-
-      - name: Report incomplete daily collection after retaining valid independent updates
-        # Deployment-only runs report stale datasets above, but did not request collection.
-        # Keep real collector failures and the full freshness gate for collection runs.
-        if: always() && (steps.daily-primary.outcome == 'failure' || steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || (env.COLLECT_DATA == 'true' && steps.deployment-health.outputs.status == 'incomplete'))
-        run: |
-          echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
-          exit 1

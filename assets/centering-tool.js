@@ -283,7 +283,7 @@
     card.append(node('h3',(known||tentative)&&identity.name?identity.name:'카드 이름 확인 어려움','cr-card-title'));
     const meta=[identity.game,identity.set,identity.number?`카드 번호 ${identity.number}`:'',identity.language].filter(x=>typeof x==='string'&&x.trim()).join(' · ');
     if(meta)card.append(node('p',meta,'cr-card-meta'));
-    if(identity.evidence)card.append(node('p',identity.evidence));host.append(card);
+    host.append(card);
     if(result.summary){const summary=node('section');summary.append(node('h3','전체적으로 보면'),node('p',result.summary));host.append(summary);}
     const areas=node('section');areas.append(node('h3','부위별 상세 분석'));
     for(const [key,title] of [['centering','센터링'],['corners','모서리'],['edges','엣지'],['surface','표면']]){
@@ -291,26 +291,22 @@
       const area=node('section');area.dataset.reportArea=key;area.append(node('h4',title));
       const grid=node('div',null,'cr-area-grid');
       for(const [side,label] of [['front','앞면'],['back','뒷면']]){const item=node('div');item.append(node('span',label,'cr-area-side'),node('p',report[side]||'이 면의 관찰 결과가 없습니다.'));grid.append(item);}
-      area.append(grid);if(report.assessment)area.append(node('p',report.assessment,'cr-area-verdict'));
+      area.append(grid);
       const evidence=result.scoreEvidence?.[key];
       if(evidence?.confirmedDefects?.length){
         const confirmed=node('div',null,'cr-evidence-list');confirmed.append(node('span','확인한 감점 근거','cr-evidence-title'));const list=node('ul');
         const locations={top_left:'왼쪽 위',top_right:'오른쪽 위',bottom_left:'왼쪽 아래',bottom_right:'오른쪽 아래',top_edge:'위쪽 변',right_edge:'오른쪽 변',bottom_edge:'아래쪽 변',left_edge:'왼쪽 변',center:'중앙',upper_surface:'위쪽 표면',lower_surface:'아래쪽 표면',other:'그 외 위치'};
         evidence.confirmedDefects.forEach(defect=>list.append(node('li',`${defect.side==='front'?'앞면':'뒷면'} · ${locations[defect.location]||defect.location}: ${defect.evidence}`)));confirmed.append(list);area.append(confirmed);
       }
-      if(evidence?.uncertainties?.length){
-        const uncertain=node('div',null,'cr-uncertainty');uncertain.append(node('span','불확실한 흔적 · 감점 없음','cr-evidence-title'));const list=node('ul');
-        evidence.uncertainties.forEach(text=>list.append(node('li',text)));uncertain.append(list);area.append(uncertain);
-      }
       areas.append(area);
     }
     host.append(areas);
     const takeaways=node('section',null,'cr-takeaways');
     for(const [key,title] of [['strengths','확인한 강점'],['concerns','확인한 주의점']]){
-      const group=node('div');group.append(node('h3',title));const items=(result[key]||[]).filter(x=>typeof x==='string'&&x.trim());
-      if(items.length){const list=node('ul');items.forEach(text=>list.append(node('li',text)));group.append(list);}else group.append(node('p','구체적으로 확인된 내용이 없습니다.'));takeaways.append(group);
+      const items=(result[key]||[]).filter(x=>typeof x==='string'&&x.trim());if(!items.length)continue;
+      const group=node('div');group.append(node('h3',title));const list=node('ul');items.forEach(text=>list.append(node('li',text)));group.append(list);takeaways.append(group);
     }
-    host.append(takeaways);
+    if(takeaways.children.length)host.append(takeaways);
     host.hidden=false;return true;
   }
   function renderResult(data){

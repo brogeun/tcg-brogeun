@@ -132,7 +132,7 @@
     put('cr-live-lr',`${m.lPct}:${m.rPct}`);put('cr-live-tb',`${m.tPct}:${m.bPct}`);
     id('cr-lr-bar').style.width=m.lPct+'%';id('cr-tb-bar').style.width=m.tPct+'%';
     const limit=active==='front'?55:75,worst=Math.max(m.lPct,m.rPct,m.tPct,m.bPct);
-    put('cr-reference',s.confirmed?`PSA 10 센터링 참고치 ${limit}:${100-limit} ${worst<=limit?'이내':'초과'} · 전체 등급 판정은 아닙니다.`:'조정 중인 비율입니다. 선 위치를 확인한 뒤 측정을 완료해 주세요.');
+    put('cr-reference',s.confirmed?`PSA 10 센터링 참고치 ${limit}:${100-limit} ${worst<=limit?'이내':'초과'}`:'조정 중인 비율입니다. 선 위치를 확인한 뒤 측정을 완료해 주세요.');
     put('cr-mm',`왼쪽 ${m.lMm} / 오른쪽 ${m.rMm}mm · 위 ${m.tMm} / 아래 ${m.bMm}mm`);
   }
   function renderActions(){
@@ -299,20 +299,18 @@
         evidence.confirmedDefects.forEach(defect=>list.append(node('li',`${defect.side==='front'?'앞면':'뒷면'} · ${locations[defect.location]||defect.location}: ${defect.evidence}`)));confirmed.append(list);area.append(confirmed);
       }
       if(evidence?.uncertainties?.length){
-        const uncertain=node('div',null,'cr-uncertainty');uncertain.append(node('span','추가 확인 사항 · 감점하지 않음','cr-evidence-title'));const list=node('ul');
+        const uncertain=node('div',null,'cr-uncertainty');uncertain.append(node('span','불확실한 흔적 · 감점 없음','cr-evidence-title'));const list=node('ul');
         evidence.uncertainties.forEach(text=>list.append(node('li',text)));uncertain.append(list);area.append(uncertain);
       }
       areas.append(area);
     }
     host.append(areas);
     const takeaways=node('section',null,'cr-takeaways');
-    for(const [key,title] of [['strengths','확인한 강점'],['concerns','주의해서 볼 부분']]){
+    for(const [key,title] of [['strengths','확인한 강점'],['concerns','확인한 주의점']]){
       const group=node('div');group.append(node('h3',title));const items=(result[key]||[]).filter(x=>typeof x==='string'&&x.trim());
       if(items.length){const list=node('ul');items.forEach(text=>list.append(node('li',text)));group.append(list);}else group.append(node('p','구체적으로 확인된 내용이 없습니다.'));takeaways.append(group);
     }
     host.append(takeaways);
-    const steps=(result.nextSteps?.length?result.nextSteps:result.retakeReasons||[]).filter(x=>typeof x==='string'&&x.trim());
-    if(steps.length){const next=node('section',null,'cr-next-step');next.append(node('h3','다음에 확인할 것'));const list=node('ol');steps.forEach(text=>list.append(node('li',text)));next.append(list);host.append(next);}
     host.hidden=false;return true;
   }
   function renderResult(data){
@@ -324,12 +322,13 @@
     for(const key of ['centering','corners','edges','surface','final']){
       const el=wrap.querySelector(`[data-score="${key}"]`),reason=wrap.querySelector(`[data-score-reason="${key}"]`),value=result?.scores?.[key];
       if(el)el.textContent=typeof value==='number'?value.toFixed(1):key==='centering'?(measured===2?'측정 완료':measured?'일부 측정':'측정 제외'):key==='final'?'종합 미산정':'확인 어려움';
-      if(reason)reason.textContent=result?.limitations?.[key]||(key==='centering'?(typeof value==='number'?(evidencePolicy?'확인한 비율에 따른 앱 참고 점수':'측정값과 사진에 근거한 참고 점수'):measured?'확인한 경계의 비율':'정의할 테두리 없음'):typeof value==='number'?(evidencePolicy?(key==='final'?'네 항목 중 가장 낮은 참고 점수':'확인된 결함만 감점'):'사진에서 보이는 범위'):key==='final'?'일부 항목에 추가 사진 필요':'이 사진으로 세부 확인 어려움');
+      if(reason)reason.textContent=result?.limitations?.[key]||(key==='centering'?(typeof value==='number'?(evidencePolicy?'확인한 비율에 따른 앱 참고 점수':'측정값과 사진에 근거한 참고 점수'):measured?'확인한 경계의 비율':'확인한 센터링 측정값 없음'):typeof value==='number'?(evidencePolicy?(key==='final'?'네 항목 중 가장 낮은 참고 점수':'확인된 결함만 감점'):'사진에서 보이는 범위'):key==='final'?'일부 항목 미산정으로 종합 점수 없음':'이 사진으로 세부 확인 어려움');
     }
     const hasScores=['corners','edges','surface'].some(key=>typeof result?.scores?.[key]==='number');
-    put('centeringAIStatus',result?.status==='ready'?'사진 상태 분석 완료':measured||hasScores?'확인 가능한 항목 분석 완료 · 나머지는 추가 확인':'추가 사진으로 확인');
-    wrap.querySelector('[data-score-grade="final"]').textContent=result?.gradeRange||'사진만으로 전체 등급을 확정할 수 없습니다.';
-    const detailed=renderDetailedReport(result),legacy=id('centeringAIText');legacy.hidden=detailed;legacy.textContent=detailed?'':[result?.summary,...(result?.observations||[]),...(result?.retakeReasons||[]).map(x=>'추가 확인: '+x)].filter(Boolean).join('\n\n');lastQuota=data.quota||null;
+    put('centeringAIStatus',result?.status==='ready'?'사진 상태 분석 완료':measured||hasScores?'확인 가능한 항목 분석 완료':'판독 범위 확인 완료');
+    const finalScore=result?.scores?.final;
+    wrap.querySelector('[data-score-grade="final"]').textContent=typeof finalScore==='number'?`종합 사진 참고 점수 ${finalScore.toFixed(1)}점 · 네 항목 중 가장 낮은 점수입니다.`:'확인 가능한 항목의 결과를 정리했습니다.';
+    const detailed=renderDetailedReport(result),legacy=id('centeringAIText');legacy.hidden=detailed;legacy.textContent=detailed?'':[result?.summary,...(result?.observations||[])].filter(Boolean).join('\n\n');lastQuota=data.quota||null;
     wrap.scrollIntoView({block:'nearest',behavior:'auto'});
   }
   async function analyze(){

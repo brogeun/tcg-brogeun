@@ -1,6 +1,8 @@
 (function () {
   'use strict';
   const G=window.CenteringGeometry,sides=['front','back'];
+  const resultCache=window.CenteringResultCache?.create();
+  let cacheOwner=null,quotaDay=null,ownerEpoch=0;
   const id=name=>document.getElementById(name),$=selector=>document.querySelector(selector);
   const label=side=>side==='front'?'앞면':'뒷면';
   const cornerNames=['왼쪽 위','오른쪽 위','오른쪽 아래','왼쪽 아래'];
@@ -15,8 +17,21 @@
   const put=(name,text)=>{const el=id(name);if(el)el.textContent=text;};
   const logged=()=>typeof CURRENT_USER!=='undefined'&&!!CURRENT_USER;
   const ready=()=>sides.every(side=>state[side].image&&state[side].confirmed&&!state[side].loading);
+  const today=()=>new Date(Date.now()+9*3600000).toISOString().slice(0,10);
+  const ownerKey=()=>logged()&&CURRENT_USER.id!=null?String(CURRENT_USER.id):null;
+  function syncOwner(){
+    const owner=ownerKey();resultCache?.selectOwner(owner);
+    if(owner!==cacheOwner){ownerEpoch++;cacheOwner=owner;lastQuota=null;quotaDay=null;closeEvidence();if(id('centeringAIResult'))id('centeringAIResult').style.display='none';}
+    if(quotaDay!==today())lastQuota=null;
+    return owner;
+  }
+  function renderCached(data){
+    renderResult({...data,quota:quotaDay===today()?lastQuota:null});
+    put('centeringAICacheNote','같은 사진·경계의 저장된 결과입니다. 추가 AI 분석 없이 다시 표시했습니다.');
+  }
+  function sessionChanged(){if(!id('cr-canvas'))return;syncOwner();gate();updateButton();}
   function notice(text){put('cr-notice',text);show('cr-notice',!!text);}
-  function invalidate(){revision++;if(id('centeringAIResult'))id('centeringAIResult').style.display='none';}
+  function invalidate(){revision++;closeEvidence();if(id('centeringAIResult'))id('centeringAIResult').style.display='none';}
   function clearGesture(){gesture.points.clear();gesture.drag=null;gesture.pinch=null;}
   function handles(s){
     if(!s.image)return [];
@@ -151,11 +166,12 @@
     for(const side of sides){const s=state[side],m=G.measure(s.insets,s.confirmed&&!s.borderless);$(`[data-summary-value="${side}"]`).textContent=s.confirmed?(m?`좌우 ${m.lPct}:${m.rPct} · 상하 ${m.tPct}:${m.bPct}`:'센터링 제외'):s.image?'경계 확인 필요':'아직 측정 전';}
   }
   function updateButton(){
+    const owner=syncOwner(),cached=ready()&&resultCache?.getRevision(owner,revision);
     const root=$('section[data-page="centering"]');if(!root)return;
     root.querySelectorAll('button,input,select').forEach(el=>{el.disabled=analyzing;});
     const s=current();id('cr-next').disabled=analyzing||s.loading;
     id('centeringAIBtn').disabled=!ready()||analyzing;
-    put('centeringAIBtn',analyzing?'사진을 분석하고 있어요…':ready()?'AI로 사진 상태 분석':'앞·뒷면 측정 후 이용');
+    put('centeringAIBtn',analyzing?'사진을 분석하고 있어요…':ready()?(cached?'분석 결과 다시 보기':'AI로 사진 상태 분석'):'앞·뒷면 측정 후 이용');
     put('centeringReadyHint',lastQuota?`오늘 ${lastQuota.used} / ${lastQuota.limit}회 사용`:'계정당 하루 3회 무료');
     const undoButton=$('[data-action="undo"]');if(undoButton)undoButton.disabled=analyzing||!s.history.length;
   }
@@ -273,6 +289,51 @@
     }
     show('centeringAIMeasurements',count>0);return count;
   }
+  const inspectionRegions={corners:['top_left','top_right','bottom_left','bottom_right'],edges:['top_edge','right_edge','bottom_edge','left_edge'],surface:['upper_surface','center','lower_surface']};
+  const regionNames={top_left:'왼쪽 위 모서리',top_right:'오른쪽 위 모서리',bottom_left:'왼쪽 아래 모서리',bottom_right:'오른쪽 아래 모서리',top_edge:'위쪽 변',right_edge:'오른쪽 변',bottom_edge:'아래쪽 변',left_edge:'왼쪽 변',upper_surface:'상단 표면',center:'중앙 표면',lower_surface:'하단 표면'};
+  const regionRects={top_left:[0,0,.26,.26*63/88],top_right:[.74,0,.26,.26*63/88],bottom_left:[0,1-.26*63/88,.26,.26*63/88],bottom_right:[.74,1-.26*63/88,.26,.26*63/88],top_edge:[0,0,1,.13],right_edge:[.87,0,.13,1],bottom_edge:[0,.87,1,.13],left_edge:[0,0,.13,1],upper_surface:[.06,.04,.88,.34],center:[.06,.33,.88,.34],lower_surface:[.06,.62,.88,.34]};
+  function closeEvidence(){
+    const dialog=id('cr-evidence-dialog');if(dialog?.open&&typeof dialog.close==='function')dialog.close();
+    const image=id('cr-evidence-image');if(image)image.removeAttribute('src');
+  }
+  function evidenceCanvas(side,location){
+    const s=state[side],bounds=regionRects[location];if(!s?.image||!s.confirmed||!bounds)throw new Error('이 부위의 원본 사진이 현재 화면에 없습니다.');
+    const H=G.homography(s.quad),[u,v,w,h]=bounds,quad=[[u,v],[u+w,v],[u+w,v+h],[u,v+h]].map(p=>G.project(H,...p));
+    const x=Math.max(0,Math.floor(Math.min(...quad.map(p=>p.x)))-2),y=Math.max(0,Math.floor(Math.min(...quad.map(p=>p.y)))-2);
+    const right=Math.min(s.image.naturalWidth,Math.ceil(Math.max(...quad.map(p=>p.x)))+3),bottom=Math.min(s.image.naturalHeight,Math.ceil(Math.max(...quad.map(p=>p.y)))+3);
+    const crop={x,y,width:right-x,height:bottom-y},original=canvasFor(s.image,4096,crop),sx=original.width/crop.width,sy=original.height/crop.height;
+    const mapped=quad.map(p=>({x:G.clamp((p.x-x)*sx,0,original.width-1),y:G.clamp((p.y-y)*sy,0,original.height-1)}));
+    const distance=(a,b)=>Math.hypot(mapped[a].x-mapped[b].x,mapped[a].y-mapped[b].y);
+    const width=Math.min(distance(0,1),distance(3,2)),height=Math.min(distance(0,3),distance(1,2)),scale=Math.min(1,1024/Math.max(width,height));
+    const outWidth=Math.max(2,Math.floor(width*scale)),outHeight=Math.max(2,Math.floor(height*scale));
+    const pixels=G.warp(original.getContext('2d').getImageData(0,0,original.width,original.height),mapped,outWidth,outHeight),canvas=document.createElement('canvas');
+    canvas.width=outWidth;canvas.height=outHeight;canvas.getContext('2d').putImageData(new ImageData(pixels.data,outWidth,outHeight),0,0);return canvas;
+  }
+  function openEvidence(side,location){
+    try{
+      const canvas=evidenceCanvas(side,location),image=id('cr-evidence-image'),dialog=id('cr-evidence-dialog');
+      image.src=canvas.toDataURL('image/jpeg',.94);image.alt=label(side)+' '+regionNames[location]+' 원본 부위';
+      put('cr-evidence-title',label(side)+' · '+regionNames[location]);
+      put('cr-evidence-context','추가 AI 분석 없이 현재 원본에서 해당 부위를 표시했습니다.');
+      if(!dialog.open)dialog.showModal();
+    }catch(e){notice(e.message||'원본 부위를 표시하지 못했습니다.');}
+  }
+  function renderInspection(data){
+    const host=id('centeringAIInspection');if(!host)return;host.replaceChildren();host.hidden=true;
+    const inspection=data.analysis?.inspection,entries=[];
+    for(const [category,locations] of Object.entries(inspectionRegions))for(const side of sides)for(const location of locations){
+      const value=inspection?.[category]?.[side]?.[location];if(!['observed','limited','unavailable'].includes(value))return;entries.push({side,location,value});
+    }
+    if(data.reportVersion!==5||entries.length!==22)return;
+    const create=(tag,text)=>{const el=document.createElement(tag);if(text)el.textContent=text;return el;};
+    const counts=Object.fromEntries(['observed','limited','unavailable'].map(value=>[value,entries.filter(entry=>entry.value===value).length]));
+    const details=create('details'),summary=create('summary',`부위별 확인 범위 · 확인 ${counts.observed} · 제한 ${counts.limited} · 미확인 ${counts.unavailable}`),grid=create('div');grid.className='cr-inspection-grid';details.append(summary);
+    const names={observed:'확인',limited:'일부 제한',unavailable:'확인 어려움'};
+    for(const side of sides){const group=create('div');group.append(create('h3',label(side)));for(const entry of entries.filter(item=>item.side===side)){
+      const button=create('button',`${regionNames[entry.location]} · ${names[entry.value]}`);button.type='button';button.className='cr-inspection-chip';button.dataset.status=entry.value;button.dataset.evidenceSide=side;button.dataset.evidenceLocation=entry.location;button.disabled=!state[side].image||!state[side].confirmed;group.append(button);
+    }grid.append(group);}
+    details.append(grid);host.append(details);host.hidden=false;
+  }
   function renderDetailedReport(result){
     const host=id('centeringAIReport');if(!host)return false;host.replaceChildren();host.hidden=true;
     if(!result?.cardIdentity||!result?.categoryReports)return false;
@@ -296,7 +357,10 @@
       if(evidence?.confirmedDefects?.length){
         const confirmed=node('div',null,'cr-evidence-list');confirmed.append(node('span','확인한 감점 근거','cr-evidence-title'));const list=node('ul');
         const locations={top_left:'왼쪽 위',top_right:'오른쪽 위',bottom_left:'왼쪽 아래',bottom_right:'오른쪽 아래',top_edge:'위쪽 변',right_edge:'오른쪽 변',bottom_edge:'아래쪽 변',left_edge:'왼쪽 변',center:'중앙',upper_surface:'위쪽 표면',lower_surface:'아래쪽 표면',other:'그 외 위치'};
-        evidence.confirmedDefects.forEach(defect=>list.append(node('li',`${defect.side==='front'?'앞면':'뒷면'} · ${locations[defect.location]||defect.location}: ${defect.evidence}`)));confirmed.append(list);area.append(confirmed);
+        evidence.confirmedDefects.forEach(defect=>{
+          const item=node('li',`${defect.side==='front'?'앞면':'뒷면'} · ${locations[defect.location]||defect.location}: ${defect.evidence}`);
+          if(regionRects[defect.location]&&sides.includes(defect.side)&&state[defect.side].image&&state[defect.side].confirmed){const button=node('button','원본 부위 보기','cr-evidence-button');button.type='button';button.dataset.evidenceSide=defect.side;button.dataset.evidenceLocation=defect.location;item.append(button);}list.append(item);
+        });confirmed.append(list);area.append(confirmed);
       }
       areas.append(area);
     }
@@ -310,7 +374,7 @@
     host.hidden=false;return true;
   }
   function renderResult(data){
-    const result=data.analysis,wrap=id('centeringAIResult');wrap.style.display='';
+    const result=data.analysis,wrap=id('centeringAIResult');wrap.style.display='';renderInspection(data);put('centeringAICacheNote','');
     const measured=renderReviewMeasurements(data.measurements),evidencePolicy=data.scorePolicy?.version==='photo-evidence-v1';
     show('centeringAIScorePolicy',evidencePolicy);
     const detailCount=data.imageReview?.cornerViews;
@@ -330,19 +394,26 @@
   async function analyze(){
     if(analyzing||!ready())return;
     if(!logged()){if(typeof openLoginModal==='function')openLoginModal('AI 분석은 로그인 후 이용할 수 있습니다.');return;}
-    const requestRevision=revision;analyzing=true;updateButton();const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),80000);
+    const requestOwner=syncOwner(),cached=resultCache?.getRevision(requestOwner,revision);if(cached){renderCached(cached);updateButton();return;}
+    const requestRevision=revision,requestEpoch=ownerEpoch;analyzing=true;updateButton();const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),80000);
+    const currentRequest=()=>requestRevision===revision&&requestOwner===ownerKey()&&requestEpoch===ownerEpoch;
     try{
-      const response=await fetch('/api/centering-ai',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify({analysisVersion:2,frontImage:exportImage('front'),backImage:exportImage('back'),detailImages:{version:1,...Object.fromEntries(sides.map(side=>[side,exportDetailImage(side)]))},frontMetrics:G.measure(state.front.insets,!state.front.borderless&&state.front.confirmed),backMetrics:G.measure(state.back.insets,!state.back.borderless&&state.back.confirmed),imageInfo:Object.fromEntries(sides.map(side=>[side,{originalWidth:state[side].image.naturalWidth,originalHeight:state[side].image.naturalHeight,width:state[side].rectified.width,height:state[side].rectified.height,borderless:state[side].borderless}]))})});
-      const data=await response.json().catch(()=>{throw new Error('분석 결과를 읽지 못했어요. 잠시 후 다시 시도해 주세요.');});if(requestRevision!==revision)return;
+      const body={analysisVersion:2,frontImage:exportImage('front'),backImage:exportImage('back'),detailImages:{version:1,...Object.fromEntries(sides.map(side=>[side,exportDetailImage(side)]))},frontMetrics:G.measure(state.front.insets,!state.front.borderless&&state.front.confirmed),backMetrics:G.measure(state.back.insets,!state.back.borderless&&state.back.confirmed),imageInfo:Object.fromEntries(sides.map(side=>[side,{originalWidth:state[side].image.naturalWidth,originalHeight:state[side].image.naturalHeight,width:state[side].rectified.width,height:state[side].rectified.height,borderless:state[side].borderless}]))};
+      const hash=await resultCache?.fingerprint(body);if(!currentRequest())return;
+      const saved=hash&&resultCache?.get(requestOwner,hash);if(saved){resultCache.bindRevision(requestOwner,hash,requestRevision);renderCached(saved);return;}
+      const requestDay=today(),response=await fetch('/api/centering-ai',{method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify(body)});
+      const data=await response.json().catch(()=>{throw new Error('분석 결과를 읽지 못했어요. 잠시 후 다시 시도해 주세요.');});if(!currentRequest())return;
       if(!response.ok||data.error)throw new Error(data.message||'분석을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.');
-      if(!data.analysis)throw new Error('분석 결과를 읽지 못했어요. 다시 시도해 주세요.');renderResult(data);
-    }catch(e){if(requestRevision===revision){const wrap=id('centeringAIResult');wrap.style.display='';renderDetailedReport(null);show('centeringAIScorePolicy',false);put('centeringAIInputNote','');id('centeringAIText').hidden=false;id('centeringAIText').textContent=e.name==='AbortError'?'분석 시간이 초과되었어요. 잠시 후 다시 시도해 주세요.':e.message;wrap.querySelectorAll('[data-score]').forEach(el=>el.textContent='—');wrap.querySelectorAll('[data-score-reason]').forEach(el=>el.textContent='');const measured=renderReviewMeasurements();if(measured)wrap.querySelector('[data-score="centering"]').textContent=measured===2?'측정 완료':'일부 측정';put('centeringAIStatus','AI 분석을 완료하지 못했습니다');wrap.querySelector('[data-score-grade="final"]').textContent=measured?'확인한 센터링 측정값은 유지됩니다.':'';}}
+      if(!data.analysis)throw new Error('분석 결과를 읽지 못했어요. 다시 시도해 주세요.');
+      if(hash)resultCache?.put(requestOwner,hash,requestRevision,data);quotaDay=requestDay;renderResult(data);
+    }catch(e){if(currentRequest()){const wrap=id('centeringAIResult');wrap.style.display='';renderDetailedReport(null);show('centeringAIScorePolicy',false);show('centeringAIInspection',false);put('centeringAICacheNote','');put('centeringAIInputNote','');id('centeringAIText').hidden=false;id('centeringAIText').textContent=e.name==='AbortError'?'분석 시간이 초과되었어요. 잠시 후 다시 시도해 주세요.':e.message;wrap.querySelectorAll('[data-score]').forEach(el=>el.textContent='—');wrap.querySelectorAll('[data-score-reason]').forEach(el=>el.textContent='');const measured=renderReviewMeasurements();if(measured)wrap.querySelector('[data-score="centering"]').textContent=measured===2?'측정 완료':'일부 측정';put('centeringAIStatus','AI 분석을 완료하지 못했습니다');wrap.querySelector('[data-score-grade="final"]').textContent=measured?'확인한 센터링 측정값은 유지됩니다.':'';}}
     finally{clearTimeout(timer);analyzing=false;updateButton();}
   }
   function reset(){if(analyzing)return;clearGesture();sides.forEach(side=>{const s=state[side];if(s.url)URL.revokeObjectURL(s.url);state[side]={...empty(),generation:s.generation+1};});active='front';document.querySelectorAll('[data-centering-file]').forEach(input=>input.value='');invalidate();notice('');render();}
   function action(name){
     if(analyzing)return;const s=current();
-    if(name==='album'||name==='camera')pick(active,name);
+    if(name==='evidence-close')closeEvidence();
+    else if(name==='album'||name==='camera')pick(active,name);
     else if(name==='replace')pick(active,'album');
     else if(name==='next')next();
     else if(name==='zoom-in')zoomTo(s.zoom*1.35);
@@ -359,7 +430,7 @@
   function setup(){
     if(!id('cr-canvas'))return;
     if(!bound){bound=true;
-      const root=$('section[data-page="centering"]');root.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;if(b.dataset.action)action(b.dataset.action);else if(b.dataset.sideTab)switchSide(b.dataset.sideTab);else if(b.dataset.summarySide)switchSide(b.dataset.summarySide);else if(b.dataset.nudge){const d={up:[0,-1],left:[-1,0],right:[1,0],down:[0,1]}[b.dataset.nudge];nudge(...d);}});
+      const root=$('section[data-page="centering"]');root.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;if(b.dataset.evidenceSide)openEvidence(b.dataset.evidenceSide,b.dataset.evidenceLocation);else if(b.dataset.action)action(b.dataset.action);else if(b.dataset.sideTab)switchSide(b.dataset.sideTab);else if(b.dataset.summarySide)switchSide(b.dataset.summarySide);else if(b.dataset.nudge){const d={up:[0,-1],left:[-1,0],right:[1,0],down:[0,1]}[b.dataset.nudge];nudge(...d);}});
       root.querySelectorAll('[data-side-tab]').forEach(b=>b.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();switchSide(active==='front'?'back':'front');$(`[data-side-tab="${active}"]`).focus();}});
       document.querySelectorAll('[data-centering-file]').forEach(input=>input.onchange=e=>{const file=e.target.files?.[0];if(file)load(input.dataset.centeringFile.replace('-camera',''),file);});
       id('cr-selected').onchange=e=>{current().selected=current().phase==='outer'?Number(e.target.value):e.target.value;draw();renderFine();};
@@ -369,7 +440,7 @@
     }
     render();
   }
-  window.CenteringTool={setup,load,pick,reset,analyze,state,exportImage,rectify,switchSide,zoomTo,undo,get active(){return active;},getView:view};
+  window.CenteringTool={sessionChanged,setup,load,pick,reset,analyze,state,exportImage,rectify,switchSide,zoomTo,undo,get active(){return active;},getView:view};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
   window.addEventListener('hashchange',()=>{if(location.hash.includes('centering'))setup();});
 })();

@@ -188,3 +188,22 @@ section[data-page="centering"] .cr-report .cr-uncertainty li,section[data-page="
 section[data-page="centering"] .cr-score-policy{padding:16px 18px;border:1px solid #dee7f5;background:#f5f8fd;border-radius:10px;margin-top:22px}
 section[data-page="centering"] .cr-score-policy strong{font-size:12px;color:#425f8a}
 section[data-page="centering"] .cr-score-policy p{font-size:12px;line-height:1.85;color:#667b99;margin:8px 0 0}
+
+section[data-page="centering"] .cr-cache-note{font-size:12px;color:#287866;line-height:1.7;margin:0 0 16px}
+section[data-page="centering"] .cr-cache-note:empty{display:none}
+section[data-page="centering"] .cr-inspection{border:1px solid #dfe7f4;border-radius:10px;padding:14px 16px;margin:0 0 18px;font-size:12px;color:#4c6388}
+section[data-page="centering"] .cr-inspection summary{cursor:pointer;line-height:1.8;font-weight:600}
+section[data-page="centering"] .cr-inspection-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+section[data-page="centering"] .cr-inspection-grid h3{font-size:13px;margin:0 0 8px}
+section[data-page="centering"] .cr-inspection-chip{display:block;width:100%;border:1px solid #e3e9f3;border-radius:6px;background:#f7f9fc;padding:8px 10px;margin:5px 0;text-align:left;font:inherit;color:#496280;cursor:pointer;min-height:36px}
+section[data-page="centering"] .cr-inspection-chip[data-status="limited"]{background:#fff8ec;color:#89642c;border-color:#f1dfb9}
+section[data-page="centering"] .cr-inspection-chip[data-status="unavailable"]{background:#f4f4f6;color:#787e89}
+section[data-page="centering"] .cr-evidence-button{display:block;margin-top:7px;padding:7px 10px;border:1px solid #d6e0f1;border-radius:6px;background:#fff;color:#3f5d91;font:inherit;font-size:12px;cursor:pointer;min-height:36px}
+section[data-page="centering"] .cr-evidence-dialog{border:1px solid #dce4f1;border-radius:14px;padding:20px;width:min(860px,calc(100vw - 32px));max-height:90vh;overflow:auto;color:#354d73}
+section[data-page="centering"] .cr-evidence-dialog::backdrop{background:#14253a99}
+section[data-page="centering"] .cr-evidence-dialog header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+section[data-page="centering"] .cr-evidence-dialog h2{font-size:16px;margin:0}
+section[data-page="centering"] .cr-evidence-dialog button{border:1px solid #dae2ee;border-radius:6px;background:#fff;padding:9px 14px;cursor:pointer;color:#3f5574}
+section[data-page="centering"] .cr-evidence-dialog img{display:block;max-width:100%;width:100%;height:clamp(200px,60vh,600px);margin:auto;object-fit:contain;background:#eef1f6;image-rendering:pixelated}
+section[data-page="centering"] .cr-evidence-dialog p{font-size:12px;line-height:1.7;color:#738197;margin:14px 0 0}
+@media(max-width:680px){section[data-page="centering"] .cr-inspection-grid{grid-template-columns:1fr}section[data-page="centering"] .cr-inspection-chip{min-height:44px}section[data-page="centering"] .cr-evidence-dialog{padding:16px}}

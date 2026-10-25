@@ -259,17 +259,48 @@
     }
     show('centeringAIMeasurements',count>0);return count;
   }
+  function renderDetailedReport(result){
+    const host=id('centeringAIReport');if(!host)return false;host.replaceChildren();host.hidden=true;
+    if(!result?.cardIdentity||!result?.categoryReports)return false;
+    const node=(tag,text,className)=>{const el=document.createElement(tag);if(text)el.textContent=text;if(className)el.className=className;return el;};
+    const identity=result.cardIdentity,card=node('article',null,'cr-identity');
+    const known=identity.confidence==='identified',tentative=identity.confidence==='tentative';
+    card.append(node('span',known?'사진에서 식별한 카드':tentative?'사진 기반 추정 식별':'카드 식별 보류','cr-card-state'));
+    card.append(node('h3',(known||tentative)&&identity.name?identity.name:'카드 이름 확인 어려움','cr-card-title'));
+    const meta=[identity.game,identity.set,identity.number?`카드 번호 ${identity.number}`:'',identity.language].filter(x=>typeof x==='string'&&x.trim()).join(' · ');
+    if(meta)card.append(node('p',meta,'cr-card-meta'));
+    if(identity.evidence)card.append(node('p',identity.evidence));host.append(card);
+    if(result.summary){const summary=node('section');summary.append(node('h3','전체적으로 보면'),node('p',result.summary));host.append(summary);}
+    const areas=node('section');areas.append(node('h3','부위별 상세 분석'));
+    for(const [key,title] of [['centering','센터링'],['corners','모서리'],['edges','엣지'],['surface','표면']]){
+      const report=result.categoryReports[key];if(!report)continue;
+      const area=node('section');area.dataset.reportArea=key;area.append(node('h4',title));
+      const grid=node('div',null,'cr-area-grid');
+      for(const [side,label] of [['front','앞면'],['back','뒷면']]){const item=node('div');item.append(node('span',label,'cr-area-side'),node('p',report[side]||'이 면의 관찰 결과가 없습니다.'));grid.append(item);}
+      area.append(grid);if(report.assessment)area.append(node('p',report.assessment,'cr-area-verdict'));areas.append(area);
+    }
+    host.append(areas);
+    const takeaways=node('section',null,'cr-takeaways');
+    for(const [key,title] of [['strengths','확인한 강점'],['concerns','주의해서 볼 부분']]){
+      const group=node('div');group.append(node('h3',title));const items=(result[key]||[]).filter(x=>typeof x==='string'&&x.trim());
+      if(items.length){const list=node('ul');items.forEach(text=>list.append(node('li',text)));group.append(list);}else group.append(node('p','구체적으로 확인된 내용이 없습니다.'));takeaways.append(group);
+    }
+    host.append(takeaways);
+    const steps=(result.nextSteps?.length?result.nextSteps:result.retakeReasons||[]).filter(x=>typeof x==='string'&&x.trim());
+    if(steps.length){const next=node('section',null,'cr-next-step');next.append(node('h3','다음에 확인할 것'));const list=node('ol');steps.forEach(text=>list.append(node('li',text)));next.append(list);host.append(next);}
+    host.hidden=false;return true;
+  }
   function renderResult(data){
     const result=data.analysis,wrap=id('centeringAIResult');wrap.style.display='';
     const measured=renderReviewMeasurements(data.measurements);
     for(const key of ['centering','corners','edges','surface','final']){
       const el=wrap.querySelector(`[data-score="${key}"]`),reason=wrap.querySelector(`[data-score-reason="${key}"]`),value=result?.scores?.[key];
-      if(el)el.textContent=key==='centering'?(measured===2?'측정 완료':measured?'일부 측정':'측정 제외'):typeof value==='number'?value.toFixed(1):key==='final'?'종합 미산정':'확인 어려움';
-      if(reason)reason.textContent=key==='centering'?(measured?'확인한 경계의 비율':'정의할 테두리 없음'):result?.limitations?.[key]||(typeof value==='number'?'사진에서 보이는 범위':key==='final'?'일부 항목에 추가 사진 필요':'이 사진으로 세부 확인 어려움');
+      if(el)el.textContent=typeof value==='number'?value.toFixed(1):key==='centering'?(measured===2?'측정 완료':measured?'일부 측정':'측정 제외'):key==='final'?'종합 미산정':'확인 어려움';
+      if(reason)reason.textContent=result?.limitations?.[key]||(key==='centering'?(typeof value==='number'?'측정값과 사진에 근거한 참고 점수':measured?'확인한 경계의 비율':'정의할 테두리 없음'):typeof value==='number'?'사진에서 보이는 범위':key==='final'?'일부 항목에 추가 사진 필요':'이 사진으로 세부 확인 어려움');
     }
     put('centeringAIStatus',result?.status==='ready'?'사진 상태 분석 완료':measured?'측정값 유지 · 사진은 일부 확인':'추가 사진으로 확인');
     wrap.querySelector('[data-score-grade="final"]').textContent=result?.gradeRange||'사진만으로 전체 등급을 확정할 수 없습니다.';
-    id('centeringAIText').textContent=[result?.summary,...(result?.observations||[]),...(result?.retakeReasons||[]).map(x=>'추가 확인: '+x)].filter(Boolean).join('\n\n');lastQuota=data.quota||null;
+    const detailed=renderDetailedReport(result),legacy=id('centeringAIText');legacy.hidden=detailed;legacy.textContent=detailed?'':[result?.summary,...(result?.observations||[]),...(result?.retakeReasons||[]).map(x=>'추가 확인: '+x)].filter(Boolean).join('\n\n');lastQuota=data.quota||null;
     wrap.scrollIntoView({block:'nearest',behavior:'auto'});
   }
   async function analyze(){
@@ -281,7 +312,7 @@
       const data=await response.json().catch(()=>{throw new Error('분석 결과를 읽지 못했어요. 잠시 후 다시 시도해 주세요.');});if(requestRevision!==revision)return;
       if(!response.ok||data.error)throw new Error(data.message||'분석을 완료하지 못했어요. 잠시 후 다시 시도해 주세요.');
       if(!data.analysis)throw new Error('분석 결과를 읽지 못했어요. 다시 시도해 주세요.');renderResult(data);
-    }catch(e){if(requestRevision===revision){const wrap=id('centeringAIResult');wrap.style.display='';id('centeringAIText').textContent=e.name==='AbortError'?'분석 시간이 초과되었어요. 잠시 후 다시 시도해 주세요.':e.message;wrap.querySelectorAll('[data-score]').forEach(el=>el.textContent='—');wrap.querySelectorAll('[data-score-reason]').forEach(el=>el.textContent='');const measured=renderReviewMeasurements();if(measured)wrap.querySelector('[data-score="centering"]').textContent=measured===2?'측정 완료':'일부 측정';put('centeringAIStatus','AI 분석을 완료하지 못했습니다');wrap.querySelector('[data-score-grade="final"]').textContent=measured?'확인한 센터링 측정값은 유지됩니다.':'';}}
+    }catch(e){if(requestRevision===revision){const wrap=id('centeringAIResult');wrap.style.display='';renderDetailedReport(null);id('centeringAIText').hidden=false;id('centeringAIText').textContent=e.name==='AbortError'?'분석 시간이 초과되었어요. 잠시 후 다시 시도해 주세요.':e.message;wrap.querySelectorAll('[data-score]').forEach(el=>el.textContent='—');wrap.querySelectorAll('[data-score-reason]').forEach(el=>el.textContent='');const measured=renderReviewMeasurements();if(measured)wrap.querySelector('[data-score="centering"]').textContent=measured===2?'측정 완료':'일부 측정';put('centeringAIStatus','AI 분석을 완료하지 못했습니다');wrap.querySelector('[data-score-grade="final"]').textContent=measured?'확인한 센터링 측정값은 유지됩니다.':'';}}
     finally{clearTimeout(timer);analyzing=false;updateButton();}
   }
   function reset(){if(analyzing)return;clearGesture();sides.forEach(side=>{const s=state[side];if(s.url)URL.revokeObjectURL(s.url);state[side]={...empty(),generation:s.generation+1};});active='front';document.querySelectorAll('[data-centering-file]').forEach(input=>input.value='');invalidate();notice('');render();}

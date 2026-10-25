@@ -65,6 +65,27 @@
     return [...m.map(row=>row[8]),1];
   }
   function project(h,u,v){const z=h[6]*u+h[7]*v+1;return {x:(h[0]*u+h[1]*v+h[2])/z,y:(h[3]*u+h[4]*v+h[5])/z};}
+  function planCornerDetails(quad,imageWidth,imageHeight){
+    if(!Number.isInteger(imageWidth)||!Number.isInteger(imageHeight)||!validQuad(quad,imageWidth,imageHeight))throw new Error('카드 네 모서리를 원본 사진 안에 다시 맞춰 주세요.');
+    const H=homography(quad),uSpan=.26,vSpan=uSpan*63/88;
+    // Sheet order is TL, TR, BL, BR; each region covers a physical square on the card.
+    const positions=[['top-left',0,0,0],['top-right',1,1-uSpan,0],['bottom-left',3,0,1-vSpan],['bottom-right',2,1-uSpan,1-vSpan]];
+    const edgeMin=q=>Math.min(...q.map((p,i)=>Math.hypot(p.x-q[(i+1)%4].x,p.y-q[(i+1)%4].y)));
+    const tiles=positions.map(([corner,sourceCorner,u,v])=>{
+      const originalQuad=[[u,v],[u+uSpan,v],[u+uSpan,v+vSpan],[u,v+vSpan]].map(([x,y])=>project(H,x,y));
+      const x=Math.max(0,Math.floor(Math.min(...originalQuad.map(p=>p.x)))-2),y=Math.max(0,Math.floor(Math.min(...originalQuad.map(p=>p.y)))-2);
+      const right=Math.min(imageWidth,Math.ceil(Math.max(...originalQuad.map(p=>p.x)))+3),bottom=Math.min(imageHeight,Math.ceil(Math.max(...originalQuad.map(p=>p.y)))+3);
+      const crop={x,y,width:right-x,height:bottom-y},scale=Math.min(1,4096/Math.max(crop.width,crop.height));
+      const processing={width:Math.max(1,Math.round(crop.width*scale)),height:Math.max(1,Math.round(crop.height*scale))};
+      const scaleX=processing.width/crop.width,scaleY=processing.height/crop.height;
+      const mapped=originalQuad.map(p=>({x:clamp((p.x-x)*scaleX,0,processing.width-1),y:clamp((p.y-y)*scaleY,0,processing.height-1)}));
+      const nativePixels=Math.floor(edgeMin(originalQuad)),size=Math.floor(Math.min(512,nativePixels,edgeMin(mapped)));
+      if(size<16||!validQuad(mapped,processing.width,processing.height))throw new Error('모서리 세부 사진을 만들기에 원본의 카드가 너무 작습니다. 카드가 더 크게 나온 사진을 선택해 주세요.');
+      return {corner,sourceCorner,originalQuad,crop,processing,quad:mapped,size,nativePixels,scaleX,scaleY};
+    });
+    const cellSize=Math.max(...tiles.map(tile=>tile.size)),labelHeight=16;
+    return {version:1,cellSize,labelHeight,width:cellSize*2,height:(cellSize+labelHeight)*2,tiles:tiles.map((tile,i)=>({...tile,x:(i%2)*cellSize,y:Math.floor(i/2)*(cellSize+labelHeight)+labelHeight}))};
+  }
   function warp(source,quad,width,height) {
     if(!validQuad(quad,source.width,source.height))throw new Error('카드 네 모서리가 사진 안에서 서로 겹치지 않게 맞춰 주세요.');
     const H=homography(quad),data=new Uint8ClampedArray(width*height*4),sw=source.width,sh=source.height,src=source.data;
@@ -111,6 +132,6 @@
     const round=x=>Math.round(x*10)/10;
     return {version:2,confirmed:true,method:'perspective-rectified',lPct:round(l/(l+r)*100),rPct:round(r/(l+r)*100),tPct:round(t/(t+b)*100),bPct:round(b/(t+b)*100),lMm:round(l*63),rMm:round(r*63),tMm:round(t*88),bMm:round(b*88)};
   }
-  const api={clamp,area,validQuad,planRectification,detectOuter,homography,project,warp,detectInner,measure};
+  const api={clamp,area,validQuad,planRectification,planCornerDetails,detectOuter,homography,project,warp,detectInner,measure};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.CenteringGeometry=api;
 })(typeof window==='undefined'?globalThis:window);

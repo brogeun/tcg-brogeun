@@ -295,7 +295,7 @@ jobs:
           PROJECT = 'tcghubrogeun'
           META = {'id','short_id','url','aliases','created_on','modified_on','latest_stage','stages',
                   'deployment_trigger','build_config','source','is_skipped','project_id','project_name',
-                  'build_image_major_version','production_script_name','preview_script_name','environment'}
+                  'build_image_major_version','production_script_name','preview_script_name','environment','files'}
           def fingerprint(value):
               return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
           def get(path):

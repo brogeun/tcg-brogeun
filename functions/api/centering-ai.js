@@ -11,7 +11,7 @@ const DEFECT_FIELDS=['side','location','kind','severity','evidence','source'];
 const DEFECT_LOCATIONS=['top_left','top_right','bottom_left','bottom_right','top_edge','right_edge','bottom_edge','left_edge','center','upper_surface','lower_surface','other'];
 const LOCATION_NAMES={top_left:'왼쪽 위',top_right:'오른쪽 위',bottom_left:'왼쪽 아래',bottom_right:'오른쪽 아래',top_edge:'위쪽 변',right_edge:'오른쪽 변',bottom_edge:'아래쪽 변',left_edge:'왼쪽 변',center:'중앙',upper_surface:'위쪽 표면',lower_surface:'아래쪽 표면',other:'별도 표시 위치'};
 const KIND_NAMES={whitening:'백화',wear:'마모',chip:'벗겨짐',crease:'접힘',dent:'눌림',scratch:'긁힘',stain:'얼룩',print_line:'인쇄선',other:'확인된 손상'};
-const SCORE_POLICY={version:'photo-evidence-v1',baseline:9.5,deductions:{minor:.5,moderate:1.5,major:3.5},centering:{nearPerfectWorst:51,frontReferenceWorst:55,backReferenceWorst:75,stepPercent:5,stepDeduction:.5},overall:'minimum-of-four-only-when-all-available',label:'사진 참고 점수 · 실제 그레이딩 등급 아님'};
+const SCORE_POLICY={version:'photo-evidence-v1',baseline:10,deductions:{minor:.5,moderate:1.5,major:3.5},centering:{nearPerfectWorst:51,frontReferenceWorst:55,backReferenceWorst:75,stepPercent:5,stepDeduction:.5},overall:'minimum-of-four-only-when-all-available',label:'사진 참고 점수 · 실제 그레이딩 등급 아님'};
 const stringObject=keys=>({type:'object',additionalProperties:false,properties:Object.fromEntries(keys.map(key=>[key,{type:'string'}])),required:keys});
 const sideVisibility={type:'object',additionalProperties:false,properties:Object.fromEntries(SIDES.map(side=>[side,{type:'string',enum:['usable','unassessable']}])),required:SIDES};
 const defectSchema={type:'object',additionalProperties:false,properties:{side:{type:'string',enum:SIDES},location:{type:'string',enum:DEFECT_LOCATIONS},kind:{type:'string',enum:DEFECT_KINDS},severity:{type:'string',enum:['minor','moderate','major']},evidence:{type:'string'},source:{type:'string',enum:['overview','corners']}},required:DEFECT_FIELDS};
@@ -94,13 +94,13 @@ function applyPhotoScores(a,measurements){
     const deduction=entry.confirmedDefects.reduce((sum,defect)=>sum+SCORE_POLICY.deductions[defect.severity],0);
     scores[key]=usable?Math.max(0,SCORE_POLICY.baseline-deduction):null;
     const marks=entry.confirmedDefects.map(defect=>`${defect.side==='front'?'앞면':'뒷면'} ${LOCATION_NAMES[defect.location]} ${KIND_NAMES[defect.kind]}`).join(', ');
-    a.categoryReports[key].assessment=usable?(deduction?`${marks} 등 확인된 결함 ${entry.confirmedDefects.length}건으로 ${Math.min(SCORE_POLICY.baseline,deduction).toFixed(1)}점을 감점한 사진 참고 점수 ${scores[key].toFixed(1)}점입니다.`:'양면에서 확인된 결함이 없어 사진 참고 점수 9.5점입니다. 불확실한 흔적은 감점하지 않았습니다.'):SIDES.filter(side=>entry.visibility[side]==='unassessable').map(side=>(side==='front'?'앞면: ':'뒷면: ')+entry.reason[side].trim()).join(' ');
+    a.categoryReports[key].assessment=usable?(deduction?`${marks} 등 확인된 결함 ${entry.confirmedDefects.length}건으로 ${Math.min(SCORE_POLICY.baseline,deduction).toFixed(1)}점을 감점한 사진 참고 점수 ${scores[key].toFixed(1)}점입니다.`:`양면에서 확인된 결함이 없어 사진 참고 점수 ${SCORE_POLICY.baseline.toFixed(1)}점입니다. 불확실한 흔적은 감점하지 않았습니다.`):SIDES.filter(side=>entry.visibility[side]==='unassessable').map(side=>(side==='front'?'앞면: ':'뒷면: ')+entry.reason[side].trim()).join(' ');
   }
   const worst=side=>Math.max(measurements[side].lPct,measurements[side].rPct,measurements[side].tPct,measurements[side].bPct);
   if(measurements.front===null||measurements.back===null)scores.centering=null;
   else{
     const front=worst('front'),back=worst('back');
-    scores.centering=front<=51&&back<=51?10:Math.max(0,9.5-.5*Math.ceil(Math.max(0,front-55)/5)-.5*Math.ceil(Math.max(0,back-75)/5));
+    scores.centering=front<=51&&back<=51?10:Math.max(0,SCORE_POLICY.baseline-.5*Math.ceil(Math.max(0,front-55)/5)-.5*Math.ceil(Math.max(0,back-75)/5));
   }
   scores.final=REPORT_KEYS.every(key=>typeof scores[key]==='number')?Math.min(...REPORT_KEYS.map(key=>scores[key])):null;
   a.scores=Object.fromEntries(SCORE_KEYS.map(key=>[key,scores[key]]));

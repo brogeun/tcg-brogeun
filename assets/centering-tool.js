@@ -324,7 +324,7 @@
     for(const [category,locations] of Object.entries(inspectionRegions))for(const side of sides)for(const location of locations){
       const value=inspection?.[category]?.[side]?.[location];if(!['observed','limited','unavailable'].includes(value))return;entries.push({side,location,value});
     }
-    if(data.reportVersion!==5||entries.length!==22)return;
+    if(![5,6].includes(data.reportVersion)||entries.length!==22)return;
     const create=(tag,text)=>{const el=document.createElement(tag);if(text)el.textContent=text;return el;};
     const counts=Object.fromEntries(['observed','limited','unavailable'].map(value=>[value,entries.filter(entry=>entry.value===value).length]));
     const details=create('details'),summary=create('summary',`부위별 확인 범위 · 확인 ${counts.observed} · 제한 ${counts.limited} · 미확인 ${counts.unavailable}`),grid=create('div');grid.className='cr-inspection-grid';details.append(summary);
@@ -373,21 +373,31 @@
     if(takeaways.children.length)host.append(takeaways);
     host.hidden=false;return true;
   }
+  function estimateText(value){
+    if(!value||!Number.isInteger(value.high)||value.high<1||value.high>10)return null;
+    if(value.low===null)return `${value.high} 이하`;
+    if(!Number.isInteger(value.low)||value.low<1||value.low>value.high)return null;
+    return value.low===value.high?String(value.high):`${value.low}–${value.high}`;
+  }
   function renderResult(data){
     const result=data.analysis,wrap=id('centeringAIResult');wrap.style.display='';renderInspection(data);put('centeringAICacheNote','');
     const measured=renderReviewMeasurements(data.measurements),evidencePolicy=data.scorePolicy?.version==='photo-evidence-v1';
-    show('centeringAIScorePolicy',evidencePolicy);
+    const gradeMode=data.reportVersion===6&&!!result?.gradeEstimate&&['estimated','limited','insufficient'].includes(result.gradeEstimate.status);
+    const grade=gradeMode?result.gradeEstimate:null,overallRange=estimateText(grade);
+    wrap.dataset.gradeMode=String(gradeMode);show('centeringAIEstimate',gradeMode);show('centeringAIScorePolicy',false);
+    put('centeringAIGradeRange',overallRange||'산정 어려움');put('centeringAIGradeReason',grade?.reason||'');
     const detailCount=data.imageReview?.cornerViews;
     put('centeringAIInputNote',Number.isInteger(detailCount)&&detailCount>0?`앞·뒷면 전체와 원본 모서리 확대 ${detailCount}곳을 함께 확인했습니다.`:data.imageReview?.wholeImages===2?'앞·뒷면 전체 사진으로 확인했습니다.':'');
     for(const key of ['centering','corners','edges','surface','final']){
       const el=wrap.querySelector(`[data-score="${key}"]`),reason=wrap.querySelector(`[data-score-reason="${key}"]`),value=result?.scores?.[key];
-      if(el)el.textContent=typeof value==='number'?value.toFixed(1):key==='centering'?(measured===2?'측정 완료':measured?'일부 측정':'측정 제외'):key==='final'?'종합 미산정':'확인 어려움';
-      if(reason)reason.textContent=result?.limitations?.[key]||(key==='centering'?(typeof value==='number'?(evidencePolicy?'확인한 비율에 따른 앱 참고 점수':'측정값과 사진에 근거한 참고 점수'):measured?'확인한 경계의 비율':'확인한 센터링 측정값 없음'):typeof value==='number'?(evidencePolicy?(key==='final'?'네 항목 중 가장 낮은 참고 점수':'확인된 결함만 감점'):'사진에서 보이는 범위'):key==='final'?'일부 항목 미산정으로 종합 점수 없음':'이 사진으로 세부 확인 어려움');
+      const range=gradeMode?estimateText(result.categoryEstimates?.[key]):null;
+      if(el)el.textContent=gradeMode?(range||(key==='centering'?'측정 제외':'확인 어려움')):typeof value==='number'?value.toFixed(1):key==='centering'?(measured===2?'측정 완료':measured?'일부 측정':'측정 제외'):key==='final'?'종합 미산정':'확인 어려움';
+      if(reason)reason.textContent=gradeMode?(result?.limitations?.[key]||(key==='centering'?'확인한 양면 비율 기준':key==='final'?'전체 관찰 결과 종합':'결함의 종류·범위 반영')):result?.limitations?.[key]||(key==='centering'?(typeof value==='number'?(evidencePolicy?'확인한 비율에 따른 앱 참고 점수':'측정값과 사진에 근거한 참고 점수'):measured?'확인한 경계의 비율':'확인한 센터링 측정값 없음'):typeof value==='number'?(evidencePolicy?(key==='final'?'네 항목 중 가장 낮은 참고 점수':'확인된 결함만 감점'):'사진에서 보이는 범위'):key==='final'?'일부 항목 미산정으로 종합 점수 없음':'이 사진으로 세부 확인 어려움');
     }
     const hasScores=['corners','edges','surface'].some(key=>typeof result?.scores?.[key]==='number');
-    put('centeringAIStatus',result?.status==='ready'?'사진 상태 분석 완료':measured||hasScores?'확인 가능한 항목 분석 완료':'판독 범위 확인 완료');
+    put('centeringAIStatus',gradeMode?(grade?.status==='estimated'?'예상 등급 분석 완료':'확인한 범위 분석 완료'):result?.status==='ready'?'사진 상태 분석 완료':measured||hasScores?'확인 가능한 항목 분석 완료':'판독 범위 확인 완료');
     const finalScore=result?.scores?.final;
-    wrap.querySelector('[data-score-grade="final"]').textContent=typeof finalScore==='number'?`종합 사진 참고 점수 ${finalScore.toFixed(1)}점 · 네 항목 중 가장 낮은 점수입니다.`:'확인 가능한 항목의 결과를 정리했습니다.';
+    const finalLabel=wrap.querySelector('[data-score-grade="final"]');finalLabel.hidden=gradeMode;finalLabel.textContent=gradeMode?'':typeof finalScore==='number'?`종합 사진 참고 점수 ${finalScore.toFixed(1)}점 · 네 항목 중 가장 낮은 점수입니다.`:'확인 가능한 항목의 결과를 정리했습니다.';
     const detailed=renderDetailedReport(result),legacy=id('centeringAIText');legacy.hidden=detailed;legacy.textContent=detailed?'':[result?.summary,...(result?.observations||[])].filter(Boolean).join('\n\n');lastQuota=data.quota||null;
     wrap.scrollIntoView({block:'nearest',behavior:'auto'});
   }

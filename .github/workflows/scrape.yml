@@ -282,6 +282,71 @@ jobs:
             exit 1
           fi
 
+      - name: Fingerprint existing production runtime before deployment
+        if: ${{ env.CF_API_TOKEN != '' }}
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, sys, time, urllib.request
+          API = 'https://api.cloudflare.com/client/v4/accounts/'
+          PROJECT = 'tcghubrogeun'
+          META = {'id','short_id','url','aliases','created_on','modified_on','latest_stage','stages',
+                  'deployment_trigger','build_config','source','is_skipped','project_id','project_name',
+                  'build_image_major_version','production_script_name','preview_script_name','environment'}
+          def fingerprint(value):
+              return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+          def get(path):
+              url = API + os.environ['CF_ACCOUNT_ID'] + '/pages/projects/' + PROJECT + path
+              req = urllib.request.Request(url, headers={'Authorization':'Bearer '+os.environ['CF_API_TOKEN'], 'Accept':'application/json'})
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  data = json.load(response)
+              if data.get('success') is not True: raise RuntimeError('Runtime metadata query failed')
+              return data['result']
+          def snapshot(project, deployment):
+              production = project['deployment_configs']['production']
+              assert isinstance(production,dict) and production, 'Production settings missing'
+              assert {'OPENAI_API_KEY','JWT_SECRET'}.issubset(production.get('env_vars',{})), 'Existing application secrets missing'
+              assert 'DB' in production.get('d1_databases',{}), 'Existing database binding missing'
+              assert deployment.get('environment') == 'production', 'Expected production deployment'
+              runtime = {key:value for key,value in deployment.items() if key not in META}
+              assert isinstance(runtime.get('env_vars'),dict) and runtime.get('d1_databases'), 'Deployment runtime metadata missing'
+              return {'productionSettingsSHA256':fingerprint(production), 'deploymentRuntimeSHA256':fingerprint(runtime),
+                      'runtimeKeys':sorted(runtime), 'secretValuesStored':False}
+          def compare(expected, current):
+              assert expected == current, 'Runtime configuration changed during deployment; inspect before further publication'
+          def main():
+              mode = sys.argv[1]
+              assert mode in ('snapshot','verify')
+              receipt = Path(os.environ['RUNNER_TEMP'])/'tcghub-centering-runtime-fingerprint.json'
+              project = get('')
+              for attempt in range(11):
+                  deployment = project.get('canonical_deployment') or {}
+                  commit = deployment.get('deployment_trigger',{}).get('metadata',{}).get('commit_hash')
+                  if mode == 'snapshot' or commit == os.environ['DEPLOY_COMMIT']: break
+                  if attempt == 10: raise RuntimeError('Canonical deployment does not match the reviewed source')
+                  time.sleep(3); project = get('')
+              deployment = get('/deployments/'+deployment['id'])
+              current = snapshot(project, deployment)
+              if mode == 'snapshot':
+                  assert not receipt.exists(), 'Existing runtime fingerprint needs inspection'
+                  receipt.write_text(json.dumps(current,sort_keys=True),encoding='utf-8')
+                  print('Existing production runtime fingerprint recorded; no raw settings or secret values saved.')
+              else:
+                  assert deployment.get('latest_stage',{}).get('status') == 'success', 'Canonical deployment is not successful'
+                  compare(json.loads(receipt.read_text(encoding='utf-8')), current)
+                  print('Production runtime settings and bindings preserved; reviewed deployment confirmed.')
+                  print('VERIFIED_DEPLOY_COMMIT='+os.environ['DEPLOY_COMMIT'])
+          if __name__ == '__main__':
+              try: main()
+              except Exception as error:
+                  print('::error::Runtime preservation check failed ('+type(error).__name__+'). No settings or credentials printed.')
+                  sys.exit(1)
+          PY
+          python "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" snapshot
+
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}
         env:
@@ -293,6 +358,13 @@ jobs:
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           command: pages deploy _deploy --project-name=tcghubrogeun --branch=main --commit-dirty=true
 
+
+      - name: Verify production runtime preserved after deployment
+        if: ${{ env.CF_API_TOKEN != '' }}
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: python "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" verify
 
       - name: Report incomplete daily collection after retaining valid independent updates
         # Deployment-only runs report stale datasets above, but did not request collection.

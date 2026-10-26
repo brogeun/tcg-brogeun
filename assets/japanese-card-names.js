@@ -114,6 +114,18 @@
       }).then(configure).catch(error=>{ready=null;throw error});
       return ready;
     }
+    // Display labels may fall back to the source name; identity callers keep ensureData strict.
+    async function ensureDisplayData() {
+      if (data) return true;
+      let timer;
+      try {
+        return await Promise.race([
+          ensureData().then(() => true, () => false),
+          new Promise(resolve => { timer = setTimeout(() => resolve(false), 1500); }),
+        ]);
+      } catch { return false; }
+      finally { clearTimeout(timer); }
+    }
     function translate(head) {
       let value = fold(head).replace(/\b(Hisuian|Galarian|Alolan|Paldean)(?=[A-Z])/g,'$1 ').replace(/'s(?=[A-Z])/g,"'s ").replace(/\b(Ice Rider|Shadow Rider|Rapid Strike|Single Strike)(?=[A-Z])/g,'$1 ').replace(/(?<=[a-z])(?=Soul Link)/g,' ');
       value = value.replace(/\b(\d+)(?:st|nd|rd|th)(?=\s+(?:Anniversary|Holo|Celebration)\b|\))/gi,'$1주년').replace(/\b(\d+)(?:st|nd|rd|th)(?=\s+Illustration Grand Prix\b)/gi,'제$1회');
@@ -190,7 +202,7 @@
       const label = visible.replace(/안농\s*(?:\[[A-Z!?]\]|\([A-Z!?]\)|[A-Z!?](?![A-Za-z]))/g,'안농').replace(/(?<![A-Za-z])(?:V-UNION|LV\.X|ACE\s*SPEC|HANDY(?:505|910is)|GFPD|WLFM|TS-[12]|G-\d{3}|CS\d{4}|SC2|B\/RGB|G\/RGB|R\/RGB|MC|PRO|VIP|UB|MAX|FF|WP|AZ|PP|DX|GB2?|AD|SIR|SUR|BWR|TV|ex|EX|GX|V|VMAX|VSTAR|BREAK|LEGEND|SP|SAR|SR|RR|RRR|AR|R|U|C|P|HR|UR|SSR|S|CHR|CSR|MA|MUR|SA|K|A|B|D|F|G|H|M|W|GL|FB|E4|C4|X|Y|Z|N|HP|PR|L|TR|ACE|No\.?\s*\d+)(?![A-Za-z])/g,'');
       return /[A-Za-z\u3040-\u30ff\u4e00-\u9fff]/.test(label) ? label.replace(/\s+/g,' ').trim() : '';
     }
-    const api = {configure,ensureData,title,searchText,normalizeQuery,language,candidateCatalogueId,unresolved,parts};
+    const api = {configure,ensureData,ensureDisplayData,title,searchText,normalizeQuery,language,candidateCatalogueId,unresolved,parts};
     if (initial) configure(initial);
     return api;
   }

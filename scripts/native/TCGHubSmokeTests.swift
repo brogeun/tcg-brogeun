@@ -45,6 +45,14 @@ final class TCGHubSmokeTests: XCTestCase {
         try tapNavigation(app, "시세")
         XCTAssertTrue(web.staticTexts["SNKRDUNK 실거래가 기준"].waitForExistence(timeout: 20))
         XCTAssertTrue(web.buttons["박스"].firstMatch.waitForExistence(timeout: 20))
+        // The subtitle and tabs exist even when the price grid is still
+        // loading or has failed. Require a real rendered product-card tag.
+        let actualPriceCard = web.descendants(matching: .any).matching(
+            NSPredicate(format: "label CONTAINS %@", "SNKRDUNK 최저가")).firstMatch
+        let priceCardsLoaded = actualPriceCard.waitForExistence(timeout: 60)
+        if !priceCardsLoaded { attach(app, "02-prices-data-missing") }
+        XCTAssertTrue(priceCardsLoaded,
+                      "No actual price cards rendered; loading or error screens must not pass")
         attach(app, "02-prices")
 
         try tapNavigation(app, "소식")

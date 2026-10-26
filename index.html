@@ -2518,12 +2518,12 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261014-japanese3">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/contained-card-match.js?v=20261014-japanese3"></script>
-<script src="/assets/japanese-card-names.js?v=20261021-reviews1"></script>
+<script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <script src="/assets/japanese-catalog.js?v=20261021-reviews1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20261026-interaction2"></script>
+<script src="/assets/price-expanded.js?v=20261026-display-fallback2"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -5143,7 +5143,8 @@ async function loadPriceGrid() {
     if (!current()) return;
     if (!d?.ok) throw new Error(d?.error || '데이터 형식 오류');
     const allProducts = d.products || [];
-    await window.JapaneseCardNames?.ensureData();
+    const localizeNames = brand === 'pokemon' && category === 'card'
+      ? await window.JapaneseCardNames?.ensureDisplayData?.() : false;
     await enrichPriceProductMetadata(allProducts, category);
     if (!current()) return;
     let all = category === 'box' ? allProducts.filter(isPriceBoxProduct) : [...allProducts];
@@ -5165,7 +5166,7 @@ async function loadPriceGrid() {
     } catch { if (current()) PRICE_CACHE[brand] = all; }
     if (category === 'card') await applyGradePrices(all);
     if (!current()) return;
-    renderPriceGrid(all);
+    renderPriceGrid(all, {localizeNames: !!localizeNames});
     if (all.length === 0) {
       status.textContent = `현재 표시할 ${labelText} 데이터가 없습니다.`;
       if (listInfo) listInfo.textContent = `${labelText} 0개`;
@@ -5226,7 +5227,7 @@ async function applyGradePrices(products) {
   return products;
 }
 
-function renderPriceGrid(products) {
+function renderPriceGrid(products, {localizeNames = true} = {}) {
   const grid = document.getElementById('priceGrid');
   if (!products.length) {
     grid.innerHTML = `
@@ -5240,7 +5241,7 @@ function renderPriceGrid(products) {
     const price = p.lastPrice ?? p.lowestAsk;
     const safeName = (p.name || '—').replace(/&quot;/g, '"');
     // 박스는 CARDINFO.boxId 직접 매칭을 우선하고, ID가 없을 때만 기존 오버라이드를 사용한다.
-    const ko = (PRICE_CAT === 'box') ? (getBoxKoreanName(p, PRICE_BRAND) || p._koName || null) : (PRICE_BRAND==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...p,brand:'pokemon'}) : null);
+    const ko = (PRICE_CAT === 'box') ? (getBoxKoreanName(p, PRICE_BRAND) || p._koName || null) : (localizeNames && PRICE_BRAND==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...p,brand:'pokemon'}) : null);
     const escapedName = escapeHtml(safeName);
     const escapedKo = ko ? escapeHtml(ko) : '';
     const fullNameTitle = escapeHtml(ko ? `${ko} · ${safeName}` : safeName);
@@ -5518,10 +5519,11 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
   const bgs10GlPrice = _conv(bgs10GlJpy, 'JPY');
   const bgs95Price   = _conv(bgs95Jpy, 'JPY');
 
-  // 헤더
-  await window.JapaneseCardNames?.ensureData();
+  // Names are optional display metadata; verified source prices remain usable without them.
+  const localizeNames = !isBox && brand === 'pokemon'
+    ? await window.JapaneseCardNames?.ensureDisplayData?.() : false;
   if (!current()) return;
-  document.getElementById('slideName').textContent = !isBox && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : name;
+  document.getElementById('slideName').textContent = localizeNames && !isBox && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : name;
   document.getElementById('slideNameEn').textContent = (product && product.name_en) || '';
   document.getElementById('slidePack').textContent = pack || '';
   const badge = document.getElementById('slideBadge');
@@ -9096,8 +9098,9 @@ async function fetchCardMeta(cardId) {
       const box = meta?.kind === 'box' || BOX_ID_SET?.has(String(cardId));
       const info = await PriceProductInfo.get(product, result.brand, box);
       result.pack = info.sets.map(PriceProductInfo.label).join(' / ');
-      await window.JapaneseCardNames?.ensureData();
-      result.koName = (box && getBoxKoreanName(product,result.brand)) || (!box && result.brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand:'pokemon'}) : '') || HOME_TOP_KO_NAMES[String(cardId)] || product._koName || product.name_ko || '';
+      const localizeNames = !box && result.brand === 'pokemon'
+        ? await window.JapaneseCardNames?.ensureDisplayData?.() : false;
+      result.koName = (box && getBoxKoreanName(product,result.brand)) || (localizeNames && !box && result.brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand:'pokemon'}) : '') || HOME_TOP_KO_NAMES[String(cardId)] || product._koName || product.name_ko || '';
     } catch {}
   }
   _PF_PRICE_CACHE[cardId] = result;

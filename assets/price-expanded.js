@@ -81,7 +81,7 @@
       return;
     }
     const product={...original};
-    const [histData,detail]=await Promise.all([json(`/data/history/${encodeURIComponent(id)}.json`),loadCardsDetail(),enrichPriceProductMetadata([product],'box'),window.JapaneseCardNames?.ensureData()]);
+    const [histData,detail,,localizeNames]=await Promise.all([json(`/data/history/${encodeURIComponent(id)}.json`),loadCardsDetail(),enrichPriceProductMetadata([product],'box'),window.JapaneseCardNames?.ensureDisplayData?.()]);
     if (!current()) return;
     const history=sortedHistory(histData?.history);
     const box=isBox(product,history);
@@ -90,7 +90,7 @@
     if (!current()) return;
     const sets=catalogInfo.sets;
     const originalName=decode(product.name);
-    const name=decode((box && getBoxKoreanName(product,brand)) || (!box && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : '') || HOME_TOP_KO_NAMES[String(id)] || product._koName || product.name_ko || originalName);
+    const name=decode((box && getBoxKoreanName(product,brand)) || (localizeNames && !box && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : '') || HOME_TOP_KO_NAMES[String(id)] || product._koName || product.name_ko || originalName);
     const pack=decode(sets.map(PriceProductInfo.label).join(' / ') || product.set_name || product.pack || '');
     const release=sets.length ? sets.map(s=>`${sets.length>1?s.code+' · ':''}${s.release || '카드정보에 발매일 미등록'}`).join(' / ')
       : product.release_date || product.releaseDate || '카드정보에 발매일 미등록';

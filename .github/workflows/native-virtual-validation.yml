@@ -1,0 +1,90 @@
+name: Native Virtual Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - verify/native-20261026
+      - fix/native-virtual-20261026
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-virtual-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ios-simulator:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record reviewed source and toolchain
+        run: |
+          mkdir -p native-evidence
+          git rev-parse HEAD | tee native-evidence/source-commit.txt
+          sw_vers | tee native-evidence/macos.txt
+          xcodebuild -version | tee native-evidence/xcode-version.txt
+      - name: Install the exact native dependency graph
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Prepare actual hosted web source and sync native plugins
+        run: |
+          npm run sync:ios
+          node scripts/native/harden-social-login-logging.mjs > native-evidence/native-log-patch.json
+          cp www/native-source-evidence.json native-evidence/
+      - name: Resolve every Swift package dependency
+        run: |
+          set -o pipefail
+          cp ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved native-evidence/Package.resolved.expected
+          xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App -clonedSourcePackagesDirPath "$RUNNER_TEMP/tcghub-spm" CODE_SIGNING_ALLOWED=NO 2>&1 | tee native-evidence/swift-resolve.log
+          cp ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved native-evidence/Package.resolved
+          git diff --exit-code -- ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+      - name: Build the complete unsigned iOS Simulator app
+        id: ios_build
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/tcghub-derived" -clonedSourcePackagesDirPath "$RUNNER_TEMP/tcghub-spm" CODE_SIGNING_ALLOWED=NO build 2>&1 | tee native-evidence/ios-build.log
+      - name: Boot virtual iPhone and install and launch the app
+        run: bash scripts/native/ios-simulator-smoke.sh
+      - name: Check hosted screens using native XCTest UI automation
+        run: |
+          set -o pipefail
+          if ! ruby -rxcodeproj -e 'puts Xcodeproj::VERSION'; then
+            export GEM_HOME="$RUNNER_TEMP/tcghub-validation-gems"
+            export GEM_PATH="$GEM_HOME"
+            gem install xcodeproj --version 1.27.0 --no-document
+          fi
+          ruby scripts/native/add-ios-ui-tests.rb
+          DEVICE=$(cat native-evidence/simulator-udid.txt)
+          xcodebuild test -project ios/App/App.xcodeproj -scheme TCGHubSmoke -configuration Debug -sdk iphonesimulator -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath "$RUNNER_TEMP/tcghub-derived" -clonedSourcePackagesDirPath "$RUNNER_TEMP/tcghub-spm" -resultBundlePath native-evidence/ios-ui-tests.xcresult -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO 2>&1 | tee native-evidence/ios-ui-tests.log
+          python3 scripts/native/record-ios-ui-result.py
+      - name: Compile the actual iOS device Release target without signing
+        if: always() && steps.ios_build.outcome == 'success'
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/tcghub-device-derived" -clonedSourcePackagesDirPath "$RUNNER_TEMP/tcghub-spm" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' DEVELOPMENT_TEAM='' PROVISIONING_PROFILE_SPECIFIER='' build 2>&1 | tee native-evidence/ios-device-release-build.log
+      - name: Package the simulator app with executable permissions preserved
+        id: ios_package
+        if: always() && steps.ios_build.outcome == 'success'
+        run: tar -czf "$RUNNER_TEMP/TCGHUB-iOS-Simulator.app.tar.gz" -C "$RUNNER_TEMP/tcghub-derived/Build/Products/Debug-iphonesimulator" App.app
+      - name: Preserve native build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-native-evidence-${{ github.sha }}
+          path: native-evidence/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Preserve installable simulator build
+        if: always() && steps.ios_package.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcghub-ios-simulator-${{ github.sha }}
+          path: ${{ runner.temp }}/TCGHUB-iOS-Simulator.app.tar.gz
+          retention-days: 3

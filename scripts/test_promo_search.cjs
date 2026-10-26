@@ -46,7 +46,7 @@ function context(fail=false) {
   const html=fs.readFileSync(fs.existsSync(candidate)?candidate:path.join(root,'index.html'),'utf8');
   const gridStart=html.indexOf('function renderPriceSearchAsGrid('),gridEnd=html.indexOf('function renderSearchResultsTo(',gridStart);
   let gridProducts;
-  const gridContext={document:{getElementById:()=>({innerHTML:''})},escapeHtml:value=>value,window:{PRICE_CAT:'box'},applyGradePrices:async()=>{},renderPriceGrid:products=>{gridProducts=products;}};
+  const gridContext={document:{body:{dataset:{page:'price'}},getElementById:()=>({innerHTML:'',style:{}})},escapeHtml:value=>value,window:{PRICE_CAT:'box'},applyGradePrices:async()=>{},renderPriceGrid:products=>{gridProducts=products;}};
   vm.createContext(gridContext);vm.runInContext(html.slice(gridStart,gridEnd),gridContext);
   gridContext.renderPriceSearchAsGrid([{id:'854159',name:'Zoro',minPrice:25,currency:'JPY'}],'854159');
   await Promise.resolve();assert.equal(gridProducts[0].currency,'JPY');assert.equal(gridProducts[0].lastPrice,25);assert.equal(gridContext.window.PRICE_CAT,'box');

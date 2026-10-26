@@ -8,7 +8,7 @@
  * 4. DB users 조회/생성 (kakao_id 기반 가짜 이메일 사용 — 다른 provider 와 분리)
  * 5. JWT 발급 + session cookie + 홈 redirect
  */
-import { signJwt } from '../../../_shared/jwt.js';
+import { signJwt, sha256Hex } from '../../../_shared/jwt.js';
 
 const SESSION_DAYS = 30;
 
@@ -134,7 +134,7 @@ export async function onRequestGet({ request, env }) {
   let user;
   try {
     user = await env.DB.prepare(
-      'SELECT id, email, name FROM users WHERE email = ?'
+      'SELECT * FROM users WHERE email = ?'
     ).bind(pseudoEmail).first();
   } catch (e) {
     return errorPage('서버 오류', `사용자 조회 실패: ${e.message || e}`, isApp);
@@ -170,17 +170,16 @@ export async function onRequestGet({ request, env }) {
   const jwt = await signJwt({ sub: user.id, email: user.email, exp }, env.JWT_SECRET);
 
   // 5) app 모드 (Capacitor 앱) 인지 확인 — 임시 1회용 코드 발급 + deep link redirect
-  if (isApp && env.ADMIN_KV) {
-    // 5-1) 임시 1회용 코드 생성 (UUID), KV 에 5분 저장
+  if (isApp) {
+    // D1 owns both expiry and atomic consumption. Hash raw codes at rest.
     const oneTimeCode = crypto.randomUUID();
     try {
-      await env.ADMIN_KV.put(
-        `oauth_code:${oneTimeCode}`,
-        JSON.stringify({ user_id: user.id, email: user.email, name: user.name || null, provider: 'kakao' }),
-        { expirationTtl: 300 }, // 5분
-      );
-    } catch (e) {
-      return errorPage('서버 오류', `임시 코드 저장 실패: ${e.message || e}`, isApp);
+      const result = await env.DB.prepare(
+        'INSERT INTO magic_tokens (token, email, expires_at, used) SELECT ?, email, ?, 0 FROM users WHERE id = ? AND email = ?'
+      ).bind('oauth-kakao:' + await sha256Hex(oneTimeCode), now + 300, user.id, user.email).run();
+      if (result?.meta?.changes !== 1) return errorPage('Login unavailable', 'Please start sign-in again.', isApp);
+    } catch {
+      return errorPage('Login unavailable', 'Please start sign-in again.', isApp);
     }
     // 5-2) deep link 로 redirect — 앱이 이 URL 받고 exchange-code 호출해서 진짜 세션 받음
     const deepLink = `kr.tcghub.app://kakao-callback?code=${encodeURIComponent(oneTimeCode)}`;

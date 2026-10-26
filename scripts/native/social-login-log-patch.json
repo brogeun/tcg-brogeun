@@ -1,0 +1,23 @@
+{
+  "package": "@capgo/capacitor-social-login",
+  "version": "8.3.22",
+  "relativeSource": "ios/Sources/SocialLoginPlugin/AppleProvider.swift",
+  "originalSHA256": "1f15a25d5bfa8133f96b0a08d03fb49e995fa811359503c7cf02c7645eac3991",
+  "patchedSHA256": "38262897c4f6f25e38a7415d813bc575759cb988dbe0d5392a5f97e0343a61ae",
+  "replacements": [
+    {
+      "from": "print(\"Apple persistState: \\(jsonString)\")",
+      "to": "// TCGHUB: omit persisted authentication tokens from device logs."
+    },
+    {
+      "from": "print(\"Apple retrieveState: \\(object)\")",
+      "to": "// TCGHUB: omit restored authentication tokens from device logs."
+    },
+    {
+      "from": "print(\"ID Token: \\(idToken)\")",
+      "to": "// TCGHUB: omit the identity token from device logs."
+    }
+  ],
+  "scope": "Redact exactly these three AppleProvider runtime token print sites. Does not claim to audit all Google/Android logs or change token storage.",
+  "sourceLicense": "Existing installed package license and all vendor source headers remain unchanged."
+}

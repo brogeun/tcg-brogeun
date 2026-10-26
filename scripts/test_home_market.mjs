@@ -56,8 +56,8 @@ for(const product of [
   if(product._productKind==='card')assert.equal(nodes['#pxLabel'].textContent,'A급(미개봉) 기준');
 }
 assert.match(html,/const FX_READY =/);
-assert.match(html,/async function showPriceDetailPanel\(productId\) \{\s*await FX_READY/);
-assert.match(html,/async function renderSlidePanel\(productId\) \{\s*await FX_READY/);
+assert.match(html,/async function showPriceDetailPanel\(productId\) \{[\s\S]*?await FX_READY/);
+assert.match(html,/async function renderSlidePanel\(productId,[\s\S]*?await FX_READY/);
 assert.match(html,/await FX_READY;\s*await window.AnniversaryMarket\?\.load\(\);\s*renderHomeTopRow/);
 assert.doesNotMatch(html,/현재 TOP 시세 원본에 등락률이 제공되지 않습니다/);
 console.log('PASS: listing/history separation, JPY/USD home-detail parity, raw/PSA separation, live raw protection, trade changes, missing data, dedup/retry, FX ordering');

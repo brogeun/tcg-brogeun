@@ -62,6 +62,56 @@ const DIRECT_HEADERS = {
 };
 
 /* SNKRDUNK 등 봇 차단 약한 사이트는 직접 호출 (264.hl 검증 완료) */
+// The legacy card lookup must enforce the same source boundary as /api/snkrdunk.
+const SNKR_MAX_HTML_BYTES = 5 * 1024 * 1024;
+const SNKR_REDIRECTS = new Set([301, 302, 303, 307, 308]);
+function trustedCardSourceUrl(value) {
+  const target = new URL(value);
+  if (target.protocol !== "https:" || target.hostname !== "snkrdunk.com" ||
+      target.username || target.password || target.port) throw new Error("Invalid SNKRDUNK source");
+  target.hash = "";
+  return target;
+}
+async function getSnkrdunkHtml(value) {
+  let target = trustedCardSourceUrl(value);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    for (let hop = 0; hop < 4; hop++) {
+      const response = await fetch(target.href, { headers: DIRECT_HEADERS,
+        redirect: "manual", signal: controller.signal });
+      if (SNKR_REDIRECTS.has(response.status)) {
+        const location = response.headers.get("Location");
+        await response.body?.cancel();
+        if (!location || hop === 3) throw new Error("Invalid SNKRDUNK redirect");
+        target = trustedCardSourceUrl(new URL(location, target).href);
+        continue;
+      }
+      if (response.url) trustedCardSourceUrl(response.url);
+      if (!response.ok) { await response.body?.cancel(); throw new Error("SNKRDUNK source unavailable"); }
+      if (Number(response.headers.get("Content-Length")) > SNKR_MAX_HTML_BYTES) {
+        await response.body?.cancel(); throw new Error("SNKRDUNK source too large");
+      }
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("SNKRDUNK source is empty");
+      const chunks = []; let length = 0;
+      try {
+        while (true) {
+          const {done, value: chunk} = await reader.read();
+          if (done) break;
+          length += chunk.byteLength;
+          if (length > SNKR_MAX_HTML_BYTES) { await reader.cancel(); throw new Error("SNKRDUNK source too large"); }
+          chunks.push(chunk);
+        }
+      } finally { reader.releaseLock(); }
+      const bytes = new Uint8Array(length); let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+      return new TextDecoder().decode(bytes);
+    }
+    throw new Error("Invalid SNKRDUNK redirect");
+  } finally { clearTimeout(timer); controller.abort(); }
+}
+
 async function getHtmlDirect(url, opts = {}) {
   const r = await fetch(url, { headers: DIRECT_HEADERS, redirect: "follow" });
   if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
@@ -93,7 +143,7 @@ async function getHtmlViaBee(url, opts = {}) {
 async function getHtmlSmart(url, opts = {}) {
   // SNKRDUNK: 항상 직접 (무료)
   if (url.includes("snkrdunk.com")) {
-    return getHtmlDirect(url, opts);
+    return getSnkrdunkHtml(url);
   }
   // PSA: ScrapingBee (봇 차단 강함)
   if (url.includes("psacard.com")) {
@@ -597,21 +647,21 @@ export async function onRequest(context) {
 
   // 모드 0: 임의 SNKRDUNK URL 조회 (포트폴리오 추가용)
   if (qs.snkrdunkUrl) {
-    if (!qs.snkrdunkUrl.startsWith("https://snkrdunk.com/")) {
-      return json(400, { ok: false, error: "snkrdunkUrl must start with https://snkrdunk.com/" });
-    }
+    let sourceUrl;
+    try { sourceUrl = trustedCardSourceUrl(qs.snkrdunkUrl).href; }
+    catch { return json(400, { ok: false, error: "snkrdunkUrl must be an HTTPS snkrdunk.com URL without credentials or a custom port" }); }
     try {
-      const html = await getHtmlSmart(qs.snkrdunkUrl, { country_code: "jp" });
-      const data = parseSnkrdunk(html, qs.snkrdunkUrl);
+      const html = await getHtmlSmart(sourceUrl, { country_code: "jp" });
+      const data = parseSnkrdunk(html, sourceUrl);
       return json(200, {
         ok: true,
         type: "snkrdunkUrl",
-        url: qs.snkrdunkUrl,
+        url: sourceUrl,
         data,
         fetchedAt: new Date().toISOString(),
       });
     } catch (e) {
-      return json(500, { ok: false, error: String(e && e.message || e), url: qs.snkrdunkUrl });
+      return json(500, { ok: false, error: String(e && e.message || e), url: sourceUrl });
     }
   }
 

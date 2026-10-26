@@ -15,7 +15,7 @@ const calls = [], renders = [];
 const first = new Promise(resolve => {resolveFirst = resolve;});
 const response = products => ({ok:true,json:async () => ({ok:true,products})});
 const ctx = {
-  PRICE_BRAND:'pokemon',PRICE_CAT:'box',PRICE_LOADING:false,HOME_TOP_CACHE:{},
+  PRICE_BRAND:'pokemon',PRICE_CAT:'box',PRICE_LOADING:false,HOME_TOP_CACHE:{},PRICE_CACHE:{},
   document:{getElementById:node},window:{},Math,Date,console,
   escapeHtml:s=>s,
   enrichPriceProductMetadata:async x=>x,
@@ -34,6 +34,7 @@ vm.createContext(ctx);vm.runInContext(code,ctx);
   await old;
   assert.equal(renders.length,1);
   assert.equal(JSON.stringify(renders[0].ids),'["onepiece-card"]');
-  assert(!ctx.HOME_TOP_CACHE.onepiece?.some(x=>x.id==='pokemon-box'));
+  assert(!ctx.PRICE_CACHE.onepiece?.some(x=>x.id==='pokemon-box'));
+  assert.equal(Object.keys(ctx.HOME_TOP_CACHE).length,0,'price requests cannot overwrite home ranks');
   console.log(JSON.stringify({calls,renders,cache:ctx.HOME_TOP_CACHE}));
 })().catch(e=>{console.error(e);process.exitCode=1;});

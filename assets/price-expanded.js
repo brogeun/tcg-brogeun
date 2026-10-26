@@ -4,6 +4,7 @@
   const grades = [['psa10','PSA 10'],['psa9','PSA 9'],['raw','A급(미개봉)'],['bgs10_bl','BGS 10 BL'],['bgs10_gl','BGS 10 GL'],['bgs95','BGS 9.5']];
   let returnContext = null;
   let observer = null;
+  let detailRequest = 0;
   const icon = name => `<svg class="px-icon" viewBox="0 0 24 24" aria-hidden="true">${({back:'<path d="m12 5-7 7 7 7M5 12h14"/>',star:'<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/>',share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/>',plus:'<path d="M12 5v14M5 12h14"/>',external:'<path d="M14 3h7v7M21 3l-9 9M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>'})[name] || ''}</svg>`;
   const decode = value => { const el=document.createElement('textarea'); el.innerHTML=String(value||''); return el.value; };
   const positive = value => Number.isFinite(Number(value)) && Number(value)>0;
@@ -40,7 +41,7 @@
   function krw(q) { return q ? fmtKrw(q.value,q.currency) : '—'; }
   window.setExpandedPriceMode = enabled => {
     document.body.classList.toggle('price-expanded',enabled);
-    if (!enabled) { observer?.disconnect(); observer=null; }
+    if (!enabled) { detailRequest++; observer?.disconnect(); observer=null; }
   };
   function back() {
     const context=returnContext; returnContext=null;
@@ -70,7 +71,8 @@
   window.addEventListener('hashchange',routeChanged);
   const head = () => `<header class="px-head"><button type="button" class="px-back" data-px-back>${icon('back')}뒤로가기</button><div class="px-nav"></div></header>`;
   window.renderExpandedPriceDetail = async (id, original, panel) => {
-    const current=()=>panel.dataset.productId===String(id) && document.body.classList.contains('price-expanded');
+    const request=++detailRequest;
+    const current=()=>request===detailRequest && panel.dataset.productId===String(id) && document.body.classList.contains('price-expanded');
     if (!current()) return;
     panel.innerHTML=`<article class="px-detail">${head()}<div class="px-empty" role="status">시세 정보를 불러오는 중입니다.</div></article>`;
     panel.querySelector('[data-px-back]').onclick=back;
@@ -94,6 +96,7 @@
       : product.release_date || product.releaseDate || '카드정보에 발매일 미등록';
     const keys=box?[['box','박스']]:grades.map(([key,label])=>[key,key==='raw'&&product.packaging?window.AnniversaryMarket.rawLabel(product):label]);
     const values={};
+    const noListingGrades=new Set();
     const staticGrades=detail?.cards?.[id]?.grades || {};
     for (const [key] of keys) {
       values[key]=box ? null : quote(staticGrades[key]);
@@ -150,14 +153,14 @@
       if (!current()) return;
       const q=values[state.grade];
       panel.querySelector('#pxLabel').textContent=keys.find(([k])=>k===state.grade)[1]+' 기준';
-      const display=q=>q?krw(q):anniversary?'출품 없음':'—';
-      panel.querySelector('#pxCurrent').textContent=display(q);
-      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || (anniversary?'수집 시점 출품 없음':'가격 데이터 없음'));
+      const display=(q,key)=>q?krw(q):anniversary || noListingGrades.has(key)?'출품 없음':'—';
+      panel.querySelector('#pxCurrent').textContent=display(q,state.grade);
+      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || (anniversary?'수집 시점 출품 없음':noListingGrades.has(state.grade)?'현재 출품 없음':'가격 데이터 없음'));
       const portfolio=panel.querySelector('#pxPortfolio');
       portfolio.disabled=state.grade.startsWith('bgs');
       portfolio.title=portfolio.disabled?'BGS는 시세 참고용입니다. 현재 포트폴리오는 PSA 10·PSA 9·A급·박스 등급을 지원합니다.':'선택한 등급으로 포트폴리오 추가';
-      panel.querySelectorAll('[data-px-grade]').forEach(btn=>{const key=btn.dataset.pxGrade;btn.setAttribute('aria-pressed',String(key===state.grade));btn.querySelector('.px-grade-price').textContent=display(values[key]);});
-      panel.querySelector('#pxGradeRows').innerHTML=keys.map(([key,label])=>`<tr class="${key===state.grade?'is-selected':''}"><td>${label}</td><td>${display(values[key])}</td><td>${changeHTML(change7(history,key+'_price'))}</td></tr>`).join('');
+      panel.querySelectorAll('[data-px-grade]').forEach(btn=>{const key=btn.dataset.pxGrade;btn.setAttribute('aria-pressed',String(key===state.grade));btn.querySelector('.px-grade-price').textContent=display(values[key],key);});
+      panel.querySelector('#pxGradeRows').innerHTML=keys.map(([key,label])=>`<tr class="${key===state.grade?'is-selected':''}"><td>${label}</td><td>${display(values[key],key)}</td><td>${changeHTML(change7(history,key+'_price'))}</td></tr>`).join('');
       draw();
     }
     panel.querySelectorAll('[data-px-grade]').forEach(btn=>btn.onclick=()=>{state.grade=btn.dataset.pxGrade;update();});
@@ -166,9 +169,14 @@
     update(); observer?.disconnect();observer=new ResizeObserver(draw);observer.observe(panel.querySelector('#pxChart'));
     // Static data renders immediately; live current asks update only this still-active product.
     if (!box && !anniversary) {
-      const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}`);
+      const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}&v=3`);
       if (!current() || !live?.ok) return;
-      for (const [key] of keys) {if(key==='raw' && product._isTop10 && listing)continue;const q=quote(live.grades?.[key]);if(q)values[key]=q;}
+      for (const [key] of keys) {
+        if (Array.isArray(live.noListingGrades) && live.noListingGrades.includes(key)) { values[key]=null; noListingGrades.add(key); continue; }
+        if (key==='raw' && product._isTop10 && listing) continue;
+        const q=quote(live.grades?.[key]);
+        if (q) values[key]=q;
+      }
       update();
     }
   };

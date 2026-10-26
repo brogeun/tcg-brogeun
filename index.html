@@ -1318,6 +1318,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
       <div class="price-status" id="priceStatus" role="status" aria-live="polite"></div>
       <div id="priceGrid" class="price-grid"></div>
+      <nav id="priceSearchPages" aria-label="검색 결과 페이지" hidden style="display:none;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:20px"></nav>
 
       <style>
         /* ─── 시세 페이지 새 디자인 ─── */
@@ -2522,7 +2523,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20261014-japanese3"></script>
+<script src="/assets/price-expanded.js?v=20261026-interaction2"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -2557,17 +2558,23 @@ function parsePageRoute(input) {
 function initPriceRoute(route) {
   const loading = initPrice(route.productId);
   if (!route.query) return;
+  const request = renderPriceSearchAsGrid.generation || 0;
+  const input = document.getElementById('cardSearchInput');
+  if (input) input.value = route.query;
+  const current = () => document.body.dataset.page === 'price' && location.hash === '#' + route.path && request === (renderPriceSearchAsGrid.generation || 0) && (!input || input.value.trim() === route.query);
   Promise.resolve(loading).then(async () => {
+    if (!current()) return;
+    const status = document.getElementById('priceStatus');
+    if (status) status.textContent = `"${route.query}" 검색 데이터를 불러오는 중입니다.`;
     await loadCardSearchData();
-    if (document.body.dataset.page !== 'price' || location.hash !== '#' + route.path) return;
-    const input = document.getElementById('cardSearchInput');
-    if (input) input.value = route.query;
+    if (!current()) return;
     const results = searchCards(route.query, Infinity).slice().sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
     renderPriceSearchAsGrid(results, route.query);
   }).catch(error => console.warn('[route-search]', error));
 }
 function go(pageOrPath) {
   if (document.body.dataset.page === 'admin' && pageOrPath !== 'admin' && window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
+  window.cancelPriceSearch?.();
   if (window.HubNewsDetail) HubNewsDetail.close();
   if (window.setExpandedPriceMode) window.setExpandedPriceMode(false);
   // 일반 내비게이션 시 상세 이전/다음 탐색 컨텍스트 초기화 (goCardDetail 은 go() 안 거치고 hash 직접 변경)
@@ -2679,6 +2686,7 @@ window.addEventListener('popstate', e => {
     return;
   }
   // ② 일반 페이지 뒤로가기
+  window.cancelPriceSearch?.();
   const route = parsePageRoute(location.hash || '#home');
   const path = route.path, page = route.page, productId = route.productId;
   if (location.hash !== '#' + path) history.replaceState({page: path}, '', '#' + path);
@@ -3550,6 +3558,7 @@ let _PRICE_CARD_NAME_OVERRIDES = null;
 let _PRICE_BOX_NAME_OVERRIDES = null;
 
 function initPrice(productId) {
+  window.cancelPriceSearch?.();
   // 탭 활성화 동기화
   document.querySelectorAll('#priceBrandTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.brand === PRICE_BRAND));
   document.querySelectorAll('#priceCatTabs .tab').forEach(t => t.classList.toggle('active', t.dataset.cat === PRICE_CAT));
@@ -3620,9 +3629,13 @@ async function fetchCardsDetail() {
 }
 
 /* ─────────── 상품 상세 패널 (Phase 2 + 3) ─────────── */
+let PRICE_DETAIL_REQUEST = 0;
 async function showPriceDetailPanel(productId) {
+  const request = ++PRICE_DETAIL_REQUEST;
+  const current = () => request === PRICE_DETAIL_REQUEST && document.body.dataset.page === 'price' && parsePageRoute(location.hash).productId === String(productId);
   await FX_READY;
   await window.AnniversaryMarket?.load();
+  if (!current()) return;
   const panel = document.getElementById('priceDetailPanel');
   if (!panel) return;
   panel.dataset.productId = String(productId);
@@ -3636,7 +3649,13 @@ async function showPriceDetailPanel(productId) {
     const list = HOME_TOP_CACHE[brand];
     if (list) {
       const found = list.find(p => String(p.id) === String(productId));
-      if (found) { product = found; product._brand = brand; product._isTop10 = true; break; }
+      if (found) { product = { ...found, _brand: brand, _isTop10: true }; break; }
+    }
+  }
+  if (!product) {
+    for (const brand of ['pokemon', 'onepiece']) {
+      const found = PRICE_CACHE[brand]?.find(p => String(p.id) === String(productId));
+      if (found) { product = { ...found, _brand: brand, _isTop10: false }; break; }
     }
   }
   // 캐시에 없으면 top10-*.json + price-*-*.json + manual-boxes 모두 시도
@@ -3693,7 +3712,7 @@ async function showPriceDetailPanel(productId) {
 
   const anniversaryProduct = window.AnniversaryMarket?.products().find(p=>p.id===String(productId));
   if (anniversaryProduct) product = {...product,...anniversaryProduct};
-  if (panel.dataset.productId !== String(productId)) return;
+  if (!current() || panel.dataset.productId !== String(productId)) return;
   if (window.renderExpandedPriceDetail) {
     await window.renderExpandedPriceDetail(productId, product, panel);
     return;
@@ -4481,6 +4500,7 @@ function renderSearchResults(results, query) {
 
 // 검색 입력 핸들러 (debounced) — 카드 시세 페이지 + 홈 hero 모두 지원
 let _SEARCH_TIMER = null;
+let _SEARCH_PREVIEW_REQUEST = 0;
 document.addEventListener('input', e => {
   const isPrice = e.target.id === 'cardSearchInput';
   const isHome = e.target.id === 'homeSearchInput';
@@ -4490,8 +4510,10 @@ document.addEventListener('input', e => {
   const resultsId = isPrice ? 'cardSearchResults' : 'homeSearchResults';
   document.getElementById(clearId).style.display = q ? 'block' : 'none';
   clearTimeout(_SEARCH_TIMER);
+  const request = ++_SEARCH_PREVIEW_REQUEST;
   _SEARCH_TIMER = setTimeout(async () => {
     await loadCardSearchData();
+    if (request !== _SEARCH_PREVIEW_REQUEST || e.target.value !== q || document.body.dataset.page !== (isPrice ? 'price' : 'home')) return;
     // 타이핑 중: dropdown 표시 (홈/카드시세 둘 다 미리보기)
     renderSearchResultsTo(resultsId, searchCards(q), q);
   }, 250);
@@ -4520,13 +4542,7 @@ document.addEventListener('keydown', e => {
   const resultsBox = document.getElementById('cardSearchResults');
   if (resultsBox) resultsBox.style.display = 'none';
   // 검색 실행 (data 캐시 보장 후 priceGrid 에 그리드 렌더 — 인기순/listingCount desc)
-  (async () => {
-    await loadCardSearchData();
-    const results = searchCards(q, Infinity)
-      .slice()
-      .sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
-    renderPriceSearchAsGrid(results, q);
-  })();
+  runPriceSearch(q);
 });
 
 // 🔍 아이콘 클릭으로도 동일 동작 (input 옆 돋보기)
@@ -4540,14 +4556,7 @@ document.addEventListener('click', e => {
   if (!input || !input.value.trim()) return;
   const resultsBox = document.getElementById('cardSearchResults');
   if (resultsBox) resultsBox.style.display = 'none';
-  (async () => {
-    await loadCardSearchData();
-    const q = input.value.trim();
-    const results = searchCards(q, Infinity)
-      .slice()
-      .sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
-    renderPriceSearchAsGrid(results, q);
-  })();
+  runPriceSearch(input.value.trim());
 });
 
 // 카드 시세 페이지 검색 모드 — priceGrid 영역에 검색 결과 카드 표시 (dropdown 안 씀)
@@ -4556,39 +4565,98 @@ function togglePriceSearchMode(hideMain) {
 }
 
 // 검색 결과를 priceGrid 의 큰 카드 형식으로 렌더링
-function renderPriceSearchAsGrid(results, query) {
+function cancelPriceSearch() {
+  renderPriceSearchAsGrid.generation = (renderPriceSearchAsGrid.generation || 0) + 1;
+  renderPriceSearchAsGrid.results = null;
+  _SEARCH_PREVIEW_REQUEST++;
+  clearTimeout(_SEARCH_TIMER);
+  const pager = document.getElementById('priceSearchPages');
+  if (pager) { pager.hidden = true; pager.style.display = 'none'; pager.innerHTML = ''; }
+}
+window.cancelPriceSearch = cancelPriceSearch;
+
+async function runPriceSearch(query) {
+  const q = String(query || '').trim();
+  if (!q || document.body.dataset.page !== 'price') return;
+  cancelPriceSearch();
+  const request = renderPriceSearchAsGrid.generation;
+  const brand = PRICE_BRAND, category = PRICE_CAT, hash = location.hash;
+  const current = () => request === renderPriceSearchAsGrid.generation && document.body.dataset.page === 'price' && brand === PRICE_BRAND && category === PRICE_CAT && hash === location.hash;
+  const dropdown = document.getElementById('cardSearchResults');
+  if (dropdown) dropdown.style.display = 'none';
+  const status = document.getElementById('priceStatus');
+  if (status) status.textContent = `"${q}" 검색 데이터를 불러오는 중입니다.`;
+  try {
+    await loadCardSearchData();
+    if (!current()) return;
+    renderPriceSearchAsGrid(searchCards(q, Infinity), q);
+  } catch (error) {
+    if (!current()) return;
+    const status = document.getElementById('priceStatus');
+    if (status) status.textContent = '검색 데이터를 불러오지 못했습니다. 다시 시도해 주세요.';
+    console.warn('[price-search]', error);
+  }
+}
+
+function renderPriceSearchAsGrid(results, query, requestedPage = 1) {
   const grid = document.getElementById('priceGrid');
   const status = document.getElementById('priceStatus');
-  if (!grid) return;
-  if (status) status.innerHTML = `<div style="padding:8px 4px; font-size:13px; color:var(--ink-sub)">"<b>${escapeHtml(query)}</b>" 검색 결과: <b>${results.length}</b>개</div>`;
-  if (!results.length) {
+  if (!grid || (document.body?.dataset?.page && document.body.dataset.page !== 'price')) return;
+  const state = renderPriceSearchAsGrid;
+  const request = state.generation = (state.generation || 0) + 1;
+  const brand = typeof PRICE_BRAND === 'string' ? PRICE_BRAND : null;
+  const category = typeof PRICE_CAT === 'string' ? PRICE_CAT : null;
+  const hash = typeof location !== 'undefined' ? location.hash : null;
+  const current = () => request === state.generation && (!document.body?.dataset?.page || document.body.dataset.page === 'price') && (brand === null || brand === PRICE_BRAND) && (category === null || category === PRICE_CAT) && (hash === null || hash === location.hash);
+  // Catalogue loading and submitted searches share the same grid; the newer owner wins.
+  if (typeof PRICE_GRID_REQUEST === 'number') PRICE_GRID_REQUEST++;
+  if (typeof PRICE_LOADING === 'boolean') PRICE_LOADING = false;
+  const rows = Array.isArray(results) ? results : [];
+  const pageSize = 60, pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const page = Math.max(1, Math.min(pageCount, Math.floor(Number(requestedPage)) || 1));
+  const first = (page - 1) * pageSize, visible = rows.slice(first, first + pageSize);
+  state.results = rows;
+  state.query = query;
+  state.page = page;
+  const info = document.getElementById('priceListInfo');
+  if (info) info.textContent = `검색 결과 ${rows.length}개`;
+  if (status) status.innerHTML = `<div style="padding:8px 4px; font-size:13px; color:var(--ink-sub)">"<b>${escapeHtml(query)}</b>" 검색 결과: <b>${rows.length}</b>개${rows.length ? ` · ${first + 1}–${first + visible.length} 표시` : ''}</div>`;
+  const pager = document.getElementById('priceSearchPages');
+  if (pager) {
+    pager.hidden = pageCount <= 1;
+    pager.style.display = pageCount > 1 ? 'flex' : 'none';
+    pager.innerHTML = pageCount > 1 ? `<button type="button" class="btn" data-price-search-page="1" aria-label="첫 검색 결과 페이지" ${page === 1 ? 'disabled' : ''}>처음</button><button type="button" class="btn" data-price-search-page="${page - 1}" aria-label="이전 검색 결과 페이지" ${page === 1 ? 'disabled' : ''}>이전</button><span aria-live="polite">${page} / ${pageCount}</span><button type="button" class="btn" data-price-search-page="${page + 1}" aria-label="다음 검색 결과 페이지" ${page === pageCount ? 'disabled' : ''}>다음</button><button type="button" class="btn" data-price-search-page="${pageCount}" aria-label="마지막 검색 결과 페이지" ${page === pageCount ? 'disabled' : ''}>마지막</button>` : '';
+    pager.onclick = event => {
+      const button = event.target.closest('[data-price-search-page]');
+      if (!button || button.disabled || !current()) return;
+      renderPriceSearchAsGrid(state.results, state.query, Number(button.dataset.priceSearchPage));
+      status?.scrollIntoView?.({block:'start'});
+    };
+  }
+  if (!rows.length) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-title">"${escapeHtml(query)}" 일치 카드 없음</div><div class="empty-sub">한국어/일본어/영어/세트코드/ID 모두 가능</div></div>`;
     return;
   }
-  if (results.some(card=>card._catalogue) && window.JapaneseCatalog) {
-    grid.innerHTML=results.map(card=>`<a class="price-card" href="${escapeHtml(JapaneseCatalog.href(card))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl?`<img loading="lazy" referrerpolicy="no-referrer" src="${escapeHtml(card.thumbnailUrl)}" alt="${escapeHtml(card.displayName || card.name)}">`:''}</div><div class="price-card-body"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number?' · '+escapeHtml(card.number):''}</div><div class="price-card-price">${Number(card.minPrice)>0?fmtKrw(card.minPrice,card.currency):card._catalogue?'카드 정보':'시세 없음'}</div></div></a>`).join('');
+  if (rows.some(card => card._catalogue) && window.JapaneseCatalog) {
+    grid.innerHTML = visible.map(card => `<a class="price-card" href="${escapeHtml(JapaneseCatalog.href(card))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl ? `<img loading="lazy" referrerpolicy="no-referrer" src="${escapeHtml(card.thumbnailUrl)}" alt="${escapeHtml(card.displayName || card.name)}">` : ''}</div><div class="price-card-body"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number ? ' · ' + escapeHtml(card.number) : ''}</div><div class="price-card-price">${Number(card.minPrice) > 0 ? fmtKrw(card.minPrice,card.currency) : card._catalogue ? '카드 정보' : '시세 없음'}</div></div></a>`).join('');
     return;
   }
-  // applyGradePrices(비동기) 대기 중 결과 개수만큼 스켈레톤 — 렌더 시점 그리드 크기 변동(CLS) 방지
-  const skCount = Math.min(results.length, 15);
-  grid.innerHTML = Array.from({length: skCount}, () => `<div class="price-card-skeleton"><div class="ps-img"></div><div class="ps-body"><div class="sk-line long"></div><div class="sk-line short"></div><div class="sk-line price"></div></div></div>`).join('');
-  // 검색 결과 → priceGrid 카드 형식으로 변환 후 renderPriceGrid 사용
-  const products = results.map(c => ({
-    id: c.id,
-    name: c.name,
-    image: c.thumbnailUrl,
-    lastPrice: c.minPrice,
-    lowestAsk: c.minPrice,
-    currency: c.currency || 'USD',
-    brand: c.brand,
-  }));
-  // PRICE_CAT 무관하게 카드 표시 (검색 모드 표시용 임시 override)
-  // PSA10 기준 가격으로 교체 후 렌더 (없으면 A급 폴백)
+  grid.innerHTML = Array.from({length:Math.min(visible.length,15)}, () => `<div class="price-card-skeleton"><div class="ps-img"></div><div class="ps-body"><div class="sk-line long"></div><div class="sk-line short"></div><div class="sk-line price"></div></div></div>`).join('');
+  const products = visible.map(c => ({id:c.id,name:c.name,image:c.thumbnailUrl,lastPrice:c.minPrice,lowestAsk:c.minPrice,currency:c.currency || 'USD',brand:c.brand}));
   applyGradePrices(products).then(() => {
-    const prevCat = window.PRICE_CAT;
-    window.PRICE_CAT = 'card';
-    renderPriceGrid(products);
-    window.PRICE_CAT = prevCat;
+    if (!current()) return;
+    // PRICE_CAT is a global lexical binding, separate from window.PRICE_CAT.
+    const previous = typeof PRICE_CAT === 'string' ? PRICE_CAT : null;
+    try {
+      if (previous !== null) PRICE_CAT = 'card';
+      renderPriceGrid(products);
+    } finally {
+      if (previous !== null) PRICE_CAT = previous;
+    }
+  }).catch(error => {
+    if (!current()) return;
+    grid.innerHTML = '<div class="empty">검색 결과를 표시하지 못했습니다. 다시 시도해 주세요.</div>';
+    console.warn('[price-search-render]', error);
   });
 }
 
@@ -4636,6 +4704,8 @@ document.addEventListener('click', e => {
     const inputId = isHome ? 'homeSearchInput' : 'cardSearchInput';
     const resultsId = isHome ? 'homeSearchResults' : 'cardSearchResults';
     const input = document.getElementById(inputId);
+    clearTimeout(_SEARCH_TIMER);
+    _SEARCH_PREVIEW_REQUEST++;
     if (input) input.value = '';
     const results = document.getElementById(resultsId);
     if (results) results.style.display = 'none';
@@ -4656,9 +4726,7 @@ document.getElementById('priceSearchSubmit')?.addEventListener('click', async ()
   if (!query) { input?.focus(); return; }
   const resultsBox = document.getElementById('cardSearchResults');
   if (resultsBox) resultsBox.style.display = 'none';
-  await loadCardSearchData();
-  const results = searchCards(query, Infinity).slice().sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
-  renderPriceSearchAsGrid(results, query);
+  await runPriceSearch(query);
 });
 
 // 결과 클릭 → 카드 상세 페이지로 (양쪽 검색바 모두)
@@ -5051,6 +5119,7 @@ function isPriceBoxProduct(product) {
 
 let PRICE_GRID_REQUEST = 0;
 async function loadPriceGrid() {
+  window.cancelPriceSearch?.();
   const request = ++PRICE_GRID_REQUEST;
   const brand = PRICE_BRAND, category = PRICE_CAT;
   const current = () => request === PRICE_GRID_REQUEST && brand === PRICE_BRAND && category === PRICE_CAT;
@@ -5092,8 +5161,8 @@ async function loadPriceGrid() {
         const seenIds = new Set(all.map(product => String(product.id)));
         all = [...movedCards.filter(product => !seenIds.has(String(product.id))), ...all];
       }
-      HOME_TOP_CACHE[brand] = [...allProducts, ...otherProducts];
-    } catch { HOME_TOP_CACHE[brand] = all; }
+      PRICE_CACHE[brand] = [...allProducts.map(p => Object.assign(p, {_srcFile: dataFile})), ...otherProducts.map(p => Object.assign(p, {_srcFile: `price-${brand}-${otherCat}`}))];
+    } catch { if (current()) PRICE_CACHE[brand] = all; }
     if (category === 'card') await applyGradePrices(all);
     if (!current()) return;
     renderPriceGrid(all);
@@ -5204,10 +5273,13 @@ function changePricePage(d) {
  * ───────────────────────────────────────────────────────────── */
 let CURRENT_SLIDE_ID = null;
 let SLIDE_RETURN_SET = null;
+let SLIDE_PANEL_REQUEST = 0;
 
 window.openSlidePanel = async function(productId) {
+  const request = ++SLIDE_PANEL_REQUEST;
   if (/^JP(?:SET)?:/.test(String(productId))) {
     await loadCardSearchData();
+    if (request !== SLIDE_PANEL_REQUEST) return;
     const card=window.JapaneseCatalog?.find(String(productId));
     if (card?.productId) return openSlidePanel(card.productId);
     if (card) return openJapaneseCatalogueCard(card);
@@ -5232,14 +5304,16 @@ window.openSlidePanel = async function(productId) {
   document.getElementById('slideCardImg').innerHTML = '';
   // 데이터 fetch + 렌더
   try {
-    await renderSlidePanel(productId);
+    await renderSlidePanel(productId, request);
   } catch (e) {
+    if (request !== SLIDE_PANEL_REQUEST || String(CURRENT_SLIDE_ID) !== String(productId)) return;
     console.error('[slide] fetch fail:', e);
     document.getElementById('slideBody').innerHTML = `<div style="padding:40px; text-align:center; color:var(--price-down)">데이터를 불러올 수 없습니다. <br><button onclick="closeSlidePanel(); go('price/${productId}')" style="margin-top:10px; padding:8px 16px; border:1px solid var(--border2); border-radius:8px; background:transparent; cursor:pointer">전체 페이지에서 보기 →</button></div>`;
   }
 };
 
 window.closeSlidePanel = function() {
+  SLIDE_PANEL_REQUEST++;
   const overlay = document.getElementById('slideOverlay');
   const panel = document.getElementById('slidePanel');
   if (overlay) overlay.classList.remove('show');
@@ -5255,9 +5329,11 @@ window.backFromSlidePanel = function() {
   if (previousSet) return reopenLastSet(previousSet);
 };
 
-async function renderSlidePanel(productId) {
+async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
+  const current = () => request === SLIDE_PANEL_REQUEST && String(CURRENT_SLIDE_ID) === String(productId);
   await FX_READY;
   await window.AnniversaryMarket?.load();
+  if (!current()) return;
   // 1. product 메타 — 기존 showPriceDetailPanel 과 동일한 fallback chain
   let product = window.AnniversaryMarket?.products().find(p=>p.id===String(productId)) || null;
   // HOME_TOP_CACHE 우선
@@ -5266,6 +5342,12 @@ async function renderSlidePanel(productId) {
     if (list) {
       const found = list.find(p => String(p.id) === String(productId));
       if (found) { product = { ...found, _brand: brand, _isTop10:true }; break; }
+    }
+  }
+  if (!product) {
+    for (const brand of ['pokemon', 'onepiece']) {
+      const found = PRICE_CACHE[brand]?.find(p => String(p.id) === String(productId));
+      if (found) { product = { ...found, _brand: brand, _isTop10: false }; break; }
     }
   }
   // 정적 파일 fallback
@@ -5338,11 +5420,12 @@ async function renderSlidePanel(productId) {
   const hasCardGrade = history && history.some(h => h && (h.psa10_price != null || h.psa9_price != null || h.raw_price != null || h.bgs10_bl_price != null || h.bgs10_gl_price != null || h.bgs95_price != null));
   const hasBoxData = history && history.some(h => h && h.box_price != null);
   // 출처 파일 기반 판별 — [코드] 패턴 없는 카드(예: DON!! 카드)도 card 파일 출신이면 카드로
-  const isCardBySrc = product && product._src && /-card$/.test(product._src);
-  const isBoxBySrc = product && product._src && (/-box$/.test(product._src) || /^manual-boxes/.test(product._src));
+  const sourceFile = product && (product._srcFile || product._src) || '';
+  const isCardBySrc = /-card$/.test(sourceFile);
+  const isBoxBySrc = /-box$/.test(sourceFile) || /^manual-boxes/.test(sourceFile);
   const isBox = anniversaryProduct ? anniversaryProduct.kind === 'box' : (isCardByPN || isCardByName || isCardBySrc) ? false : (isBoxBySrc ? true : (hasCardGrade ? false : (hasBoxData ? true : true)));
   const catalogInfo = window.PriceProductInfo ? await PriceProductInfo.get(product, brand, isBox) : {sets:[]};
-  if (String(CURRENT_SLIDE_ID) !== String(productId)) return;
+  if (!current()) return;
   if (catalogInfo.sets.length) pack = catalogInfo.sets.map(PriceProductInfo.label).join(' / ');
   const releaseLabel = catalogInfo.sets.length
     ? catalogInfo.sets.map(set => `${catalogInfo.sets.length > 1 ? set.code + ' · ' : ''}${set.release || '카드정보에 발매일 미등록'}`).join(' / ')
@@ -5358,6 +5441,7 @@ async function renderSlidePanel(productId) {
   }
   let psa10Jpy = null, psa9Jpy = null, rawJpy = null, boxJpy = null;
   let psa10Cur = 'JPY', psa9Cur = 'JPY', rawCur = 'JPY', boxCur = 'JPY';
+  const liveNoListingGrades = new Set();
   if (isBox) {
     const listing = HomeMarket.quote(product);
     boxJpy = listing?.value ?? pickLatestPrice('box_price');
@@ -5378,21 +5462,24 @@ async function renderSlidePanel(productId) {
       const liveR = await fetch(`/api/card-grades?id=${productId}&v=3`);
       if (liveR.ok) {
         const live = await liveR.json();
-        const lg = live?.grades || {};
+        const lg = live?.ok ? live.grades || {} : {};
+        if (live?.ok && Array.isArray(live.noListingGrades)) for (const grade of ['psa10','psa9','raw']) {
+          if (live.noListingGrades.includes(grade)) liveNoListingGrades.add(grade);
+        }
         if (lg.psa10?.lowest_ask) { psa10Jpy = lg.psa10.lowest_ask; psa10Cur = lg.psa10.currency || 'JPY'; }
         if (lg.psa9?.lowest_ask)  { psa9Jpy  = lg.psa9.lowest_ask;  psa9Cur  = lg.psa9.currency  || 'JPY'; }
         if (lg.raw?.lowest_ask)   { rawJpy   = lg.raw.lowest_ask;   rawCur   = lg.raw.currency   || 'JPY'; }
       }
     } catch (e) { console.warn('[slide] live grades fetch fail:', e); }
     // 2순위 — history pickLatestPrice (없는 등급만 보충)
-    if (psa10Jpy == null) psa10Jpy = pickLatestPrice('psa10_price');
-    if (psa9Jpy  == null) psa9Jpy  = pickLatestPrice('psa9_price');
-    if (rawJpy   == null) rawJpy   = pickLatestPrice('raw_price');
+    if (psa10Jpy == null && !liveNoListingGrades.has('psa10')) psa10Jpy = pickLatestPrice('psa10_price');
+    if (psa9Jpy  == null && !liveNoListingGrades.has('psa9')) psa9Jpy  = pickLatestPrice('psa9_price');
+    if (rawJpy   == null && !liveNoListingGrades.has('raw')) rawJpy   = pickLatestPrice('raw_price');
     // 3순위 — product.lastPrice (그리드에서 PSA10/A급으로 데코된 값 — 등급에 맞게 배치)
     if (product && product.lastPrice) {
       if (product._grade === 'raw') {
-        if (rawJpy == null) { rawJpy = product.lastPrice; rawCur = product.currency || 'JPY'; }
-      } else if (!product._isTop10 && psa10Jpy == null) {
+        if (rawJpy == null && !liveNoListingGrades.has('raw')) { rawJpy = product.lastPrice; rawCur = product.currency || 'JPY'; }
+      } else if (product._grade === 'PSA10' && psa10Jpy == null && !liveNoListingGrades.has('psa10')) {
         psa10Jpy = product.lastPrice;
         psa10Cur = product.currency || 'JPY';
       }
@@ -5401,7 +5488,10 @@ async function renderSlidePanel(productId) {
   const topListing = product?._isTop10 ? HomeMarket.quote(product) : null;
   const rawLabel = window.AnniversaryMarket?.rawLabel(anniversaryProduct) || 'A급(미개봉)';
   const preferTopRaw = !isBox && (!!topListing || !!anniversaryProduct);
-  if (topListing) { rawJpy = topListing.value; rawCur = topListing.currency; }
+  if (topListing && !liveNoListingGrades.has('raw')) { rawJpy = topListing.value; rawCur = topListing.currency; }
+  if (liveNoListingGrades.has('psa10')) psa10Jpy = null;
+  if (liveNoListingGrades.has('psa9')) psa9Jpy = null;
+  if (liveNoListingGrades.has('raw')) rawJpy = null;
   if (anniversaryProduct && !isBox) {
     rawJpy = window.AnniversaryMarket.gradeQuote(productId,'raw')?.value ?? null;
     psa10Jpy = window.AnniversaryMarket.gradeQuote(productId,'psa10')?.value ?? null;
@@ -5430,6 +5520,7 @@ async function renderSlidePanel(productId) {
 
   // 헤더
   await window.JapaneseCardNames?.ensureData();
+  if (!current()) return;
   document.getElementById('slideName').textContent = !isBox && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : name;
   document.getElementById('slideNameEn').textContent = (product && product.name_en) || '';
   document.getElementById('slidePack').textContent = pack || '';
@@ -5440,22 +5531,22 @@ async function renderSlidePanel(productId) {
   imgWrap.innerHTML = image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
 
   // body — 박스 / 카드 구분 렌더
-  const fmtChip = (val) => val ? `₩${val.toLocaleString()}` : anniversaryProduct ? '출품 없음' : '—';
+  const fmtChip = (val, grade) => val ? `₩${val.toLocaleString()}` : anniversaryProduct || liveNoListingGrades.has(grade) ? '출품 없음' : '—';
   const body = document.getElementById('slideBody');
   const gradeRowHTML = isBox ? '' : `
     <!-- 등급 4개 칩 (카드만) -->
     <div class="slide-grade-row">
       <button type="button" class="slide-grade-chip active" data-grade="psa10">
         <div class="gc-label">PSA 10</div>
-        <div class="gc-val">${fmtChip(psa10Price)}</div>
+        <div class="gc-val">${fmtChip(psa10Price,'psa10')}</div>
       </button>
       <button type="button" class="slide-grade-chip" data-grade="psa9">
         <div class="gc-label">PSA 9</div>
-        <div class="gc-val">${fmtChip(psa9Price)}</div>
+        <div class="gc-val">${fmtChip(psa9Price,'psa9')}</div>
       </button>
       <button type="button" class="slide-grade-chip" data-grade="raw">
         <div class="gc-label">${rawLabel}</div>
-        <div class="gc-val">${fmtChip(rawPrice)}</div>
+        <div class="gc-val">${fmtChip(rawPrice,'raw')}</div>
       </button>
     </div>`;
   // BGS 그룹 — 데이터 1개라도 있는 카드만 표시 (조건부)
@@ -5477,6 +5568,7 @@ async function renderSlidePanel(productId) {
       </button>
     </div>` : '';
   const mainPrice = isBox ? boxPrice : preferTopRaw ? rawPrice : (psa10Price ?? rawPrice);
+  const mainGrade = isBox ? 'box' : preferTopRaw ? 'raw' : psa10Price != null ? 'psa10' : 'raw';
   const mainLabel = isBox
     ? '박스 상품 — 그레이딩 거래 없음'
     : (psa10Price ? 'PSA 10 기준' : (rawPrice ? 'A급(싱글) 기준 — PSA10 거래 내역 없음' : 'PSA 10 기준'));
@@ -5496,10 +5588,10 @@ async function renderSlidePanel(productId) {
   const gradeTableRows = isBox
     ? `<tr><td>박스</td><td>${fmtChip(boxPrice)}</td><td>${changeHtml(changeFor('box_price'))}</td></tr>`
     : `
-      <tr><td>PSA 10</td><td>${fmtChip(psa10Price)}</td><td>${changeHtml(changeFor('psa10_price'))}</td></tr>
-      <tr><td>PSA 9</td><td>${fmtChip(psa9Price)}</td><td>${changeHtml(changeFor('psa9_price'))}</td></tr>
+      <tr><td>PSA 10</td><td>${fmtChip(psa10Price,'psa10')}</td><td>${changeHtml(changeFor('psa10_price'))}</td></tr>
+      <tr><td>PSA 9</td><td>${fmtChip(psa9Price,'psa9')}</td><td>${changeHtml(changeFor('psa9_price'))}</td></tr>
       ${bgs95Price ? `<tr><td>BGS 9.5</td><td>${fmtChip(bgs95Price)}</td><td>${changeHtml(changeFor('bgs95_price'))}</td></tr>` : ''}
-      <tr><td>${rawLabel}</td><td>${fmtChip(rawPrice)}</td><td>${changeHtml(changeFor('raw_price'))}</td></tr>`;
+      <tr><td>${rawLabel}</td><td>${fmtChip(rawPrice,'raw')}</td><td>${changeHtml(changeFor('raw_price'))}</td></tr>`;
   body.innerHTML = `
     <div class="slide-action-row">
       <button type="button" class="slide-btn-primary" id="slideAddPortfolio">포트폴리오 추가</button>
@@ -5508,8 +5600,8 @@ async function renderSlidePanel(productId) {
 
     <div class="slide-price-box">
       <div class="slide-price-label">${isBox ? '박스' : (preferTopRaw ? rawLabel : psa10Price ? 'PSA 10' : rawLabel)} 기준</div>
-      <div class="slide-price-val" id="slidePriceVal">${fmtChip(mainPrice)}</div>
-      <div class="slide-price-sub" id="slidePriceSub">${isBox && HomeMarket.quote(product) || preferTopRaw ? 'SNKRDUNK · 수집 시점 출품가' : mainLabel}</div>
+      <div class="slide-price-val" id="slidePriceVal">${fmtChip(mainPrice,mainGrade)}</div>
+      <div class="slide-price-sub" id="slidePriceSub">${liveNoListingGrades.has(mainGrade) ? 'SNKRDUNK · 현재 출품 없음' : isBox && HomeMarket.quote(product) || preferTopRaw ? 'SNKRDUNK · 수집 시점 출품가' : mainLabel}</div>
       ${gradeRowHTML}
       ${bgsRowHTML}
     </div>
@@ -5559,9 +5651,9 @@ async function renderSlidePanel(productId) {
         bgs95:    [bgs95Price,    'BGS 9.5 기준 (거래 적어 참고용)'],
       };
       const [val, label] = map[g] || [null, ''];
-      document.getElementById('slidePriceVal').textContent = fmtChip(val);
+      document.getElementById('slidePriceVal').textContent = fmtChip(val,g);
       body.querySelector('.slide-price-label').textContent = label;
-      document.getElementById('slidePriceSub').textContent = anniversaryProduct ? 'SNKRDUNK · 수집 시점 출품가' : label;
+      document.getElementById('slidePriceSub').textContent = liveNoListingGrades.has(g) ? 'SNKRDUNK · 현재 출품 없음' : anniversaryProduct ? 'SNKRDUNK · 수집 시점 출품가' : label;
       if (history && history.length >= 2) drawSlideChart(history, isBox, g);
     });
   });
@@ -10036,6 +10128,7 @@ function _verifyAgreements() {
 }
 
 // Google 로그인 시작
+let _nativeSocialLoginPending = false;
 async function startGoogleLogin() {
   if (!_verifyAgreements()) return;
 
@@ -10052,6 +10145,8 @@ async function startGoogleLogin() {
   // 우선순위:
   //   1. SocialLogin (iOS 1.0.4+, 미래 안드로이드 빌드)
   //   2. GoogleAuth (안드로이드 1.0.3 등 구버전 빌드)
+  if (_nativeSocialLoginPending) return;
+  _nativeSocialLoginPending = true;
   try {
     let idToken = null;
 
@@ -10114,19 +10209,23 @@ async function startGoogleLogin() {
       }
     }
     if (typeof showToast === 'function') showToast('Google 로그인 오류: ' + errDetail);
+  } finally {
+    _nativeSocialLoginPending = false;
   }
 }
 
 // SocialLogin 통합 초기화 — Apple + Google 둘 다 같이 설정 (idempotent)
+// Serialize shared provider initialization and let the caller report failure.
 let _socialLoginInitialized = false;
+let _socialLoginInitialization = null;
 async function _initSocialLogin() {
   if (_socialLoginInitialized) return;
+  if (_socialLoginInitialization) return _socialLoginInitialization;
   const SocialLogin = window.Capacitor?.Plugins?.SocialLogin;
   if (!SocialLogin || typeof SocialLogin.initialize !== 'function') {
-    if (typeof showToast === 'function') showToast('[DEBUG] SocialLogin plugin 없음 — 앱 업데이트 필요');
-    return;
+    throw new Error('SocialLogin 플러그인이 없습니다. 앱 업데이트가 필요해요.');
   }
-  try {
+  _socialLoginInitialization = (async () => {
     // platform 별 분기 — Android 는 Apple 안 씀 (Apple 정책상 iOS 만 필수)
     const platform = window.Capacitor?.getPlatform?.() || 'web';
     const initConfig = {
@@ -10145,12 +10244,13 @@ async function _initSocialLogin() {
         clientId: 'kr.tcghub.app',
       };
     }
-    const result = await SocialLogin.initialize(initConfig);
+    await SocialLogin.initialize(initConfig);
     _socialLoginInitialized = true;
-  } catch (e) {
-    const err = e?.message || e?.toString() || JSON.stringify(e);
-    console.warn('SocialLogin.initialize error:', e);
-    if (typeof showToast === 'function') showToast('SocialLogin init 실패: ' + err.slice(0, 200));
+  })();
+  try {
+    await _socialLoginInitialization;
+  } finally {
+    _socialLoginInitialization = null;
   }
 }
 
@@ -10186,6 +10286,8 @@ async function startAppleLogin() {
 
   // 1) iOS 네이티브 — @capgo/capacitor-social-login 사용
   if (isCapacitor && platform === 'ios') {
+    if (_nativeSocialLoginPending) return;
+    _nativeSocialLoginPending = true;
     try {
       const SocialLogin = window.Capacitor?.Plugins?.SocialLogin;
       if (!SocialLogin || typeof SocialLogin.login !== 'function') {
@@ -10241,6 +10343,8 @@ async function startAppleLogin() {
     } catch (err) {
       console.error('Apple native sign-in error:', err);
       if (typeof showToast === 'function') showToast('Apple 로그인 오류: ' + (err.message || err));
+    } finally {
+      _nativeSocialLoginPending = false;
     }
     return;
   }
@@ -10419,7 +10523,33 @@ async function startKakaoLogin() {
   let emailLoginPending = false;
   let kakaoLoginPending = false;
   let kakaoHandledCode = null;
-  async function handleAppUrl(event) {
+  let kakaoLaunchFingerprint = null;
+  const KAKAO_RECENT_FINGERPRINT = 'tcghub_kakao_callback_sha256';
+  const KAKAO_LAUNCH_FINGERPRINT = 'tcghub_kakao_launch_sha256';
+  async function kakaoFingerprint(code) {
+    try {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code));
+      return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    } catch { return null; }
+  }
+  function hasKakaoFingerprint(fingerprint) {
+    if (!fingerprint) return false;
+    for (const key of [KAKAO_RECENT_FINGERPRINT, KAKAO_LAUNCH_FINGERPRINT]) {
+      try { if (localStorage.getItem(key) === fingerprint) return true; } catch {}
+      try { if (sessionStorage.getItem(key) === fingerprint) return true; } catch {}
+    }
+    return false;
+  }
+  function rememberKakaoFingerprint(fingerprint, launch, recent = true) {
+    if (!fingerprint) return;
+    const keys = recent ? [KAKAO_RECENT_FINGERPRINT] : [];
+    if (launch) keys.push(KAKAO_LAUNCH_FINGERPRINT);
+    for (const key of keys) {
+      try { localStorage.setItem(key, fingerprint); } catch {}
+      try { sessionStorage.setItem(key, fingerprint); } catch {}
+    }
+  }
+  async function handleAppUrl(event, launch = false) {
     try {
       const url = event?.url || '';
       if (!url.startsWith('kr.tcghub.app://')) return;
@@ -10427,14 +10557,14 @@ async function startKakaoLogin() {
       const path = u.pathname.replace(/^\//, '');
       const code = u.searchParams.get('code');
       if (path !== 'email-callback' && !(path === 'kakao-callback' && code)) return;
-      // Ignore unrelated app links before closing a browser or using credentials.
-      try { if (Browser && Browser.close) await Browser.close(); } catch {}
+      // Ignore unrelated and completed callbacks before closing any provider browser.
 
       if (path === 'email-callback') {
         const verifier = localStorage.getItem('tcghub_email_verifier');
         if (!verifier || emailLoginPending) return;
         emailLoginPending = true;
         try {
+          try { if (Browser && Browser.close) await Browser.close(); } catch {}
           const r = await fetch('/api/auth/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -10457,9 +10587,18 @@ async function startKakaoLogin() {
       }
 
       if (path === 'kakao-callback' && code) {
-        if (kakaoLoginPending || kakaoHandledCode === code) return;
+        if (kakaoLoginPending) return;
         kakaoLoginPending = true;
         try {
+          const fingerprint = await kakaoFingerprint(code);
+          if (launch) kakaoLaunchFingerprint = fingerprint;
+          if (kakaoHandledCode === code || hasKakaoFingerprint(fingerprint)) {
+            kakaoHandledCode = code;
+            // Pin an already completed callback if a new Activity launches with it.
+            if (launch) rememberKakaoFingerprint(fingerprint, true, false);
+            return;
+          }
+          try { if (Browser && Browser.close) await Browser.close(); } catch {}
           const r = await fetch('/api/auth/exchange-code', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -10472,6 +10611,8 @@ async function startKakaoLogin() {
             return;
           }
           kakaoHandledCode = code;
+          // Only a confirmed successful exchange is remembered. No code or token is stored.
+          rememberKakaoFingerprint(fingerprint, launch || (!!fingerprint && fingerprint === kakaoLaunchFingerprint));
           window.location.href = '/?login=success';
         } finally {
           kakaoLoginPending = false;
@@ -10484,7 +10625,7 @@ async function startKakaoLogin() {
   App.addListener('appUrlOpen', handleAppUrl);
   // 앱이 종료된 상태에서 링크로 시작한 경우도 처리한다.
   if (typeof App.getLaunchUrl === 'function') {
-    App.getLaunchUrl().then(handleAppUrl).catch(err => console.warn('App launch URL check failed:', err));
+    App.getLaunchUrl().then(event => handleAppUrl(event, true)).catch(err => console.warn('App launch URL check failed:', err));
   }
 })();
 

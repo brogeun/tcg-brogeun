@@ -17,7 +17,7 @@ const ctx={document:{getElementById:node,body:{style:{}}},location:{hash:'#cardi
   closeAnyModal(){},openSetGrid:(...args)=>reopened.push(args)};
 ctx.window=ctx;
 vm.createContext(ctx);
-vm.runInContext(html.slice(html.indexOf('let CURRENT_SLIDE_ID = null;'),html.indexOf('async function renderSlidePanel(productId)')),ctx);
+vm.runInContext(html.slice(html.indexOf('let CURRENT_SLIDE_ID = null;'),html.indexOf('async function renderSlidePanel(')),ctx);
 const restore=html.slice(html.indexOf('window.reopenLastSet = function('));
 vm.runInContext(restore.slice(0,restore.indexOf('\n};')+3),ctx);
 await ctx.openSlidePanel('871034');

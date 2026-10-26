@@ -11,6 +11,8 @@ async function fixture(t){
   const sqlite=new DatabaseSync(':memory:');t.after(()=>sqlite.close());
   sqlite.exec("CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT,name TEXT,last_login INTEGER);INSERT INTO users VALUES('existing-account','owner@audit.invalid','Owner',0);CREATE TABLE magic_tokens(token TEXT PRIMARY KEY,email TEXT,expires_at INTEGER,used INTEGER);");
   sqlite.prepare('INSERT INTO magic_tokens VALUES(?,?,?,0)').run('app:'+await sha256Hex(verifier),'owner@audit.invalid',Math.floor(Date.now()/1000)+300);
+  const kakaoToken='oauth-kakao:'+await sha256Hex('offline-code');
+  sqlite.prepare('INSERT INTO magic_tokens VALUES(?,?,?,0)').run(kakaoToken,'owner@audit.invalid',Math.floor(Date.now()/1000)+300);
   const queries=[],kvCalls=[],store=new Map([['oauth_code:offline-code',{user_id:'existing-account',email:'owner@audit.invalid',name:'Owner',provider:'kakao'}]]);
   const env={JWT_SECRET:secret,DB:{prepare(sql){return {bind(...args){return {
     async first(){queries.push(sql);return sqlite.prepare(sql).get(...args)||null;},
@@ -42,7 +44,7 @@ for(const [name,handler,path,body]of [['email verifier',verify,'/api/auth/verify
       const f=await fixture(t),response=await handler({env:f.env,request:request(path,body,scenario.headers)});
       assert.equal(response.status,200);assert.equal((await response.json()).ok,true);assert.match(response.headers.get('set-cookie'),/session=/);
       if(name==='email verifier')assert.equal(f.sqlite.prepare('SELECT used FROM magic_tokens').get().used,1);
-      else assert.equal(f.store.has('oauth_code:offline-code'),false);
+      else {assert.equal(f.sqlite.prepare('SELECT used FROM magic_tokens WHERE token=?').get('oauth-kakao:'+await sha256Hex('offline-code')).used,1);assert.equal(f.kvCalls.length,0);}
       const repeated=await handler({env:f.env,request:request(path,body,scenario.headers)});
       assert.notEqual(repeated.status,200);assert.equal(repeated.headers.has('set-cookie'),false);
     });

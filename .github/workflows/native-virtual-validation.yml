@@ -49,6 +49,17 @@ jobs:
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/tcghub-derived" -clonedSourcePackagesDirPath "$RUNNER_TEMP/tcghub-spm" CODE_SIGNING_ALLOWED=NO build 2>&1 | tee native-evidence/ios-build.log
       - name: Boot virtual iPhone and install and launch the app
         run: bash scripts/native/ios-simulator-smoke.sh
+      - name: Check hosted screens using native XCTest UI automation
+        run: |
+          set -o pipefail
+          if ! ruby -rxcodeproj -e 'puts Xcodeproj::VERSION'; then
+            export GEM_HOME="$RUNNER_TEMP/tcghub-validation-gems"
+            export GEM_PATH="$GEM_HOME"
+            gem install xcodeproj --version 1.27.0 --no-document
+          fi
+          ruby scripts/native/add-ios-ui-tests.rb
+          DEVICE=$(cat native-evidence/simulator-udid.txt)
+          xcodebuild test -project ios/App/App.xcodeproj -scheme TCGHubSmoke -configuration Debug -sdk iphonesimulator -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath "$RUNNER_TEMP/tcghub-derived" -clonedSourcePackagesDirPath "$RUNNER_TEMP/tcghub-spm" -resultBundlePath native-evidence/ios-ui-tests.xcresult -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO 2>&1 | tee native-evidence/ios-ui-tests.log
       - name: Preserve native build evidence
         if: always()
         uses: actions/upload-artifact@v4

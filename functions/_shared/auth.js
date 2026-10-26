@@ -8,8 +8,17 @@ export async function getCurrentUser(request, env) {
   const match = cookie.match(/(?:^|;\s*)session=([^;]+)/);
   if (!match) return null;
   const payload = await verifyJwt(match[1], env.JWT_SECRET);
-  if (!payload || !payload.sub) return null;
-  return { id: payload.sub, email: payload.email };
+  if (!payload || !env.DB) return null;
+  const subject = payload.sub;
+  if (!((typeof subject === 'string' && subject.length > 0) || (Number.isSafeInteger(subject) && subject !== 0))) return null;
+  // A deleted account must invalidate every previously issued session.
+  try {
+    const row = await env.DB.prepare('SELECT id, email FROM users WHERE id = ?').bind(payload.sub).first();
+    if (!row || String(row.id) !== String(payload.sub)) return null;
+    return { id: row.id, email: row.email };
+  } catch {
+    return null;
+  }
 }
 
 export function jsonResponse(data, status = 200, extraHeaders = {}) {

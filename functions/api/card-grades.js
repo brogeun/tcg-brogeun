@@ -63,7 +63,7 @@ export async function onRequestGet({ request }) {
   // 1시간 엣지 캐시
   const cache = caches.default;
   // 계산 기준이 바뀔 때 이전 1시간 캐시와 섞이지 않도록 버전을 포함한다.
-  const cacheKey = new Request(`https://tcghub.kr/api/card-grades?id=${id}&v=2`);
+  const cacheKey = new Request(`https://tcghub.kr/api/card-grades?id=${id}&v=3`);
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
@@ -81,13 +81,22 @@ export async function onRequestGet({ request }) {
       const html = await page.text();
       const conditionToGrade = { 18: 'raw', 22: 'psa10', 23: 'psa9' };
       const exactGrades = {};
+      const noListingGrades = new Set();
+      let conflictingAvailability = false;
       const objects = html.match(/\{[^{}]{0,1200}"conditionId":(?:18|22|23)[^{}]{0,1200}\}/g) || [];
       for (const object of objects) {
         const condition = object.match(/"conditionId":(18|22|23)/);
         const minPrice = object.match(/"usedMinPrice":(\d+)/);
-        if (!condition || !minPrice) continue;
+        if (!condition) continue;
         const grade = conditionToGrade[Number(condition[1])];
-        const amount = Number(minPrice[1]);
+        const amount = minPrice ? Number(minPrice[1]) : 0;
+        const noListing = /"hasListing"\s*:\s*false/.test(object);
+        if (noListing) {
+          if (amount > 0 || exactGrades[grade]) { conflictingAvailability = true; break; }
+          noListingGrades.add(grade);
+          continue;
+        }
+        if (amount > 0 && noListingGrades.has(grade)) { conflictingAvailability = true; break; }
         if (!grade || !amount) continue;
         exactGrades[grade] = {
           lowest_ask: amount,
@@ -96,9 +105,9 @@ export async function onRequestGet({ request }) {
           source: 'snkrdunk usedMinPrice',
         };
       }
-      if (Object.keys(exactGrades).length) {
+      if (!conflictingAvailability && (Object.keys(exactGrades).length || noListingGrades.size)) {
         const exactResponse = json(
-          { ok: true, id, grades: exactGrades, fetchedAt: new Date().toISOString() },
+          { ok: true, id, grades: exactGrades, noListingGrades: [...noListingGrades], fetchedAt: new Date().toISOString() },
           200,
           { 'Cache-Control': 'public, max-age=3600' }
         );

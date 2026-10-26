@@ -12,6 +12,13 @@ import { signJwt } from '../../../_shared/jwt.js';
 
 const SESSION_DAYS = 30;
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]);
+}
+
+
 function errorPage(title, message, isApp = false) {
   const appLink = isApp
     ? `<a href="kr.tcghub.app://kakao-cancel" style="margin-left:8px;background:#6b7280">📱 앱으로 돌아가기</a>`
@@ -30,8 +37,8 @@ a{display:inline-block;padding:10px 20px;background:#111;color:#fff;text-decorat
 </style></head>
 <body><div class="box">
   <div style="font-size:36px;margin-bottom:12px">⚠️</div>
-  <h1>${title}</h1>
-  <p>${message}</p>
+  <h1>${escapeHtml(title)}</h1>
+  <p>${escapeHtml(message)}</p>
   <a href="/">← 홈으로</a>${appLink}
 </div></body></html>`, {
     status: 400,

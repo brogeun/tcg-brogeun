@@ -31,6 +31,7 @@ const zekromCard={name:'Zekrom: PROMO[S8a-P 021/025](Promo Card Pack 25th Annive
 const zekromRecord={cert_number:'127270226',grade_text:'GEM MT 10',subject:'FA/ZEKROM',brand:'POKEMON JAPANESE PROMO CARD PACK 25TH ANNIVERSARY EDITION',year:'2021',card_number:'021',variety:'PCP 25TH ANNIVERSARY ED.',label:'w/ fugitive ink technology',pop_total:16952,pop_higher:0,source_url:'https://www.psacard.com/cert/127270226/psa'};
 async function fixture() {
   const DB=new D1();
+  DB.sqlite.exec("CREATE TABLE users(id INTEGER PRIMARY KEY,email TEXT); INSERT INTO users VALUES(1,'one@audit.invalid'),(2,'two@audit.invalid');");
   DB.sqlite.exec(`CREATE TABLE holdings(id INTEGER PRIMARY KEY,user_id INTEGER,card_id TEXT,grade TEXT,qty INTEGER,buy_price INTEGER); INSERT INTO holdings VALUES(1,1,'91103','psa10',1,10000),(2,2,'91103','psa10',1,10000),(3,1,'91103','psa10',2,10000);`);
   const env={DB,PSA_WORKER_KEY:'test-only-worker-key',JWT_SECRET:'test-only-jwt-key',ASSETS:{fetch:async()=>new Response(JSON.stringify({'91103':card,'22222':{name:'Nami SR[OP07-051]',code:'OP07-051',brand:'onepiece'}}))}};
   await ensureCertificateTables(env);return env;
@@ -781,3 +782,71 @@ test('P promos require explicit One Piece identity and source-only identificatio
     assert.equal(matchCard({...official,variety:'Parallel'},meta).reason,'card_variant_mismatch');
   }
 });
+
+
+// Simulate the other transaction committing after finalizeWaiting read its row
+// and immediately before the registration transaction starts. No remote calls.
+for (const scenario of [
+  {name:'BGS account deletion',provider:'bgs',holdingId:null,removeUser:true,removeRequest:true},
+  {name:'PSA account deletion without holding',provider:'psa',holdingId:null,removeUser:true,removeRequest:true},
+  {name:'PSA account deletion with holding',provider:'psa',holdingId:1,removeUser:true,removeRequest:true},
+  {name:'BGS removed request',provider:'bgs',holdingId:null,removeUser:false,removeRequest:true},
+  {name:'PSA removed request',provider:'psa',holdingId:1,removeUser:false,removeRequest:true},
+  {name:'BGS absent account with retained request',provider:'bgs',holdingId:null,removeUser:true,removeRequest:false},
+  {name:'PSA absent account with retained request',provider:'psa',holdingId:1,removeUser:true,removeRequest:false},
+]) {
+  test(`finalization refuses stale ownership: ${scenario.name}`,async()=>{
+    const env=await fixture(),provider=scenario.provider;
+    const isBgs=provider==='bgs',cert=isBgs?'0016097088':'23483296';
+    const request=await submit(env,{cert_number:cert,card_id:isBgs?'22222':'91103',holding_id:scenario.holdingId},1,provider);
+    assert.equal(request.http,202);
+    const job=await claimJob(env),originalBatch=env.DB.batch.bind(env.DB);
+    let interleaved=false;
+    env.DB.batch=async statements=>{
+      if(!interleaved&&statements.some(s=>/^INSERT OR IGNORE INTO (?:psa|bgs)_certs/.test(s.sql))){
+        interleaved=true;
+        // This is a different committed transaction, not part of the worker batch.
+        if(scenario.removeRequest)env.DB.sqlite.prepare('DELETE FROM cert_registration_requests WHERE id=?').run(request.request_id);
+        if(scenario.removeUser)env.DB.sqlite.prepare('DELETE FROM users WHERE id=?').run(1);
+      }
+      return originalBatch(statements);
+    };
+    const rec=isBgs?{cert_number:cert,grade_text:'9.5',subject:'NAMI',brand:'ONE PIECE OP07',card_number:'OP07051',label:'gold',source_url:'https://www.beckett.com/api/grading/lookup?category=BGS&serialNumber='+cert}:record(cert,'MINT 9');
+    await finish(env,job,rec);
+    assert.equal(interleaved,true,'race must run after the worker read its request snapshot');
+    assert.equal(env.DB.sqlite.prepare(`SELECT COUNT(*) AS n FROM ${provider}_certs WHERE user_id=1`).get().n,0,'stale request must not recreate an owned certificate');
+    assert.equal(env.DB.sqlite.prepare('SELECT grade FROM holdings WHERE id=1').get().grade,'psa10','stale request must not rewrite the holding grade');
+    if(scenario.removeRequest)assert.equal(await getRequest(env,request.request_id,1),null);
+  });
+}
+
+test('account deletion after a completed registration removes both queue and certificate rows',async()=>{
+  const env=await fixture(),req=await submit(env),job=await claimJob(env);
+  await finish(env,job,record());
+  assert.equal((await getRequest(env,req.request_id,1)).status,'registered');
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM cert_registration_requests WHERE user_id=?').bind(1),
+    env.DB.prepare('DELETE FROM psa_certs WHERE user_id=?').bind(1),
+    env.DB.prepare('DELETE FROM bgs_certs WHERE user_id=?').bind(1),
+    env.DB.prepare('DELETE FROM holdings WHERE user_id=?').bind(1),
+    env.DB.prepare('DELETE FROM users WHERE id=?').bind(1),
+  ]);
+  assert.equal(env.DB.sqlite.prepare('SELECT COUNT(*) AS n FROM psa_certs WHERE user_id=1').get().n,0);
+  assert.equal(await getRequest(env,req.request_id,1),null);
+});
+
+for (const provider of ['psa','bgs']) {
+  test(`conditional certificate registration retains UUID account compatibility: ${provider}`,async()=>{
+    const env=await fixture(),userId='705baf8c-018e-4a0f-b76f-5b1d9f923000';
+    env.DB.sqlite.exec("DROP TABLE users; CREATE TABLE users(id TEXT PRIMARY KEY,email TEXT);");
+    env.DB.sqlite.prepare('INSERT INTO users VALUES(?,?)').run(userId,'uuid@audit.invalid');
+    const isBgs=provider==='bgs',cert=isBgs?'0016097088':'23483296';
+    const request=await submit(env,{cert_number:cert,card_id:isBgs?'22222':'91103',holding_id:null},userId,provider);
+    assert.equal(request.http,202);
+    const job=await claimJob(env);
+    const rec=isBgs?{cert_number:cert,grade_text:'9.5',subject:'NAMI',brand:'ONE PIECE OP07',card_number:'OP07051',label:'gold',source_url:'https://www.beckett.com/api/grading/lookup?category=BGS&serialNumber='+cert}:record(cert);
+    await finish(env,job,rec);
+    assert.equal((await getRequest(env,request.request_id,userId)).status,'registered');
+    assert.equal(env.DB.sqlite.prepare(`SELECT user_id FROM ${provider}_certs`).get().user_id,userId);
+  });
+}

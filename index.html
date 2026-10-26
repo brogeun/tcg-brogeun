@@ -2537,6 +2537,35 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 /* ────────────────────────────────────
    1. 라우팅 (단순! 작동 보장)
    ──────────────────────────────────── */
+function parsePageRoute(input) {
+  const raw = String(input || 'home').replace(/^#/, '');
+  const divider = raw.indexOf('?');
+  const rawPath = divider < 0 ? raw : raw.slice(0, divider);
+  const params = new URLSearchParams(divider < 0 ? '' : raw.slice(divider + 1));
+  const parts = rawPath.split('/');
+  const allowed = new Set(['home', 'price', 'hub', 'cardinfo', 'apply', 'oripa', 'events', 'etc', 'admin', 'centering', 'casing', 'portfolio']);
+  let page = allowed.has(parts[0]) ? parts[0] : 'home';
+  let productId = null;
+  if (parts.length > 1) {
+    if (page === 'price' && parts.length === 2 && /^[A-Za-z0-9:_-]+$/.test(parts[1])) productId = parts[1];
+    else page = 'home';
+  }
+  const query = page === 'price' && !productId ? String(params.get('q') || '').trim().slice(0, 200) : '';
+  const path = page + (productId ? '/' + productId : '') + (query ? '?q=' + encodeURIComponent(query) : '');
+  return {page, productId, query, path};
+}
+function initPriceRoute(route) {
+  const loading = initPrice(route.productId);
+  if (!route.query) return;
+  Promise.resolve(loading).then(async () => {
+    await loadCardSearchData();
+    if (document.body.dataset.page !== 'price' || location.hash !== '#' + route.path) return;
+    const input = document.getElementById('cardSearchInput');
+    if (input) input.value = route.query;
+    const results = searchCards(route.query, Infinity).slice().sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
+    renderPriceSearchAsGrid(results, route.query);
+  }).catch(error => console.warn('[route-search]', error));
+}
 function go(pageOrPath) {
   if (document.body.dataset.page === 'admin' && pageOrPath !== 'admin' && window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
   if (window.HubNewsDetail) HubNewsDetail.close();
@@ -2544,13 +2573,10 @@ function go(pageOrPath) {
   // 일반 내비게이션 시 상세 이전/다음 탐색 컨텍스트 초기화 (goCardDetail 은 go() 안 거치고 hash 직접 변경)
   window._DETAIL_NAV = null;
   // path 지원: "price/618442" → page=price, productId=618442
-  let page = pageOrPath;
-  let productId = null;
-  if (pageOrPath.includes('/')) {
-    const parts = pageOrPath.split('/');
-    page = parts[0];
-    productId = parts[1] || null;
-  }
+  const route = parsePageRoute(pageOrPath);
+  pageOrPath = route.path;
+  let page = route.page;
+  const productId = route.productId;
   // Only a server-confirmed administrator may open either management screen.
   if (['admin', 'casing'].includes(page) && !isAdminAccount()) {
     if (!AUTH_READY) window._pendingAdminPage = page;
@@ -2585,7 +2611,7 @@ function go(pageOrPath) {
   window._CUR_HASH = newHash;  // popstate 의 모달 닫기 복원용
   // 페이지별 초기화
   if (page === 'home' && typeof initHome2 === 'function') initHome2();
-  if (page === 'price') initPrice(productId);
+  if (page === 'price') initPriceRoute(route);
   if (page === 'admin' && window.AdminEditorUI) AdminEditorUI.enter();
   if (page === 'portfolio') refreshPortfolio();
   if (page === 'centering') {
@@ -2653,13 +2679,9 @@ window.addEventListener('popstate', e => {
     return;
   }
   // ② 일반 페이지 뒤로가기
-  const path = (location.hash || '#home').replace('#', '') || 'home';
-  let page = path, productId = null;
-  if (path.includes('/')) {
-    const parts = path.split('/');
-    page = parts[0];
-    productId = parts[1] || null;
-  }
+  const route = parsePageRoute(location.hash || '#home');
+  const path = route.path, page = route.page, productId = route.productId;
+  if (location.hash !== '#' + path) history.replaceState({page: path}, '', '#' + path);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const target = document.querySelector(`.page[data-page="${page}"]`);
   if (target) target.classList.add('active');
@@ -2668,7 +2690,7 @@ window.addEventListener('popstate', e => {
   document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.nav === page);
   });
-  if (page === 'price') initPrice(productId);
+  if (page === 'price') initPriceRoute(route);
   if (page === 'portfolio') refreshPortfolio();
   window._CUR_HASH = '#' + path;
 });
@@ -3544,7 +3566,7 @@ function initPrice(productId) {
     const panel = document.getElementById('priceDetailPanel');
     if (panel) panel.style.display = 'none';
   }
-  loadPriceGrid();
+  return loadPriceGrid();
 }
 
 /* ─────────── 카드 상세 액션 버튼 (포트폴리오/관심) — data 속성 기반 ─────────── */
@@ -4050,8 +4072,8 @@ async function renderGradesPanel(productId, product) {
       <div style="background:#fff; border:1px dashed #d1d5db; border-radius:8px; padding:12px 14px">
         <div style="font-size:11px; font-weight:800; color:${info.color}; margin-bottom:6px">${info.label}</div>
         <div style="font-size:15px; font-weight:800; color:#9ca3af">—</div>
-        <div style="font-size:11px; color:var(--ink-mute); margin-top:2px">데이터 없음</div>
-        <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">거래 내역 부족</div>
+        <div style="font-size:11px; color:var(--ink-mute); margin-top:2px">${g?.noListing ? '현재 출품 없음' : '데이터 없음'}</div>
+        <div style="font-size:10px; color:var(--ink-mute); margin-top:6px">${g?.noListing ? '확인된 현재 출품가 없음' : '거래 내역 부족'}</div>
       </div>`;
   };
   grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px,1fr))';
@@ -4061,24 +4083,30 @@ async function renderGradesPanel(productId, product) {
     const data = await loadCardsDetail();
     const card = data?.cards?.[productId];
     let grades = card?.grades || {};
+    const liveNoListingGrades = new Set();
 
     // 1순위: SNKRDUNK 현재 출품 최저가 (엣지에서 1시간 캐시)
     // cards-detail.json 이 오래돼도 상세 화면은 라이브 값을 우선한다.
     try {
-      const liveR = await fetch(`/api/card-grades?id=${productId}`);
+      const liveR = await fetch(`/api/card-grades?id=${productId}&v=3`);
       if (liveR.ok) {
         const live = await liveR.json();
         if (live.ok && live.grades) {
           grades = { ...grades };
           for (const k of ['psa10','psa9','raw']) {
-            if (live.grades[k]) grades[k] = live.grades[k];
+            if (Array.isArray(live.noListingGrades) && live.noListingGrades.includes(k)) {
+              liveNoListingGrades.add(k);
+              grades[k] = { noListing: true };
+            } else if (live.grades[k]) {
+              grades[k] = live.grades[k];
+            }
           }
         }
       }
     } catch (e) { console.warn('live grades fetch fail:', e); }
 
     // 2순위 폴백: 라이브·정적 현재가가 없는 등급만 최근 거래가로 보충
-    const needsPsaData = ['psa10','psa9','raw'].some(k => !grades[k] || Object.keys(grades[k]).length === 0);
+    const needsPsaData = ['psa10','psa9','raw'].some(k => !liveNoListingGrades.has(k) && (!grades[k] || Object.keys(grades[k]).length === 0));
     if (needsPsaData) {
       try {
         const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
@@ -4096,7 +4124,7 @@ async function renderGradesPanel(productId, product) {
           }
           grades = grades || {};
           for (const k of ['psa10','psa9','raw']) {
-            if (latest[k] != null && !gradeQuote(grades[k])) {
+            if (!liveNoListingGrades.has(k) && latest[k] != null && !gradeQuote(grades[k])) {
               grades[k] = { lowest_ask: latest[k], currency: 'JPY' };
             }
           }
@@ -5021,15 +5049,18 @@ function isPriceBoxProduct(product) {
   return true;
 }
 
+let PRICE_GRID_REQUEST = 0;
 async function loadPriceGrid() {
-  if (PRICE_LOADING) return;
+  const request = ++PRICE_GRID_REQUEST;
+  const brand = PRICE_BRAND, category = PRICE_CAT;
+  const current = () => request === PRICE_GRID_REQUEST && brand === PRICE_BRAND && category === PRICE_CAT;
   PRICE_LOADING = true;
   const grid = document.getElementById('priceGrid');
   const status = document.getElementById('priceStatus');
-  const brandLbl = PRICE_BRAND === 'pokemon' ? '포켓몬' : '원피스';
-  const catLbl = PRICE_CAT === 'box' ? '박스' : '카드';
+  const brandLbl = brand === 'pokemon' ? '포켓몬' : '원피스';
+  const catLbl = category === 'box' ? '박스' : '카드';
   // 데이터 파일 경로 — 두 브랜드 모두 box/card 분리
-  const dataFile = `price-${PRICE_BRAND}-${PRICE_CAT}`;
+  const dataFile = `price-${brand}-${category}`;
   const labelText = `${brandLbl} ${catLbl}`;
   status.textContent = `${labelText} 시세를 불러오는 중입니다.`;
   const listInfo = document.getElementById('priceListInfo');
@@ -5040,27 +5071,31 @@ async function loadPriceGrid() {
     const r = await fetch(`/data/${dataFile}.json?t=${Math.floor(Date.now()/3600000)}`);
     if (!r.ok) throw new Error(`데이터 파일 없음 (HTTP ${r.status})`);
     const d = await r.json();
+    if (!current()) return;
     if (!d?.ok) throw new Error(d?.error || '데이터 형식 오류');
     const allProducts = d.products || [];
     await window.JapaneseCardNames?.ensureData();
-    await enrichPriceProductMetadata(allProducts, PRICE_CAT);
-    let all = PRICE_CAT === 'box' ? allProducts.filter(isPriceBoxProduct) : [...allProducts];
+    await enrichPriceProductMetadata(allProducts, category);
+    if (!current()) return;
+    let all = category === 'box' ? allProducts.filter(isPriceBoxProduct) : [...allProducts];
     // 상세 패널 검색용 캐시 — 같은 브랜드의 box+card 합쳐서
-    const otherCat = PRICE_CAT === 'box' ? 'card' : 'box';
+    const otherCat = category === 'box' ? 'card' : 'box';
     try {
-      const r2 = await fetch(`/data/price-${PRICE_BRAND}-${otherCat}.json?t=${Math.floor(Date.now()/3600000)}`);
+      const r2 = await fetch(`/data/price-${brand}-${otherCat}.json?t=${Math.floor(Date.now()/3600000)}`);
       const d2 = await r2.json();
       const otherProducts = d2?.products || [];
       await enrichPriceProductMetadata(otherProducts, otherCat);
+      if (!current()) return;
       // 과거 박스 파일에 잘못 저장된 단일 카드는 박스에서 빼고 카드 탭으로 이동해 표시한다.
-      if (PRICE_CAT === 'card') {
+      if (category === 'card') {
         const movedCards = otherProducts.filter(product => !isPriceBoxProduct(product));
         const seenIds = new Set(all.map(product => String(product.id)));
         all = [...movedCards.filter(product => !seenIds.has(String(product.id))), ...all];
       }
-      HOME_TOP_CACHE[PRICE_BRAND] = [...allProducts, ...otherProducts];
-    } catch { HOME_TOP_CACHE[PRICE_BRAND] = all; }
-    if (PRICE_CAT === 'card') await applyGradePrices(all);
+      HOME_TOP_CACHE[brand] = [...allProducts, ...otherProducts];
+    } catch { HOME_TOP_CACHE[brand] = all; }
+    if (category === 'card') await applyGradePrices(all);
+    if (!current()) return;
     renderPriceGrid(all);
     if (all.length === 0) {
       status.textContent = `현재 표시할 ${labelText} 데이터가 없습니다.`;
@@ -5070,12 +5105,13 @@ async function loadPriceGrid() {
       if (listInfo) listInfo.textContent = `${labelText} ${all.length}개`;
     }
   } catch (e) {
+    if (!current()) return;
     console.error('[price-grid]', e);
     status.textContent = `로딩 실패: ${e.message}`;
     if (listInfo) listInfo.textContent = `${labelText} 로딩 실패`;
     grid.innerHTML = `<div class="empty"><div class="empty-title">시세 데이터를 불러올 수 없습니다</div><div class="empty-sub">${escapeHtml(e.message)}</div></div>`;
   } finally {
-    PRICE_LOADING = false;
+    if (request === PRICE_GRID_REQUEST) PRICE_LOADING = false;
   }
 }
 
@@ -5339,7 +5375,7 @@ async function renderSlidePanel(productId) {
     } catch (e) {}
     // 1순위 — 라이브 현재 출품 최저가로 정적 값을 덮어쓴다.
     try {
-      const liveR = await fetch(`/api/card-grades?id=${productId}`);
+      const liveR = await fetch(`/api/card-grades?id=${productId}&v=3`);
       if (liveR.ok) {
         const live = await liveR.json();
         const lg = live?.grades || {};
@@ -6368,7 +6404,7 @@ const CARDINFO = {
     // ─── Scarlet & Violet Era ───
     {code:"SV11B", name:"블랙 볼트 (Black Bolt)", release:"2025.06.06", boxId:"584770", url:"https://www.tcgcollector.com/sets/11652/black-bolt?setCardCountMode=anyCardVariant"},
     {code:"SV11W", name:"화이트 플레어 (White Flare)", release:"2025.06.06", boxId:"584772", url:"https://www.tcgcollector.com/sets/11653/white-flare?setCardCountMode=anyCardVariant"},
-    {code:"SV10", name:"로켓단의 영광 (The Glory of Team Rocket)", release:"2025.04.18", url:"https://www.tcgcollector.com/sets/11649/the-glory-of-team-rocket?setCardCountMode=anyCardVariant"},
+    {code:"SV10", name:"로켓단의 영광 (The Glory of Team Rocket)", release:"2025.04.18", url:"https://www.tcgcollector.com/sets/11649/the-glory-of-team-rocket?setCardCountMode=anyCardVariant", boxId:"550896"},
     {code:"SV9a", name:"열풍의 아레나 (Hot Air Arena)", release:"2025.03.14", url:"https://www.tcgcollector.com/sets/11648/hot-air-arena?setCardCountMode=anyCardVariant"},
     {code:"SV9", name:"배틀 파트너즈 (Battle Partners)", release:"2025.01.24", boxId:"484952", url:"https://www.tcgcollector.com/sets/11643/battle-partners?setCardCountMode=anyCardVariant"},
     {code:"SV8a", name:"테라스탈 페스티벌 ex (Terastal Festival ex)", release:"2024.12.06", boxId:"424297", url:"https://www.tcgcollector.com/sets/11640/terastal-festival-ex?setCardCountMode=anyCardVariant"},
@@ -6386,7 +6422,7 @@ const CARDINFO = {
     {code:"SV3a", name:"레이징 서프 (Raging Surf)", release:"2023.09.22", url:"https://www.tcgcollector.com/sets/11583/raging-surf?setCardCountMode=anyCardVariant"},
     {code:"SV3", name:"흑염의 지배자 (Ruler of the Black Flame)", release:"2023.07.28", boxId:"127743", url:"https://www.tcgcollector.com/sets/11578/ruler-of-the-black-flame?setCardCountMode=anyCardVariant"},
     {code:"SV2a", name:"포켓몬 카드 151 (Pokemon Card 151)", release:"2023.06.16", boxId:"118914", url:"https://www.tcgcollector.com/sets/11575/pokemon-card-151?setCardCountMode=anyCardVariant"},
-    {code:"SV2D", name:"클레이 버스트 (Clay Burst)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11570/clay-burst?setCardCountMode=anyCardVariant"},
+    {code:"SV2D", name:"클레이 버스트 (Clay Burst)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11570/clay-burst?setCardCountMode=anyCardVariant", boxId:"116901"},
     {code:"SV2P", name:"스노우 해저드 (Snow Hazard)", release:"2023.04.14", url:"https://www.tcgcollector.com/sets/11569/snow-hazard?setCardCountMode=anyCardVariant"},
     {code:"SV1a", name:"트리플렛 비트 (Triplet Beat)", release:"2023.03.10", url:"https://www.tcgcollector.com/sets/11566/triplet-beat?setCardCountMode=anyCardVariant"},
     {code:"SV1S", name:"스칼렛 ex (Scarlet ex)", release:"2023.01.20", boxId:"106863", url:"https://www.tcgcollector.com/sets/11505/scarlet-ex?setCardCountMode=anyCardVariant"},
@@ -6558,15 +6594,15 @@ const CARDINFO = {
     {code:"OP15", name:"신의 섬의 모험 (Adventure of God's Island)", release:"2026.02.28", boxId:"755998", url:"https://tcgrepublic.com/category/subcategory_page_10948.html"},
     {code:"EB04", name:"에그헤드 크라이시스 (Egghead Crisis)", release:"2026.01.31", url:"https://tcgrepublic.com/category/subcategory_page_10895.html"},
     {code:"OP14", name:"창해의 칠걸 (Seven Heroes of the Blue Sea)", release:"2025.11.22", boxId:"725356", url:"https://tcgrepublic.com/category/subcategory_page_10744.html"},
-    {code:"EB03", name:"원피스 히로인즈 에디션 (One Piece Heroines Edition)", release:"2025.10.25", url:"https://tcgrepublic.com/category/subcategory_page_10671.html"},
+    {code:"EB03", name:"원피스 히로인즈 에디션 (One Piece Heroines Edition)", release:"2025.10.25", url:"https://tcgrepublic.com/category/subcategory_page_10671.html", boxId:"691521"},
     {code:"OP13", name:"계승된 의지 (Inherited Will)", release:"2025.08.30", boxId:"548909", url:"https://tcgrepublic.com/category/subcategory_page_10545.html"},
     {code:"OP12", name:"마스터의 유산 (Legacy of the Master)", release:"2025.05.24", url:"https://tcgrepublic.com/category/subcategory_page_10336.html"},
     {code:"OP11", name:"신속의 일격 (A Fist of Divine Speed)", release:"2025.02.22", url:"https://tcgrepublic.com/category/subcategory_page_10172.html"},
     {code:"EB02", name:"애니메이션 25주년 컬렉션 (Anime 25th)", release:"2025.01.25", url:"https://tcgrepublic.com/category/subcategory_page_10091.html"},
     {code:"OP10", name:"로열 블러드 (Royal Blood)", release:"2024.11.30", url:"https://tcgrepublic.com/category/subcategory_page_9987.html"},
-    {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.08.31", url:"https://tcgrepublic.com/category/subcategory_page_9758.html"},
+    {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.08.31", url:"https://tcgrepublic.com/category/subcategory_page_9758.html", boxId:"299926"},
     {code:"OP08", name:"두 전설 (Two Legends)", release:"2024.05.25", url:"https://tcgrepublic.com/category/subcategory_page_9499.html"},
-    {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.02.24", url:"https://tcgrepublic.com/category/subcategory_page_9138.html"},
+    {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.02.24", url:"https://tcgrepublic.com/category/subcategory_page_9138.html", boxId:"178125"},
     {code:"EB01", name:"메모리얼 컬렉션 (Memorial Collection)", release:"2024.01.27", boxId:"165849", url:"https://tcgrepublic.com/category/subcategory_page_9054.html"},
     {code:"OP06", name:"선장의 날개 (Wings of Captain)", release:"2023.11.25", url:"https://tcgrepublic.com/category/category_page_67.html"},
     {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", release:"2023.08.26", url:"https://tcgrepublic.com/category/subcategory_page_8690.html"},
@@ -10381,16 +10417,18 @@ async function startKakaoLogin() {
   if (!App || typeof App.addListener !== 'function') return;
 
   let emailLoginPending = false;
+  let kakaoLoginPending = false;
+  let kakaoHandledCode = null;
   async function handleAppUrl(event) {
     try {
       const url = event?.url || '';
       if (!url.startsWith('kr.tcghub.app://')) return;
-      // 외부 브라우저 닫기 (가능하면)
-      try { if (Browser && Browser.close) await Browser.close(); } catch {}
-
       const u = new URL(url.replace('kr.tcghub.app://', 'https://placeholder.local/'));
       const path = u.pathname.replace(/^\//, '');
       const code = u.searchParams.get('code');
+      if (path !== 'email-callback' && !(path === 'kakao-callback' && code)) return;
+      // Ignore unrelated app links before closing a browser or using credentials.
+      try { if (Browser && Browser.close) await Browser.close(); } catch {}
 
       if (path === 'email-callback') {
         const verifier = localStorage.getItem('tcghub_email_verifier');
@@ -10419,20 +10457,25 @@ async function startKakaoLogin() {
       }
 
       if (path === 'kakao-callback' && code) {
-        // 임시 코드 → 진짜 세션 교환
-        const r = await fetch('/api/auth/exchange-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
-          credentials: 'include',
-        });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok || !data.ok) {
-          if (typeof showToast === 'function') showToast('카카오 로그인 실패: ' + (data.error || r.statusText));
-          return;
+        if (kakaoLoginPending || kakaoHandledCode === code) return;
+        kakaoLoginPending = true;
+        try {
+          const r = await fetch('/api/auth/exchange-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code }),
+            credentials: 'include',
+          });
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok || !data.ok) {
+            if (typeof showToast === 'function') showToast('카카오 로그인 실패: ' + (data.error || r.statusText));
+            return;
+          }
+          kakaoHandledCode = code;
+          window.location.href = '/?login=success';
+        } finally {
+          kakaoLoginPending = false;
         }
-        // 세션 쿠키 적용됨 — 새로고침
-        window.location.href = '/?login=success';
       }
     } catch (err) {
       console.error('appUrlOpen handler error:', err);
@@ -10441,9 +10484,7 @@ async function startKakaoLogin() {
   App.addListener('appUrlOpen', handleAppUrl);
   // 앱이 종료된 상태에서 링크로 시작한 경우도 처리한다.
   if (typeof App.getLaunchUrl === 'function') {
-    App.getLaunchUrl().then(event => {
-      if (event?.url === 'kr.tcghub.app://email-callback') return handleAppUrl(event);
-    }).catch(err => console.warn('App launch URL check failed:', err));
+    App.getLaunchUrl().then(handleAppUrl).catch(err => console.warn('App launch URL check failed:', err));
   }
 })();
 

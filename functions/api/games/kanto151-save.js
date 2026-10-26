@@ -5,13 +5,12 @@ const unavailable = () => jsonResponse({ok:false,error:'unavailable',message:'�
 const selectRecord = (db,userId) => db.prepare('SELECT revision, updated_at, bundle_json FROM kanto151_saves WHERE user_id = ?').bind(userId).first();
 
 async function authenticate(request,env) {
-  if (!env?.JWT_SECRET) return {response:unavailable()};
+  if (!env?.JWT_SECRET || !env.DB || typeof env.DB.prepare !== 'function') return {response:unavailable()};
   const user = await getCurrentUser(request,env);
   if (!user || typeof user.id !== 'string' || !user.id) return {response:jsonResponse({ok:false,error:'unauthorized',message:'로그인이 필요합니다.'},401)};
   const expectedAccount = request.headers.get('X-Kanto151-Account');
   if (!expectedAccount) return {response:jsonResponse({ok:false,error:'account-required',message:'저장할 로그인 계정을 다시 확인해 주세요.'},400)};
   if (expectedAccount !== user.id) return {response:jsonResponse({ok:false,error:'account-changed',message:'로그인 계정이 바뀌었어요. 기존 기록을 유지하고 다시 연결해 주세요.'},409)};
-  if (!env.DB || typeof env.DB.prepare !== 'function') return {response:unavailable()};
   return {user};
 }
 

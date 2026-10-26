@@ -117,13 +117,13 @@ export async function verifyAppleIdToken(idToken, allowedAudiences = []) {
     throw new Error(`Invalid audience: ${payload.aud}`);
   }
   const now = Math.floor(Date.now() / 1000);
-  if (typeof payload.exp === 'number' && payload.exp < now) {
+  if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp) || payload.exp <= now) {
     throw new Error('Token expired');
   }
-  if (typeof payload.iat === 'number' && payload.iat > now + 60) {
+  if (typeof payload.iat !== 'number' || !Number.isFinite(payload.iat) || payload.iat > now + 60) {
     throw new Error('Token issued in the future');
   }
-  if (!payload.sub) {
+  if (typeof payload.sub !== 'string' || !payload.sub) {
     throw new Error('Missing sub in payload');
   }
 

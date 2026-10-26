@@ -12,7 +12,7 @@ const URL = 'https://account-save.example.test/api/games/kanto151-save';
 const NOW = '2026-10-17T00:00:00.000Z';
 function fixture() {
   const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec('PRAGMA foreign_keys = ON; CREATE TABLE users (id TEXT PRIMARY KEY); INSERT INTO users VALUES (\'pc-user\'), (\'phone-user\');');
+  sqlite.exec("PRAGMA foreign_keys = ON; CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE); INSERT INTO users VALUES ('pc-user', 'pc-user@example.test'), ('phone-user', 'phone-user@example.test');");
   sqlite.exec(readFileSync(new globalThis.URL('../functions/_schema/kanto151_saves.sql',import.meta.url),'utf8'));
   const calls = [], faults = {sql:null};
   const execute = (sql,args,kind) => {
@@ -50,6 +50,7 @@ async function request(ctx,{method='GET',user='pc-user',expectedAccount=user,hea
   return {response,status:response.status,data:await response.json()};
 }
 const put = (ctx,revision=0,value=bundle(),options={}) => request(ctx,{method:'PUT',body:{expectedRevision:revision,bundle:value},...options});
+const accountRecordCalls = ctx => ctx.calls.filter(({sql}) => /\bkanto151_(?:saves|save_backups)\b/i.test(sql));
 
 test('anonymous, forged and expired sessions never read or write account records',async()=>{
   const ctx=fixture();
@@ -62,6 +63,24 @@ test('anonymous, forged and expired sessions never read or write account records
   } finally { ctx.close(); }
 });
 
+test('deleted accounts cannot reuse a previously valid JWT to read or recreate saves',async()=>{
+  const ctx=fixture();
+  try {
+    const token=await signJwt({sub:'pc-user',email:'pc-user@example.test',exp:Math.floor(Date.now()/1000)+600},SECRET);
+    const options={user:null,expectedAccount:'pc-user',headers:{Cookie:'session='+token}};
+    assert.equal((await put(ctx,0,bundle(),options)).status,200);
+    assert.equal((await put(ctx,1,bundle(save({coins:2000})),options)).status,200);
+    assert.equal(ctx.sqlite.prepare('SELECT COUNT(*) AS n FROM kanto151_save_backups').get().n,1);
+    ctx.sqlite.prepare('DELETE FROM users WHERE id = ?').run('pc-user');
+    ctx.calls.length=0;
+    assert.equal((await request(ctx,options)).status,401);
+    assert.equal((await put(ctx,0,bundle(),options)).status,401);
+    assert.equal(accountRecordCalls(ctx).length,0);
+    assert.equal(ctx.sqlite.prepare('SELECT COUNT(*) AS n FROM kanto151_saves').get().n,0);
+    assert.equal(ctx.sqlite.prepare('SELECT COUNT(*) AS n FROM kanto151_save_backups').get().n,0);
+  } finally { ctx.close(); }
+});
+
 test('expected-account header catches account changes and cannot select another account',async()=>{
   const ctx=fixture();
   try {
@@ -70,7 +89,7 @@ test('expected-account header catches account changes and cannot select another 
       const result=await request(ctx,{method,user:'phone-user',expectedAccount:'pc-user'});
       assert.equal(result.status,409);assert.equal(result.data.error,'account-changed');
     }
-    assert.equal(ctx.calls.length,0);
+    assert.equal(accountRecordCalls(ctx).length,0);
     await put(ctx,0,bundle(),{body:{expectedRevision:0,bundle:bundle(),userId:'phone-user'}});
     assert.equal((await request(ctx,{user:'phone-user'})).data.record,null);
   } finally { ctx.close(); }
@@ -96,7 +115,7 @@ test('writes reject missing/cross origins, cross-site requests and non-JSON cont
   try {
     for (const headers of [{Origin:null},{Origin:'https://other.example.test'},{'Sec-Fetch-Site':'cross-site'}]) assert.equal((await put(ctx,0,bundle(),{headers})).status,403);
     assert.equal((await put(ctx,0,bundle(),{headers:{'Content-Type':'text/plain'}})).status,415);
-    assert.equal(ctx.calls.length,0);
+    assert.equal(accountRecordCalls(ctx).length,0);
   } finally { ctx.close(); }
 });
 
@@ -126,7 +145,7 @@ test('duplicate Pokémon, broken parties, invalid levels/HP/XP and nonfinite num
     const cases=[{collection:[pokemon,pokemon]},{party:['missing']},{party:[pokemon.uid,pokemon.uid]},{collection:[{...pokemon,hp:-1}]},{collection:[{...pokemon,hp:null}]},{collection:[{...pokemon,exp:-1}]},{collection:[{...pokemon,level:0}]},{collection:[{...pokemon,uid:'bad/uid'}]},{survival:{hunger:101,thirst:100,drops:[]}},{position:[null,0]},{coins:-1},{dex:{152:{caught:true}}}];
     for(const changes of cases) assert.equal((await put(ctx,0,bundle(save(changes),false))).status,400);
     const overflow=bundle();overflow.save=overflow.save.replace('"coins":1380','"coins":1e999');assert.equal((await put(ctx,0,overflow)).status,400);
-    assert.equal(ctx.calls.length,0);
+    assert.equal(accountRecordCalls(ctx).length,0);
   } finally { ctx.close(); }
 });
 
@@ -137,7 +156,7 @@ test('recovery checksum, owner and import identity are validated with no repair'
       const value=bundle(),checkpoint=JSON.parse(value.checkpoint);change(checkpoint);value.checkpoint=JSON.stringify(checkpoint);
       assert.equal((await put(ctx,0,value)).status,400);
     }
-    assert.equal(ctx.calls.length,0);
+    assert.equal(accountRecordCalls(ctx).length,0);
   } finally { ctx.close(); }
 });
 
@@ -149,7 +168,7 @@ test('malformed JSON, invalid revisions and byte limits reject before any databa
     const huge=' '.repeat(MAX_SAVE_BODY_BYTES+1);
     assert.equal((await put(ctx,0,bundle(),{raw:huge})).status,413);
     assert.equal((await put(ctx,0,bundle(),{headers:{'Content-Length':String(MAX_SAVE_BODY_BYTES+1)}})).status,413);
-    assert.equal(ctx.calls.length,0);
+    assert.equal(accountRecordCalls(ctx).length,0);
   } finally { ctx.close(); }
 });
 
@@ -193,6 +212,8 @@ test('unconfigured/missing schema/unreadable records fail closed without exposin
   try {
     assert.equal((await request(ctx,{env:{...ctx.env,JWT_SECRET:''}})).status,503);
     assert.equal((await request(ctx,{env:{...ctx.env,DB:null}})).status,503);
+    assert.equal((await request(ctx,{env:{...ctx.env,DB:{}}})).status,503);
+    assert.equal((await put(ctx,0,bundle(),{env:{...ctx.env,DB:null}})).status,503);
     await put(ctx);ctx.sqlite.prepare('UPDATE kanto151_saves SET bundle_json = ?').run('{broken');
     assert.equal((await request(ctx)).status,503);
     ctx.sqlite.exec('DROP TABLE kanto151_saves');const missing=await request(ctx);assert.equal(missing.status,503);assert(!JSON.stringify(missing.data).includes('kanto151_saves'));

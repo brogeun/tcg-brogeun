@@ -54,7 +54,7 @@ export async function onRequestPost({ request, env }) {
   if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
     return json({ ok: false, error: '다른 사이트에서는 게시할 수 없습니다.' }, 403);
   }
-  if (!env.JWT_SECRET) return json({ ok: false, error: 'Authentication unavailable' }, 503);
+  if (!env.JWT_SECRET || !env.DB) return json({ ok: false, error: 'Authentication unavailable' }, 503);
   const user = await getCurrentUser(request, env);
   if (!user) return json({ ok: false, error: '관리자 계정으로 로그인해 주세요.' }, 401);
   if (!await isAdminUser(user, env)) return json({ ok: false, error: '관리자 계정만 게시할 수 있습니다.' }, 403);

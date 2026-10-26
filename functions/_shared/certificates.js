@@ -386,11 +386,19 @@ async function finalizeRequest(env, row, record) {
       await setRequestState(env,row.id,'needs_review','multiple_holding_grade','여러 장이 묶인 보유 항목은 자동 등급 변경이 불가능합니다. 항목 분리 후 관리자 확인이 필요합니다.'); return;
     }
   }
+  // The worker may have read this request before an account deletion or request
+  // removal committed. Recheck ownership and liveness inside the write transaction,
+  // rather than relying on the earlier snapshot in finalizeWaiting().
+  const requestGuard = `EXISTS (SELECT 1 FROM users WHERE id=?)
+    AND EXISTS (SELECT 1 FROM cert_registration_requests WHERE id=? AND user_id=?
+      AND provider=? AND cert_number=? AND card_id=? AND holding_id IS ?
+      AND status IN ('pending','processing','retry_wait'))`;
+  const requestBinds = [row.user_id,row.id,row.user_id,row.provider,row.cert_number,row.card_id,row.holding_id];
   const statements = [];
   if (row.provider === 'psa') {
     // Conditional INSERT and all following mutations are one D1 transaction.
-    const condition = holding ? "EXISTS (SELECT 1 FROM holdings WHERE id=? AND user_id=? AND card_id=? AND grade=? AND qty=?)" : '1=1';
-    const binds = [row.cert_number,row.card_id,record.grade,row.user_id,row.holding_id,record.brand,record.year,record.subject,record.card_number,record.variety,record.pop_total,record.pop_higher,JSON.stringify(record)];
+    const condition = `${requestGuard} AND ${holding ? "EXISTS (SELECT 1 FROM holdings WHERE id=? AND user_id=? AND card_id=? AND grade=? AND qty=?)" : "1=1"}`;
+    const binds = [row.cert_number,row.card_id,record.grade,row.user_id,row.holding_id,record.brand,record.year,record.subject,record.card_number,record.variety,record.pop_total,record.pop_higher,JSON.stringify(record),...requestBinds];
     if (holding) binds.push(holding.id,row.user_id,row.card_id,holding.grade,holding.qty);
     statements.push(env.DB.prepare(`INSERT OR IGNORE INTO psa_certs
       (cert_number,card_id,grade,user_id,holding_id,brand,year,subject,card_number,variety,psa_total_pop,psa_pop_higher,raw_payload)
@@ -401,7 +409,7 @@ async function finalizeRequest(env, row, record) {
   } else {
     statements.push(env.DB.prepare(`INSERT OR IGNORE INTO bgs_certs
       (cert_number,card_id,user_id,final_grade,label,card_key,player_name,set_name,pop_total,pop_bl10,pop_gl10,pop_95,raw_payload)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(row.cert_number,row.card_id,row.user_id,record.grade_text,record.label,record.card_number,record.subject,record.brand,record.pop_total,record.pop_bl10,record.pop_gl10,record.pop_95,JSON.stringify(record)));
+      SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE ${requestGuard}`).bind(row.cert_number,row.card_id,row.user_id,record.grade_text,record.label,record.card_number,record.subject,record.brand,record.pop_total,record.pop_bl10,record.pop_gl10,record.pop_95,JSON.stringify(record),...requestBinds));
   }
   statements.push(env.DB.prepare(`UPDATE cert_registration_requests SET status='registered',error=NULL,message=?,updated_at=?,
     certificate_id=(SELECT id FROM ${table} WHERE cert_number=? AND user_id=? AND card_id=?)

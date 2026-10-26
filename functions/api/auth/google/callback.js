@@ -12,6 +12,13 @@ import { signJwt } from '../../../_shared/jwt.js';
 
 const SESSION_DAYS = 30;
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]);
+}
+
+
 function errorPage(title, message) {
   return new Response(`
 <!DOCTYPE html>
@@ -27,8 +34,8 @@ a{display:inline-block;padding:10px 20px;background:#111;color:#fff;text-decorat
 </style></head>
 <body><div class="box">
   <div style="font-size:36px;margin-bottom:12px">⚠️</div>
-  <h1>${title}</h1>
-  <p>${message}</p>
+  <h1>${escapeHtml(title)}</h1>
+  <p>${escapeHtml(message)}</p>
   <a href="/">← 홈으로</a>
 </div></body></html>`, {
     status: 400,
@@ -101,6 +108,10 @@ export async function onRequestGet({ request, env }) {
     }
   } catch (e) {
     return errorPage('서버 오류', `사용자 정보 조회 중 오류: ${e.message || e}`);
+  }
+
+  if (userinfo.email_verified !== true && userinfo.email_verified !== 'true') {
+    return errorPage('Login failed', 'A verified Google email address is required.');
   }
 
   const email = String(userinfo.email).toLowerCase().trim();

@@ -20,6 +20,20 @@ const HEADERS = {
 };
 
 const BASE = "https://snkrdunk.com";
+const MAX_REDIRECTS = 3;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+function trustedSnkrdunkUrl(input) {
+  let target;
+  try { target = new URL(input); }
+  catch { throw new Error("invalid SNKRDUNK URL"); }
+  if (target.protocol !== "https:" || target.hostname !== "snkrdunk.com" ||
+      target.username || target.password || target.port) {
+    throw new Error("only HTTPS snkrdunk.com URLs without credentials or custom ports are allowed");
+  }
+  target.hash = "";
+  return target.toString();
+}
 
 const BRAND_CATEGORY = {
   pokemon: `${BASE}/brands/pokemon/categories/6`,
@@ -133,6 +147,7 @@ function harvestProducts(root, max=60){
 
 /* HTTP fetch — SCRAPINGBEE_KEY 있으면 경유, 없으면 직접 */
 async function getHtml(url, env){
+  url = trustedSnkrdunkUrl(url);
   const apiKey = env?.SCRAPINGBEE_KEY;
   if(apiKey){
     const params = new URLSearchParams({
@@ -140,13 +155,25 @@ async function getHtml(url, env){
       country_code: "jp", block_resources: "true",
     });
     const beeUrl = `https://app.scrapingbee.com/api/v1/?${params}`;
-    const res = await fetch(beeUrl, { redirect: "follow" });
+    // Never forward the service credential through an HTTP redirect.
+    // Redirects followed internally by the provider are outside this function.
+    const res = await fetch(beeUrl, { redirect: "manual" });
     if(!res.ok) throw new Error(`ScrapingBee HTTP ${res.status}`);
     return await res.text();
   }
-  const res = await fetch(url, { headers: HEADERS, redirect: "follow" });
-  if(!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return await res.text();
+  let target = url;
+  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
+    const res = await fetch(target, { headers: HEADERS, redirect: "manual" });
+    if (REDIRECT_STATUSES.has(res.status)) {
+      const location = res.headers.get("location");
+      if (!location || redirects === MAX_REDIRECTS) throw new Error("SNKRDUNK redirect limit or missing location");
+      target = trustedSnkrdunkUrl(new URL(location, target).toString());
+      continue;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${target}`);
+    return await res.text();
+  }
+  throw new Error("SNKRDUNK redirect limit");
 }
 
 function findPriceInHtml(html){
@@ -228,9 +255,11 @@ export async function onRequest(context) {
 
     /* 모드 2: URL 직접 지정 */
     if(qs.url){
-      if(!qs.url.startsWith(BASE)) return makeJson(400, { ok: false, error: "url must start with " + BASE });
-      const html = await getHtml(qs.url, env);
-      return makeJson(200, { ok: true, type: "product", product: parseProduct(html, qs.url) });
+      let targetUrl;
+      try { targetUrl = trustedSnkrdunkUrl(qs.url); }
+      catch { return makeJson(400, { ok: false, error: "url must be an HTTPS snkrdunk.com URL without credentials or custom ports" }); }
+      const html = await getHtml(targetUrl, env);
+      return makeJson(200, { ok: true, type: "product", product: parseProduct(html, targetUrl) });
     }
 
     /* 모드 3: 상품 ID */

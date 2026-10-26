@@ -24,6 +24,11 @@ const json = (obj, status = 200, extraHeaders = {}) => new Response(JSON.stringi
 });
 
 export async function onRequestPost({ request, env }) {
+  // Browser forms must not exchange credentials across origins. Native JSON
+  // clients may omit Origin; browser cross-site requests cannot do so.
+  const origin = request.headers.get('Origin');
+  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') return json({ ok: false, error: 'cross_origin' }, 403);
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) return json({ ok: false, error: 'json_required' }, 415);
   if (!env.DB) return json({ ok: false, error: 'D1 not bound' }, 500);
   if (!env.JWT_SECRET) return json({ ok: false, error: 'JWT_SECRET not set' }, 500);
   if (!env.ADMIN_KV) return json({ ok: false, error: 'ADMIN_KV not bound' }, 500);

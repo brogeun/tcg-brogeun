@@ -15,6 +15,7 @@ const providerCard = {
 async function fixture(t, { card = localCard, cardId = '22222', cards = null, bgs = providerCard, catalogue = 'index', providerResponse = {} } = {}) {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
+  db.exec("CREATE TABLE users(id INTEGER PRIMARY KEY,email TEXT); INSERT INTO users VALUES(1,'one@audit.invalid');");
   db.exec(`CREATE TABLE bgs_certs (
     id INTEGER PRIMARY KEY, cert_number TEXT UNIQUE, card_id TEXT, user_id INTEGER,
     final_grade TEXT, label TEXT, card_key TEXT, player_name TEXT, set_name TEXT,
@@ -320,3 +321,13 @@ for (const [actualCardId, variety] of explicitLuffyVariants) {
     });
   }
 }
+
+// Account revocation must also apply to legacy numeric-subject sessions.
+test('deleted account cannot register a BGS cert using an old numeric-subject session', async t => {
+  const f = await fixture(t);
+  f.db.exec('DELETE FROM users WHERE id = 1');
+  const response = await f.call();
+  assert.equal(response.http, 401);
+  assert.equal(f.calls.length, 0, 'deleted users must be rejected before provider/catalogue requests');
+  assert.equal(f.rows().length, 0);
+});

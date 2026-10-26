@@ -79,6 +79,11 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPost({ request, env }) {
+  // Browser forms must not exchange credentials across origins. Native JSON
+  // clients may omit Origin; browser cross-site requests cannot do so.
+  const origin = request.headers.get('Origin');
+  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') return jsonResponse({ ok: false, error: 'cross_origin' }, 403);
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) return jsonResponse({ ok: false, error: 'json_required' }, 415);
   let body;
   try { body = await request.json(); } catch { return jsonResponse({ ok: false, message: '잘못된 로그인 요청입니다.' }, 400); }
   const verifier = body?.verifier;

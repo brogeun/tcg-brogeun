@@ -7,10 +7,10 @@ import { onRequestGet, onRequestPost } from '../functions/api/games/volleyball.j
 import { signJwt } from '../functions/_shared/jwt.js';
 import { LocalDB } from './volleyball-local-db.mjs';
 const DB = new LocalDB();
-DB.sqlite.exec('CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT)');
+DB.sqlite.exec('CREATE TABLE users (id TEXT PRIMARY KEY, name TEXT, email TEXT NOT NULL UNIQUE)');
 const migration = readFileSync(new URL('../functions/_schema/volleyball.sql', import.meta.url), 'utf8');
 DB.sqlite.exec(migration); DB.sqlite.exec(migration);
-for (const id of ['alice', 'bob', 'carol']) DB.prepare('INSERT INTO users VALUES (?, ?)').bind(id, `${id}@private.test`).run();
+for (const id of ['alice', 'bob', 'carol']) DB.prepare('INSERT INTO users (id,name,email) VALUES (?, ?, ?)').bind(id, `${id}@private.test`, `${id}@private.test`).run();
 const env = { DB, JWT_SECRET: 'local-test-only-not-a-production-secret' };
 const tokens = {};
 for (const id of ['alice', 'bob', 'carol']) tokens[id] = await signJwt({ sub: id, email: `${id}@private.test`, exp: Math.floor(Date.now() / 1000) + 3600 }, env.JWT_SECRET);
@@ -142,5 +142,8 @@ assert.equal(DB.prepare("SELECT score FROM volleyball_records WHERE user_id='bob
 const plan = DB.prepare('EXPLAIN QUERY PLAN SELECT * FROM volleyball_records WHERE difficulty=? ORDER BY score DESC, conceded ASC, duration_ms ASC, achieved_at ASC, user_id ASC LIMIT 20').bind('easy').all();
 assert(plan.results.some(row => row.detail.includes('idx_volleyball_records_ranking')), 'ranking uses its index');
 DB.prepare("DELETE FROM users WHERE id='bob'").run(); assert.equal(DB.prepare("SELECT COUNT(*) AS n FROM volleyball_records WHERE user_id='bob'").first().n, 0, 'account deletion removes rankings');
+assert.equal((await post(start('easy'), 'bob')).status, 401, 'deleted-account JWT cannot create a new ranked session');
+const deletedAccountRanking = await get('easy', 'bob');
+assert.equal(deletedAccountRanking.data.loggedIn, false); assert.equal(deletedAccountRanking.data.mine, null);
 DB.sqlite.close();
 console.log('PASS: migration, three modes, current and legacy replays, session version binding, ownership, timing, idempotency, public privacy, personal bests, sorting, indexed queries, account deletion');

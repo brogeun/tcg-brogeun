@@ -22,6 +22,15 @@ const json = (obj, status = 200, extraHeaders = {}) => new Response(JSON.stringi
 });
 
 export async function onRequestPost({ request, env }) {
+  // Keep native JSON clients compatible while rejecting browser form login CSRF.
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) {
+    return json({ ok: false, error: 'unsupported_media_type' }, 415);
+  }
+  const origin = request.headers.get('Origin');
+  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
+    return json({ ok: false, error: 'forbidden' }, 403);
+  }
+
   if (!env.DB) return json({ ok: false, error: 'D1 not bound' }, 500);
   if (!env.JWT_SECRET) return json({ ok: false, error: 'JWT_SECRET not set' }, 500);
   if (!env.GOOGLE_CLIENT_ID) return json({ ok: false, error: 'GOOGLE_CLIENT_ID not set' }, 500);
@@ -59,7 +68,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   // 3) email_verified 체크
-  if (userinfo.email_verified === 'false' || userinfo.email_verified === false) {
+  if (userinfo.email_verified !== true && userinfo.email_verified !== 'true') {
     return json({ ok: false, error: '이메일 미인증 Google 계정' }, 401);
   }
 

@@ -27,7 +27,7 @@ export async function onRequest(context) {
         ok: false,
         scraped: false,
         error: `세트 ${code}는 아직 스크래핑되지 않았습니다.`,
-        hint: `먼저 /api/scrape-set?code=${code}&brand=${brand}&url=... 호출 필요`,
+        hint: `관리자 로그인 후 POST /api/scrape-set에 JSON {code, brand, url}을 보내세요. GET 요청은 저장하지 않습니다.`,
       });
     }
 

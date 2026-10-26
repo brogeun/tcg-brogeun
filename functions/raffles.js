@@ -34,28 +34,29 @@ export async function onRequestGet({ request, env, next }) {
 
   if (!html) return new Response('No HTML', { status: 500 });
 
-  // OG 메타 교체 — 기존 og:title, og:description, og:image, og:url 모두 새 값으로
-  html = html
-    .replace(/<meta\s+property=["']og:title["'][^>]*>/i, `<meta property="og:title" content="${OG_TITLE}">`)
-    .replace(/<meta\s+property=["']og:description["'][^>]*>/i, `<meta property="og:description" content="${OG_DESC}">`)
-    .replace(/<meta\s+property=["']og:image["'][^>]*>/i, `<meta property="og:image" content="${OG_IMAGE}">`)
-    .replace(/<meta\s+property=["']og:url["'][^>]*>/i, `<meta property="og:url" content="${OG_URL}">`)
-    .replace(/<title>[^<]*<\/title>/i, `<title>${OG_TITLE}</title>`);
-
-  // og:title 등이 원본에 없으면 head 끝에 추가
-  if (!/<meta\s+property=["']og:title["']/i.test(html)) {
-    const ogBlock = `
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="${OG_URL}">
-    <meta property="og:title" content="${OG_TITLE}">
-    <meta property="og:description" content="${OG_DESC}">
-    <meta property="og:image" content="${OG_IMAGE}">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="${OG_TITLE}">
-    <meta name="twitter:description" content="${OG_DESC}">
-    <meta name="twitter:image" content="${OG_IMAGE}">`;
-    html = html.replace('</head>', `${ogBlock}\n</head>`);
+  const metadata = [
+    ['property', 'og:type', 'website'],
+    ['property', 'og:title', OG_TITLE],
+    ['property', 'og:description', OG_DESC],
+    ['property', 'og:image', OG_IMAGE],
+    ['property', 'og:url', OG_URL],
+    ['name', 'description', OG_DESC],
+    ['name', 'twitter:card', 'summary_large_image'],
+    ['name', 'twitter:title', OG_TITLE],
+    ['name', 'twitter:description', OG_DESC],
+    ['name', 'twitter:image', OG_IMAGE],
+    ['name', 'twitter:url', OG_URL],
+  ];
+  for (const [attribute, name, value] of metadata) {
+    const pattern = new RegExp(`<meta\\b[^>]*\\b${attribute}=["']${name}["'][^>]*>`, 'i');
+    const tag = `<meta ${attribute}="${name}" content="${value}">`;
+    html = pattern.test(html) ? html.replace(pattern, tag) : html.replace(/<\/head>/i, `${tag}\n</head>`);
   }
+  const canonical = `<link rel="canonical" href="${OG_URL}">`;
+  const canonicalPattern = /<link\b[^>]*\brel=["']canonical["'][^>]*>/i;
+  html = canonicalPattern.test(html) ? html.replace(canonicalPattern, canonical) : html.replace(/<\/head>/i, `${canonical}\n</head>`);
+  const title = `<title>${OG_TITLE}</title>`;
+  html = /<title>[^<]*<\/title>/i.test(html) ? html.replace(/<title>[^<]*<\/title>/i, title) : html.replace(/<\/head>/i, `${title}\n</head>`);
 
   return new Response(html, {
     status: 200,

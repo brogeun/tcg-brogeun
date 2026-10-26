@@ -13,7 +13,7 @@ assert(hubStart >= 0 && hubEnd > hubStart, 'redesigned news section not found');
 const hub = html.slice(hubStart, hubEnd);
 
 assert.match(hub, /<h1>소식<\/h1>/, 'news page title missing');
-assert.match(hub, /뉴스 · 이벤트 · 오리파 · 매장 · 커뮤니티/, 'news subtitle missing');
+assert.match(hub, /뉴스 · 이벤트 · 오리파 · 매장 · 미니게임 · 커뮤니티/, 'news subtitle missing');
 assert.deepEqual(
   [...hub.matchAll(/data-tab="([^"]+)"/g)].map(match => match[1]),
   ['news', 'shops', 'more'],
@@ -26,7 +26,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   [...hub.matchAll(/data-subtab="([^"]+)"/g)].map(match => match[1]),
-  ['events', 'apply', 'oripa', 'grading', 'etc'],
+  ['events', 'apply', 'oripa', 'grading', 'minigames', 'etc'],
   'other secondary tabs changed',
 );
 
@@ -54,7 +54,7 @@ assert.match(html, /href="\$\{escapeHtml\(n\.link\)\}" target="_blank" rel="noop
 assert.match(html, /class="hub-news-image" src="\$\{escapeHtml\(imageUrl\)\}"/, 'official main image rendering missing');
 assert.match(html, /onerror="this\.hidden=true;this\.nextElementSibling\.hidden=false"/, 'image load fallback missing');
 assert.match(html, /const HUB_NEWS_PANELS = \['news', 'cardshow'\]/, 'news/card-show state group missing');
-assert.match(html, /const HUB_MORE_PANELS = \['events', 'apply', 'oripa', 'grading', 'etc'\]/, 'other state group missing');
+assert.match(html, /const HUB_MORE_PANELS = \['events', 'apply', 'oripa', 'grading', 'minigames', 'etc'\]/, 'other state group missing');
 assert.match(html, /let HUB_SUB = 'apply'/, 'raffle must be the default other tab');
 assert.match(html, /class="hub-news-placeholder"/, 'news placeholder markup missing');
 assert.match(html, /class="hub-apply-thumb"/, 'raffle placeholder markup missing');
@@ -65,5 +65,5 @@ console.log(JSON.stringify({
   fallbackNewsItems: newsData.items.length,
   primaryTabs: ['news', 'shops', 'more'],
   newsTabs: ['news', 'cardshow'],
-  otherTabs: ['events', 'apply', 'oripa', 'grading', 'etc'],
+  otherTabs: ['events', 'apply', 'oripa', 'grading', 'minigames', 'etc'],
 }, null, 2));

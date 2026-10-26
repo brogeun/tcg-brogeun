@@ -74,6 +74,17 @@ jobs:
       - name: Validate certificate matching, retries and polling
         run: node --test scripts/test_certificates.mjs scripts/test_bgs_cert.mjs scripts/test_psa_polling.mjs
 
+      - name: Verify reproducible native dependencies and configuration
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check:native
+
+      - name: Validate security, navigation and price regression boundaries
+        run: |
+          node --test scripts/audit/*.test.mjs scripts/audit/*.test.cjs
+          node scripts/test_admin_auth.mjs
+          node scripts/test_price_box_names.mjs
+
       - name: Validate Chinese catalogue and daily FX
         run: |
           node scripts/test_chinese_catalog.cjs

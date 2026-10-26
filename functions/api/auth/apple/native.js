@@ -25,6 +25,15 @@ function json(obj, status = 200, extraHeaders = []) {
 }
 
 export async function onRequestPost({ request, env }) {
+  // Keep native JSON clients compatible while rejecting browser form login CSRF.
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) {
+    return json({ ok: false, error: 'unsupported_media_type' }, 415);
+  }
+  const origin = request.headers.get('Origin');
+  if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
+    return json({ ok: false, error: 'forbidden' }, 403);
+  }
+
   if (!env.DB) return json({ error: 'DB not bound' }, 500);
   if (!env.JWT_SECRET) return json({ error: 'JWT_SECRET not set' }, 500);
 
@@ -52,11 +61,13 @@ export async function onRequestPost({ request, env }) {
 
   // Apple sub 는 user 고유 ID. email 은 첫 로그인에서만 제공될 수 있음 (private relay 가능).
   const appleSub = appleUser.sub;
-  const emailFromToken = appleUser.email;
-  const emailFromBody = body?.user?.email;
-  const email = emailFromToken
-    || emailFromBody
-    || `apple_${appleSub.replace(/[^a-z0-9._-]/gi, '')}@tcghub.kr`;
+  // Only Apple-signed, verified identity data may select an existing account.
+  // Caller-provided profile fields are not proof of email ownership.
+  if (typeof appleUser.email !== 'string' || !appleUser.email.trim()
+      || (appleUser.email_verified !== true && appleUser.email_verified !== 'true')) {
+    return json({ error: 'verified_email_required' }, 401);
+  }
+  const email = appleUser.email.toLowerCase().trim();
 
   let displayName;
   const u = body?.user;

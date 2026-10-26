@@ -103,10 +103,14 @@ for (const brand of ['pokemon', 'onepiece']) {
 
 const pokemonInfo = cardInfoFor('pokemon');
 assert.equal(pokemonInfo.get('743533')?.koreanName, '무니키스 제로', '743533 must map directly to Korean name');
-assert(expectedDirectByBrand.pokemon >= 17, 'known Pokémon boxes lost direct ID mappings');
-assert(expectedDirectByBrand.onepiece >= 5, 'known One Piece boxes lost direct ID mappings');
+assert(pokemonInfo.size >= 17, 'known Pokémon boxes lost direct ID mappings');
+assert(cardInfoFor('onepiece').size >= 5, 'known One Piece boxes lost direct ID mappings');
 for (const id of ['887992', '887994']) {
-  assert(filteredCardsByBrand.onepiece.some(row => row.id === id), `individual One Piece card ${id} must stay out of box tab`);
+  const fixture = { id, name: overrides[id]?.name || metaIndex[id]?.name || `Card #${id}` };
+  assert.equal(classify(fixture, overrides[id], metaIndex[id]), false, `individual One Piece card ${id} must stay out of box tab`);
+  if (readJson('data/price-onepiece-box.json').products.some(row => String(row.id) === id)) {
+    assert(filteredCardsByBrand.onepiece.some(row => row.id === id), `present individual card ${id} must be filtered`);
+  }
 }
 
 console.log(JSON.stringify({

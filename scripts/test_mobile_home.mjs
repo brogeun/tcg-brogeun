@@ -5,7 +5,7 @@ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const elements={};
 for(const id of ['homeAssetValue','homeAssetChange','homeAssetHoldCount','homeAssetWatchCount']) elements[id]={style:{},textContent:''};
 const ctx=vm.createContext({document:{getElementById:id=>elements[id]},syncHomeAuthView(){},CURRENT_USER:{id:'unit-test'},HOLDINGS:[],WATCHLIST:[],_PF_PRICE_CACHE:{},BOX_ID_SET:new Set(),JPY_KRW:10});
-vm.runInContext(html.slice(html.indexOf('async function renderHomeAsset()'),html.indexOf('window.openPortfolioOrLogin =')),ctx);
+vm.runInContext(html.slice(html.indexOf('let _HOME_ASSET_RUN ='),html.indexOf('window.openPortfolioOrLogin =')),ctx);
 await vm.runInContext('renderHomeAsset()',ctx);
 assert.equal(elements.homeAssetValue.textContent,'₩0');
 ctx.HOLDINGS=[{card_id:'test',grade:'raw',buy_price:100,qty:2}];

@@ -28,7 +28,7 @@ assert.equal((await request(master,{headers:{Origin:'https://attacker.example'}}
 assert.equal((await request(master,{headers:{'Sec-Fetch-Site':'cross-site'}})).status,403);
 assert.equal((await request(master,{headers:{'Content-Type':'text/plain'}})).status,415);
 assert.equal((await request(master,{env:{...env,JWT_SECRET:''}})).status,503);
-assert.equal((await request(master,{env:{...env,DB:null}})).status,403);
+assert.equal((await request(master,{env:{...env,DB:null}})).status,503);
 assert.equal((await request(master,{body:'{invalid'})).status,400);
 assert.equal((await request(master,{body:JSON.stringify({type:'unknown',items:[]})})).status,400);
 assert.equal((await request(master,{body:JSON.stringify({type:'events',items:Array(501).fill({})})})).status,413);
@@ -43,7 +43,7 @@ for(const user of [null,member,master]){
  assert.equal(result.user?.isAdmin===true,user===master);
 }
 rows.delete(master.id);
-assert.equal((await request(master)).status,403,'deleted admin rejected');
+assert.equal((await request(master)).status,401,'deleted admin rejected');
 assert.equal((await onRequestGet({env,request:new Request('https://tcghub.kr/api/admin?type=events')})).status,200,'public news readable');
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 assert(!html.includes("localStorage.setItem('admin_enabled'"));
@@ -52,5 +52,6 @@ const save=html.slice(html.indexOf('async function saveAdminData'),html.indexOf(
 assert(!save.includes('X-Admin-Password')&&!save.includes('prompt('));
 assert(save.includes("credentials: 'include'"));
 const workflow=readFileSync(new URL('../.github/workflows/scrape.yml',import.meta.url),'utf8');
-assert(workflow.includes('auth.js apple.js admin.js; do'),'deploy includes new auth helper');
+const sharedCopyLoops=[...workflow.matchAll(/for f in ([^;\n]+); do/g)].map(match=>new Set(match[1].trim().split(/\s+/)));
+assert(sharedCopyLoops.some(files=>['auth.js','apple.js','admin.js'].every(name=>files.has(name))),'deploy includes every required auth helper');
 console.log('PASS: admin session authorization, identity, expiry, CSRF, public reads, five board writes, role response, deployment helper');

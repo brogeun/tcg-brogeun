@@ -42,6 +42,15 @@ attributes = project.root_object.attributes['TargetAttributes'] ||= {}
 attributes[target.uuid] = { 'TestTargetID' => app.uuid }
 project.save
 raise 'The UI test bundle has no product name' unless target.build_configurations.all? { |configuration| configuration.build_settings['PRODUCT_NAME'] == 'TCGHubSmoke' }
+# Adding a shared test scheme can hide Xcode's automatically created App
+# scheme. Keep the production target available to the subsequent device build,
+# without replacing a deliberately configured shared scheme.
+app_scheme_path = File.join(project_path, 'xcshareddata/xcschemes/App.xcscheme')
+unless File.exist?(app_scheme_path)
+  app_scheme = Xcodeproj::XCScheme.new
+  app_scheme.configure_with_targets(app, nil, :launch_target => app)
+  app_scheme.save_as(project_path, 'App', true)
+end
 scheme = Xcodeproj::XCScheme.new
 scheme.configure_with_targets(app, target, :launch_target => app)
 scheme.save_as(project_path, 'TCGHubSmoke', true)

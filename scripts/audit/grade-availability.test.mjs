@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const root = new URL('../../',import.meta.url);
 const apiSource=readFileSync(new URL('functions/api/card-grades.js',root),'utf8');
 const api=await import('data:text/javascript;base64,'+Buffer.from(apiSource).toString('base64'));
-const original=readFileSync(new URL('index.html',root),'utf8');
+const original=readFileSync(new URL('index.html',root),'utf8').replace(/\r\n/g,'\n');
 const start=original.indexOf('async function renderGradesPanel(');
 const panelSource=original.slice(start,original.indexOf('\n}\n',start)+3);
 globalThis.caches={default:{match:async()=>null,put:async()=>{}}};

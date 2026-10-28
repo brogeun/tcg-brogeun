@@ -36,6 +36,14 @@ vm.runInContext(html.slice(html.indexOf('function newsImageUrl('),html.indexOf('
 vm.runInContext(html.slice(html.indexOf('let MOBILE_HOME_NEWS_LOADING ='),html.indexOf("window.matchMedia('(max-width:480px)').addEventListener")),ctx);
 await vm.runInContext('loadMobileHomeNews()',ctx);
 assert.equal((elements.mobileHomeNews.innerHTML.match(/<a href=/g)||[]).length,4);
+for(const item of ctx.HUB_NEWS_ITEMS.slice(0,4)) assert.ok(elements.mobileHomeNews.innerHTML.includes(ctx.escapeHtml(item.title)));
+// Brand styling must not depend on which publisher happens to have the four newest articles.
+const realNews=ctx.HUB_NEWS_ITEMS;
+const onepiece=realNews.find(item=>/onepiece|원피스/i.test(JSON.stringify(item)));
+assert.ok(onepiece,'The catalogue needs a real One Piece news fixture');
+ctx.HUB_NEWS_ITEMS=[onepiece,...realNews.filter(item=>item!==onepiece).slice(0,3)];
+await vm.runInContext('loadMobileHomeNews()',ctx);
+assert.equal((elements.mobileHomeNews.innerHTML.match(/<a href=/g)||[]).length,4);
 assert.match(elements.mobileHomeNews.innerHTML,/원피스/);
 assert.match(elements.mobileHomeNews.innerHTML,/mo-news-thumb onepiece/);
 console.log(JSON.stringify({ok:true,emptyAssets:true,positiveAndNegative:true,loggedOut:true,realNews:true}));

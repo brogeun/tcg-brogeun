@@ -1,0 +1,10 @@
+/* These controls are mounted only beside an existing box panel's card count. */
+.ci-rarity-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:12px 0;min-width:0}
+.ci-rarity-summary>.ci-panel-summary,.ci-rarity-summary>.ck-count{flex:1 1 170px;margin:0;min-width:0}
+.ci-rarity-summary>[id$="RarityFilters"]{flex:0 1 64%;min-width:0}
+.ci-rarity-filters{display:flex;gap:5px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.ci-rarity-chip{display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:4px 9px;border:1px solid #deded9;border-radius:16px;background:#fff;color:#5b615f;font:inherit;font-size:11px;line-height:1.5;cursor:pointer;white-space:nowrap}
+.ci-rarity-chip span{opacity:.67;font-size:10px;min-width:8px;text-align:center}
+.ci-rarity-chip[aria-pressed="true"]{border-color:#087d7d;background:#e9f7f5;color:#075f5f;font-weight:700}
+.ci-rarity-chip:focus-visible{outline:2px solid #087d7d;outline-offset:2px}
+@media(max-width:560px){.ci-rarity-summary{flex-wrap:wrap;gap:8px}.ci-rarity-summary>[id$="RarityFilters"]{flex:1 1 100%}.ci-rarity-filters{justify-content:flex-start}.ci-rarity-chip{min-height:34px;padding:5px 10px}}

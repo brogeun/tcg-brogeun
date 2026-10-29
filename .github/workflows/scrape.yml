@@ -234,7 +234,7 @@ jobs:
           mkdir -p _deploy/functions/api/portfolio/watchlist
           mkdir -p _deploy/functions/_shared
           # 공유 헬퍼
-          for f in jwt.js email.js auth.js apple.js admin.js certificates.js kanto151-save.js centering-jpeg.js; do
+          for f in jwt.js email.js auth.js apple.js admin.js certificates.js kanto151-save.js centering-jpeg.js collections.js; do
             [ -f "functions/_shared/$f" ] && cp "functions/_shared/$f" "_deploy/functions/_shared/$f" && echo "✓ _shared/$f"
           done
           # admin
@@ -267,6 +267,10 @@ jobs:
           for d in apple google kakao; do
             [ -d "functions/api/auth/$d" ] && cp -r "functions/api/auth/$d" "_deploy/functions/api/auth/$d"
           done
+          # Private collection endpoints are independent from the portfolio ledger.
+          mkdir -p _deploy/functions/api/collections
+          cp -r functions/api/collections/. _deploy/functions/api/collections/
+          cp functions/api/collection-ownership.js _deploy/functions/api/collection-ownership.js
           # portfolio
           [ -f functions/api/portfolio/index.js ] && cp functions/api/portfolio/index.js _deploy/functions/api/portfolio/index.js && echo "✓ portfolio/"
           [ -f functions/api/portfolio/holding.js ] && cp functions/api/portfolio/holding.js _deploy/functions/api/portfolio/holding.js && echo "✓ portfolio/holding"
@@ -286,6 +290,11 @@ jobs:
 
       - name: Pack integrated Card Info within the public asset budget
         run: python scripts/prepare_tcg_card_info_bundle.py --data-dir "$DEPLOY_SOURCE/_deploy/data" --max-files 19900
+
+      - name: Validate collection catalogue, private state and deployment completeness
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: |
+          node scripts/test_collections_release.mjs --bundle-dir _deploy
 
       - name: Verify Japanese catalogue and Korean search before deploy
         working-directory: ${{ env.DEPLOY_SOURCE }}

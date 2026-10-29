@@ -8,5 +8,6 @@
 /admin*     /index.html   200
 /casing*    /index.html   200
 
-# Reference markets use their own small static page.
-/market-references /assets/market-references.html 200
+# Legacy source-page links return to integrated Card Info.
+/market-references /cardinfo 302
+/assets/market-references.html /cardinfo 302

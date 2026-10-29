@@ -14,9 +14,11 @@ test('registry and reference helpers load before their detail consumers', () => 
   for (const consumer of ['price-expanded.js', 'english-catalog.js']) {
     assert(pos(consumer) > pos('market-references.js'), consumer);
   }
-  assert.match(html, /href="\/market-references"/);
-  assert.match(read('_redirects'), /^\/market-references\s+\/assets\/market-references\.html\s+200$/m);
-  assert.match(read('assets/price-expanded.js'), /MarketReferences\?\.sourceLinks\(\{\.\.\.product,_brand:brand\}\)/);
+  assert(!html.includes('href="/market-references"'));
+  assert(!html.includes('mr-game-shortcuts'));
+  assert.match(html, /data-ci="nikke"/);
+  assert.match(read('_redirects'), /^\/market-references\s+\/cardinfo\s+302$/m);
+  assert(!read('assets/price-expanded.js').includes('MarketReferences?.sourceLinks'));
 });
 
 test('new game labels do not fall back to Pokemon', () => {
@@ -53,6 +55,8 @@ test('reference snapshots prefer live data and retain last-good offline snapshot
     '/data/snkrdunk-games/weiss_schwarz-card-0000.json',
     '/data/price-digimon-card.json', '/data/reference-market-health.json',
     '/data/cards-meta-index.json', '/data/cards-meta-index/83.json',
+    '/data/tcg-card-info.json', '/data/tcg-card-info/nikke/0123456789abcdef.json',
+    '/assets/tcg-card-info.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js',
     '/assets/game-registry.js', '/assets/market-references.js',
     '/market-references',
   ]) {

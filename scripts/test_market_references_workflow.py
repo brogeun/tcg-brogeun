@@ -55,6 +55,8 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("'scripts/game_registry.py'", trigger)
         for script in ("metadata_index.py", "test_metadata_index.py", "test_price_metadata_shards.cjs", "build_cards_meta_index.py"):
             self.assertIn("'scripts/" + script + "'", trigger)
+        for name in ["scripts/build_tcg_card_info.py","tests/test_build_tcg_card_info.py","assets/tcg-card-info.js","assets/tcg-card-info.css","assets/card-price-fallback.js","assets/contained-card-prices.js","scripts/test_tcg_card_info.cjs","scripts/test_card_price_fallback.cjs","scripts/test_contained_card_prices.cjs","scripts/test_card_info_pricing_integration.cjs"]:
+            self.assertIn("'" + name + "'", trigger)
         self.assertIn(r"'functions/price/\[id\].js'", trigger)
         for script in ("collect_us_market.py", "collect_yuyutei_market.py", "collect_mercari_references.py", "collect_snkrdunk_games.py"):
             self.assertIn("'scripts/" + script + "'", trigger)
@@ -93,12 +95,17 @@ class WorkflowContractTests(unittest.TestCase):
             "python scripts/test_collect_mercari_references.py",
             "python -m unittest discover -s scripts -p test_snkrdunk_games.py",
             "python -m unittest scripts.test_metadata_index",
+            "python -m unittest discover -s tests -p test_build_tcg_card_info.py",
             "python -m unittest discover -s scripts -p test_publish_data_snapshot.py",
             "python -m unittest discover -s scripts -p test_validate_reference_markets.py",
             "python -m unittest scripts.test_market_references_workflow",
             "node --test scripts/test_market_references.cjs",
             "node --test scripts/test_reference_integration.cjs",
             "node --test scripts/test_price_metadata_shards.cjs",
+            "node --test scripts/test_tcg_card_info.cjs",
+            "node --test scripts/test_card_price_fallback.cjs",
+            "node --test scripts/test_contained_card_prices.cjs",
+            "node --test scripts/test_card_info_pricing_integration.cjs",
         )
         for command in commands:
             self.assertIn(command, self.jobs["verify"])
@@ -127,6 +134,21 @@ class WorkflowContractTests(unittest.TestCase):
             self.assertEqual(len(ids), len(set(ids)), source)
             self.assertEqual(ids.count("collect"), 1)
             self.assertEqual(ids.count("assess"), 1)
+
+    def test_compact_catalog_has_one_serialized_deployment_writer(self):
+        body = self.jobs['snkrdunk']
+        build = 'python scripts/build_tcg_card_info.py --root .'
+        self.assertNotIn(build, body)
+        self.assertIn(build, self.jobs['verify'])
+        self.assertNotIn("steps.card_info", body)
+        self.assertLess(body.index('python scripts/collect_snkrdunk_games.py'), body.index('python scripts/validate_reference_markets.py'))
+        self.assertLess(body.index('python scripts/validate_reference_markets.py'), body.index('python scripts/publish_data_snapshot.py'))
+        deploy = (Path(__file__).resolve().parents[1] / '.github/workflows/scrape.yml').read_text(encoding='utf-8')
+        publish = 'python scripts/publish_data_snapshot.py --files data/tcg-card-info.json'
+        self.assertLess(deploy.index(build), deploy.index(publish))
+        self.assertLess(deploy.index(publish), deploy.index('--prepare-deploy'))
+        self.assertIn('group: scrape', deploy)
+        self.assertEqual(self.text.count(build + '\n'), 1)
 
     def test_source_cache_never_restores_tracked_market_data(self):
         self.assertIn("path: .cache/us-market", self.jobs["us"])

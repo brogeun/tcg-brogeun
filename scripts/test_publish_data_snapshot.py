@@ -301,6 +301,110 @@ class PublicationTests(unittest.TestCase):
             with self.assertRaisesRegex(target.PublicationError, 'symlinks'):
                 target.reference_files(self.runner, self.base)
 
+    def card_info_fixture(self):
+        self.reference_fixture()
+        self.card_manifest = target.CARD_INFO_MANIFEST
+        self.card_set = 'data/tcg-card-info/weiss_schwarz/0a1b2c3d4e5f6789.json'
+        self.card_part = 'data/tcg-card-info/weiss_schwarz/0a1b2c3d4e5f6789-part02.json'
+        self.card_unused = 'data/tcg-card-info/weiss_schwarz/1111111111111111.json'
+        values = {
+            self.card_manifest: {'games':[{'id':'weiss_schwarz','sets':[{'id':'0a1b2c3d4e5f6789','file':'/'+self.card_set}]}]},
+            self.card_set: {'cards':[{'id':'472683'}],'shards':['/'+self.card_part]},
+            self.card_part: {'cards':[{'id':'472684'}]},
+            self.card_unused: {'cards':[{'id':'old-retained'}]},
+        }
+        for name, value in values.items():
+            path = self.writer/name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(value),encoding='utf-8')
+        self.git(self.writer,'add','--',*values)
+        self.git(self.writer,'commit','-m','Compact card info fixture')
+        self.git(self.writer,'push','origin','main')
+        self.runner = self.root/'card-info-runner'
+        self.git(self.root,'clone','--branch','main',str(self.remote),str(self.runner))
+        self.base = self.git(self.runner,'rev-parse','HEAD')
+
+    def change_card_info_set(self):
+        (self.runner/self.card_set).write_text(json.dumps({'cards':[{'id':'new'}],'shards':['/'+self.card_part]}),encoding='utf-8')
+
+    def publish_card_info(self):
+        env = {'GIT_CONFIG_COUNT':'1','GIT_CONFIG_KEY_0':'safe.directory','GIT_CONFIG_VALUE_0':'*'}
+        with patch.dict(os.environ,env):
+            return target.publish(self.runner,self.base,[self.card_manifest],'Compact catalog fixture',temp_parent=self.root)
+
+    def test_card_info_catalog_is_whitelisted_and_published_as_complete_active_group(self):
+        self.card_info_fixture()
+        self.change_card_info_set()
+        self.assertEqual(set(target.reference_files(self.runner,self.base)),{self.card_manifest,self.card_set,self.card_part})
+        self.advance('notes.txt','concurrent unrelated edit retained')
+        result = self.publish_references()
+        self.assertEqual(result['status'],'published')
+        self.assertEqual(json.loads(self.remote_content(self.card_set))['cards'],[{'id':'new'}])
+        self.assertEqual(json.loads(self.remote_content(self.card_part))['cards'],[{'id':'472684'}])
+        self.assertEqual(json.loads(self.remote_content(self.card_unused))['cards'],[{'id':'old-retained'}])
+        self.assertEqual(self.remote_content('notes.txt'),'concurrent unrelated edit retained')
+
+    def test_card_info_unchanged_part_is_protected_from_concurrent_catalog_edit(self):
+        self.card_info_fixture()
+        self.change_card_info_set()
+        self.advance(self.card_part,'{"cards":[{"id":"user-edited"}]}')
+        with self.assertRaisesRegex(target.PublicationError,'target files changed'):
+            self.publish_references()
+        self.assertEqual(json.loads(self.remote_content(self.card_part))['cards'],[{'id':'user-edited'}])
+        self.assertEqual(json.loads(self.remote_content(self.card_set))['cards'],[{'id':'472683'}])
+
+    def test_card_info_rejects_missing_or_unsafe_declared_parts_before_any_publication(self):
+        self.card_info_fixture()
+        for url in ['/'+self.card_part.replace('part02','part03'),
+                    '/data/tcg-card-info/weiss_schwarz/../../secrets.json',
+                    '/data/tcg-card-info/yugioh/0a1b2c3d4e5f6789-part02.json']:
+            with self.subTest(url=url):
+                (self.runner/self.card_set).write_text(json.dumps({'cards':[],'shards':[url]}),encoding='utf-8')
+                with self.assertRaises(target.PublicationError):
+                    self.publish_references()
+                self.assertEqual(json.loads(self.remote_content(self.card_set))['cards'],[{'id':'472683'}])
+        self.assertEqual(list(self.root.glob('tcg-data-publication-*')),[])
+
+    def test_card_info_path_allows_only_builder_games_and_exact_hash_keys(self):
+        for game in target.CARD_INFO_GAMES:
+            self.assertTrue(target.reference_path('data/tcg-card-info/'+game+'/0a1b2c3d4e5f6789.json'))
+            self.assertTrue(target.reference_path('data/tcg-card-info/'+game+'/0a1b2c3d4e5f6789-part02.json'))
+        for name in ['data/tcg-card-info/pokemon/0a1b2c3d4e5f6789.json',
+                     'data/tcg-card-info/weiss/0a1b2c3d4e5f6789.json',
+                     'data/tcg-card-info/nikke/config.json',
+                     'data/tcg-card-info/nikke/../../secrets.json',
+                     'data/tcg-card-info/nikke/0A1B2C3D4E5F6789.json',
+                     'data/tcg-card-info/nikke/0a1b2c3d4e5f6789-part2.json',
+                     'data/tcg-card-info/nikke/0a1b2c3d4e5f6789/nested.json',
+                     r'data\tcg-card-info\nikke\0a1b2c3d4e5f6789.json']:
+            self.assertFalse(target.reference_path(name),name)
+
+    def test_explicit_manifest_bootstrap_expands_group_and_daily_excludes_catalog(self):
+        self.card_info_fixture()
+        self.change_card_info_set()
+        path = self.runner/self.card_manifest
+        manifest = json.loads(path.read_bytes())
+        manifest['generatedAt'] = 'new-bootstrap'
+        path.write_text(json.dumps(manifest),encoding='utf-8')
+        self.assertFalse(target.daily_path(self.card_manifest))
+        self.assertFalse(target.daily_path(self.card_set))
+        self.assertEqual(target.daily_files(self.runner,self.base),[])
+        result = self.publish_card_info()
+        self.assertEqual(result['status'],'published')
+        self.assertEqual(set(result['files']),{self.card_manifest,self.card_set,self.card_part})
+        self.assertEqual(json.loads(self.remote_content(self.card_set))['cards'],[{'id':'new'}])
+        self.assertEqual(json.loads(self.remote_content(self.card_manifest))['generatedAt'],'new-bootstrap')
+        self.assertEqual(json.loads(self.remote_content(self.card_unused))['cards'],[{'id':'old-retained'}])
+
+    def test_explicit_manifest_bootstrap_rejects_concurrent_unchanged_part(self):
+        self.card_info_fixture()
+        self.change_card_info_set()
+        self.advance(self.card_part,'{"cards":[{"id":"concurrent-part"}]}')
+        with self.assertRaisesRegex(target.PublicationError,'target files changed'):
+            self.publish_card_info()
+        self.assertEqual(json.loads(self.remote_content(self.card_set))['cards'],[{'id':'472683'}])
+        self.assertEqual(json.loads(self.remote_content(self.card_part))['cards'],[{'id':'concurrent-part'}])
+
     def test_references_validate_json_before_creating_publication_worktree(self):
         self.reference_fixture()
         for invalid in ('invalid JSON', '{"price":NaN}'):

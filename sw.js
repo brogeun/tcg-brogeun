@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-market-reference-20261029-v1';
+const CACHE_VERSION = 'tcghub-card-info-pricing-20261029-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -59,14 +59,14 @@ self.addEventListener('fetch', event => {
   }
 
   // Reference prices retain provider timestamps; prefer current snapshots to stale SW copies.
-  const referenceData = ['/data/us-market.json', '/data/yuyutei-market.json', '/data/mercari-references.json', '/data/snkrdunk-games.json', '/data/reference-market-health.json', '/data/cards-meta-index.json'].includes(url.pathname)
-    || ['/data/us-market/', '/data/yuyutei-market/', '/data/snkrdunk-games/', '/data/cards-meta-index/'].some(prefix => url.pathname.startsWith(prefix))
+  const referenceData = ['/data/us-market.json', '/data/yuyutei-market.json', '/data/mercari-references.json', '/data/snkrdunk-games.json', '/data/tcg-card-info.json', '/data/reference-market-health.json', '/data/cards-meta-index.json'].includes(url.pathname)
+    || ['/data/us-market/', '/data/yuyutei-market/', '/data/snkrdunk-games/', '/data/cards-meta-index/', '/data/tcg-card-info/'].some(prefix => url.pathname.startsWith(prefix))
     || /^\/data\/price-(weiss_schwarz|union_arena|dragon_ball_fusion_world|yugioh|digimon)-(card|box)\.json$/.test(url.pathname);
   if (url.origin === location.origin && referenceData) {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }
-  if (url.origin === location.origin && ['/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js'].includes(url.pathname)) {
+  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }

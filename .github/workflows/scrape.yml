@@ -103,11 +103,19 @@ jobs:
           node --test scripts/test_beezie_snapshot_api.cjs
           node --test scripts/test_japanese_market_reviews.cjs
 
+      - name: Build integrated Card Info from the current source snapshots
+        run: |
+          python scripts/build_tcg_card_info.py --root .
+          python scripts/build_tcg_card_info.py --root . --validate-only
+          node scripts/test_card_info_quote_coverage.cjs
+
       - name: Validate reference prices and source backoff
         run: |
           python -m unittest discover -s tests -p test_yuyutei_market.py
           python -m unittest scripts.test_metadata_index
           node --test scripts/test_market_references.cjs scripts/test_reference_integration.cjs scripts/test_price_metadata_shards.cjs
+          python -m unittest discover -s tests -p test_build_tcg_card_info.py
+          node --test scripts/test_card_price_fallback.cjs scripts/test_contained_card_prices.cjs scripts/test_tcg_card_info.cjs scripts/test_card_info_pricing_integration.cjs
 
       - name: Setup Chrome browser
         if: env.COLLECT_PRIMARY == 'true'
@@ -182,6 +190,9 @@ jobs:
       - name: Commit JSON updates (if any)
         if: env.COLLECT_DATA == 'true'
         run: python -B scripts/publish_data_snapshot.py --daily --base "$COLLECTION_COMMIT" --message '🤖 Daily SNKRDUNK scrape — auto-update'
+
+      - name: Publish the complete Card Info catalogue without publishing unrelated collector files
+        run: python scripts/publish_data_snapshot.py --files data/tcg-card-info.json --base "$COLLECTION_COMMIT" --message 'Refresh integrated Card Info catalogue'
 
       - name: Prepare a current-main deployment source without changing collected files
         run: python -B scripts/publish_data_snapshot.py --prepare-deploy
@@ -382,6 +393,40 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: python "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" verify
+
+      - name: Verify integrated Card Info in production
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.request
+          version = os.environ.get('DEPLOY_COMMIT', 'cardinfo')
+          errors = []
+          for host in ('https://tcghub.kr', 'https://tcghubrogeun.pages.dev'):
+              for attempt in range(4):
+                  try:
+                      def get(path):
+                          sep = '&' if '?' in path else '?'
+                          request = urllib.request.Request(host + path + sep + 'verify=' + version, headers={'User-Agent':'Mozilla/5.0','Cache-Control':'no-cache'})
+                          with urllib.request.urlopen(request, timeout=25) as response:
+                              return response.read().decode('utf-8')
+                      page = get('/')
+                      assert 'mr-game-shortcuts' not in page
+                      for game in ('nikke','dragon_ball_fusion_world','yugioh','digimon','weiss_schwarz','union_arena'):
+                          assert 'data-ci="' + game + '"' in page
+                      assert '/assets/card-price-fallback.js' in page
+                      catalog = json.loads(get('/data/tcg-card-info.json'))
+                      assert len(catalog['games']) == 6
+                      sample = next(game for game in catalog['games'] if game['id'] == 'nikke')['sets'][0]
+                      cards = json.loads(get(sample['file']))['cards']
+                      assert cards and str(cards[0]['snkrdunkId']) == str(cards[0]['snkrProduct']['id'])
+                      with urllib.request.urlopen(urllib.request.Request(host + '/market-references?verify=' + version, headers={'User-Agent':'Mozilla/5.0'}), timeout=25) as response:
+                          assert '/cardinfo' in response.url
+                      print('Production Card Info, source identity, and legacy redirect verified:', host)
+                      raise SystemExit(0)
+                  except Exception as error:
+                      errors.append(host + ': ' + str(error))
+                      time.sleep(5)
+          raise SystemExit('Production Card Info verification failed: ' + '; '.join(errors))
+          PY
 
       - name: Report incomplete daily collection after retaining valid independent updates
         # Deployment-only runs report stale datasets above, but did not request collection.

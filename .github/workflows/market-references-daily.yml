@@ -21,6 +21,16 @@ on:
       - 'scripts/test_metadata_index.py'
       - 'scripts/test_price_metadata_shards.cjs'
       - 'scripts/build_cards_meta_index.py'
+      - 'scripts/build_tcg_card_info.py'
+      - 'tests/test_build_tcg_card_info.py'
+      - 'assets/tcg-card-info.js'
+      - 'assets/tcg-card-info.css'
+      - 'assets/card-price-fallback.js'
+      - 'assets/contained-card-prices.js'
+      - 'scripts/test_tcg_card_info.cjs'
+      - 'scripts/test_card_price_fallback.cjs'
+      - 'scripts/test_contained_card_prices.cjs'
+      - 'scripts/test_card_info_pricing_integration.cjs'
       - 'functions/price/\[id\].js'
       - 'scripts/validate_reference_markets.py'
       - 'scripts/test_validate_reference_markets.py'
@@ -64,12 +74,19 @@ jobs:
           python scripts/test_collect_mercari_references.py
           python -m unittest discover -s scripts -p test_snkrdunk_games.py
           python -m unittest scripts.test_metadata_index
+          python -m unittest discover -s tests -p test_build_tcg_card_info.py
+          python scripts/build_tcg_card_info.py --root .
+          python scripts/build_tcg_card_info.py --root . --validate-only
           python -m unittest discover -s scripts -p test_publish_data_snapshot.py
           python -m unittest discover -s scripts -p test_validate_reference_markets.py
           python -m unittest scripts.test_market_references_workflow
           node --test scripts/test_market_references.cjs
           node --test scripts/test_reference_integration.cjs
           node --test scripts/test_price_metadata_shards.cjs
+          node --test scripts/test_tcg_card_info.cjs
+          node --test scripts/test_card_price_fallback.cjs
+          node --test scripts/test_contained_card_prices.cjs
+          node --test scripts/test_card_info_pricing_integration.cjs
 
   us:
     needs: [verify]

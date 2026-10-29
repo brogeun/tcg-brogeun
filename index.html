@@ -1275,7 +1275,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="price-heading">
           <h1>시세</h1>
           <p><span class="live-dot2" aria-hidden="true"></span>SNKRDUNK 실거래가 기준</p>
-          <a href="/market-references" style="display:inline-flex;margin-top:7px;font-size:12px;font-weight:600;color:var(--text-secondary,#666560)">해외·보조 시세 보기 →</a>
         </div>
 
         <div id="cardSearchWrap" class="price-search-wrap">
@@ -1300,15 +1299,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <button type="button" class="brand-tab2 active-pk tab active" data-brand="pokemon">포켓몬</button>
         <button type="button" class="brand-tab2 tab" data-brand="onepiece">원피스</button>
       </div>
-
-      <nav class="mr-game-shortcuts" aria-label="신규 종목 시세">
-        <a href="/market-references?source=snkr&amp;game=weiss_schwarz&amp;q=NIKKE">니케(바이스)</a>
-        <a href="/market-references?source=snkr&amp;game=union_arena">유니온아레나</a>
-        <a href="/market-references?source=snkr&amp;game=weiss_schwarz">바이스슈발츠</a>
-        <a href="/market-references?source=snkr&amp;game=dragon_ball_fusion_world">드래곤볼 FW</a>
-        <a href="/market-references?source=snkr&amp;game=yugioh">유희왕</a>
-        <a href="/market-references?source=snkr&amp;game=digimon">디지몬</a>
-      </nav>
 
       <!-- 2차 탭: 박스 / 카드 -->
       <div class="type-tabs2" id="priceCatTabs">
@@ -1899,13 +1889,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </style>
       <div class="page-head">
         <h1 class="page-title">카드 정보</h1>
-        <p class="page-sub">포켓몬 · 원피스 · 리프트바운드 확장팩 목록, 발매일, 수록 카드 정보</p>
+        <p class="page-sub">종목별 확장팩·수록 카드·참고 가격</p>
       </div>
 
       <!-- 박스 검색 -->
       <div id="cardInfoSearchWrap">
         <div class="ci-search">
-          <input id="cardInfoSearchInput" aria-label="박스 이름 검색" placeholder="박스 이름 검색 (예: 어비스아이, 닌자, M5, OP15)">
+          <input id="cardInfoSearchInput" aria-label="박스 이름 검색" placeholder="세트 이름·번호 검색 (예: 니케, M5, OP15)">
           <button id="cardInfoSearchClear" aria-label="검색어 지우기" style="display:none"><i data-lucide="x"></i></button>
           <i data-lucide="search"></i>
         </div>
@@ -1915,6 +1905,12 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="tabs" id="ciTabs" aria-label="카드정보 브랜드">
           <button type="button" class="tab active" data-ci="pokemon" aria-pressed="true">포켓몬</button>
           <button type="button" class="tab" data-ci="onepiece" aria-pressed="false">원피스</button>
+          <button type="button" class="tab" data-ci="nikke" aria-pressed="false">니케</button>
+          <button type="button" class="tab" data-ci="dragon_ball_fusion_world" aria-pressed="false">드래곤볼</button>
+          <button type="button" class="tab" data-ci="yugioh" aria-pressed="false">유희왕</button>
+          <button type="button" class="tab" data-ci="digimon" aria-pressed="false">디지몬</button>
+          <button type="button" class="tab" data-ci="weiss_schwarz" aria-pressed="false">바이스슈발츠</button>
+          <button type="button" class="tab" data-ci="union_arena" aria-pressed="false">유니온아레나</button>
           <button type="button" class="tab" data-ci="riftbound" aria-pressed="false">리프트바운드</button>
         </div>
         <div style="display:flex; align-items:center; gap:10px; margin-left:auto">
@@ -6736,7 +6732,7 @@ function renderCardInfo() {
   if (q && list.length === 0) {
     listEl.innerHTML = `<div class="card" style="padding:20px; text-align:center; color:var(--ink-sub); grid-column:1/-1">
       검색 결과가 없습니다 — <b>${escapeHtml(q)}</b><br>
-      <span style="font-size:12px">다른 키워드로 시도하거나 포켓몬 / 원피스 탭을 전환해보세요</span>
+      <span style="font-size:12px">다른 키워드나 종목으로 검색해보세요</span>
     </div>`;
     return;
   }
@@ -6903,7 +6899,9 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
     }) : -1;
     let page = Math.max(1, Math.min(pageCount, Number(viewState.page) || 1));
     if (selectedIndex>=0) page=Math.floor(selectedIndex/CI_CARD_PAGE_SIZE)+1;
+    let priceGeneration = 0;
     const renderPage = () => {
+    const pricingPage = ++priceGeneration;
     viewState.page = page;
     document.getElementById('setGridContent').innerHTML = `
       <div class="ci-panel-summary">총 ${cards.filter(c=>!c.isBundle).length} 카드 수록${cards.some(c=>c.isBundle)?' · 묶음 시세 별도 포함':''} <span>카드를 클릭하여 시세를 확인해보세요 · ${page} / ${pageCount} 페이지</span></div>
@@ -6948,16 +6946,19 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
                data-card-name="${escapeHtml(localizedName)}"
                ${['M6a','MF','FURBOX'].includes(setCode) ? `data-anniversary-ids="${escapeHtml(JSON.stringify(c.marketIds || []))}"` : ''}
                data-card-search="${escapeHtml(searchKey)}"
-               data-card-identity="${escapeHtml(JSON.stringify({brand:cardBrand,language:'ja',boxCode:setCode,setCode:cardSetCode,number:c.number || '',baseNumber:c.baseNumber || '',fullId:c.fullId || '',id:c.id || '',name:c.name || '',rarity:c.rarity || '',sourceUrl:c.url || '',marketLinkPolicy:c.marketLinkPolicy || '',unprintedNumber:!!c.unprintedNumber,inventoryNumber:c.inventoryNumber || '',variant:c.variant || ''}))}"
+               data-card-identity="${escapeHtml(JSON.stringify({brand:cardBrand,language:'ja',boxCode:setCode,setCode:cardSetCode,number:c.number || '',baseNumber:c.baseNumber || '',fullId:c.fullId || '',id:c.id || '',name:c.name || '',rarity:c.rarity || '',sourceUrl:c.url || '',sourceId:c.sourceId || '',image:c.image || '',bundle:!!c.isBundle,marketLinkPolicy:c.marketLinkPolicy || '',unprintedNumber:!!c.unprintedNumber,inventoryNumber:c.inventoryNumber || '',variant:c.variant || ''}))}"
                data-card-variant="${escapeHtml(variantSuffix)}">
             <div class="set-card-img" style="background:#f3f4f6">
               ${primarySrc ? `<img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(localizedName)}" loading="lazy" referrerpolicy="no-referrer" ${onerrorAttr}>` : `<span style="padding:12px;text-align:center;font-size:12px;color:var(--ink-sub)">${escapeHtml(localizedName)}<br>이미지 준비 중</span>`}
             </div>
             ${cardBrand==='pokemon'?`<div class="set-card-name" style="padding:8px 8px 0;text-align:center;font-size:12px;overflow-wrap:anywhere">${escapeHtml(localizedName)}</div>`:''}
             <div class="set-card-num">${escapeHtml(displayNum)}${c.versionLabel ? `<br>${escapeHtml(c.versionLabel)}` : ''}</div>
+            <div class="tci-price-host ci-contained-price" data-contained-price aria-live="polite">가격 확인 중</div>
           </div>`;
         }).join('')}
       </div>`;
+      const priceContainer = document.getElementById('setGridContent');
+      window.ContainedCardPrices?.hydrate(priceContainer, {isCurrent:()=>request===CI_PANEL_REQUEST && pricingPage===priceGeneration && modal.classList.contains('open') && priceContainer===document.getElementById('setGridContent')}).catch(()=>{});
       const nav = document.getElementById('ciPanelPages');
       nav.hidden = pageCount <= 1;
       const first = Math.max(1, Math.min(page - 2, pageCount - 4));
@@ -7112,138 +7113,53 @@ function openJapaneseCatalogueCard(card) {
   return openSetGrid(set.code,set.name,set.url || '',{cardKey:card.kind==='card' ? card.number || card.sourceId : ''});
 }
 
-// 그리드 카드 클릭 → SNKRDUNK 매칭 있으면 시세 페이지, 없으면 정보만 표시
-
+// Printed Japanese cards keep one current price source and their original artwork.
+let CI_CARD_DETAIL_REQUEST = 0;
 document.addEventListener('click', async e => {
+  if (e.target.closest('.card-price-fallback a')) return;
   const item = e.target.closest('.set-card-item[data-card-search]');
   if (!item) return;
-  const searchKey = item.dataset.cardSearch || '';
-  const cardName = item.dataset.cardName || '';
+  const detailRequest = ++CI_CARD_DETAIL_REQUEST;
+  const panelRequest = CI_PANEL_REQUEST;
+  const origin = document.getElementById('setGridContent');
+  const current = () => detailRequest===CI_CARD_DETAIL_REQUEST && panelRequest===CI_PANEL_REQUEST && item.isConnected && origin===document.getElementById('setGridContent') && document.getElementById('anyModal')?.classList.contains('open');
+  let identity;
+  try { identity=JSON.parse(item.dataset.cardIdentity || '{}'); } catch { return; }
+  if (!['pokemon','onepiece'].includes(identity.brand) || identity.language!=='ja') return;
+  const cardName = item.dataset.cardName || identity.name || '';
   const cardImage = item.querySelector('img')?.src || '';
-
-  // SNKRDUNK 매칭 — productNumber + variant 정확 매칭 (v2)
-  await loadCardSearchData();
-  const setCode = (searchKey.split(' ')[0] || '').toUpperCase();
-  const numRaw = (searchKey.split(' ')[1] || '').trim();
-  const variantSuffix = (item.dataset.cardVariant || '').toLowerCase();  // 'p1', 'p2', 'p3', ''
-
-  let snkrdunkId = null;
-  let japaneseIdentity;
-  try { japaneseIdentity=JSON.parse(item.dataset.cardIdentity || '{}'); } catch { japaneseIdentity={}; }
-  const strictJapanese=japaneseIdentity.brand==='pokemon';
-  if(strictJapanese && window.ContainedCardMatch) {
-    const japaneseMatch=ContainedCardMatch.resolve(japaneseIdentity,_ALL_CARDS_INDEX || []);
-    if(japaneseMatch.status==='matched')snkrdunkId=japaneseMatch.id;
+  let target, price, unavailable = false;
+  try {
+    target = await window.ContainedCardPrices.prepareTarget(identity,{isCurrent:current});
+    if (!current()) return;
+    if (target.sourceUnavailable) unavailable=true;
+    else {
+      const direct=window.CardPriceFallback.resolve(target);
+      if (direct.status==='priced') price=direct;
+      else if (target.detailsStatus==='unavailable') unavailable=true;
+      else if (target.bundle || target.quantity>1 || target.unprintedNumber || !target.fullNumber) price=direct;
+      else price=await window.CardPriceFallback.lookup(target,{isCurrent:current});
+    }
+  } catch { unavailable=true; }
+  if (!current()) return;
+  if (price?.source==='snkrdunk' && price.status==='priced' && target?.snkrdunkId) {
+    closeAnyModal();
+    openSlidePanel(target.snkrdunkId);
+    return;
   }
-
-  // override 우선 (수동 매핑 파일)
-  if (!strictJapanese) try {
-    if (!window._OVERRIDE_MAP) {
-      const r = await fetch('/data/onepiece-card-overrides.json?t=' + Math.floor(Date.now()/3600000));
-      window._OVERRIDE_MAP = r.ok ? await r.json() : {};
-    }
-    const numPadded = numRaw.padStart(3, '0');
-    const overrideKey = variantSuffix
-      ? `${setCode}-${numPadded}_${variantSuffix.toUpperCase()}`
-      : `${setCode}-${numPadded}`;
-    if (window._OVERRIDE_MAP[overrideKey]) {
-      snkrdunkId = window._OVERRIDE_MAP[overrideKey];
-    }
-  } catch (e) {}
-
-  if (!strictJapanese && !snkrdunkId && _ALL_CARDS_INDEX && numRaw) {
-    const setLower = setCode.toLowerCase();
-    const numStripped = numRaw.replace(/^0+/, '') || numRaw;
-    const numPadded = numRaw.padStart(3, '0');
-    const padTail = `${setLower}-${numPadded}`;
-    const stripTail = `${setLower}-${numStripped}`;
-
-    // 1차-A: productNumber 매칭 (SNKRDUNK 가 카드번호를 productNumber 에 넣은 경우)
-    const candByPn = _ALL_CARDS_INDEX.filter(c => {
-      const pn = (c.productNumber || '').toLowerCase();
-      return pn === padTail || pn === stripTail ||
-             pn.endsWith(`-${padTail}`) || pn.endsWith(`-${stripTail}`);
-    });
-    // 1차-B: name 안 [SetCode Num/Total] 패턴 매칭
-    //   많은 카드 (특히 포켓몬) 가 productNumber 는 SKU (pkmn-tcg-1483) 이고
-    //   카드번호는 name 의 "[S11 111/100]" 부분에만 있음 — 이거도 매칭해야 함
-    const namePat = new RegExp(`\\[${setLower}\\s+0*${numStripped}[/\\]\\s]`, 'i');
-    const candByName = _ALL_CARDS_INDEX.filter(c => namePat.test(c.name || ''));
-    // 두 candidates 합치고 중복 제거 (id 기준)
-    const candMap = new Map();
-    for (const c of candByPn) candMap.set(c.id, c);
-    for (const c of candByName) if (!candMap.has(c.id)) candMap.set(c.id, c);
-    const candidates = [...candMap.values()];
-
-    // 2차: 일본판 (영문판 [EN] / [CHN] 제외)
-    const jpOnly = candidates.filter(c => !/\[(EN|CHN)\]/i.test(c.name || ''));
-    let pool = jpOnly.length ? jpOnly : candidates;
-
-    // 3차: 메인 booster pack 우선 (promo / event 후순위)
-    const isPromoOrEvent = (name) =>
-      /Champion|Wanted|Aisa|Tournament|Prize|Flagship|Promotion\s*Card\s*Set/i.test(name || '');
-    const mainPool = pool.filter(c => !isPromoOrEvent(c.name));
-    pool = mainPool.length ? mainPool : pool;
-
-    pool = pool.sort((a, b) => parseInt(a.id || 0) - parseInt(b.id || 0));
-
-    // 4차: variant 분류 (확장 — R-RP, GSP 등 추가 패턴)
-    const classifySnkrdunk = (name) => {
-      const n = name || '';
-      if (/-SPC[\s\[\(]/.test(n)) return 'spc';
-      if (/-SP[\s\(]|\(Comic\s+Parallel\)/i.test(n)) return 'sp';
-      if (/-GSP[\s\[\(]/.test(n)) return 'gsp';     // Gold SP
-      if (/-RP[\s\[\(]/.test(n)) return 'rp';        // R-RP, SR-RP 등
-      if (/Premium\s*Card\s*Collection|25th\s*Anniversary|Memorial\s*Collection/i.test(n)) return 'premium';
-      if (/-P[\s\[\(]|\sParallel\s*\[/i.test(n)) return 'p';
-      return 'base';
-    };
-
-    const variantPriority = {
-      '':   ['base'],
-      'p1': ['p', 'rp', 'premium', 'sp', 'spc', 'base'],
-      'p2': ['sp', 'spc', 'rp', 'gsp', 'premium', 'p', 'base'],
-      'p3': ['spc', 'gsp', 'premium', 'sp', 'rp', 'p', 'base'],
-    };
-    const priority = variantPriority[variantSuffix] || ['base'];
-
-    let match = null;
-    for (const target of priority) {
-      match = pool.find(c => classifySnkrdunk(c.name) === target);
-      if (match) break;
-    }
-    if (!match) match = pool[0];
-
-    if (match) snkrdunkId = match.id;
-  }
-
+  const lastSet = _LAST_OPENED_SET;
+  const backBtn = lastSet ? `<button class="btn" onclick="reopenLastSet()" style="cursor:pointer;padding:8px 14px;font-size:12px;margin-bottom:12px">← ${escapeHtml(lastSet.setName)} 박스로</button>` : '';
+  const priceHTML = unavailable ? '<span class="card-price-fallback cpf-none">SNKRDUNK 가격 확인 지연</span>' : window.CardPriceFallback.render(price,{compact:false});
   closeAnyModal();
-
-  if (snkrdunkId) {
-    // Existing price detail panel keeps its full-page expansion and data lookup.
-    openSlidePanel(snkrdunkId);
-  } else {
-    // 매칭 실패 — 정보만 표시 모달
-    const lastSet = _LAST_OPENED_SET;
-    const backBtn = lastSet ? `<button class="btn" onclick="reopenLastSet()" style="cursor:pointer; padding:8px 14px; font-size:12px; margin-bottom:12px">← ${escapeHtml(lastSet.setName)} 박스로</button>` : '';
-    openAnyModal(`
-      <div class="modal-head">
-        <h3>🃏 카드 정보</h3>
-        <button class="modal-close" onclick="closeAnyModal()">✕</button>
-      </div>
-      <div class="modal-body" style="padding:24px; text-align:center">
-        ${backBtn}
-        ${cardImage ? `<img src="${escapeHtml(cardImage)}" alt="${escapeHtml(cardName)}" style="max-width:280px; max-height:380px; width:auto; height:auto; border-radius:8px; margin:0 auto 18px; display:block" referrerpolicy="no-referrer">` : ''}
-        <div style="font-size:15px; font-weight:700; color:#111; margin-bottom:8px; line-height:1.4">${escapeHtml(cardName)}</div>
-        <div style="font-size:13px; color:var(--ink-sub); margin-bottom:16px">
-          SNKRDUNK 상품 연결 확인 중
-        </div>
-        <div style="font-size:11px; color:var(--ink-mute); line-height:1.6">
-          이 카드의 시세 상품 연결을 아직 확인하지 못했습니다.<br>
-          실제 거래가 없다는 뜻은 아닙니다.
-        </div>
-      </div>`);
-  }
+  openAnyModal(`
+    <div class="modal-head"><h3>카드 정보</h3><button class="modal-close" onclick="closeAnyModal()">✕</button></div>
+    <div class="modal-body ci-card-detail" style="padding:24px;text-align:center">
+      ${backBtn}
+      ${cardImage ? `<img src="${escapeHtml(cardImage)}" alt="${escapeHtml(cardName)}" style="max-width:280px;max-height:380px;width:auto;height:auto;border-radius:8px;margin:0 auto 18px;display:block" referrerpolicy="no-referrer">` : ''}
+      <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:8px;line-height:1.4">${escapeHtml(cardName)}</div>
+      <div style="font-size:12px;color:var(--ink-sub);margin-bottom:14px">${escapeHtml(target?.fullNumber || identity.number || '')} · ${escapeHtml(identity.rarity || '')}</div>
+      <div class="tci-price-host ci-card-detail-price">${priceHTML}</div>
+    </div>`);
 });
 
 // 박스로 돌아가기
@@ -7300,7 +7216,7 @@ if (location.hash === '#cardinfo' && sharedSetCode) {
   }
 }
 document.addEventListener('keydown', e => {
-  const target = e.target.closest('.set-tile[role="button"], .set-card-item[role="button"]');
+  const target = e.target.closest('.card-price-fallback a') ? null : e.target.closest('.set-tile[role="button"], .set-card-item[role="button"]');
   if (target && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); target.click(); }
   const panel = document.querySelector('#anyModal.ci-panel.open');
   if (e.key !== 'Tab' || !panel) return;
@@ -10820,6 +10736,7 @@ window.openAddToWatchlist = (cardId, cardName, suggestedGrade) => CardFavorites.
 /* ────────────────────────────────────
    10. 초기화 — 페이지 진입
    ──────────────────────────────────── */
+if (!location.hash && /^\/cardinfo(?:\/|$)/.test(location.pathname)) history.replaceState(null, '', location.pathname + location.search + '#cardinfo');
 const initialPage = (location.hash || '#home').replace('#', '') || 'home';
 go(initialPage);
 
@@ -10973,5 +10890,9 @@ window.addEventListener('appinstalled', () => {
 <link rel="stylesheet" href="/assets/chiikawa-catalog.css?v=38b07b90dbdf">
 <script src="/assets/chiikawa-catalog.js?v=2dcb1aaa554a" defer></script>
 <!-- TCGHUB_CHIIKAWA_END -->
+<link rel="stylesheet" href="/assets/tcg-card-info.css?v=20261029-cardinfo2">
+<script src="/assets/card-price-fallback.js?v=20261029-cardinfo2"></script>
+<script src="/assets/contained-card-prices.js?v=20261029-cardinfo2"></script>
+<script src="/assets/tcg-card-info.js?v=20261029-cardinfo2" defer></script>
 </body>
 </html>

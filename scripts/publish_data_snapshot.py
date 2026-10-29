@@ -26,10 +26,12 @@ DAILY_NEW_FILES = {'data/update-health.json', 'data/all-cards.json', 'data/cards
     'data/price-onepiece-box.json', 'data/price-onepiece-card.json',
     'data/cards-by-set/M6a.json', 'data/cards-by-set/MF.json'}
 REFERENCE_SEARCH_FILES = {'data/all-cards.json', 'data/cards-meta.json', 'data/cards-prices.json'}
+CARD_INFO_MANIFEST = 'data/tcg-card-info.json'
+CARD_INFO_GAMES = ('nikke', 'weiss_schwarz', 'union_arena', 'dragon_ball_fusion_world', 'yugioh', 'digimon')
 REFERENCE_FILES = {'data/us-market.json', 'data/yuyutei-market.json',
                    'data/mercari-references.json', 'data/snkrdunk-games.json',
                    'data/cards-detail.json', 'data/cards-meta-index.json',
-                   'data/reference-market-health.json'} | REFERENCE_SEARCH_FILES | {
+                   'data/reference-market-health.json', CARD_INFO_MANIFEST} | REFERENCE_SEARCH_FILES | {
     f'data/price-{game}-{kind}.json'
     for game in ('weiss_schwarz', 'union_arena', 'dragon_ball_fusion_world', 'yugioh', 'digimon')
     for kind in ('card', 'box')}
@@ -39,13 +41,19 @@ def metadata_bucket_path(name):
     return isinstance(name, str) and re.fullmatch(r'data/cards-meta-index/[0-9]{2}\.json', name) is not None
 
 
+def card_info_path(name):
+    """Only builder-owned games and stable lowercase SHA256-prefix IDs."""
+    return isinstance(name, str) and (name == CARD_INFO_MANIFEST or re.fullmatch(
+        r'data/tcg-card-info/(?:' + '|'.join(CARD_INFO_GAMES) + r')/[0-9a-f]{16}(?:-part[0-9]{2,6})?\.json', name) is not None)
+
+
 def reference_path(name):
     """Only reference-collector outputs; configuration and unrelated data stay out."""
     if not isinstance(name, str):
         return False
     if name in REFERENCE_FILES:
         return True
-    if metadata_bucket_path(name):
+    if metadata_bucket_path(name) or card_info_path(name):
         return True
     if re.fullmatch(r'data/snkrdunk-history/[1-9][0-9]{0,19}\.json', name):
         return True
@@ -94,9 +102,49 @@ def reference_files(root, base):
         # Protect the entire search snapshot against concurrent edits, including
         # unchanged group members; Git will stage only actual byte changes.
         selected.update(REFERENCE_SEARCH_FILES)
+    if any(card_info_path(name) for name in selected):
+        selected.update(card_info_files(root))
     selected = sorted(selected)
     for name in selected:
         check_reference_file(root, name)
+    return selected
+
+
+def card_info_files(root):
+    """Protect the entire active browser generation; retain unused assets."""
+    root = Path(root)
+    check_reference_file(root, CARD_INFO_MANIFEST)
+    manifest = json.loads((root / CARD_INFO_MANIFEST).read_bytes(), parse_constant=reject_non_json_constant)
+    if not isinstance(manifest, dict) or not isinstance(manifest.get('games'), list):
+        raise PublicationError('Card-info manifest must declare its game catalogs')
+    queue = [CARD_INFO_MANIFEST]
+    for game in manifest['games']:
+        if not isinstance(game, dict) or game.get('id') not in CARD_INFO_GAMES or not isinstance(game.get('sets'), list):
+            raise PublicationError('Invalid card-info game or set list')
+        for entry in game['sets']:
+            url = entry.get('file') if isinstance(entry, dict) else None
+            prefix = '/data/tcg-card-info/' + game['id'] + '/'
+            if not isinstance(url, str) or not url.startswith(prefix) or not card_info_path(url[1:]):
+                raise PublicationError('Invalid card-info set file URL: ' + str(url))
+            queue.append(url[1:])
+    selected = set()
+    while queue:
+        name = queue.pop()
+        if name in selected:
+            continue
+        check_reference_file(root, name)
+        selected.add(name)
+        if name == CARD_INFO_MANIFEST:
+            continue
+        document = json.loads((root / name).read_bytes(), parse_constant=reject_non_json_constant)
+        if not isinstance(document, dict) or not isinstance(document.get('shards', []), list):
+            raise PublicationError('Invalid card-info set snapshot: ' + name)
+        for url in document.get('shards', []):
+            if not isinstance(url, str) or not url.startswith('/') or not card_info_path(url[1:]) or url[1:] == CARD_INFO_MANIFEST:
+                raise PublicationError('Invalid card-info part URL: ' + str(url))
+            if url[1:].rsplit('/', 1)[0] != name.rsplit('/', 1)[0]:
+                raise PublicationError('Card-info part cannot change its view game')
+            queue.append(url[1:])
     return selected
 
 
@@ -105,6 +153,8 @@ def reject_non_json_constant(value):
 
 
 def daily_path(name):
+    if card_info_path(name):
+        return False  # The dedicated catalog publisher protects the complete group.
     if name in ALLOWED or name in ('data/secrets.json', 'data/credentials.json'):
         return False
     return bool(re.fullmatch(r'data/[A-Za-z0-9][A-Za-z0-9_.-]*\.json', name)
@@ -161,11 +211,14 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         raise PublicationError('Use an exact original commit and at most three push attempts')
     if daily and references:
         raise PublicationError('Choose exactly one publication mode')
+    catalog_only = not daily and not references and list(files) == [CARD_INFO_MANIFEST]
+    if catalog_only:
+        files = sorted(card_info_files(root))
     if daily and set(files) != set(daily_files(root, base)):
         raise PublicationError('Daily output selection changed before publication')
     if references and (len(files) != len(set(files)) or set(files) != set(reference_files(root, base))):
         raise PublicationError('Reference output selection changed before publication')
-    if not daily and not references and (len(files) != len(set(files))
+    if not daily and not references and not catalog_only and (len(files) != len(set(files))
             or set(files) not in (ALLOWED - {'data/chinese-market.json'}, {'data/chinese-market.json'})):
         raise PublicationError('Publish the complete four-file verified index set or the single Chinese market snapshot')
     if (daily or references) and not files:
@@ -174,13 +227,13 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
     snapshots = {}
     original = {name: tree_entry(root, base, name) for name in files}
     for name in files:
-        if references or metadata_bucket_path(name):
+        if references or catalog_only or metadata_bucket_path(name):
             check_reference_file(root, name)
         path = root / name
         if path.is_symlink() or not path.resolve().is_relative_to(root) or not path.is_file():
             raise PublicationError('Unsafe or missing generated output: ' + name)
         raw = path.read_bytes()
-        if references or metadata_bucket_path(name):
+        if references or catalog_only or metadata_bucket_path(name):
             json.loads(raw, parse_constant=reject_non_json_constant)
         else:
             json.loads(raw)

@@ -7,6 +7,7 @@
   const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
   function cardTitle(c) {
     if(c.brand==='pokemon' && window.JapaneseCardNames) return JapaneseCardNames.title(c);
+    if(c.brand==='onepiece' && c.cardType==='DON' && c.nameKo)return c.nameKo;
     let title=c.name.replace(/\s*\((?:Enhanced|High Class|Booster|Expansion|Promotional|Starter)\b.*$/i,'').trim();
     return title;
   }
@@ -40,6 +41,12 @@
     modal=document.createElement('div');modal.id='searchDialog';modal.hidden=true;
     modal.innerHTML='<section class="gs-panel" role="dialog" aria-modal="true" aria-label="카드 및 박스 검색"><div class="gs-header"><div class="gs-field"><input id="gsInput" autocomplete="off" enterkeyhint="search" aria-label="카드 및 박스 이름 검색" placeholder="카드 및 박스 이름을 검색해주세요"><button class="gs-icon" id="gsRun" aria-label="검색 실행">'+icon+'</button></div><button class="gs-icon" id="gsClose" aria-label="검색 닫기">'+closeIcon+'</button></div><div class="gs-filters" role="group" aria-label="검색 종류"><button class="gs-filter" data-kind="all" aria-pressed="true">전체</button><button class="gs-filter" data-kind="card" aria-pressed="false">카드</button><button class="gs-filter" data-kind="box" aria-pressed="false">박스</button></div><div class="gs-results" id="gsResults"></div><div class="gs-count" id="gsCount" role="status" aria-live="polite"></div></section>';
     document.body.append(modal);input=modal.querySelector('input');list=modal.querySelector('.gs-results');count=modal.querySelector('.gs-count');
+    list.addEventListener('error',event=>{
+      const img=event.target;
+      if(img.tagName!=='IMG'||!img.classList.contains('gs-thumb'))return;
+      const fallback=document.createElement('span');fallback.className='gs-thumb gs-image-missing';
+      fallback.textContent='이미지 준비 중';img.replaceWith(fallback);
+    },true);
     const languages=document.createElement('div');languages.className='gs-languages';languages.setAttribute('role','group');languages.setAttribute('aria-label','검색 언어');
     languages.innerHTML='<button class="gs-language" data-language="ja" aria-pressed="true">일판</button><button class="gs-language" data-language="en" aria-pressed="false">영판</button><button class="gs-language" data-language="zh-CN" aria-pressed="false">중판</button>';
     modal.querySelector('.gs-filters').before(languages);

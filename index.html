@@ -688,7 +688,7 @@ input, select, textarea {
 input:focus, select:focus { outline: none; border-color: var(--accent); }
 .form-row { margin-bottom: 14px; }
 </style>
-<link rel="stylesheet" href="/assets/search-modal.css?v=20261014-mobile-art1">
+<link rel="stylesheet" href="/assets/search-modal.css?v=20261030-catalogue1">
 <link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
 <link rel="stylesheet" href="/assets/home-discovery.css?v=20260908-compact4">
 <link rel="stylesheet" href="/assets/centering-tool.css?v=20261025-grade-range-v1">
@@ -2526,9 +2526,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/market-references.js?v=20261029-reference1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261014-japanese3">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
-<script src="/assets/contained-card-match.js?v=20261014-japanese3"></script>
+<script src="/assets/card-catalog-repairs.js?v=20261030-1"></script>
+<script src="/assets/contained-card-match.js?v=20261030-don1"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
-<script src="/assets/japanese-catalog.js?v=20261030-don-search1"></script>
+<script src="/assets/japanese-catalog.js?v=20261030-images1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
@@ -4399,7 +4400,9 @@ async function buildCardProductData() {
   const products = [...cardItems, ...boxItems];
   await window.AnniversaryMarket?.load();
   const combined = [...new Map([...products,...(window.AnniversaryMarket?.products() || [])].map(p=>[String(p.id),p])).values()];
-  return window.PromoSearch ? PromoSearch.merge(combined) : combined;
+  const merged=window.PromoSearch ? await PromoSearch.merge(combined) : combined;
+  await window.CardCatalogRepairs?.ensureData();
+  return window.CardCatalogRepairs?.products(merged) || merged;
 }
 async function buildCardSearchData() {
   _ALL_CARDS_INDEX = await loadCardProductData();
@@ -6861,7 +6864,9 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
       d = await tryFetch(code.toUpperCase());
       return d;
     }
-    const data = await fetchSet(setCode);
+    let data = await fetchSet(setCode);
+    await window.CardCatalogRepairs?.ensureData();
+    data=window.CardCatalogRepairs?.setCards(data,setCode) || data;
     if (request !== CI_PANEL_REQUEST || !modal.classList.contains('open') || !modal.classList.contains('ci-panel')) return;
     if (!data) {
       document.getElementById('setGridContent').innerHTML = `
@@ -6917,7 +6922,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
           // SNKRDUNK 검색용 — 카드의 실제 setCode + base number
           const searchKey = baseNum ? `${cardSetCode} ${baseNum}` : (c.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
           // 카드 번호 표시: 다른 set 의 재록이면 "OP14-005" 형태, 같은 set 이면 "001" 또는 "001_P1"
-          const displayNum = c.unprintedNumber ? '목록 '+(c.inventoryNumber || String(c.number || '').replace(/^No\.\s*/i,'')) : (cardSetCode !== setCode.toUpperCase() && !String(c.number || '').toUpperCase().endsWith(`/${cardSetCode}`))
+          const displayNum = c.cardType==='DON' ? '돈!!' : c.unprintedNumber ? '목록 '+(c.inventoryNumber || String(c.number || '').replace(/^No\.\s*/i,'')) : (cardSetCode !== setCode.toUpperCase() && !String(c.number || '').toUpperCase().endsWith(`/${cardSetCode}`))
             ? `${cardSetCode}-${c.number || ''}`
             : (c.number || '');
           // variant suffix (p1, p2 등) 별도 저장 — SNKRDUNK 의 -P / -SP / -SPC 매칭용
@@ -6929,7 +6934,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
           const externalUrl = c.image || '';
           const fullId = c.fullId || c.number || '';
           const cardBrand = brand;
-          const localizedName=brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...c,brand:'pokemon'}) : c.name || displayNum;
+          const localizedName=brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...c,brand:'pokemon'}) : c.nameKo || c.name || displayNum;
           const isOnePiece = externalUrl.includes('onepiece-cardgame.com') || fullId.match(/^(OP|EB|ST|PRB)\d+/i);
           const localPath = (isOnePiece && fullId) ? `images/onepiece/${fullId}.png` : '';
           // 우선순위: 외부 URL → 로컬 → hide
@@ -6953,7 +6958,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
             <div class="set-card-img" style="background:#f3f4f6">
               ${primarySrc ? `<img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(localizedName)}" loading="lazy" referrerpolicy="no-referrer" ${onerrorAttr}>` : `<span style="padding:12px;text-align:center;font-size:12px;color:var(--ink-sub)">${escapeHtml(localizedName)}<br>이미지 준비 중</span>`}
             </div>
-            ${cardBrand==='pokemon'?`<div class="set-card-name" style="padding:8px 8px 0;text-align:center;font-size:12px;overflow-wrap:anywhere">${escapeHtml(localizedName)}</div>`:''}
+            ${cardBrand==='pokemon'||c.cardType==='DON'?`<div class="set-card-name" style="padding:8px 8px 0;text-align:center;font-size:12px;overflow-wrap:anywhere">${escapeHtml(localizedName)}</div>`:''}
             <div class="set-card-num">${escapeHtml(displayNum)}${c.versionLabel ? `<br>${escapeHtml(c.versionLabel)}` : ''}</div>
             <div class="tci-price-host ci-contained-price" data-contained-price aria-live="polite">가격 확인 중</div>
           </div>`;
@@ -10880,7 +10885,7 @@ window.addEventListener('appinstalled', () => {
 // </script>
 <script src="/assets/english-search.js?v=20260908-search1"></script>
 <script src="/assets/promo-search.js?v=20261013-promo1"></script>
-<script src="/assets/search-modal.js?v=20261030-don-search1"></script>
+<script src="/assets/search-modal.js?v=20261030-images1"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261012-cn-names1"></script>

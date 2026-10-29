@@ -73,6 +73,10 @@ def main():
             url = c.get('image', '')
             if not url:
                 continue
+            # Reviewed numberless designs already have cropped local WebP assets.
+            if url.startswith('/images/') and (ROOT / url.lstrip('/')).is_file():
+                skip += 1
+                continue
             # fullId 우선 사용 (variant 카드 OP15-001_p1 등 처리)
             full_id = c.get('fullId') or f"{c.get('setCode', code)}-{c.get('number', '')}"
             if not full_id:

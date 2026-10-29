@@ -47,6 +47,10 @@
   function sameIdentity(card, product, candidateProofs = {}) {
     if (!product || product.brand !== card.brand || product.kind === 'box' || foreign(product)) return false;
     const code = upper(card.setCode || card.boxCode), num = numberOf(card);
+    // Numberless DON!! designs require the reviewed full artwork identity.
+    // OP-17-DON alone is shared by four designs, two finishes and two languages.
+    if(card.brand==='onepiece'&&/^OP\d+-DON-\d{2}(?:_P1)?$/.test(upper(card.fullId)))return product.cardType==='DON'&&
+      code===upper(product.setCode)&&upper(card.fullId)===upper(product.fullId)&&product.language==='ja';
     if (!num || !code) return false;
     const pn = upper(product.productNumber), name = String(product.name || '');
     // Some English catalogue entries reuse the Japanese productNumber. The
@@ -100,6 +104,7 @@
       return {status: product ? 'matched' : 'verified-link', id: String(proof.id), proof};
     }
     const candidates = [...new Map(products.filter(p => sameIdentity(card, p, candidateProofs)).map(p => [String(p.id), p])).values()];
+    if(card.brand==='onepiece'&&/^OP\d+-DON-\d{2}(?:_P1)?$/.test(fullId))return {status:candidates.length===1?'matched':candidates.length?'ambiguous':'unlinked',id:candidates.length===1?String(candidates[0].id):null};
     if(candidates.length&&candidates.every(paired))return {status:'paired-product',id:null};
     if (card.brand === 'pokemon' && card.id) {
       const direct = candidates.find(p => String(p.id) === String(card.id));
@@ -131,7 +136,7 @@
       if (!pools.has(key)) {
         const codes = [code, ...(aliases[code] || [])];
         pools.set(key, products.filter(p => p.brand === card.brand &&
-          codes.some(c => upper(p.name).includes(c) || upper(p.productNumber).includes(c))));
+          codes.some(c => upper(p.setCode)===c || upper(p.name).includes(c) || upper(p.productNumber).includes(c))));
       }
       return pools.get(key);
     }

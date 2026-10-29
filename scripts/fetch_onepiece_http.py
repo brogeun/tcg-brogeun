@@ -145,6 +145,21 @@ def parse_cards(html: str, code: str) -> list[dict]:
     return list(cards.values())
 
 
+def supplement_don_cards(cards: list[dict], code: str, manifest_path=None) -> list[dict]:
+    """DON!! has no OPxx-nnn printed number and lives outside the official modal list."""
+    path = manifest_path or ROOT / "data" / "card-catalog-repairs.json"
+    if not path.exists():
+        return cards
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    known = {card.get("fullId") for card in cards}
+    supplement = [
+        {key: value for key, value in card.items() if key not in ("productId", "marketName", "sourceImage", "sha256")}
+        for card in manifest.get("onepieceDon", [])
+        if card.get("setCode", "").upper() == code.upper() and card["fullId"] not in known
+    ]
+    return cards + supplement
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--only", help="특정 세트만 (예: OP15)")
@@ -187,6 +202,7 @@ def main():
             failed.append(code)
             continue
 
+        cards = supplement_don_cards(cards, code)
         cards.sort(key=lambda c: int(c["number"]) if c["number"].isdigit() else 9999)
 
         payload = {
@@ -196,6 +212,8 @@ def main():
             "cardCount": len(cards),
             "cards": cards,
         }
+        if any(card.get("cardType") == "DON" for card in cards):
+            payload["supplementSource"] = "card-catalog-repairs.json (image-reviewed DON!! designs)"
         out = OUT_DIR / f"{code}.json"
         # 기존 파일 unlink → 새로 작성 (truncate 보장 — Windows mount NULL 바이트 방지)
         if out.exists():

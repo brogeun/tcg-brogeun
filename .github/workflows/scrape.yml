@@ -43,7 +43,9 @@ jobs:
     # bot 의 자동 commit (data 자동 갱신) 으로 인한 무한 trigger 방지
     if: >-
       (github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.conclusion == 'success' ||
+      (github.event.workflow_run.name == 'Market Reference Prices Daily' &&
+      github.event.workflow_run.conclusion == 'failure')) &&
       github.event.workflow_run.head_branch == 'main' &&
       github.event.workflow_run.head_repository.full_name == github.repository) ||
       (github.event_name != 'workflow_run' && github.actor != 'github-actions[bot]')
@@ -414,25 +416,25 @@ jobs:
                           with urllib.request.urlopen(request, timeout=25) as response:
                               return response.read().decode('utf-8')
                       page = get('/')
-                      assert 'mr-game-shortcuts' not in page
+                      assert 'mr-game-shortcuts' not in page, 'Removed source shortcuts are still present'
                       for game in ('nikke','dragon_ball_fusion_world','yugioh','digimon','weiss_schwarz','union_arena'):
-                          assert 'data-ci="' + game + '"' in page
-                      assert '/assets/card-price-fallback.js' in page
+                          assert 'data-ci="' + game + '"' in page, 'Missing Card Info category: ' + game
+                      assert '/assets/card-price-fallback.js' in page, 'Card price resolver is not loaded'
                       catalog = json.loads(get('/data/tcg-card-info.json'))
-                      assert len(catalog['games']) == 6
+                      assert len(catalog['games']) == 6, 'Expected all six added Card Info views'
                       sample = next(game for game in catalog['games'] if game['id'] == 'nikke')['sets'][0]
                       payload = json.loads(get(sample['file']))
                       if payload.get('bundleVersion') == 1:
                           assert payload['game'] == 'nikke'
                           payload = payload['sets'][sample['id']]
                       cards = payload['cards']
-                      assert cards and str(cards[0]['snkrdunkId']) == str(cards[0]['snkrProduct']['id'])
+                      assert cards and str(cards[0]['snkrdunkId']) == str(cards[0]['snkrProduct']['id']), 'Sample card source identity mismatch'
                       with urllib.request.urlopen(urllib.request.Request(host + '/market-references?verify=' + version, headers={'User-Agent':'Mozilla/5.0'}), timeout=25) as response:
-                          assert '/cardinfo' in response.url
+                          assert '/cardinfo' in response.url, 'Legacy page returned to home instead of Card Info: ' + response.url
                       print('Production Card Info, source identity, and legacy redirect verified:', host)
                       raise SystemExit(0)
                   except Exception as error:
-                      errors.append(host + ': ' + str(error))
+                      errors.append(host + ': ' + type(error).__name__ + ': ' + str(error))
                       time.sleep(5)
           raise SystemExit('Production Card Info verification failed: ' + '; '.join(errors))
           PY

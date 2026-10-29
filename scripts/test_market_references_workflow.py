@@ -147,6 +147,47 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn('group: scrape', deploy)
         self.assertEqual(self.text.count(build + '\n'), 1)
 
+    def test_partial_reference_run_rebuilds_but_other_failed_or_untrusted_runs_do_not(self):
+        from types import SimpleNamespace
+        scrape = (ROOT / '.github/workflows/scrape.yml').read_text(encoding='utf-8')
+        match = re.search(r'(?ms)^    if: >-\n(.*?)^    runs-on:', scrape)
+        self.assertIsNotNone(match, 'Missing native deployment admission condition')
+        expression = ' '.join(match[1].split()).replace('&&', ' and ').replace('||', ' or ')
+        # Execute the actual workflow expression with only its supported fields
+        # and boolean/comparison syntax, not a duplicate model of the policy.
+        tree = ast.parse(expression, mode='eval')
+        allowed = (ast.Expression, ast.BoolOp, ast.Compare, ast.Name, ast.Attribute,
+                   ast.Load, ast.Constant, ast.And, ast.Or, ast.Eq, ast.NotEq)
+        self.assertTrue(all(isinstance(node, allowed) for node in ast.walk(tree)))
+        self.assertTrue(all(node.id == 'github' for node in ast.walk(tree) if isinstance(node, ast.Name)))
+        compiled = compile(tree, '<native-workflow-admission>', 'eval')
+
+        def admitted(name='Market Reference Prices Daily', conclusion='success',
+                     branch='main', repository='brogeun/tcg-brogeun',
+                     event='workflow_run', actor='github-actions[bot]'):
+            run = SimpleNamespace(name=name, conclusion=conclusion, head_branch=branch,
+                                  head_repository=SimpleNamespace(full_name=repository))
+            github = SimpleNamespace(event_name=event, actor=actor, repository='brogeun/tcg-brogeun',
+                                     event=SimpleNamespace(workflow_run=run))
+            return bool(eval(compiled, {'__builtins__': {}}, {'github': github}))
+
+        self.assertTrue(admitted(conclusion='failure'), 'Independent published references still need rebuilding')
+        self.assertTrue(admitted(conclusion='success'))
+        self.assertTrue(admitted(name='Refresh Verified Home Card Index Daily'))
+        self.assertFalse(admitted(name='Refresh Verified Home Card Index Daily', conclusion='failure'))
+        self.assertFalse(admitted(name='Unrelated workflow', conclusion='failure'))
+        for conclusion in ('cancelled', 'timed_out', 'skipped', 'action_required'):
+            with self.subTest(conclusion=conclusion):
+                self.assertFalse(admitted(conclusion=conclusion))
+        for conclusion in ('success', 'failure'):
+            with self.subTest(conclusion=conclusion, guard='branch'):
+                self.assertFalse(admitted(conclusion=conclusion, branch='feature/untrusted'))
+            with self.subTest(conclusion=conclusion, guard='repository'):
+                self.assertFalse(admitted(conclusion=conclusion, repository='fork-owner/tcg-brogeun'))
+        self.assertTrue(admitted(event='workflow_dispatch', actor='maintainer'))
+        self.assertTrue(admitted(event='push', actor='maintainer'))
+        self.assertFalse(admitted(event='push', actor='github-actions[bot]'))
+
     def test_source_cache_never_restores_tracked_market_data(self):
         self.assertIn("path: .cache/us-market", self.jobs["us"])
         for body in self.jobs.values():

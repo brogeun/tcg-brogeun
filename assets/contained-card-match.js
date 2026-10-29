@@ -46,6 +46,16 @@
   }
   function sameIdentity(card, product, candidateProofs = {}) {
     if (!product || product.brand !== card.brand || product.kind === 'box' || foreign(product)) return false;
+    // Bind numberless EB05 DON!! to its reviewed product, never by the shared code.
+    if (card.brand === 'onepiece' && upper(card.boxCode) === 'EB05' &&
+        /^EB05-DON_SNKR\d+$/.test(upper(card.fullId))) {
+      return String(card.marketProductId || '') === String(product.id) &&
+        upper(card.fullId) === 'EB05-DON_SNKR' + product.id &&
+        card.productNumber === 'OPC-TCG-EB-05-DON' &&
+        product.productNumber === card.productNumber &&
+        /^DON!! Card(?:\s|\()/.test(product.name || '') &&
+        /Extra Booster "Heroines Edition Vol\.2"/.test(product.name || '');
+    }
     const code = upper(card.setCode || card.boxCode), num = numberOf(card);
     // Numberless DON!! designs require the reviewed full artwork identity.
     // OP-17-DON alone is shared by four designs, two finishes and two languages.

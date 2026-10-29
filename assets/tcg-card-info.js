@@ -1,6 +1,11 @@
 /* Additional games live inside Card Information; printed identities stay intact. */
 (() => {
   'use strict';
+  // Japanese EB05 belongs to the existing One Piece card-information grid.
+  if(typeof CARDINFO!=='undefined'&&Array.isArray(CARDINFO.onepiece)&&!CARDINFO.onepiece.some(set=>set.code==='EB05')){
+    CARDINFO.onepiece.unshift({code:'EB05',name:'히로인즈 에디션 Vol.2 (Heroines Edition Vol.2)',release:'2026.10.31',boxId:'910479',image:'https://cdn.snkrdunk.com/upload_bg_removed/946f3236-1a32-4c20-bdaa-7a9484dde258.webp?size=l',url:'https://www.onepiece-cardgame.com/cardlist/?series=550205'});
+  }
+
   if(window.TCGCardInfo||typeof renderCardInfo!=='function'||typeof openSetGrid!=='function')return;
   const GAMES={nikke:'니케',weiss_schwarz:'바이스슈발츠',union_arena:'유니온아레나',dragon_ball_fusion_world:'드래곤볼 퓨전월드',yugioh:'유희왕',digimon:'디지몬'};
   const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261029-ci1',files=new Map(),pages=new Map(),languageState=new Map();

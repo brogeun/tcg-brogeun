@@ -1,7 +1,7 @@
 /* Existing Japanese grids keep their official identity and use one price host. */
 (function(root,factory){const api=factory(root);if(typeof module==='object'&&module.exports)module.exports=api;else root.ContainedCardPrices=api;})(typeof globalThis!=='undefined'?globalThis:this,function(root){
   'use strict';
-  const tokens=new WeakMap();let overridePromise;
+  const tokens=new WeakMap();let overridePromise,eb05Promise;
   const upper=value=>String(value||'').normalize('NFKC').trim().toUpperCase();
   function targetFor(identity){
     const target={...identity,game:identity.brand,language:identity.language||'ja',grade:'raw'};
@@ -13,6 +13,11 @@
         /^[A-Za-z0-9]+-\d+[A-Za-z]*$/.test(number)?number:
         identity.setCode&&/^\d+$/.test(number)?identity.setCode+'-'+number.padStart(3,'0'):'';
     }
+    // The reviewed numberless EB05 artwork ID encodes its exact market product.
+    if(identity.brand==='onepiece'&&upper(identity.boxCode)==='EB05'){
+      const don=upper(identity.fullId).match(/^EB05-DON_SNKR(\d+)$/);
+      if(don){target.marketProductId=don[1];target.productNumber='OPC-TCG-EB-05-DON';}
+    }
     // Official source IDs and market product IDs are separate namespaces.
     delete target.snkrdunkId;delete target.snkrProduct;return target;
   }
@@ -21,6 +26,20 @@
     await loadCardSearchData();
     if(typeof _ALL_CARDS_INDEX==='undefined'||!Array.isArray(_ALL_CARDS_INDEX))throw Error('Market catalogue unavailable');
     return _ALL_CARDS_INDEX;
+  }
+  async function defaultSetProducts(){
+    if(!eb05Promise)eb05Promise=fetch('/data/onepiece-eb05-market.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('EB05 snapshot unavailable');return r.json();}).then(d=>{if(d.code!=='EB05'||!Array.isArray(d.products))throw Error('Invalid EB05 snapshot');return d.products;}).catch(e=>{eb05Promise=null;throw e;});
+    return eb05Promise;
+  }
+  function mergeSetProducts(products,extra){
+    const rows=new Map(products.map(p=>[String(p.id),p]));
+    for(const p of extra){
+      if(p.brand!=='onepiece'||p.kind!=='card'||!/^\d+$/.test(String(p.id))||!/Extra Booster "Heroines Edition Vol\.2"/.test(p.name||''))continue;
+      const old=rows.get(String(p.id)),stamp=row=>Date.parse(row?.priceCheckedAt||row?.fetchedAt||'')||0;
+      const selected=old&&stamp(old)>=stamp(p)?old:p;
+      rows.set(String(p.id),{...selected,setSnapshot:'EB05'});
+    }
+    return [...rows.values()];
   }
   async function defaultDetails(){if(typeof loadCardsDetail!=='function')throw Error('Market details unavailable');return await loadCardsDetail();}
   async function defaultOverrides(){
@@ -40,6 +59,7 @@
   function withRawDetail(product,details){
     const card=details?.cards?.[String(product.id)],raw=card?.grades?.raw;
     if(!raw)return {...product};
+    if(product.setSnapshot==='EB05'&&(Date.parse(card.fetchedAt||'')||0)<(Date.parse(product.priceCheckedAt||'')||0))return {...product};
     const merged={...product,grades:{...(product.grades||{}),raw:{...raw}},gradeCheckedAt:card.fetchedAt||null};
     if(!card.fetchedAt){merged.priceCheckedAt=null;merged.fetchedAt=null;}
     return merged;
@@ -49,6 +69,8 @@
     const unavailable=()=>targets.map(target=>({...target,snkrdunkStatus:'unknown',sourceUnavailable:true}));
     if(!match||!isCurrent())return unavailable();
     let products;try{products=await(services.loadProducts||defaultProducts)();if(!Array.isArray(products))throw Error('Invalid market catalogue');}catch{return unavailable();}
+    if(!isCurrent())return unavailable();
+    if(targets.some(t=>t.brand==='onepiece'&&upper(t.boxCode)==='EB05'))try{products=mergeSetProducts(products,await(services.loadSetProducts||defaultSetProducts)());}catch{}
     if(!isCurrent())return unavailable();
     let overrides={};if(targets.some(target=>target.brand==='onepiece'))try{overrides=await(services.loadOverrides||defaultOverrides)();}catch{}
     if(!isCurrent())return unavailable();
@@ -100,5 +122,5 @@
     }
     await Promise.all(Array.from({length:Math.min(4,entries.length)},worker));return results;
   }
-  return {hydrate,prepareTarget,targetFor,reviewedLinks,withRawDetail};
+  return {hydrate,prepareTarget,targetFor,reviewedLinks,withRawDetail,mergeSetProducts};
 });

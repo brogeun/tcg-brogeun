@@ -52,6 +52,7 @@ BOX_LABELS = {
     'EB02': 'EB-02 Anime 25th Collection',
     'EB03': 'EB-03 ONE PIECE Heroines edition',
     'EB04': 'EB-04 EGGHEAD CRISIS',
+    'EB05': 'EB-05 히로인즈 에디션 Vol.2',
 }
 
 
@@ -137,12 +138,13 @@ def main():
             full = c.get('fullId', '')
             card_set = c.get('setCode', code)
             # 박스 카드는 그 박스 코드와 같은 카드만 (재록 X)
-            if card_set.upper() != code.upper():
+            if card_set.upper() != code.upper() and not (code == 'EB05' and c.get('marketSource') == 'snkrdunk'):
                 continue
             base = c.get('baseNumber') or ''
             variant = full.split('_')[1].lower() if '_' in full else ''
 
-            snk_id = find_match(card_set, base, variant)
+            snk_id = (str(c['marketProductId']) if code == 'EB05' and c.get('marketSource') == 'snkrdunk' and str(c.get('marketProductId', '')).isdigit()
+                      else find_match(card_set, base, variant))
             if not snk_id:
                 continue
             matched_cards += 1

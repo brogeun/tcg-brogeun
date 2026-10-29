@@ -203,6 +203,16 @@ def main():
             continue
 
         cards = supplement_don_cards(cards, code)
+        # Official pages may list only base cards before release; retain reviewed variants.
+        if code == "EB05" and (OUT_DIR / "EB05.json").exists():
+            previous = json.loads((OUT_DIR / "EB05.json").read_text(encoding="utf-8"))
+            reviewed = {c["fullId"]: c for c in previous.get("cards", [])
+                        if c.get("marketSource") == "snkrdunk"
+                        and str(c.get("marketProductId", "")).isdigit()}
+            for card in cards:
+                reviewed[card["fullId"]] = {**reviewed.get(card["fullId"], {}), **card}
+            cards = list(reviewed.values())
+
         cards.sort(key=lambda c: int(c["number"]) if c["number"].isdigit() else 9999)
 
         payload = {

@@ -81,3 +81,24 @@ test('reusing a host for a foreign grid invalidates an earlier async hydrate',as
  let identity=op,finish;const host={isConnected:true,innerHTML:'',closest:()=>({dataset:{cardIdentity:JSON.stringify(identity)}})},container={querySelectorAll:()=>[host]},wait=new Promise(r=>finish=r);
  const old=bridge.hydrate(container,{services:services({loadProducts:async()=>wait})});identity={...op,language:'en'};await bridge.hydrate(container,{services:services()});finish([product]);await old;assert.equal(host.innerHTML,'');
 });
+
+test('EB05 uses the newest observation, including a newer no-listings result',()=>{
+ const seed={...product,id:'911901',name:'Miss Buckingham Stussy SR-P [EB05-006](Extra Booster "Heroines Edition Vol.2")',productNumber:'EB05-006',priceCheckedAt:'2026-10-30T00:00:00Z',minPrice:55};
+ const old={...seed,productNumber:'EB05-008',priceCheckedAt:'2026-10-29T00:00:00Z',minPrice:null};
+ assert.equal(bridge.mergeSetProducts([old],[seed])[0].productNumber,'EB05-006');
+ assert.equal(bridge.mergeSetProducts([old],[seed])[0].minPrice,55);
+ const later={...seed,priceCheckedAt:'2026-10-31T00:00:00Z',minPrice:null,priceStatus:'no-listings'};
+ assert.equal(bridge.mergeSetProducts([later],[seed])[0].minPrice,null);
+ assert.equal(bridge.withRawDetail({...seed,setSnapshot:'EB05'},{cards:{911901:{fetchedAt:'2026-10-29T00:00:00Z',grades:{raw:{lowest_ask:99999,currency:'JPY'}}}}}).grades,undefined);
+});
+test('EB05 DON reviewed links cannot cross designs, languages, editions, or boxes',()=>{
+ const don={brand:'onepiece',boxCode:'EB05',setCode:'EB05',fullId:'EB05-DON_SNKR932711',marketProductId:'932711',productNumber:'OPC-TCG-EB-05-DON',unprintedNumber:true,number:'DON!! 01'};
+ const row={id:'932711',brand:'onepiece',kind:'card',productNumber:'OPC-TCG-EB-05-DON',name:'DON!! Card (Nami & Robin)(Extra Booster "Heroines Edition Vol.2")'};
+ assert.equal(match.sameIdentity(don,row),true);
+ assert.equal(match.sameIdentity(don,{...row,id:'932712'}),false);
+ assert.equal(match.sameIdentity({...don,boxCode:'EB03'},row),false);
+ assert.equal(match.sameIdentity(don,{...row,name:row.name+'[EN]'}),false);
+ assert.equal(match.sameIdentity(don,{...row,kind:'box'}),false);
+ assert.equal(match.sameIdentity(don,{...row,name:'DON!! Card(Extra Booster "Heroines Edition")'}),false);
+ assert.equal(bridge.reviewedLinks([don],[row],{'EB05-DON_SNKR932711':'932711'},match)['onepiece:EB05:EB05-DON_SNKR932711'].id,'932711');
+});

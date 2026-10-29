@@ -92,7 +92,7 @@ def full_number(product, game):
     # can collapse T01/T01R and cannot replace the printed bracket.
     patterns = {
         "weiss_schwarz": r"[A-Za-z0-9+_.]+/[A-Za-z0-9+_.]+-[A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*",
-        "union_arena": r"(?:UA[A-Za-z0-9]*|UAPR)[/-][A-Za-z0-9][A-Za-z0-9/_-]*",
+        "union_arena": r"(?:UA|EX|PC)[A-Za-z0-9]*[/-][A-Za-z0-9][A-Za-z0-9/_-]*",
         "dragon_ball_fusion_world": r"(?:FB|FS|FP|SB|FBP)[0-9]{0,3}-[A-Za-z0-9]+",
         "yugioh": r"[A-Za-z0-9]+-[A-Za-z0-9]+",
         "digimon": r"(?:BT|EX|ST|LM|RB|P|AD|TS)[0-9]{0,3}-[A-Za-z0-9]+",

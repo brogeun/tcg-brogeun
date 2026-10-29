@@ -44,6 +44,10 @@ class PrintedIdentityTests(unittest.TestCase):
         value = card(game="union_arena", name='Action Point [UAPR-JJK-1-AP01](Premium Card Set)', code="UATCG-UAPR-JJK-1-AP01")
         self.assertEqual(builder.full_number(value, "union_arena"), "UAPR-JJK-1-AP01")
         self.assertEqual(builder.printed_set("union_arena", "UA18BT/NIK-1-019"), "UA18BT")
+        for number in ("PC02BT/NIK-2-036", "EX15BT/BLC-4-AP02", "EX16BT/MMM-2-012"):
+            value = card(game="union_arena", name=f"Registered card [{number}]", code="")
+            self.assertEqual(builder.full_number(value, "union_arena"), number)
+            self.assertEqual(builder.printed_set("union_arena", number), number.split("/")[0])
 
     def test_explicit_foreign_excluded_but_english_translation_unknown_retained(self):
         self.assertEqual(builder.language(card(), "weiss_schwarz", "NIK/S117-T01"), "unknown")

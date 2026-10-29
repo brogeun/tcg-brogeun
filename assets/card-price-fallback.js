@@ -76,7 +76,7 @@
     const declared=productNumber(row,game(target.game||target.brand));if(fullNumber(target)&&declared&&fullNumber(target)!==declared)return null;
     const directCatalog=target.catalogSource==='SNKRDUNK'&&String(target.snkrProduct?.id)===String(row.id)&&
       (String(target.snkrdunkId||'')===String(row.id)||String(target.id||'')==='snkrdunk:'+row.id)&&
-      !!fullNumber(target)&&!!declared&&fullNumber(target)===declared;
+      (!fullNumber(target)||!declared||fullNumber(target)===declared);
     if(!japanese(target,row)&&!directCatalog)return null;
     const edition=japanese(target,row)?{editionVerification:'japanese_evidence'}:{editionVerification:'unconfirmed',verification:'same_catalog_product',notes:['판본 언어 미확인']};
     const finish=result=>({...result,...edition});

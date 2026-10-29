@@ -148,3 +148,11 @@ test('actual M6a 009/103 official card falls back to the exact RR shop row at JP
  assert.equal(result.status,'priced');assert.equal(result.source,'yuyutei');assert.equal(result.amount,80);assert.equal(result.currency,'JPY');assert.equal(result.priceKind,'shop_asking');assert.equal(result.stockState,actual.stockState);assert.equal(result.observedAt,actual.sourceAsOf);assert.equal(result.sourceUrl,'https://yuyu-tei.jp/sell/poc/card/m06a/10009');
  assert.equal(api.resolve({...official,variant:'Master Ball'},{yuyuRows:rows}).status,'none');
 });
+
+test('an explicitly owned source product with unconfirmed printed number keeps its own current ask',async()=>{
+  const api=require('../assets/card-price-fallback.js');let requests=0;
+  const product={id:'871339',brand:'dragon_ball_fusion_world',kind:'card',language:'unknown',name:'Source card with unconfirmed printed number',url:'https://snkrdunk.com/apparels/871339',minPrice:2,currency:'USD',listingCount:3,priceStatus:'available',catalogAsk:{amount:2700,currency:'KRW',kind:'lowest_listing_ask',condition:'unspecified'}};
+  const target={id:'871339',game:'dragon_ball_fusion_world',language:'unknown',grade:'raw',catalogSource:'SNKRDUNK',snkrdunkId:'871339',snkrProduct:product,fullCardNumber:''};
+  const result=await api.lookup(target,{fetchJson:async()=>{requests++;throw Error('Fallback must not be loaded');}});
+  assert.equal(result.source,'snkrdunk');assert.equal(result.amount,2700);assert.equal(result.currency,'KRW');assert.equal(result.editionVerification,'unconfirmed');assert.equal(requests,0);
+});

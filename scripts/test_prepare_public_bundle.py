@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import prepare_card_index_public_bundle as bundle
@@ -48,6 +49,30 @@ class PublicBundleTests(unittest.TestCase):
                                     cwd=root, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(original.read_bytes(), b'user-original')
+
+    def test_post_copy_limit_check_is_read_only_and_accepts_already_packed_output(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, script = self.fixture(folder)
+            packed = root / '_deploy/data/tcg-card-info-packs/nikke/01.json'
+            packed.parent.mkdir(parents=True)
+            packed.write_bytes(b'{"schemaVersion":1,"game":"nikke","files":{}}')
+            original = packed.read_bytes()
+            result = subprocess.run([sys.executable, str(script), '--check-limits'], cwd=root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)['filesIncludingFunctions'], 1)
+            self.assertEqual(packed.read_bytes(), original)
+            self.assertFalse((root / '_deploy/data/tcg-card-info').exists())
+
+    def test_complete_bundle_rejects_count_size_and_symlink_violations(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); file = root / 'asset.json'; file.write_bytes(b'1234')
+            with patch.object(bundle, 'MAX_ASSET_FILES', 0), self.assertRaisesRegex(ValueError, 'maximum 0'):
+                bundle.check_limits(root)
+            with patch.object(bundle, 'MAX_ASSET_BYTES', 3), self.assertRaisesRegex(ValueError, 'asset size'):
+                bundle.check_limits(root)
+            (root / 'alias').symlink_to(file)
+            with self.assertRaisesRegex(ValueError, 'symlinks'):
+                bundle.check_limits(root)
 
     def test_card_info_packs_preserve_every_body_and_original_source(self):
         with tempfile.TemporaryDirectory() as folder:

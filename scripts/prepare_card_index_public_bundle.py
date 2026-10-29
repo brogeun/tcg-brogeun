@@ -9,7 +9,25 @@ import tempfile
 from pathlib import Path
 
 MAX_ASSET_BYTES = 25 * 1024 * 1024
+MAX_ASSET_FILES = 19_900  # Leave room below Pages' 20,000 asset limit.
 SEARCH_INTERNAL_FIELDS = ('priceSource', 'priceCheckedAt', 'priceStatus')
+
+
+def check_limits(bundle):
+    """Check the fully copied deployment without repacking any existing output."""
+    files = []
+    for path in bundle.rglob('*'):
+        if path.is_symlink():
+            raise ValueError('Deployment assets must not contain symlinks')
+        if path.is_file():
+            files.append(path)
+    if len(files) > MAX_ASSET_FILES:
+        raise ValueError(f'Pages deployment has {len(files)} files; maximum {MAX_ASSET_FILES}')
+    oversized = [path.relative_to(bundle).as_posix() for path in files if path.stat().st_size > MAX_ASSET_BYTES]
+    if oversized:
+        raise ValueError('Pages asset size exceeded: ' + ', '.join(oversized))
+    return {'filesIncludingFunctions': len(files), 'maximumFiles': MAX_ASSET_FILES,
+            'largestAssetBytes': max((path.stat().st_size for path in files), default=0)}
 
 
 def pack_card_info(target):
@@ -94,12 +112,16 @@ def prepare_search_catalogue(target):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data-dir', type=Path, default=Path('_deploy/data'))
+    parser.add_argument('--check-limits', action='store_true', help='Validate the complete deployment without changing files')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     target = args.data_dir.resolve()
     if (target != (root / '_deploy/data').resolve() or not target.is_dir()
             or target == (root / 'data').resolve()):
         parser.error('Only the generated _deploy/data copy may be pruned')
+    if args.check_limits:
+        print(json.dumps(check_limits(target.parent)))
+        return
     removed = []
     for pattern in ('card-index-platform-universe*', 'card-index-platform-history*',
                     'market-price-index-live-history*', 'market-price-index-model-state.json'):

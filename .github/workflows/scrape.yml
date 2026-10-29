@@ -282,8 +282,9 @@ jobs:
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
 
-      - name: Pack integrated Card Info within the public asset budget
-        run: python scripts/prepare_tcg_card_info_bundle.py --data-dir "$DEPLOY_SOURCE/_deploy/data" --max-files 19900
+      - name: Verify the complete deployment fits the public asset budget
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data --check-limits
 
       - name: Verify Japanese catalogue and Korean search before deploy
         working-directory: ${{ env.DEPLOY_SOURCE }}

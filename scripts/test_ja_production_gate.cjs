@@ -124,6 +124,37 @@ const searchEnd = html.indexOf('function renderSearchResults(', searchStart);
 assert(searchStart >= 0 && searchEnd > searchStart, 'The deployed search handler is missing');
 vm.runInContext(html.slice(searchStart, searchEnd), browser);
 const search = query => browser.searchCards(query, Infinity);
+check('DON resource-card queries never broaden into Pokemon names or McDonald promos', () => {
+  const don = search('Don!! card');
+  assert(don.length > 0, 'DON cards must remain searchable');
+  const ids = don.map(card => card.id).sort();
+  for (const query of ['don!!','don card','DON!!CARD','\uFF24\uFF2F\uFF2E\uFF01\uFF01 \uFF43\uFF41\uFF52\uFF44','돈카드','돈 카드','돈','ドン!!カード']) {
+    assert.deepEqual(search(query).map(card => card.id).sort(), ids, query);
+  }
+  for (const card of don) {
+    assert.equal(card.brand, 'onepiece', card.name);
+    assert.equal(card.kind, 'card', card.name);
+    assert.match(card.name, /^DON\s*!+/i, card.name);
+  }
+  assert(ids.includes('730301'), 'Mihawk DON card missing');
+  assert(!ids.includes('671488'), 'McDonald Riolu must not match DON');
+  assert(!ids.includes('671486'), 'McDonald Pikachu must not match DON');
+  const zoro = search('Don!! card Zoro');
+  assert(zoro.length > 0);
+  assert(zoro.every(card => /zoro/i.test(card.name)), 'Additional character term was ignored');
+  assert.equal(search('Don!! card no-such-character-987654').length, 0);
+  assert.equal(search('Don!! card 671488').length, 0, 'Product ID must not bypass card type');
+  assert.deepEqual(Array.from(search('Don!! card 730301'), card => card.id), ['730301']);
+  assert(search('Koraidon').some(card => card.brand === 'pokemon'), 'Normal Pokemon search was lost');
+  assert.equal(api.prepareQuery('코라이돈').type, null);
+  assert.equal(api.prepareQuery('Donquixote Doflamingo').type, null);
+  for (const card of [
+    {brand:'pokemon',kind:'card',name:'Koraidon: PROMO [SV-P 049]',_searchText:'doncard'},
+    {brand:'pokemon',kind:'card',name:'Riolu (Promo Card Pack McDonald\'s)',_searchText:'doncard'},
+    {brand:'onepiece',kind:'box',name:'DON!! Card Collection',_searchText:'doncard'},
+    {brand:'onepiece',kind:'card',name:'Donquixote Doflamingo',_searchText:'doncard'}
+  ]) assert.equal(api.matches(card, 'Don!! card'), false, card.name);
+});
 const bees = search('독침붕');
 check('reviewed foreign editions and duplicate market IDs cannot alter Japanese printing identities', () => {
   for (const id of ['488126','488127','509330','739358','739359']) {

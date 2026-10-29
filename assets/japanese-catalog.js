@@ -8,6 +8,23 @@
   let ready, catalog, rows = [], products = [];
   const names = () => root.JapaneseCardNames;
   const normalize = value => names()?.normalizeQuery(value) || String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
+  // DON!! is a resource-card name. Its punctuation must not turn it into
+  // the substring in Koraidon, Groudon or McDonald's during text folding.
+  function prepareQuery(query) {
+    const value = String(query || '').normalize('NFKC').trim();
+    const term = /(?<![\p{L}\p{N}_])(?:don\s*!+(?:\s*cards?)?|don\s*cards?|돈(?:\s*!+)?(?:\s*카드)?|ドン(?:\s*!+)?(?:\s*カード)?)(?![\p{L}\p{N}_])/giu;
+    let type = null;
+    const text = value.replace(term, () => { type = 'don'; return ' '; }).trim();
+    return /^don$/i.test(value) ? {type:'don', text:''} : {type, text};
+  }
+  function acceptsQuery(card, query) {
+    const plan = typeof query === 'string' ? prepareQuery(query) : query;
+    if (plan?.type !== 'don') return true;
+    if (card.brand !== 'onepiece' || card.kind !== 'card') return false;
+    const title = String(card.name || card.originalName || '').normalize('NFKC').trim();
+    return /^(?:don\s*!+(?![\p{L}\p{N}_])|don\s+cards?\b|ドン(?:\s*!+|\s*カード)|돈\s*(?:!+\s*)?카드)/iu.test(title)
+      || /^OPCD-\d/i.test(String(card.productNumber || card.code || ''));
+  }
   function decode(data) {
     if (data?.schemaVersion !== 1 || !Array.isArray(data.sets) || !Array.isArray(data.cards)) throw new Error('Invalid Japanese catalogue');
     const ids = new Set();
@@ -85,10 +102,13 @@
   }
   function getSearchRows() { return rows.length ? rows : products; }
   function matches(card, query) {
-    const compact = normalize(query);
+    const plan = prepareQuery(query);
+    if (!acceptsQuery(card, plan)) return false;
+    const compact = normalize(plan.text);
+    if (!compact) return Boolean(plan.type);
     const text = card._searchText || normalize([card.displayName, card.name, card.nameLower, card.productNumber, card.number, card.boxCode, card.setCode, card.setName, names()?.searchText(card)].filter(Boolean).join(' '));
     if (compact && text.includes(compact)) return true;
-    const words = String(query || '').trim().split(/\s+/).map(normalize).filter(Boolean);
+    const words = plan.text.split(/\s+/).map(normalize).filter(Boolean);
     return words.length > 0 && words.every(word => text.includes(word));
   }
   function href(card) {
@@ -107,5 +127,5 @@
       brand:'pokemon',_brand:'pokemon',kind:'card',_productKind:'card',language:'ja',setCode:card.setCode,
       number:card.number,productNumber:'pkmn-tcg-'+card.setCode+'-'+String(card.number).split('/')[0]} : null;
   }
-  return {ensureData, configure, decode, setProducts, getSearchRows, matches, href, find, title, getProduct};
+  return {ensureData, configure, decode, setProducts, getSearchRows, prepareQuery, acceptsQuery, matches, href, find, title, getProduct};
 });

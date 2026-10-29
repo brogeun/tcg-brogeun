@@ -155,7 +155,9 @@
       // ID-based Korean box names also remain searchable after metadata enrichment.
       normalized.forEach(c=>{if(c.displayName.toLowerCase().includes(q.toLowerCase())&&(category==='all'||c.kind===category))unique.set(c.id,c)});
       }
-      const results=(language==='ja'&&window.PromoSearch ? PromoSearch.filterCodeQuery([...unique.values()],q) : [...unique.values()]);
+      const plan=language==='ja' ? window.JapaneseCatalog?.prepareQuery?.(q) : null;
+      const matched=plan?.type ? [...unique.values()].filter(c=>JapaneseCatalog.acceptsQuery(c,plan)) : [...unique.values()];
+      const results=(language==='ja'&&window.PromoSearch ? PromoSearch.filterCodeQuery(matched,q) : matched);
       count.textContent=results.length ? results.length+'개 결과 · '+Math.min(visible,results.length)+'개 표시' : '';
       list.innerHTML=results.length ? results.slice(0,visible).map(c=>{
         const safe=escapeHtml;

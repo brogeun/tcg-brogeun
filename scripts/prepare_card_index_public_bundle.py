@@ -3,12 +3,54 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
 
 MAX_ASSET_BYTES = 25 * 1024 * 1024
 SEARCH_INTERNAL_FIELDS = ('priceSource', 'priceCheckedAt', 'priceStatus')
+
+
+def pack_card_info(target):
+    """Pack the disposable set files while retaining their exact public bodies."""
+    source = target / 'tcg-card-info'
+    if not source.exists():
+        return None
+    if source.is_symlink() or not source.is_dir() or source.resolve().parent != target:
+        raise ValueError('Refuse card-info sources outside the generated deploy copy')
+    packs = {}
+    count = 0
+    for game in sorted(source.iterdir()):
+        if game.is_symlink() or not game.is_dir() or not re.fullmatch(r'[a-z_]+', game.name):
+            raise ValueError('Invalid card-info game directory')
+        for file in sorted(game.iterdir()):
+            if file.is_symlink() or not file.is_file() or not re.fullmatch(r'[0-9a-f]{16}(?:-part[0-9]{2,6})?\.json', file.name):
+                raise ValueError('Invalid card-info set file')
+            body = file.read_bytes().decode('utf-8')
+            data = json.loads(body)
+            if data.get('schemaVersion') != 1 or data.get('game') != game.name or data.get('set', {}).get('id') != file.name[:16]:
+                raise ValueError('Card-info set identity mismatch')
+            packs.setdefault((game.name, file.name[:2]), {})[file.name] = body
+            count += 1
+    destination = target / 'tcg-card-info-packs'
+    if destination.exists():
+        raise ValueError('Unexpected preexisting generated card-info packs')
+    # Finish and validate every pack before removing any generated set copy.
+    with tempfile.TemporaryDirectory(dir=target, prefix='.card-info-packs-') as folder:
+        stage = Path(folder)
+        for (game, bucket), files in packs.items():
+            body = json.dumps({'schemaVersion': 1, 'game': game, 'files': files},
+                              ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode('utf-8')
+            if len(body) > MAX_ASSET_BYTES:
+                raise ValueError('Card-info pack exceeds the public asset size limit')
+            output = stage / game / (bucket + '.json')
+            output.parent.mkdir(exist_ok=True)
+            output.write_bytes(body)
+        shutil.copytree(stage, destination)
+    shutil.rmtree(source)
+    return {'setFiles': count, 'packFiles': len(packs), 'fileCountSaved': count - len(packs),
+            'originalUrlsPreserved': True, 'originalSourcesModified': False}
 
 
 def prepare_search_catalogue(target):
@@ -73,7 +115,9 @@ def main():
         shutil.rmtree(cache)
         removed.append(cache.name + '/')
     catalogue = prepare_search_catalogue(target)
+    card_info = pack_card_info(target)
     print(json.dumps({'publicIndexSourcesOmitted': removed, 'publicSearchCatalogue': catalogue,
+                      'publicCardInfoPacks': card_info,
                       'originalSourcesModified': False}))
 
 

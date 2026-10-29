@@ -49,6 +49,58 @@ class PublicBundleTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(original.read_bytes(), b'user-original')
 
+    def test_card_info_packs_preserve_every_body_and_original_source(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, script = self.fixture(folder)
+            bodies = {}
+            for game in ('nikke', 'union_arena'):
+                for key in ('0123456789abcdef', '0123456789abcde0', 'fe23456789abcdef'):
+                    for suffix in ('', '-part02'):
+                        name = key + suffix + '.json'
+                        body = (json.dumps({'schemaVersion': 1, 'game': game, 'set': {'id': key},
+                                            'cards': [{'id': key, 'name': '돈!! 카드', 'price': 123}]},
+                                           ensure_ascii=False, indent=2) + '\r\n').encode('utf-8')
+                        bodies[game, name] = body
+                        for base in (root / 'data', root / '_deploy/data'):
+                            (base / 'tcg-card-info' / game).mkdir(parents=True, exist_ok=True)
+                            (base / 'tcg-card-info' / game / name).write_bytes(body)
+            result = subprocess.run([sys.executable, str(script), '--data-dir', str(root / '_deploy/data')],
+                                    cwd=root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = json.loads(result.stdout)['publicCardInfoPacks']
+            self.assertEqual(report['setFiles'], 12)
+            self.assertEqual(report['packFiles'], 4)
+            self.assertFalse((root / '_deploy/data/tcg-card-info').exists())
+            for (game, name), body in bodies.items():
+                pack = json.loads((root / '_deploy/data/tcg-card-info-packs' / game / (name[:2] + '.json')).read_bytes())
+                self.assertEqual(pack['files'][name].encode('utf-8'), body)
+                self.assertEqual((root / 'data/tcg-card-info' / game / name).read_bytes(), body)
+
+    def test_invalid_card_info_cannot_remove_the_generated_sources(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, script = self.fixture(folder)
+            file = root / '_deploy/data/tcg-card-info/nikke/0123456789abcdef.json'
+            file.parent.mkdir(parents=True)
+            file.write_text('{"schemaVersion":1,"game":"wrong","set":{"id":"0123456789abcdef"}}')
+            before = file.read_bytes()
+            result = subprocess.run([sys.executable, str(script), '--data-dir', str(root / '_deploy/data')],
+                                    cwd=root, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(file.read_bytes(), before)
+            self.assertFalse((root / '_deploy/data/tcg-card-info-packs').exists())
+
+    def test_card_info_pack_refuses_a_link_to_source_data(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, script = self.fixture(folder)
+            source = root / 'data/tcg-card-info'
+            source.mkdir()
+            (source / 'preserve.txt').write_text('original')
+            (root / '_deploy/data/tcg-card-info').symlink_to(source, target_is_directory=True)
+            result = subprocess.run([sys.executable, str(script), '--data-dir', str(root / '_deploy/data')],
+                                    cwd=root, capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((source / 'preserve.txt').read_text(), 'original')
+
     def test_public_catalogue_omits_only_three_diagnostics_and_retains_repo_bytes(self):
         with tempfile.TemporaryDirectory() as folder:
             root, script = self.fixture(folder)

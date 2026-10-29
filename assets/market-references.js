@@ -52,6 +52,7 @@
     return `<article class="mr-item"><div class="mr-item-head"><div class="mr-item-title"><div class="mr-badges">${tag(sealed?'밀봉상품':'영문판 · 미감정')}${tag('TCGplayer')}</div><h3>${esc(record.name||record.number||'상품')}</h3><p class="mr-meta">${esc(set.name||set.code||'')}${record.number?' · '+esc(record.number):''}</p></div>${link(record.sourceUrl,'TCGplayer 원문',['tcgplayer.com'])}</div>${printingHTML(record.printings)}<p class="mr-meta" style="margin-top:12px">가격 기준 ${esc(timestamp(sourceTime(record,asOf)))} · USD${sealed?'':' · 미감정 상품 집계'}${set.status==='stale'?' · 이전 확인 가격, 갱신 지연':''}</p></article>`;
   }
   function stockLabel(record){return ({in_stock:typeof record.stock==='number'?`재고 ${record.stock}개`:'재고 있음',out_of_stock:'품절',in_stock_quantity_unknown:'재고 있음 · 수량 미확인',unknown:'재고 미확인'})[record.stockState]||'재고 미확인';}
+  function yuyuRefreshDelayed(manifest){const games=manifest.games||[];return manifest.lastRun?.outcome==='blocked'||(!manifest.lastRun&&Number(manifest.requestsThisRun)>0&&games.length>0&&games.every(game=>game.coverage?.recordsFetchedThisRun===0)&&games.some(game=>game.coverage?.failedSets>0));}
   function yuyuRows(data){
     if(Array.isArray(data.records))return data.records;
     return (data.rows||[]).map(row=>{const record=Object.fromEntries((data.columns||[]).map((column,index)=>[column,row[index]]));return {...record,id:`yuyutei:${data.sourceGame}:${record.sourceSetCode}:${record.sourceProductId}`,game:data.game,language:'ja',variant:[record.rarity,record.name].filter(Boolean).join(' '),sourceUrl:`https://yuyu-tei.jp/sell/${data.sourceGame}/card/${record.sourceSetCode}/${record.sourceProductId}`,currency:'JPY',priceKind:'asking'};});
@@ -102,7 +103,7 @@
           el('mrSet').innerHTML=options([['','전체 세트'],...sets.map(set=>[set.sourceSetCode,set.name||set.sourceSetCode])],state.set);
           const selected=sets.find(set=>set.sourceSetCode===state.set),loadedRows=selected?.shard?(await json(selected.shard)).records||[]:compact;if(token!==state.token)return;state.rows=loadedRows;
           const setNames=new Map(sets.map(set=>[set.sourceSetCode,set.name]));state.rows=state.rows.map(row=>({...row,_setName:setNames.get(row.sourceSetCode)||''}));
-          const coverage=game?.coverage||data.coverage;el('mrCoverage').textContent=`${state.rows.length.toLocaleString()}개 상품${coverage?` · ${coverage.collectedSets||0}/${coverage.discoveredSets||0}세트 확인`:''} · 기준 ${timestamp(data.sourceAsOf||game?.sourceAsOf||manifest.sourceAsOf)}${game?.status==='partial'?' · 일부 세트 확인 중':''}`;
+          const coverage=game?.coverage||data.coverage;el('mrCoverage').textContent=`${state.rows.length.toLocaleString()}개 상품${coverage?` · ${coverage.collectedSets||0}/${coverage.discoveredSets||0}세트 확인`:''} · 기준 ${timestamp(data.sourceAsOf||game?.sourceAsOf||manifest.sourceAsOf)}${game?.status==='partial'?' · 일부 세트 확인 중':''}${yuyuRefreshDelayed(manifest)?' · 갱신 지연 · 이전 확인 가격 유지':''}`;
         }else if(state.source==='mercari'){
           const manifest=await json('/data/mercari-references.json');if(token!==state.token)return;state.manifest=manifest;state.rows=(manifest.references||[]).filter(row=>row.price?.amount>0||row.fetchStatus!=='error');const games=[...new Set(state.rows.map(row=>gameKey(row.identity?.game||row.matchHints?.game)).filter(Boolean))];if(!games.includes(state.game))state.game='';el('mrGame').innerHTML=options([['','전체 종목'],...games.map(game=>[game,GAMES[game]||game])],state.game);el('mrCoverage').textContent=`추적 매물 ${state.rows.length.toLocaleString()}개 · 확인 ${timestamp(manifest.updatedAt||manifest.generatedAt)} · 신규 매물 전체 검색 아님`;
         }else{
@@ -125,6 +126,6 @@
     return `<article class="mr-item"><div class="mr-item-head">${art(record.image||record.thumbnailUrl)}<div class="mr-item-title"><div class="mr-badges">${tag('스니덩크')}${tag(record.kind==='box'?'밀봉상품':'싱글 카드')}</div><h3>${esc(record.name||'등록 상품')}</h3><p class="mr-meta">${esc(record.code||record.productNumber||'')}</p></div>${link(record.url,'스니덩크 원문',['snkrdunk.com'])}</div><div class="mr-item-bottom"><p class="mr-meta">상태·수량은 원문 확인<br>상품 가격 확인 ${esc(timestamp(record.priceCheckedAt||asOf))}</p><div class="mr-price"><small>${hasNormalized||hasNative?'상태 미지정 최저 호가':'상품 표시 참고가'} · ${esc(currency)}</small>${amount(price,currency)}</div></div>${grades}</article>`;
   }
 
-  window.MarketReferences={sourceLinks,queryMatches,mountEnglishCard,mountEnglishSet,loadSnapshot,printingHTML,usItem,yuyuRows,yuyuItem,mercariItem,snkrItem,amount,stockLabel,safeUrl};
+  window.MarketReferences={sourceLinks,queryMatches,mountEnglishCard,mountEnglishSet,loadSnapshot,printingHTML,usItem,yuyuRows,yuyuRefreshDelayed,yuyuItem,mercariItem,snkrItem,amount,stockLabel,safeUrl};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initPage,{once:true});else initPage();
 })();

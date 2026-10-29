@@ -53,6 +53,10 @@ test('same-number and same-rarity Yuyutei parallels retain exact product identit
 test('Yuyutei stock unknown is distinct from out of stock and known quantity',()=>{
   const {api}=runtime();assert.equal(api.stockLabel({stockState:'unknown',stock:null}),'재고 미확인');assert.equal(api.stockLabel({stockState:'out_of_stock',stock:0}),'품절');assert.equal(api.stockLabel({stockState:'in_stock',stock:3}),'재고 3개');assert.equal(api.stockLabel({stockState:'in_stock_quantity_unknown',stock:null}),'재고 있음 · 수량 미확인');
 });
+test('blocked shop refresh is explicit and legacy all-failed retention is never reported as a successful refresh',()=>{
+  const {api}=runtime();assert.equal(api.yuyuRefreshDelayed({lastRun:{outcome:'blocked'},requestsThisRun:0,games:[]}),true);assert.equal(api.yuyuRefreshDelayed({requestsThisRun:140,games:[{coverage:{recordsFetchedThisRun:0,failedSets:100}},{coverage:{recordsFetchedThisRun:0,failedSets:40}}]}),true);
+  assert.equal(api.yuyuRefreshDelayed({requestsThisRun:140,games:[{coverage:{recordsFetchedThisRun:1,failedSets:139}}]}),false);assert.equal(api.yuyuRefreshDelayed({requestsThisRun:0,games:[{coverage:{recordsFetchedThisRun:0,failedSets:140}}]}),false);assert.equal(api.yuyuRefreshDelayed({lastRun:{outcome:'success'},requestsThisRun:140,games:[{coverage:{recordsFetchedThisRun:0,failedSets:140}}]}),false);assert.equal(api.yuyuRefreshDelayed({requestsThisRun:140,games:[{coverage:{failedSets:140}}]}),false);
+});
 test('source titles, attributes and image URLs cannot inject markup',()=>{
   const {api}=runtime();const html=api.yuyuItem({id:'" onclick="alert(1)',name:'<script>alert(1)</script>',variant:'<img src=x onerror=alert(1)>',image:'javascript:alert(1)',price:1,sourceUrl:'javascript:alert(1)'});
   assert.doesNotMatch(html,/<script>|<img src=x|src="javascript:|href="javascript:/);assert.match(html,/&lt;script&gt;/);assert.match(html,/&quot; onclick=&quot;/);
@@ -102,6 +106,12 @@ test('card-detail reference link searches all collected shop sets instead of onl
 });
 test('direct unsupported Yuyutei game explicitly stays unavailable instead of falling back to Pokemon',async()=>{
   const page=pageRuntime(new Map([['/data/yuyutei-market.json',{games:[{game:'pokemon',sourceGame:'poc',shard:'/data/yuyutei-market/pokemon.json'}]}]]),'?source=yuyu&game=yugioh&q=QCCP-JP001');await new Promise(setImmediate);assert.match(page.element('mrResults').innerHTML,/해당 종목의 수집 자료가 없습니다/);assert.equal(page.requests.length,1);assert.equal(page.element('mrSet').disabled,true);page.element('mrFilters').handlers.submit({preventDefault(){}});assert.match(page.element('mrResults').innerHTML,/해당 종목의 수집 자료가 없습니다/);assert.ok(!page.requests.includes('/data/yuyutei-market/pokemon.json'));
+});
+test('retained shop prices show refresh-delay label and preserve original observation date',async()=>{
+  const observed='2026-10-19T00:00:00Z',files=new Map([
+    ['/data/yuyutei-market.json',{lastRun:{outcome:'blocked'},generatedAt:'2026-10-30T00:00:00Z',games:[{game:'onepiece',sourceGame:'opc',shard:'/data/yuyutei-market/onepiece.json',status:'partial',coverage:{recordsFetchedThisRun:0,failedSets:140,collectedSets:1,discoveredSets:1}}]}],
+    ['/data/yuyutei-market/onepiece.json',{game:'onepiece',sourceGame:'opc',sourceAsOf:observed,generatedAt:'2026-10-30T00:00:00Z',columns:['sourceSetCode','sourceProductId','cardNumber','name','price','sourceAsOf'],rows:[['op13','10001','OP13-001','Retained Shop Card',1200,observed]],sets:[{sourceSetCode:'op13',name:'OP13'}]}]
+  ]);const page=pageRuntime(files,'?source=yuyu&game=onepiece&q=OP13-001');await new Promise(setImmediate);assert.match(page.element('mrCoverage').textContent,/갱신 지연 · 이전 확인 가격 유지/);assert.match(page.element('mrCoverage').textContent,/2026.*10.*19/);assert.match(page.element('mrResults').innerHTML,/Retained Shop Card/);assert.equal(files.get('/data/yuyutei-market/onepiece.json').sourceAsOf,observed);assert.doesNotMatch(page.element('mrCoverage').textContent,/2026.*10.*30/);
 });
 test('large SNKRDUNK snapshots merge every shard and deduplicate exact product IDs',async()=>{
   const meta={source:'SNKRDUNK',brand:'weiss_schwarz',kind:'card'},files=new Map([

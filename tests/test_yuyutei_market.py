@@ -175,6 +175,31 @@ class LastGoodAndRotationTests(unittest.TestCase):
             limiter.wait()
         self.assertEqual(limiter.request_count, 1)
 
+    def test_http403_is_source_access_denial_not_a_parser_or_dependency_failure(self):
+        limiter = collector.RateLimiter(2, max_requests=250)
+        error = urllib.error.HTTPError("https://yuyu-tei.jp/top/ua", 403, "Forbidden", {}, None)
+        with patch.object(collector.urllib.request, "urlopen", side_effect=error) as request:
+            for url in ["https://yuyu-tei.jp/top/ua", "https://yuyu-tei.jp/top/digi"]:
+                with self.assertRaises(collector.SourceDeferred):
+                    collector.fetch_html(url, 5, limiter=limiter)
+        self.assertEqual(request.call_count, 1)
+        self.assertEqual(limiter.cooldown["httpStatus"], 403)
+        self.assertEqual(limiter.cooldown["blockReason"], "access_denied")
+        self.assertEqual(limiter.cooldown["retryAfterSeconds"], 86400)
+
+    def test_valid_retained_data_is_never_reported_as_a_successful_refresh(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = argparse.Namespace(output_dir=Path(directory), max_sets_per_game=45,
+                                      history_days=90, resume_hours=20, requests_per_second=.5,
+                                      max_requests=250, limiter=collector.RateLimiter(.5),
+                                      _run_fresh_records={"union_arena": 0})
+            args.limiter.record_rate_limit("https://yuyu-tei.jp/top/ua", http_status=403)
+            summary = {"game": "union_arena", "recordCount": 3, "sourceAsOf": NOW, "status": "partial"}
+            manifest = collector.publish_manifest(args, summary)
+            self.assertEqual(manifest["lastRun"]["outcome"], "blocked")
+            self.assertEqual(manifest["lastRun"]["recordsFetched"], 0)
+            self.assertEqual(manifest["lastRun"]["httpStatus"], 403)
+
     def test_persisted_cooldown_prevents_source_requests_after_restart(self):
         limiter = collector.RateLimiter(2)
         limiter.record_rate_limit("https://yuyu-tei.jp/top/opc", fallback_seconds=900)

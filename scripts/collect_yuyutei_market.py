@@ -67,7 +67,7 @@ class RateLimiter:
             self.next_request = time.monotonic() + self.interval
             self.request_count += 1
 
-    def record_rate_limit(self, url, retry_after=None, fallback_seconds=900):
+    def record_rate_limit(self, url, retry_after=None, fallback_seconds=900, http_status=429):
         with self.lock:
             if self.cooldown:
                 return
@@ -84,7 +84,8 @@ class RateLimiter:
                         provenance = "original_retry_after_header"
                     except (TypeError, ValueError):
                         pass
-            self.cooldown = {"httpStatus": 429, "sourceUrl": url, "observedAt": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
+            self.cooldown = {"httpStatus": http_status, "blockReason": "access_denied" if http_status == 403 else "rate_limited",
+                             "sourceUrl": url, "observedAt": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
                              "retryAfterSeconds": seconds, "retryAfterPolicy": provenance,
                              "nextEligibleAt": (now + dt.timedelta(seconds=seconds)).isoformat(timespec="seconds").replace("+00:00", "Z")}
 
@@ -381,9 +382,11 @@ def fetch_html(url, timeout, retries=1, limiter=None):
                     raise ValueError("Original listing exceeds 4 MB safety limit; partial HTML is not a complete snapshot")
                 return body.decode("utf-8")
         except urllib.error.HTTPError as error:
-            if error.code == 429 and limiter is not None:
-                limiter.record_rate_limit(url, error.headers.get("Retry-After"))
-                raise SourceDeferred("original_source_http_429_global_circuit_open", attempted=True) from error
+            if error.code in (403, 429) and limiter is not None:
+                limiter.record_rate_limit(url, error.headers.get("Retry-After"),
+                                          fallback_seconds=86400 if error.code == 403 else 900,
+                                          http_status=error.code)
+                raise SourceDeferred(f"original_source_http_{error.code}_global_circuit_open", attempted=True) from error
             if error.code not in (429, 500, 502, 503, 504) or attempt == retries:
                 raise
         except (OSError, TimeoutError):
@@ -412,6 +415,10 @@ def publish_manifest(args, summary):
     summaries[summary["game"]] = summary
     rows = [summaries[game] for game in GAMES if game in summaries]
     status = "failed" if not any(row["recordCount"] for row in rows) else "partial" if len(rows) < len(GAMES) or any(row["status"] != "ok" for row in rows) else "ok"
+    limiter = getattr(args, "limiter", None)
+    cooldown = getattr(limiter, "cooldown", None)
+    fresh = sum(getattr(args, "_run_fresh_records", {}).values())
+    run_outcome = "partial" if cooldown and fresh else "blocked" if cooldown else "refreshed" if fresh else "retained_last_good" if any(row["recordCount"] for row in rows) else "failed"
     manifest = {"schemaVersion": 1, "source": "yuyutei", "priceKind": "asking", "currency": "JPY",
                 "generatedAt": utc_now(), "sourceAsOf": max((row.get("sourceAsOf") or "" for row in rows), default=None) or None,
                 "status": status, "games": rows,
@@ -421,8 +428,12 @@ def publish_manifest(args, summary):
                                    "maxSetsPerGame": args.max_sets_per_game, "historyDays": args.history_days,
                                    "resumeHours": args.resume_hours, "requestsPerSecond": args.requests_per_second,
                                    "maxRequests": getattr(args, "max_requests", 250)},
-                "cooldown": getattr(getattr(args, "limiter", None), "cooldown", None),
-                "requestsThisRun": getattr(getattr(args, "limiter", None), "request_count", 0)}
+                "cooldown": cooldown,
+                "requestsThisRun": getattr(limiter, "request_count", 0),
+                "lastRun": {"outcome": run_outcome, "recordsFetched": fresh,
+                            "providerRequests": getattr(limiter, "request_count", 0),
+                            "httpStatus": cooldown.get("httpStatus") if cooldown else None,
+                            "startedAt": getattr(args, "run_started_at", None), "reportedAt": utc_now()}}
     atomic_json(path, manifest)
     return manifest
 
@@ -510,6 +521,9 @@ def collect_game(game, args):
     completed, fetched_count = 0, 0
 
     def checkpoint():
+        if not hasattr(args, "_run_fresh_records"):
+            args._run_fresh_records = {}
+        args._run_fresh_records[game] = fetched_count
         index_rows = [row for code in sets for row in rows_by_set.get(code, [])]
         okay = sum(bool(row.get("lastSuccessAt")) and row.get("collectionScope", "set_listing") == "set_listing" for row in sets.values())
         failures = sum(row.get("status") == "failed" for row in sets.values())
@@ -743,6 +757,7 @@ def main(argv=None):
     parser.add_argument("--seed-only", action="store_true", help="Do not make any source requests")
     parser.add_argument("--record-cooldown-seconds", type=int, default=0, help="Persist a known preceding HTTP429 local cooldown without a new GET")
     args = parser.parse_args(argv)
+    args.run_started_at = utc_now()
     if args.validate_only:
         errors, total = validate_output(args.output_dir)
         print(json.dumps({"source": "yuyutei", "validatedRecords": total,

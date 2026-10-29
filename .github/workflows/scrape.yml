@@ -103,6 +103,12 @@ jobs:
           node --test scripts/test_beezie_snapshot_api.cjs
           node --test scripts/test_japanese_market_reviews.cjs
 
+      - name: Validate reference prices and source backoff
+        run: |
+          python -m unittest discover -s tests -p test_yuyutei_market.py
+          python -m unittest scripts.test_metadata_index
+          node --test scripts/test_market_references.cjs scripts/test_reference_integration.cjs scripts/test_price_metadata_shards.cjs
+
       - name: Setup Chrome browser
         if: env.COLLECT_PRIMARY == 'true'
         uses: browser-actions/setup-chrome@latest

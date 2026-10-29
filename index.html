@@ -2526,7 +2526,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/market-references.js?v=20261029-reference1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261014-japanese3">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
-<script src="/assets/card-catalog-repairs.js?v=20261030-1"></script>
+<script src="/assets/card-catalog-repairs.js?v=20261030-live-quotes1"></script>
 <script src="/assets/contained-card-match.js?v=20261030-don1"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <script src="/assets/japanese-catalog.js?v=20261030-images1"></script>
@@ -4652,18 +4652,19 @@ function renderPriceSearchAsGrid(results, query, requestedPage = 1) {
     return;
   }
   if (rows.some(card => card._catalogue) && window.JapaneseCatalog) {
-    grid.innerHTML = visible.map(card => `<a class="price-card" href="${escapeHtml(JapaneseCatalog.href(card))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl ? `<img loading="lazy" referrerpolicy="no-referrer" src="${escapeHtml(card.thumbnailUrl)}" alt="${escapeHtml(card.displayName || card.name)}">` : ''}</div><div class="price-card-body"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number ? ' · ' + escapeHtml(card.number) : ''}</div><div class="price-card-price">${Number(card.minPrice) > 0 ? fmtKrw(card.minPrice,card.currency) : card._catalogue ? '카드 정보' : '시세 없음'}</div></div></a>`).join('');
+    grid.innerHTML = visible.map(card => `<a class="price-card" href="${escapeHtml(JapaneseCatalog.href(card))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl ? `<img loading="lazy" referrerpolicy="no-referrer" src="${escapeHtml(card.thumbnailUrl)}" alt="${escapeHtml(card.displayName || card.name)}">` : ''}</div><div class="price-card-body" data-live-card-price="${escapeHtml(String(card.id))}"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number ? ' · ' + escapeHtml(card.number) : ''}</div><div class="price-card-price" data-card-price-main>${Number(card.minPrice) > 0 ? fmtKrw(card.minPrice,card.currency) : card._catalogue ? '카드 정보' : '시세 없음'}</div><div class="price-card-krw" data-card-price-origin>${card.cardType==='DON'&&Number(card.minPrice)>0 ? fmtOrig(card.minPrice,card.currency) : ''}</div></div></a>`).join('');
+    window.CardCatalogRepairs?.hydratePrices?.(grid,visible,{isCurrent:current,formatKrw:fmtKrw,formatOrig:fmtOrig});
     return;
   }
   grid.innerHTML = Array.from({length:Math.min(visible.length,15)}, () => `<div class="price-card-skeleton"><div class="ps-img"></div><div class="ps-body"><div class="sk-line long"></div><div class="sk-line short"></div><div class="sk-line price"></div></div></div>`).join('');
-  const products = visible.map(c => ({id:c.id,name:c.name,image:c.thumbnailUrl,lastPrice:c.minPrice,lowestAsk:c.minPrice,currency:c.currency || 'USD',brand:c.brand}));
+  const products = visible.map(c => ({id:c.id,name:c.name,image:c.thumbnailUrl,lastPrice:c.minPrice,lowestAsk:c.minPrice,currency:c.currency || 'USD',brand:c.brand,kind:c.kind,language:c.language,cardType:c.cardType,nameKo:c.nameKo}));
   applyGradePrices(products).then(() => {
     if (!current()) return;
     // PRICE_CAT is a global lexical binding, separate from window.PRICE_CAT.
     const previous = typeof PRICE_CAT === 'string' ? PRICE_CAT : null;
     try {
       if (previous !== null) PRICE_CAT = 'card';
-      renderPriceGrid(products);
+      renderPriceGrid(products, {refreshSearchPrices:true, isCurrent:current});
     } finally {
       if (previous !== null) PRICE_CAT = previous;
     }
@@ -4686,7 +4687,7 @@ function renderSearchResultsTo(targetId, results, query) {
   }
   box.innerHTML = results.map(c => {
     const brandLabel = window.TCGGameRegistry?.label(c.brand) || 'TCG';
-    const priceText = c.minPrice ? `$${c.minPrice}` : '-';
+    const priceText = Number(c.minPrice)>0 ? fmtKrw(c.minPrice,c.currency) : '시세 없음';
     return `
     <div class="search-result-item" data-card-id="${c.id}" style="display:grid; grid-template-columns:60px 1fr auto; gap:10px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.15s"
          onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
@@ -4697,13 +4698,16 @@ function renderSearchResultsTo(targetId, results, query) {
         <div style="font-size:13px; font-weight:700; color:#111; line-height:1.3; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical">${escapeHtml(c.displayName || c.name)}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:4px"><span class="search-brand-label">${brandLabel}</span><span style="font-size:12px;color:var(--ink-sub)">${escapeHtml(c.productNumber || '').toUpperCase()}</span></div>
       </div>
-      <div style="text-align:right;padding-right:4px">
-        <div style="font-size:14px;font-weight:600;color:#066666">${priceText}</div>
-        ${c.listingCount ? `<div style="font-size:12px;color:var(--ink-mute)">${escapeHtml(String(c.listingCount))} 매물</div>` : ''}
+      <div data-live-card-price="${escapeHtml(String(c.id))}" style="text-align:right;padding-right:4px">
+        <div data-card-price-main style="font-size:14px;font-weight:600;color:#066666">${priceText}</div>
+        <div data-card-price-origin style="font-size:11px;color:var(--ink-mute)">${Number(c.minPrice)>0 ? fmtOrig(c.minPrice,c.currency) : ''}</div>
+        <div data-card-price-stock style="font-size:12px;color:var(--ink-mute)">${Number.parseInt(c.listingCount)>0 ? escapeHtml(String(c.listingCount))+' 매물' : ''}</div>
       </div>
     </div>`;
   }).join('');
   box.style.display = 'block';
+  window.CardCatalogRepairs?.hydratePrices?.(box,results,{formatKrw:fmtKrw,formatOrig:fmtOrig,
+    isCurrent:()=>box.style.display!=='none'&&document.getElementById(targetId==='homeSearchResults'?'homeSearchInput':'cardSearchInput')?.value.trim()===query.trim()});
 }
 
 // Shared favorite toggle across all card surfaces.
@@ -5241,7 +5245,7 @@ async function applyGradePrices(products) {
   return products;
 }
 
-function renderPriceGrid(products, {localizeNames = true} = {}) {
+function renderPriceGrid(products, {localizeNames = true, refreshSearchPrices = false, isCurrent = () => true} = {}) {
   const grid = document.getElementById('priceGrid');
   if (!products.length) {
     grid.innerHTML = `
@@ -5255,7 +5259,7 @@ function renderPriceGrid(products, {localizeNames = true} = {}) {
     const price = p.lastPrice ?? p.lowestAsk;
     const safeName = (p.name || '—').replace(/&quot;/g, '"');
     // 박스는 CARDINFO.boxId 직접 매칭을 우선하고, ID가 없을 때만 기존 오버라이드를 사용한다.
-    const ko = (PRICE_CAT === 'box') ? (getBoxKoreanName(p, PRICE_BRAND) || p._koName || null) : (localizeNames && PRICE_BRAND==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...p,brand:'pokemon'}) : null);
+    const ko = (PRICE_CAT === 'box') ? (getBoxKoreanName(p, PRICE_BRAND) || p._koName || null) : (p.brand==='onepiece'&&p.cardType==='DON'&&p.nameKo ? p.nameKo : localizeNames && PRICE_BRAND==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...p,brand:'pokemon'}) : null);
     const escapedName = escapeHtml(safeName);
     const escapedKo = ko ? escapeHtml(ko) : '';
     const fullNameTitle = escapeHtml(ko ? `${ko} · ${safeName}` : safeName);
@@ -5268,14 +5272,15 @@ function renderPriceGrid(products, {localizeNames = true} = {}) {
         <div class="price-card-img">
           ${p.image ? `<img src="${p.image}" alt="${safeName.replace(/"/g, '&quot;')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="ph" aria-label="이미지 없음"></div>'}
         </div>
-        <div class="price-card-body">
+        <div class="price-card-body" ${refreshSearchPrices ? `data-live-card-price="${escapeHtml(String(p.id))}"` : ''}>
           ${nameHtml}
-          <div class="price-card-price">${fmtKrw(price, p.currency)}</div>
-          <div class="price-card-krw">${fmtOrig(price, p.currency)}</div>
-          <div class="price-card-tag">${p._grade === 'PSA10' ? 'PSA10 시세' : (p._grade === 'raw' ? 'A급(싱글) 시세' : 'SNKRDUNK 최저가')}</div>
+          <div class="price-card-price" data-card-price-main>${fmtKrw(price, p.currency)}</div>
+          <div class="price-card-krw" data-card-price-origin>${fmtOrig(price, p.currency)}</div>
+          <div class="price-card-tag" data-card-price-note>${p._grade === 'PSA10' ? 'PSA10 시세' : (p._grade === 'raw' ? 'A급(싱글) 시세' : 'SNKRDUNK 최저가')}</div>
         </div>
       </a>`;
   }).join('');
+  if(refreshSearchPrices)window.CardCatalogRepairs?.hydratePrices?.(grid,products,{isCurrent,formatKrw:fmtKrw,formatOrig:fmtOrig});
 }
 
 function changePricePage(d) {
@@ -10885,7 +10890,7 @@ window.addEventListener('appinstalled', () => {
 // </script>
 <script src="/assets/english-search.js?v=20260908-search1"></script>
 <script src="/assets/promo-search.js?v=20261013-promo1"></script>
-<script src="/assets/search-modal.js?v=20261030-images1"></script>
+<script src="/assets/search-modal.js?v=20261030-live-quotes1"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261012-cn-names1"></script>
@@ -10903,3 +10908,4 @@ window.addEventListener('appinstalled', () => {
 <script src="/assets/tcg-card-info.js?v=20261029-cardinfo2" defer></script>
 </body>
 </html>
+

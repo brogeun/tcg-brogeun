@@ -181,9 +181,10 @@
         const price=Number(c.minPrice)>0 ? fmtKrw(Number(c.minPrice),c.currency) : '시세 없음';
         const href=window.JapaneseCatalog ? JapaneseCatalog.href(c) : '#price/'+encodeURIComponent(c.id);
         const label=c._catalogue && !c.productId ? (c.kind==='box'?'수록 목록':'카드 정보') : price;
-        return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="'+safe(href)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+(c._catalogue&&c.number?' · '+safe(c.number):'')+'</div></div><span class="gs-price" title="'+safe(fmtOrig(c.minPrice,c.currency))+'">'+label+'</span></a>';
+        return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="'+safe(href)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+(c._catalogue&&c.number?' · '+safe(c.number):'')+'</div></div><span class="gs-price" data-live-card-price="'+safe(c.id)+'"><span data-card-price-main>'+label+'</span>'+(c.cardType==='DON'?'<small data-card-price-origin style="display:block;font-size:11px;color:var(--ink-mute)">'+(Number(c.minPrice)>0?safe(fmtOrig(c.minPrice,c.currency)):'')+'</small>':'')+'</span></a>';
       }).join('')+(results.length>visible?'<button id="gsMore" class="gs-filter" style="margin:16px 0;width:100%">검색 결과 더 보기</button>':'') : '<div class="gs-state">“'+escapeHtml(q)+'” 검색 결과가 없습니다.<br>이름이나 세트코드, 상품 ID를 확인해주세요.</div>';
       watchSearchArtwork();
+      if(language==='ja')window.CardCatalogRepairs?.hydratePrices?.(list,results.slice(0,visible),{formatKrw:fmtKrw,formatOrig:fmtOrig,isCurrent:()=>own===version&&!modal.hidden});
     }catch(error){if(own!==version||modal.hidden)return;list.innerHTML='<div class="gs-state">검색 데이터를 불러오지 못했어요.<br>검색 버튼을 눌러 다시 시도해주세요.</div>';count.textContent=''}
   }
   function open(query=''){
@@ -209,3 +210,4 @@
   window.addEventListener('hashchange',close);
 
 })();
+

@@ -115,6 +115,7 @@ jobs:
           python -m unittest scripts.test_metadata_index
           node --test scripts/test_market_references.cjs scripts/test_reference_integration.cjs scripts/test_price_metadata_shards.cjs
           python -m unittest discover -s tests -p test_build_tcg_card_info.py
+          python -m unittest discover -s tests -p test_prepare_tcg_card_info_bundle.py
           python -m unittest scripts.test_market_references_workflow
           node --test scripts/test_card_price_fallback.cjs scripts/test_contained_card_prices.cjs scripts/test_tcg_card_info.cjs scripts/test_card_info_pricing_integration.cjs
 
@@ -281,6 +282,9 @@ jobs:
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
 
+      - name: Pack integrated Card Info within the public asset budget
+        run: python scripts/prepare_tcg_card_info_bundle.py --data-dir "$DEPLOY_SOURCE/_deploy/data" --max-files 19900
+
       - name: Verify Japanese catalogue and Korean search before deploy
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: node scripts/test_ja_production_gate.cjs --bundle-dir _deploy
@@ -417,7 +421,11 @@ jobs:
                       catalog = json.loads(get('/data/tcg-card-info.json'))
                       assert len(catalog['games']) == 6
                       sample = next(game for game in catalog['games'] if game['id'] == 'nikke')['sets'][0]
-                      cards = json.loads(get(sample['file']))['cards']
+                      payload = json.loads(get(sample['file']))
+                      if payload.get('bundleVersion') == 1:
+                          assert payload['game'] == 'nikke'
+                          payload = payload['sets'][sample['id']]
+                      cards = payload['cards']
                       assert cards and str(cards[0]['snkrdunkId']) == str(cards[0]['snkrProduct']['id'])
                       with urllib.request.urlopen(urllib.request.Request(host + '/market-references?verify=' + version, headers={'User-Agent':'Mozilla/5.0'}), timeout=25) as response:
                           assert '/cardinfo' in response.url

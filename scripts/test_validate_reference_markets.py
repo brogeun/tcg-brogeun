@@ -195,6 +195,20 @@ class ReferenceValidationTests(unittest.TestCase):
         self.assertFalse(validator.invalid)
         self.assertEqual(report["sources"]["yuyutei"]["coverage"]["records"], 2)
 
+    def test_uncollected_sets_deferred_by_provider_cooldown_are_valid_partial_data(self):
+        manifest, index, _ = self.yuyu()
+        index["sets"].append({"sourceSetCode": "next-set", "status": "deferred", "recordCount": 0,
+                              "shard": "/data/yuyutei-market/weiss_schwarz/next-set.json"})
+        self.write("/data/yuyutei-market/weiss_schwarz.json", index)
+        validator, report = self.validate()
+        self.assertFalse(validator.invalid)
+        self.assertEqual(report["sources"]["yuyutei"]["status"], "partial")
+        # A deferred set still cannot conceal compact quotes with no detail evidence.
+        row = list(index["rows"][0]); row[0] = "next-set"
+        index["rows"].append(row)
+        self.write("/data/yuyutei-market/weiss_schwarz.json", index)
+        self.assertTrue(self.validate()[0].invalid)
+
     def test_current_verified_partial_shop_products_are_not_mislabeled_as_aged(self):
         manifest, index, _ = self.yuyu()
         index["sets"][0].update(status="partial", collectionScope="product_observations")

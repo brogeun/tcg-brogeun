@@ -131,6 +131,18 @@ class HistoricalIdentityTests(unittest.TestCase):
 
 
 class LastGoodAndRotationTests(unittest.TestCase):
+    def test_deferred_first_collection_does_not_publish_a_missing_detail_shard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = argparse.Namespace(output_dir=Path(directory), max_sets_per_game=1, workers=1, timeout=5,
+                                      history_days=90, resume_hours=0, limiter=None, requests_per_second=1)
+            discovery = '<input name="vers[]" value="op17" id="x"><label for="x">OP17</label>'
+            with patch.object(collector, "fetch_html", side_effect=[discovery, collector.SourceDeferred("cooldown")]):
+                collector.collect_game("onepiece", args)
+            index = json.loads((Path(directory) / 'yuyutei-market/onepiece.json').read_text())
+            self.assertEqual(index['sets'][0]['status'], 'deferred')
+            self.assertNotIn('shard', index['sets'][0])
+            self.assertEqual(index['rows'], [])
+
     def test_newest_and_least_recently_attempted_sets_rotate(self):
         discovered = [{"sourceSetCode": str(i), "name": str(i)} for i in range(5)]
         previous = {"sets": [{"sourceSetCode": "1", "lastAttemptAt": NOW}]}

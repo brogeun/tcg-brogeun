@@ -1,0 +1,55 @@
+name: Verify market and deployment fixes
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/scrape.yml'
+      - '.github/workflows/market-references-daily.yml'
+      - '.github/workflows/verify-market-workflows.yml'
+      - 'scripts/collect_yuyutei_market.py'
+      - 'scripts/validate_reference_markets.py'
+      - 'scripts/prepare_card_index_public_bundle.py'
+      - 'scripts/prepare_tcg_card_info_bundle.py'
+      - 'scripts/test_prepare_public_bundle.py'
+      - 'scripts/test_validate_reference_markets.py'
+      - 'scripts/test_market_references_workflow.py'
+      - 'scripts/audit/card-info-packs.test.mjs'
+      - 'tests/test_yuyutei_market.py'
+      - 'tests/test_prepare_tcg_card_info_bundle.py'
+      - 'functions/_middleware.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-market-workflows-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            scripts
+            tests
+            assets
+            functions
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate deferred source snapshots, deployment limits, and workflow contracts
+        run: |
+          python -m unittest discover -s tests -p test_yuyutei_market.py
+          python -m unittest discover -s scripts -p test_validate_reference_markets.py
+          python -m unittest scripts.test_market_references_workflow
+          python -m unittest discover -s scripts -p test_prepare_public_bundle.py
+          python -m unittest discover -s tests -p test_prepare_tcg_card_info_bundle.py
+          node --test scripts/audit/card-info-packs.test.mjs

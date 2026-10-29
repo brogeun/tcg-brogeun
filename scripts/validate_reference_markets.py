@@ -263,7 +263,7 @@ class Validator:
                     continue
                 require(entry.get("shard") == f"/data/yuyutei-market/{key}/{code}.json", "Yuyutei set shard path mismatch")
                 detail_path = self.safe_path(entry["shard"])
-                if not detail_path.is_file() and entry.get("status") in {"failed", "pending"} and not entry.get("recordCount"):
+                if not detail_path.is_file() and entry.get("status") in {"failed", "pending", "deferred"} and not entry.get("recordCount"):
                     self.partial("Some shop sets are explicitly unavailable or pending")
                     continue
                 detail = self.load(entry["shard"])
@@ -471,7 +471,8 @@ def main(argv=None):
         temporary.write_text(json.dumps(report, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
         temporary.replace(output)
         print(json.dumps({"status": report["status"], "invalid": validator.invalid,
-                          "sources": {name: row["status"] for name, row in report["sources"].items()}}, ensure_ascii=False))
+                          "sources": {name: row["status"] for name, row in report["sources"].items()},
+                          "errors": {name: row["errors"] for name, row in report["sources"].items() if row["errors"]}}, ensure_ascii=False))
         return 1 if validator.invalid else 0
     except (InvalidData, OSError, ValueError) as exc:
         print(f"Reference market validation failed: {exc}", file=sys.stderr)

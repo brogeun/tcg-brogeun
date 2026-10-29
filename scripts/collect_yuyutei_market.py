@@ -477,7 +477,12 @@ def collect_game(game, args):
         detail_path = args.output_dir / "yuyutei-market" / game / f"{code}.json"
         old_shard = read_json(detail_path, {})
         result = dict(prior_sets.get(code, {})) | source_set
-        result["shard"] = f"/data/yuyutei-market/{game}/{code}.json"
+        shard_url = f"/data/yuyutei-market/{game}/{code}.json"
+        if detail_path.is_file():
+            result["shard"] = shard_url
+        else:
+            # A first collection deferred by the global circuit has no detail yet.
+            result.pop("shard", None)
         if args.resume_hours and recently_collected(old_shard, args.resume_hours):
             result.update({"status": "ok", "sourceAsOf": old_shard.get("sourceAsOf"),
                            "lastSuccessAt": old_shard.get("lastSuccessAt"),
@@ -494,7 +499,7 @@ def collect_game(game, args):
             merged = merge_records(old_shard.get("records", []), rows, args.history_days, complete_snapshot=True)
             result.update({"status": "ok", "sourceAsOf": fetched_at, "lastSuccessAt": fetched_at,
                            "lastAttemptAt": fetched_at, "recordCount": len(merged), "observedRecordCount": len(rows),
-                           "collectionScope": "set_listing", "diagnostics": diagnostics})
+                           "collectionScope": "set_listing", "diagnostics": diagnostics, "shard": shard_url})
             result.pop("reusedRecentSnapshot", None)
             result.pop("error", None)
             detail = {"schemaVersion": 1, "source": "yuyutei", "game": game, "language": "ja",

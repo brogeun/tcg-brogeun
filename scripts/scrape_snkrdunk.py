@@ -17,6 +17,12 @@ import urllib.error
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
+# An explicit game selection uses the anonymous checkpointed HTTP collector.
+# The no-argument legacy Pokemon/OnePiece daily workflow remains unchanged.
+if __name__ == '__main__' and any(arg == '--brands' or arg.startswith('--brands=') for arg in sys.argv[1:]):
+    from collect_snkrdunk_games import main as collect_games_main
+    raise SystemExit(collect_games_main(sys.argv[1:]))
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
@@ -359,7 +365,7 @@ def preserve_product_metadata(filename: str, products: list) -> list:
     current_path = DATA_DIR / filename
     if current_path.exists():
         sources.append(current_path)
-    match = re.fullmatch(r"price-(pokemon|onepiece)-box\.json", filename)
+    match = re.fullmatch(r"price-([a-z_]+)-box\.json", filename)
     if match:
         manual_path = DATA_DIR / f"manual-boxes-{match.group(1)}.json"
         if manual_path.exists():
@@ -377,7 +383,7 @@ def preserve_product_metadata(filename: str, products: list) -> list:
             continue
 
     # 카드 가격 파일의 기존 이름까지 이미 Card #ID인 경우 정적 메타 인덱스로 복구한다.
-    card_match = re.fullmatch(r"price-(pokemon|onepiece)-card\.json", filename)
+    card_match = re.fullmatch(r"price-([a-z_]+)-card\.json", filename)
     meta_index_path = DATA_DIR / "cards-meta-index.json"
     if card_match and meta_index_path.exists():
         try:
@@ -758,6 +764,8 @@ def collect_card_ids() -> set:
     ids = set()
     for pattern in ("top10-*.json", "price-*.json"):
         for path in DATA_DIR.glob(pattern):
+            if not re.fullmatch(r'(?:top10|price)-(?:pokemon|onepiece)(?:-(?:card|box))?\.json', path.name):
+                continue  # Other games have their own explicit checkpointed collector.
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
                 for p in data.get("products", []):
@@ -775,6 +783,8 @@ def collect_card_ids() -> set:
         now = datetime.now(timezone.utc)
         recent = []
         for c in details:
+            if c.get('brand') not in ('pokemon', 'onepiece'):
+                continue
             cid, released = c.get("id"), c.get("releasedAt")
             if not cid or not released:
                 continue

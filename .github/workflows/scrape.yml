@@ -22,7 +22,7 @@ on:
           - all
           - search-only
   workflow_run:
-    workflows: ['Refresh Verified Home Card Index Daily']
+    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily']
     types: [completed]
     branches: [main]
   push:

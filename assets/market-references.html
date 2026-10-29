@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f8f8">
+  <meta name="description" content="TCG HUB에서 TCGplayer, 스니덩크, 유유테이의 카드 가격과 메루카리 참고 매물을 확인하세요.">
+  <title>해외 시세 · TCG HUB</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <link rel="stylesheet" href="/assets/market-references.css?v=20261029-1">
+  <script defer src="/assets/market-references.js?v=20261029-1"></script>
+</head>
+<body class="mr-page">
+  <header class="mr-site-header">
+    <a class="mr-brand" href="/" aria-label="TCG HUB 홈"><img src="/images/brand-logo.png" alt="TCG HUB" width="150" height="44"></a>
+    <a class="mr-back" href="/#cardinfo">카드 도감으로 <span aria-hidden="true">↗</span></a>
+  </header>
+  <main id="marketReferences" class="mr-main">
+    <div class="mr-intro"><p class="mr-eyebrow">TCG HUB · GLOBAL MARKET</p><h1>카드의 가격을<br>더 넓게 살펴보세요.</h1><p>같은 카드도 판본과 상태에 따라 가격이 달라요.<br>출처별 가격의 기준을 함께 확인하세요.</p></div>
+    <nav class="mr-sources" aria-label="가격 출처">
+      <button type="button" data-mr-source="us" aria-pressed="true">TCGplayer<span>미국 · USD</span></button>
+      <button type="button" data-mr-source="snkr" aria-pressed="false">스니덩크<span>일본 · 상태별 가격</span></button>
+      <button type="button" data-mr-source="yuyu" aria-pressed="false">유유테이<span>일본 · JPY</span></button>
+      <button type="button" data-mr-source="mercari" aria-pressed="false">메루카리<span>참고 매물</span></button>
+    </nav>
+    <section class="mr-workspace" aria-label="해외 카드 가격 검색">
+      <div id="mrSourceNote" class="mr-source-note"></div>
+      <form id="mrFilters" class="mr-filters" role="search">
+        <label>종목<select id="mrGame" aria-label="카드 종목"></select></label>
+        <label id="mrSetField">세트<select id="mrSet" aria-label="카드 세트"><option value="">전체 세트</option></select></label>
+        <label class="mr-search">카드·상품 검색<input id="mrQuery" type="search" placeholder="카드 이름 또는 번호" autocomplete="off"></label>
+        <button class="mr-search-submit" type="submit">검색</button>
+      </form>
+      <div class="mr-result-bar"><div class="mr-kind" role="group" aria-label="상품 종류"><button type="button" data-mr-kind="cards" aria-pressed="true">싱글 카드</button><button type="button" data-mr-kind="sealed" aria-pressed="false">박스·밀봉상품</button></div><p id="mrCoverage" class="mr-caption"></p></div>
+      <div id="mrResults" class="mr-results" aria-live="polite"><p class="mr-empty">가격 정보를 불러오는 중이에요.</p></div>
+      <nav id="mrPages" class="mr-pages" aria-label="검색 결과 페이지"></nav>
+    </section>
+    <p class="mr-footnote">거래통화 그대로 표시합니다. 배송비·수수료는 포함하지 않으며, 서로 다른 출처의 가격을 하나의 시세로 합산하지 않습니다.</p>
+  </main>
+  <footer class="mr-site-footer"><a href="/">TCG HUB</a><span>당신의 컬렉션을 더 선명하게.</span></footer>
+</body>
+</html>

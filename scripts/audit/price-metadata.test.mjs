@@ -9,6 +9,7 @@ const fresh = new Date().toISOString();
 const stale = new Date(Date.now() - 48 * 3600000).toISOString();
 const defaults = () => ({
   meta: { '123': { name: 'Pikachu "ex" &amp; Friends', code: 'A123', brand: 'pokemon' } },
+  metaBuckets: {},
   detail: { fetchedAt: fresh, cards: { '123': { fetchedAt: fresh, grades: { psa10: { lowest_ask: 44500, currency: 'JPY' } } } } },
   fx: { updated: fresh, rates: { JPY: 8.4512, USD: 1326 } },
 });
@@ -18,6 +19,10 @@ async function request({ id = '123', fixtures = defaults(), metaStatus = 200, fx
   globalThis.fetch = async url => {
     const path = new URL(url).pathname;
     if (path.endsWith('/cards-meta-index.json')) return Response.json(fixtures.meta, { status: metaStatus });
+    const bucket = path.match(/^\/data\/cards-meta-index\/(\d{2})\.json$/)?.[1];
+    // An available empty lookup bucket proves an unknown ID is absent. A
+    // missing fixture route instead simulates an upstream outage (503).
+    if (bucket) return Response.json(fixtures.metaBuckets?.[bucket] || {});
     if (path.endsWith('/cards-detail.json')) return Response.json(fixtures.detail);
     if (path.endsWith('/fx-rates.json')) return Response.json(fixtures.fx, { status: fxStatus });
     throw new Error(`Unexpected fetch ${path}`);

@@ -1,0 +1,15 @@
+const assert = require('node:assert/strict');
+const registry = require('../assets/game-registry.js');
+assert.equal(registry.canonical('weis-schwarz'), 'weiss_schwarz');
+assert.equal(registry.canonical('weiss'), 'weiss_schwarz');
+assert.equal(registry.canonical('union-arena'), 'union_arena');
+assert.equal(registry.canonical('dragonball'), 'dragon_ball_fusion_world');
+assert.equal(registry.label('digimoncard'), '디지몬');
+assert.equal(registry.label('unknown-sports-brand'), 'TCG');
+assert.equal(registry.canonical('nikke'), null);
+assert.equal(registry.label('nikke'), '니케');
+assert.equal(registry.canonical('weiss_schwarz_blau'), null);
+assert.equal(registry.label('weiss_schwarz_blau'), '바이스슈발츠 브라우');
+assert.equal(registry.sourceSlug('유희왕'), 'yu-gi-oh');
+assert.equal(registry.sourceSlug('unknown'), null);
+console.log('game registry: 12 assertions passed');

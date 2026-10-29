@@ -42,14 +42,19 @@ def main():
             "releasedAt": c.get("releasedAt") or "",
             "brand": c.get("brand") or "",
             "kind": c.get("kind") or "card",
+            "recognitionGameId": c.get("recognitionGameId"),
+            "ipTags": c.get("ipTags") or [],
         })
         # [minPrice, currency, listingCount] — 키 반복 없애 용량 최소화
-        prices[cid] = [c.get("minPrice"), c.get("currency") or "USD", c.get("listingCount")]
+        prices[cid] = [c.get("minPrice"), c.get("currency") or "USD", c.get("listingCount"),
+                       c.get('priceCheckedAt'), c.get('priceStatus', 'unverified')]
 
     with open(META_OUT, "w", encoding="utf-8") as f:
         json.dump({"fetchedAt": d.get("fetchedAt"), "cards": meta}, f, ensure_ascii=False, separators=(",", ":"))
     with open(PRICES_OUT, "w", encoding="utf-8") as f:
-        json.dump({"fetchedAt": d.get("fetchedAt"), "prices": prices}, f, ensure_ascii=False, separators=(",", ":"))
+        json.dump({"fetchedAt": d.get("fetchedAt"), "prices": prices,
+                   "priceArrayFields": ['minPrice', 'currency', 'listingCount', 'priceCheckedAt', 'priceStatus']},
+                  f, ensure_ascii=False, separators=(",", ":"))
 
     print(f"✓ cards-meta.json   {META_OUT.stat().st_size/1e6:.1f}MB ({len(meta)} cards)")
     print(f"✓ cards-prices.json {PRICES_OUT.stat().st_size/1e6:.1f}MB")

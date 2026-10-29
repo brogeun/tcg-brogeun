@@ -19,6 +19,8 @@ import sys
 import time
 import urllib.request
 from pathlib import Path
+from game_registry import normalize_brand, infer_brand_from_product_number
+from metadata_index import load_metadata_index, publish_metadata_index
 
 ROOT = Path(__file__).resolve().parent.parent
 HISTORY_DIR = ROOT / "data" / "history"
@@ -48,10 +50,11 @@ def fetch_meta(cid):
         print(f"  ✗ {cid}: no name field, keys: {list(data.keys())[:5]}")
         return None
     name = a.get("name") or a.get("title")
+    code = a.get("productNumber") or a.get("product_number") or a.get("code") or a.get("modelNumber")
     return {
         "name": name,
-        "code": a.get("productNumber") or a.get("product_number") or a.get("code") or a.get("modelNumber"),
-        "brand": a.get("brand") or ("onepiece" if "ONE PIECE" in name.upper() else "pokemon"),
+        "code": code,
+        "brand": normalize_brand(a.get("brandId") or a.get("brand")) or infer_brand_from_product_number(code),
     }
 
 
@@ -100,8 +103,7 @@ def main():
     # 기존 인덱스 로드
     index = {}
     if not fresh and INDEX_FILE.exists():
-        with open(INDEX_FILE, "r", encoding="utf-8") as f:
-            index = json.load(f)
+        index = load_metadata_index(ROOT / 'data')
         print(f"Loaded existing index: {len(index)} entries")
 
     # 처리 대상
@@ -118,7 +120,7 @@ def main():
         if i % 50 == 0:
             print(f"  Progress: {i}/{len(target_ids)} (saved={saved}, failed={failed})")
             # 중간 저장 — atomic write (tmp -> 검증 -> os.replace)
-            _atomic_save(INDEX_FILE, index)
+            publish_metadata_index(ROOT / 'data', index)
         meta = fetch_meta(cid)
         if meta:
             index[cid] = meta
@@ -128,7 +130,7 @@ def main():
         time.sleep(0.3)  # SNKRDUNK 부하 분산
 
     # 최종 저장 — atomic
-    _atomic_save(INDEX_FILE, index)
+    publish_metadata_index(ROOT / 'data', index)
     print(f"\n✓ Done. Total {len(index)} entries (saved {saved}, failed {failed})")
     print(f"  → {INDEX_FILE}")
 

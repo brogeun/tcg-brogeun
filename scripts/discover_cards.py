@@ -36,6 +36,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 from datetime import datetime, timezone
+from game_registry import GAME_REGISTRY, RECOGNITION_GAME_IDS, ip_tags, product_in_scope, select_brands
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -90,14 +91,15 @@ def normalize_min_price_usd(item):
 
 def fetch_listing_page(brand, category, page, per_page=100, order="popular"):
     """SNKRDUNK listing API — 1페이지 fetch"""
+    source_brand = GAME_REGISTRY[select_brands([brand])[0]]['source_brand']
     url = (f"https://snkrdunk.com/en/v1/trading-cards"
-           f"?brandId={brand}&categoryId={category}&page={page}&perPage={per_page}&order={order}")
+           f"?brandId={source_brand}&categoryId={category}&page={page}&perPage={per_page}&order={order}")
     req = urllib.request.Request(url, headers={
         "User-Agent": UA,
         "Accept": "application/json",
         "Accept-Language": "en-US,en;q=0.9",
         "Cookie": COOKIE_HEADER,
-        "Referer": f"https://snkrdunk.com/en/brands/{brand}/trading-cards?categoryId={category}",
+        "Referer": f"https://snkrdunk.com/en/brands/{source_brand}/trading-cards?categoryId={category}",
     })
     with urllib.request.urlopen(req, timeout=20) as r:
         return json.loads(r.read().decode("utf-8"))
@@ -109,22 +111,24 @@ def discover_category(brand, category, per_page=100, order="popular", max_pages=
     seen_ids = set()
     page = 1
     consecutive_empty = 0
+    failed_attempts = 0
 
     while page <= max_pages:
         try:
             d = fetch_listing_page(brand, category, page, per_page, order)
         except urllib.error.HTTPError as e:
-            if e.code == 429:
-                wait = 5 + page // 50
-                print(f"      [429] rate limit — {wait}s 대기")
-                time.sleep(wait)
-                continue
+            if e.code in (403, 429):
+                raise RuntimeError(f"HTTP {e.code}: source stopped; no access bypass attempted") from e
             print(f"      ⚠ page {page}: HTTP {e.code} {e.reason}")
             break
         except Exception as e:
+            failed_attempts += 1
             print(f"      ⚠ page {page}: {e}")
+            if failed_attempts >= 3:
+                raise RuntimeError(f"Discovery page {page} failed 3 times; existing catalogue retained") from e
             time.sleep(2)
             continue
+        failed_attempts = 0
 
         items = d.get("tradingCards") or []
         if not items:
@@ -138,6 +142,8 @@ def discover_category(brand, category, per_page=100, order="popular", max_pages=
 
         new_count = 0
         for item in items:
+            if not product_in_scope(brand, item):
+                continue
             cid = str(item.get("id", ""))
             if not cid or cid in seen_ids:
                 continue
@@ -151,6 +157,8 @@ def discover_category(brand, category, per_page=100, order="popular", max_pages=
                 "minPrice": normalize_min_price_usd(item),
                 "currency": "USD",  # API returns USD
                 "listingCount": item.get("listingCount"),
+                "recognitionGameId": RECOGNITION_GAME_IDS[brand],
+                "ipTags": ip_tags(item),
             })
             new_count += 1
 
@@ -182,14 +190,15 @@ def main():
         elif a.startswith("--order="):
             order = a.split("=", 1)[1]
 
-    selected_brands = ["pokemon", "onepiece"]
+    selected_brands = select_brands()
     pos_args = [a for a in args if not a.startswith("--")]
     if pos_args:
-        b = pos_args[0].lower()
-        if b in ("pokemon", "포켓몬"):
-            selected_brands = ["pokemon"]
-        elif b in ("onepiece", "원피스"):
-            selected_brands = ["onepiece"]
+        selected_brands = select_brands(pos_args[0])
+    for argument in args:
+        if argument.startswith('--brands='):
+            selected_brands = select_brands(argument.split('=', 1)[1])
+    if '--all-brands' in args:
+        selected_brands = list(GAME_REGISTRY)
 
     categories = [(CATEGORY_CARD, "card")]
     if include_box:
@@ -242,16 +251,31 @@ def main():
             ids_for_brand.add(c["id"])
         by_brand_ids[brand] = sorted(ids_for_brand)
 
-    out = {
+    # A scoped discovery never erases other games or older retained variants.
+    previous_path = DATA_DIR / 'all-cards.json'
+    previous = json.loads(previous_path.read_text('utf-8')) if previous_path.exists() else {}
+    merged = {str(row['id']): row for row in previous.get('details', []) if isinstance(row, dict) and row.get('id')}
+    for row in all_cards_list:
+        old = merged.get(row['id'])
+        if old and old.get('brand') and old['brand'] != row['brand']:
+            raise ValueError('Discovery ID belongs to another game: ' + row['id'])
+        merged[row['id']] = {**(old or {}), **row}
+    all_cards_list = list(merged.values())
+    only_card_ids = {row['id'] for row in all_cards_list if row.get('kind', 'card') == 'card'}
+    only_box_ids = {row['id'] for row in all_cards_list if row.get('kind') == 'box'}
+    by_brand_ids = {brand: sorted({row['id'] for row in all_cards_list if row.get('brand') == brand})
+                    for brand in dict.fromkeys([*previous.get('byBrand', {}), *selected_brands])}
+    out = {**previous,
         "fetchedAt": datetime.now(timezone.utc).isoformat(),
         "byBrand": by_brand_ids,
         "cards": sorted(only_card_ids),       # 카드 ID — 백필 기본 대상
-        "boxes": sorted(only_box_ids) if include_box else [],
+        "boxes": sorted(only_box_ids),
         "all": sorted(only_card_ids | only_box_ids),
         "details": all_cards_list,            # 풀 메타데이터 (이름, 썸네일 등)
     }
     out_path = DATA_DIR / "all-cards.json"
-    out_path.write_bytes(json.dumps(out, ensure_ascii=False, indent=2).encode("utf-8"))
+    from collect_snkrdunk_games import atomic_json
+    atomic_json(out_path, out)
 
     # 분리 파일 (cards-meta.json + cards-prices.json) 자동 재생성 — 프론트 경량 로딩용
     try:

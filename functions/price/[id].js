@@ -38,17 +38,34 @@ export async function onRequestGet({ request, env, params }) {
   // Only IDs represented by the numeric public metadata index are supported.
   if (!/^\d{1,20}$/.test(cardId)) return unavailable(404, '카드를 찾을 수 없습니다');
   const requestOrigin = new URL(request.url).origin;
-  let meta;
+  let card = null;
+  let rootUnavailable = false;
   try {
     const resp = await fetch(`${requestOrigin}/data/cards-meta-index.json`);
     if (!resp.ok) throw new Error('metadata unavailable');
-    meta = await resp.json();
+    const meta = await resp.json();
     if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new Error('invalid metadata');
+    card = Object.hasOwn(meta, cardId) ? meta[cardId] : null;
   } catch {
-    // An upstream failure must not turn real cards into cacheable 404s.
-    return unavailable(503, '카드 정보를 잠시 불러올 수 없습니다');
+    rootUnavailable = true;
   }
-  const card = Object.hasOwn(meta, cardId) ? meta[cardId] : null;
+  if (!card) {
+    try {
+      // Numeric suffix buckets cover every source game without an unbounded
+      // monolithic metadata asset. Keep the original product ID as the key.
+      const bucket = cardId.slice(-2).padStart(2, '0');
+      const resp = await fetch(`${requestOrigin}/data/cards-meta-index/${bucket}.json`);
+      if (resp.status === 404 && !rootUnavailable) return unavailable(404, '카드를 찾을 수 없습니다');
+      if (!resp.ok) throw new Error('metadata bucket unavailable');
+      const meta = await resp.json();
+      if (!meta || typeof meta !== 'object' || Array.isArray(meta)) throw new Error('invalid metadata bucket');
+      card = Object.hasOwn(meta, cardId) ? meta[cardId] : null;
+      if (!card && rootUnavailable) throw new Error('metadata unavailable');
+    } catch {
+      // An upstream failure must not turn real cards into cacheable 404s.
+      return unavailable(503, '카드 정보를 잠시 불러올 수 없습니다');
+    }
+  }
   if (!card || typeof card.name !== 'string' || !card.name.trim()) return unavailable(404, '카드를 찾을 수 없습니다');
 
   let html;

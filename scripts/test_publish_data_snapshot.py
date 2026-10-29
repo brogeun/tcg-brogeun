@@ -100,7 +100,8 @@ class PublicationTests(unittest.TestCase):
 
     def daily_fixture(self):
         self.search = ['data/all-cards.json', 'data/cards-meta.json', 'data/cards-prices.json']
-        for name in [*self.search, 'data/chinese-market.json', 'data/history/123.json']:
+        for name in [*self.search, 'data/chinese-market.json', 'data/history/123.json',
+                     'data/cards-meta-index.json', 'data/cards-meta-index/00.json']:
             path = self.writer / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text('{"old":true}', encoding='utf-8')
@@ -157,6 +158,37 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.remote_content('data/history/123.json'), '{"userHistory":true}')
         self.assertTrue(all(self.remote_content(name) == '{"old":true}' for name in self.search))
 
+    def test_daily_metadata_root_and_exact_buckets_publish_together(self):
+        self.daily_fixture()
+        generated = ['data/cards-meta-index.json', 'data/cards-meta-index/00.json',
+                     'data/cards-meta-index/83.json']
+        excluded = ['data/cards-meta-index/1.json', 'data/cards-meta-index/001.json',
+                    'data/cards-meta-index/ab.json', 'data/cards-meta-index/config.json',
+                    'data/cards-meta-index/nested/00.json']
+        for name in generated + excluded:
+            path = self.runner / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('{"generated":true}', encoding='utf-8')
+        self.assertFalse(target.daily_path('data/cards-meta-index/../secrets.json'))
+        self.assertFalse(target.daily_path(r'data\cards-meta-index\00.json'))
+        self.assertEqual(set(target.daily_files(self.runner, self.base)),
+                         set(self.search + ['data/update-health.json'] + generated))
+        self.publish_daily()
+        for name in generated:
+            self.assertEqual(json.loads(self.remote_content(name)), {'generated': True})
+        for name in excluded:
+            self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'ls-tree', 'refs/heads/main', '--', name), '')
+
+    def test_daily_metadata_concurrent_bucket_change_rejects_all_outputs(self):
+        self.daily_fixture()
+        name = 'data/cards-meta-index/00.json'
+        (self.runner / name).write_text('{"generated":true}', encoding='utf-8')
+        self.advance(name, '{"userMetadata":true}')
+        with self.assertRaisesRegex(target.PublicationError, 'target files changed'):
+            self.publish_daily()
+        self.assertEqual(self.remote_content(name), '{"userMetadata":true}')
+        self.assertTrue(all(self.remote_content(path) == '{"old":true}' for path in self.search))
+
     def test_daily_invalid_json_fails_before_publication(self):
         self.daily_fixture()
         (self.runner / 'data/update-health.json').write_text('invalid JSON', encoding='utf-8')
@@ -180,6 +212,189 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(self.git(self.runner, 'rev-parse', 'HEAD'), self.base)
         self.assertEqual((self.runner / 'data/chinese-market.json').read_text('utf-8'), '{"old":true}')
         self.assertTrue(all((self.runner / name).read_text('utf-8') == '{"verified":true}' for name in self.search))
+
+    def reference_fixture(self):
+        self.reference_targets = ['data/us-market.json', 'data/us-market/pokemon/base.json',
+                                  'data/yuyutei-market.json', 'data/mercari-references.json']
+        for name in self.reference_targets:
+            path = self.writer / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('{"oldReference":true}', encoding='utf-8')
+        self.git(self.writer, 'add', '--', *self.reference_targets)
+        self.git(self.writer, 'commit', '-m', 'Reference fixture baseline')
+        self.git(self.writer, 'push', 'origin', 'main')
+        self.runner = self.root / 'reference-runner'
+        self.git(self.root, 'clone', '--branch', 'main', str(self.remote), str(self.runner))
+        self.base = self.git(self.runner, 'rev-parse', 'HEAD')
+        for name in self.reference_targets:
+            (self.runner / name).write_text('{"reference":true}', encoding='utf-8')
+
+    def publish_references(self):
+        env = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'safe.directory', 'GIT_CONFIG_VALUE_0': '*'}
+        with patch.dict(os.environ, env):
+            files = target.reference_files(self.runner, self.base)
+            return target.publish(self.runner, self.base, files, 'Reference fixture snapshot',
+                                  temp_parent=self.root, references=True)
+
+    def test_references_publish_preserves_unrelated_new_main_and_dirty_worktree(self):
+        self.reference_fixture()
+        self.advance('notes.txt', 'latest unrelated user edit')
+        (self.runner / self.files[0]).write_text('{"localUnrelated":true}', encoding='utf-8')
+        result = self.publish_references()
+        self.assertEqual(result['status'], 'published')
+        self.assertEqual(self.remote_content('notes.txt'), 'latest unrelated user edit')
+        self.assertTrue(all(json.loads(self.remote_content(name)) == {'reference': True} for name in self.reference_targets))
+        self.assertEqual(json.loads(self.remote_content(self.files[0])), {'old': True})
+        self.assertEqual(json.loads((self.runner / self.files[0]).read_bytes()), {'localUnrelated': True})
+        self.assertEqual(self.git(self.runner, 'rev-parse', 'HEAD'), self.base)
+
+    def test_references_reject_concurrent_target_change_without_any_publication(self):
+        self.reference_fixture()
+        self.advance('data/us-market.json', '{"userReference":true}')
+        before = self.git(self.writer, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(target.PublicationError, 'target files changed'):
+            self.publish_references()
+        self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'rev-parse', 'refs/heads/main'), before)
+        self.assertEqual(self.remote_content('data/us-market.json'), '{"userReference":true}')
+        self.assertEqual(self.remote_content('data/mercari-references.json'), '{"oldReference":true}')
+
+    def test_references_select_only_explicit_generated_roots_and_files(self):
+        self.reference_fixture()
+        allowed = ['data/us-market/digimon/new-set.json', 'data/yuyutei-market/weiss/cards.json',
+                   'data/snkrdunk-games.json', 'data/price-weiss_schwarz-card.json',
+                   'data/snkrdunk-history/123.json', 'data/reference-market-health.json',
+                   'data/cards-meta-index.json', 'data/cards-meta-index/00.json',
+                   'data/cards-meta-index/83.json', 'data/snkrdunk-games/weiss_schwarz-card-0000.json',
+                   'data/snkrdunk-games/digimon-box-12.json']
+        excluded = ['data/mercari-reference-watchlist.json', 'data/us-market-watchlist.json',
+                    'data/unrelated-user-document.json', 'data/secrets.json',
+                    'data/us-market/credentials.local.json', 'data/us-market/private-key.json',
+                    'data/price-pokemon-card.json', 'data/snkrdunk-history/not-numeric.json',
+                    'data/us-market/watchlist.json', 'data/yuyutei-market/config.json',
+                    'data/snkrdunk-games/pokemon-card-1.json', 'data/snkrdunk-games/unknown-box-1.json',
+                    'data/snkrdunk-games/config.json', 'data/cards-meta-index/config.json',
+                    'data/cards-meta-index/1.json', 'data/cards-meta-index/001.json',
+                    'data/cards-meta-index/ab.json', 'data/cards-meta-index/nested/83.json',
+                    'scripts/not-data.json']
+        for name in allowed + excluded:
+            path = self.runner / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('{"new":true}', encoding='utf-8')
+        self.assertEqual(set(target.reference_files(self.runner, self.base)), set(self.reference_targets + allowed))
+        self.publish_references()
+        for name in allowed:
+            self.assertEqual(json.loads(self.remote_content(name)), {'new': True})
+        for name in excluded:
+            self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'ls-tree', 'refs/heads/main', '--', name), '')
+            self.assertTrue((self.runner / name).exists())
+
+    def test_references_reject_deletion_and_symlink_ancestor(self):
+        self.reference_fixture()
+        (self.runner / 'data/us-market.json').unlink()
+        with self.assertRaisesRegex(target.PublicationError, 'deletions are not published'):
+            target.reference_files(self.runner, self.base)
+        (self.runner / 'data/us-market.json').write_text('{"reference":true}', encoding='utf-8')
+        original_is_symlink = Path.is_symlink
+        def simulated_symlink(path):
+            return path == self.runner / 'data/us-market' or original_is_symlink(path)
+        with patch.object(Path, 'is_symlink', simulated_symlink):
+            with self.assertRaisesRegex(target.PublicationError, 'symlinks'):
+                target.reference_files(self.runner, self.base)
+
+    def test_references_validate_json_before_creating_publication_worktree(self):
+        self.reference_fixture()
+        for invalid in ('invalid JSON', '{"price":NaN}'):
+            (self.runner / 'data/us-market.json').write_text(invalid, encoding='utf-8')
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                self.publish_references()
+        self.assertEqual(list(self.root.glob('tcg-data-publication-*')), [])
+        self.assertEqual(self.remote_content('data/us-market.json'), '{"oldReference":true}')
+
+    def test_references_reject_selection_change_or_arbitrary_explicit_file(self):
+        self.reference_fixture()
+        selected = target.reference_files(self.runner, self.base)
+        (self.runner / 'data/snkrdunk-games.json').write_text('{"new":true}', encoding='utf-8')
+        with self.assertRaisesRegex(target.PublicationError, 'selection changed'):
+            target.publish(self.runner, self.base, selected, 'Fixture', temp_parent=self.root, references=True)
+        with self.assertRaisesRegex(target.PublicationError, 'selection changed'):
+            target.publish(self.runner, self.base, ['data/secrets.json'], 'Fixture', temp_parent=self.root, references=True)
+
+    def test_reference_path_rejects_traversal_secrets_and_unsupported_outputs(self):
+        allowed = ['data/us-market.json', 'data/mercari-references.json',
+                   'data/us-market/pokemon/group-123.json', 'data/yuyutei-market/weiss/quote.json',
+                   'data/price-dragon_ball_fusion_world-box.json', 'data/snkrdunk-games.json',
+                   'data/all-cards.json', 'data/cards-detail.json', 'data/snkrdunk-history/123.json',
+                   'data/reference-market-health.json', 'data/cards-meta-index.json',
+                   'data/cards-meta-index/00.json', 'data/cards-meta-index/01.json', 'data/cards-meta-index/99.json',
+                   'data/snkrdunk-games/union_arena-card-0000.json', 'data/snkrdunk-games/dragon_ball_fusion_world-box-2.json']
+        forbidden = ['data/us-market/../secrets.json', 'data/us-market/../../scripts/out.json',
+                     'data/us-market/.env.json', 'data/us-market/secrets.prod.json',
+                     'data/us-market/credentials.json', 'data/us-market/tokens.json',
+                     'data/us-market/price.json/../../../secrets.json',
+                     r'data\us-market\out.json', '/data/us-market/out.json',
+                     'data/mercari-reference-watchlist.json', 'data/us-market/source-config.json',
+                     'data/yuyutei-market/catalog-watchlist.json', 'data/us-market/config/products.json',
+                     'data/price-unknown-card.json', 'data/snkrdunk-history/not-numeric.json',
+                     'data/snkrdunk-games/pokemon-card-1.json', 'data/snkrdunk-games/weiss-card-1.json',
+                     'data/snkrdunk-games/digimon-card--1.json', 'data/snkrdunk-games/digimon-card-../secrets.json',
+                     'data/snkrdunk-games/nested/digimon-card-1.json', 'data/snkrdunk-games/config.json',
+                     'data/cards-meta-index/../secrets.json', 'data/cards-meta-index/00/../../secrets.json',
+                     'data/cards-meta-index/nested/00.json', 'data/cards-meta-index/.00.json',
+                     'data/cards-meta-index/0.json', 'data/cards-meta-index/000.json',
+                     'data/cards-meta-index/0a.json', 'data/cards-meta-index/00.JSON',
+                     r'data\cards-meta-index\00.json', 'data/cards-meta-index/config.json']
+        self.assertTrue(all(target.reference_path(name) for name in allowed))
+        self.assertTrue(all(not target.reference_path(name) for name in forbidden))
+
+    def test_references_with_no_changes_is_a_noop(self):
+        self.reference_fixture()
+        for name in self.reference_targets:
+            (self.runner / name).write_text('{"oldReference":true}', encoding='utf-8')
+        result = self.publish_references()
+        self.assertEqual(result['status'], 'unchanged')
+        self.assertEqual(result['files'], [])
+
+    def reference_group_fixture(self):
+        self.reference_fixture()
+        self.reference_search = sorted(target.REFERENCE_SEARCH_FILES)
+        for name in self.reference_search:
+            (self.writer / name).write_text('{"legacy":true,"unknownBrand":{"preserve":true}}', encoding='utf-8')
+        self.git(self.writer, 'add', '--', *self.reference_search)
+        self.git(self.writer, 'commit', '-m', 'Atomic reference search baseline')
+        self.git(self.writer, 'push', 'origin', 'main')
+        self.runner = self.root / 'reference-group-runner'
+        self.git(self.root, 'clone', '--branch', 'main', str(self.remote), str(self.runner))
+        self.base = self.git(self.runner, 'rev-parse', 'HEAD')
+        (self.runner / 'data/cards-prices.json').write_text('{"legacy":true,"unknownBrand":{"preserve":true},"quote":123}', encoding='utf-8')
+
+    def test_reference_shared_search_selects_and_checks_complete_group(self):
+        self.reference_group_fixture()
+        self.assertEqual(set(target.reference_files(self.runner, self.base)), set(self.reference_search))
+        result = self.publish_references()
+        self.assertEqual(set(result['files']), set(self.reference_search))
+        self.assertEqual(json.loads(self.remote_content('data/cards-prices.json'))['quote'], 123)
+        for name in self.reference_search:
+            content = json.loads(self.remote_content(name))
+            self.assertTrue(content['legacy'])
+            self.assertEqual(content['unknownBrand'], {'preserve': True})
+        changed = self.git(self.root, '--git-dir', str(self.remote), 'diff-tree', '--no-commit-id', '--name-only', '-r', result['commit']).splitlines()
+        self.assertEqual(changed, ['data/cards-prices.json'])
+
+    def test_reference_shared_unchanged_group_member_concurrent_edit_rejects_all(self):
+        self.reference_group_fixture()
+        self.advance('data/cards-meta.json', '{"userMeta":true}')
+        before = self.git(self.writer, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(target.PublicationError, 'target files changed'):
+            self.publish_references()
+        self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'rev-parse', 'refs/heads/main'), before)
+        self.assertEqual(self.remote_content('data/cards-meta.json'), '{"userMeta":true}')
+        self.assertNotIn('quote', json.loads(self.remote_content('data/cards-prices.json')))
+
+    def test_reference_shared_group_missing_member_is_rejected(self):
+        self.reference_group_fixture()
+        (self.runner / 'data/cards-meta.json').unlink()
+        with self.assertRaisesRegex(target.PublicationError, 'deletions are not published'):
+            target.reference_files(self.runner, self.base)
 
 
 if __name__ == '__main__':

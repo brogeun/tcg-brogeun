@@ -49,3 +49,9 @@
 /games/kanto151/*
   Cache-Control: public, max-age=0, must-revalidate
   X-Robots-Tag: noindex, nofollow
+
+# Source labels and reference snapshots revalidate after release.
+/market-references
+  Cache-Control: no-cache, must-revalidate
+/assets/market-references.html
+  Cache-Control: no-cache, must-revalidate

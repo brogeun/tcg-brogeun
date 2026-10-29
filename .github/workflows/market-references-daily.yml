@@ -1,0 +1,359 @@
+name: Market Reference Prices Daily
+
+on:
+  schedule:
+    - cron: '35 20 * * *' # 05:35 KST, after the public TCGCSV daily build.
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/market-references-daily.yml'
+      - 'scripts/collect_us_market.py'
+      - 'scripts/test_collect_us_market.py'
+      - 'scripts/collect_yuyutei_market.py'
+      - 'tests/test_yuyutei_market.py'
+      - 'scripts/collect_mercari_references.py'
+      - 'scripts/test_collect_mercari_references.py'
+      - 'scripts/collect_snkrdunk_games.py'
+      - 'scripts/game_registry.py'
+      - 'scripts/test_snkrdunk_games.py'
+      - 'scripts/metadata_index.py'
+      - 'scripts/test_metadata_index.py'
+      - 'scripts/test_price_metadata_shards.cjs'
+      - 'scripts/build_cards_meta_index.py'
+      - 'functions/price/\[id\].js'
+      - 'scripts/validate_reference_markets.py'
+      - 'scripts/test_validate_reference_markets.py'
+      - 'scripts/publish_data_snapshot.py'
+      - 'scripts/test_publish_data_snapshot.py'
+      - 'scripts/test_market_references_workflow.py'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-reference-prices
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Validate checkout identity
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Offline collector, integrity and publication contracts
+        run: |
+          python -m unittest scripts.test_collect_us_market
+          python -m unittest discover -s tests -p test_yuyutei_market.py
+          python scripts/test_collect_mercari_references.py
+          python -m unittest discover -s scripts -p test_snkrdunk_games.py
+          python -m unittest scripts.test_metadata_index
+          python -m unittest discover -s scripts -p test_publish_data_snapshot.py
+          python -m unittest discover -s scripts -p test_validate_reference_markets.py
+          python -m unittest scripts.test_market_references_workflow
+          node --test scripts/test_market_references.cjs
+          node --test scripts/test_reference_integration.cjs
+          node --test scripts/test_price_metadata_shards.cjs
+
+  us:
+    needs: [verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      collector_outcome: ${{ steps.assess.outputs.outcome }}
+    steps:
+      - name: Checkout the validated triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Record the exact collection base
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$GITHUB_SHA"
+          echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Restore only the US provider response cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/us-market
+          key: us-market-v1-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            us-market-v1-${{ runner.os }}-
+      - name: Collect US market references
+        id: collect
+        continue-on-error: true
+        timeout-minutes: 35
+        run: python scripts/collect_us_market.py --root . --cache-dir .cache/us-market
+      - name: Record true US refresh outcome
+        id: assess
+        if: always()
+        env:
+          STEP_OUTCOME: ${{ steps.collect.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          def classify(outcome, record):
+              if outcome != 'success' or record.get('status', '').startswith('failed'):
+                  return 'failure'
+              if record.get('status') == 'partial-provider-failure':
+                  return 'partial' if record.get('coverage', {}).get('mappedSets', 0) else 'failure'
+              return 'success' if record.get('status') in {'unchanged', 'complete-for-mapped-sets'} else 'failure'
+          path = Path('.cache/us-market/last-run.json')
+          try:
+              record = json.loads(path.read_text(encoding='utf-8'))
+          except (OSError, ValueError):
+              record = {}
+          outcome = classify(os.environ.get('STEP_OUTCOME'), record)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('outcome=' + outcome + '\n')
+          print('US refresh outcome:', outcome)
+          PY
+      - name: Validate US output and retained last-good references
+        if: always() && steps.assess.outcome == 'success'
+        run: python scripts/validate_reference_markets.py --root . --output .cache/reference-check-us.json
+      - name: Publish verified US data without replacing unrelated commits
+        run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh US market references'
+
+  yuyutei:
+    needs: [verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    outputs:
+      collector_outcome: ${{ steps.assess.outputs.outcome }}
+    steps:
+      - name: Checkout the validated triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Record the exact collection base
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$GITHUB_SHA"
+          echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # Published data/yuyutei-market* is the canonical resume/cooldown state.
+      # Restoring an older cache over tracked shards would regress observations.
+      - name: Collect bounded Yuyutei references with global cooldown
+        id: collect
+        continue-on-error: true
+        timeout-minutes: 30
+        run: python -u scripts/collect_yuyutei_market.py --max-sets-per-game 45 --max-requests 250 --workers 2 --requests-per-second 0.5 --resume-hours 20
+      - name: Record true Yuyutei refresh outcome
+        id: assess
+        if: always()
+        env:
+          STEP_OUTCOME: ${{ steps.collect.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          def classify(outcome, record):
+              if outcome != 'success' or record.get('status') == 'failed':
+                  return 'failure'
+              cooldown = record.get('cooldown') or {}
+              try:
+                  waiting = datetime.fromisoformat(cooldown.get('nextEligibleAt', '').replace('Z', '+00:00')) > datetime.now(timezone.utc)
+              except (ValueError, TypeError):
+                  waiting = False
+              if waiting:
+                  return 'deferred'
+              if not record.get('requestsThisRun', 0):
+                  return 'success' if record.get('status') == 'ok' else 'partial'
+              coverage = [game.get('coverage', {}) for game in record.get('games', [])]
+              fetched = sum(row.get('recordsFetchedThisRun', 0) for row in coverage)
+              failed = sum(row.get('failedSets', 0) for row in coverage)
+              attempted = sum(row.get('setsAttemptedThisRun', 0) for row in coverage)
+              if failed and attempted and not fetched:
+                  return 'failure'
+              return 'success' if record.get('status') == 'ok' else 'partial'
+          try:
+              record = json.loads(Path('data/yuyutei-market.json').read_text(encoding='utf-8'))
+          except (OSError, ValueError):
+              record = {'status': 'failed'}
+          outcome = classify(os.environ.get('STEP_OUTCOME'), record)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('outcome=' + outcome + '\n')
+          print('Yuyutei refresh outcome:', outcome)
+          PY
+      - name: Validate Yuyutei output and retained last-good references
+        if: always() && steps.assess.outcome == 'success'
+        run: python scripts/validate_reference_markets.py --root . --output .cache/reference-check-yuyutei.json
+      - name: Publish verified Yuyutei data without replacing unrelated commits
+        run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh Yuyutei market references'
+
+  mercari:
+    needs: [verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      collector_outcome: ${{ steps.assess.outputs.outcome }}
+    steps:
+      - name: Checkout the validated triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Record the exact collection base
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$GITHUB_SHA"
+          echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refresh the bounded Mercari watchlist
+        id: collect
+        continue-on-error: true
+        timeout-minutes: 10
+        run: python scripts/collect_mercari_references.py --watchlist data/mercari-reference-watchlist.json --output data/mercari-references.json --max-items 20 --timeout 20
+      - name: Record true Mercari refresh outcome
+        id: assess
+        if: always()
+        env:
+          STEP_OUTCOME: ${{ steps.collect.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          def classify(outcome, record):
+              coverage = record.get('coverage', {})
+              if outcome != 'success' or not coverage.get('fetchedCount', 0):
+                  return 'failure'
+              return 'partial' if coverage.get('errorCount', 0) else 'success'
+          try:
+              record = json.loads(Path('data/mercari-references.json').read_text(encoding='utf-8'))
+          except (OSError, ValueError):
+              record = {}
+          outcome = classify(os.environ.get('STEP_OUTCOME'), record)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('outcome=' + outcome + '\n')
+          print('Mercari refresh outcome:', outcome)
+          PY
+      - name: Validate Mercari output and retained last-good references
+        if: always() && steps.assess.outcome == 'success'
+        run: python scripts/validate_reference_markets.py --root . --output .cache/reference-check-mercari.json
+      - name: Publish verified Mercari data without replacing unrelated commits
+        run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh Mercari market references'
+
+  snkrdunk:
+    needs: [verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 145
+    outputs:
+      collector_outcome: ${{ steps.assess.outputs.outcome }}
+    steps:
+      - name: Checkout the validated triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Record the exact collection base
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$GITHUB_SHA"
+          echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # Catalog, grades, history and checkpoint metadata resume from Git, never
+      # from a shared all-cards cache that could overwrite another collector.
+      # Current-grade work is bounded; the collector reserves time for the
+      # independent history queue and keeps untouched records' observation times.
+      - name: Refresh the five SNKRDUNK games with independent grade and history budgets
+        id: collect
+        continue-on-error: true
+        timeout-minutes: 125
+        run: python scripts/collect_snkrdunk_games.py --brands=weiss_schwarz,union_arena,dragon_ball_fusion_world,yugioh,digimon --grade-limit=1500 --history-limit=500 --max-seconds=7200 --delay=0.25
+      - name: Record true SNKRDUNK refresh outcome
+        id: assess
+        if: always()
+        env:
+          STEP_OUTCOME: ${{ steps.collect.outcome }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          def classify(outcome, record):
+              collection = record.get('collection', {})
+              if outcome != 'success' or collection.get('status', '').startswith('failed'):
+                  return 'failure'
+              if collection.get('status') == 'checkpointed-partial' or collection.get('gradeFailures', 0) or collection.get('historyFailures', 0):
+                  return 'partial'
+              return 'success' if collection.get('status') == 'completed-requested-budgets' else 'failure'
+          try:
+              record = json.loads(Path('data/snkrdunk-games.json').read_text(encoding='utf-8'))
+          except (OSError, ValueError):
+              record = {}
+          outcome = classify(os.environ.get('STEP_OUTCOME'), record)
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write('outcome=' + outcome + '\n')
+          print('SNKRDUNK refresh outcome:', outcome)
+          PY
+      - name: Validate SNKRDUNK output and retained last-good references
+        if: always() && steps.assess.outcome == 'success'
+        run: python scripts/validate_reference_markets.py --root . --output .cache/reference-check-snkrdunk.json
+      - name: Publish verified SNKRDUNK data without replacing unrelated commits
+        run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh SNKRDUNK market references'
+
+  health:
+    if: always() && needs.verify.result == 'success'
+    needs: [verify, us, yuyutei, mercari, snkrdunk]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REFERENCE_SOURCE_OUTCOMES: >-
+        {"us":"${{ needs.us.result == 'success' && needs.us.outputs.collector_outcome || needs.us.result }}","yuyutei":"${{ needs.yuyutei.result == 'success' && needs.yuyutei.outputs.collector_outcome || needs.yuyutei.result }}","mercari":"${{ needs.mercari.result == 'success' && needs.mercari.outputs.collector_outcome || needs.mercari.result }}","snkrdunk":"${{ needs.snkrdunk.result == 'success' && needs.snkrdunk.outputs.collector_outcome || needs.snkrdunk.result }}"}
+    steps:
+      - name: Checkout current main after all independent publishers
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Record the current health publication base
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "${#actual}" -eq 40
+          echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate current main and record honest source outcomes
+        run: python scripts/validate_reference_markets.py --root . --output data/reference-market-health.json
+      - name: Publish final health without replacing unrelated commits
+        run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh market reference health'
+      - name: Fail only when all four source refreshes genuinely failed
+        run: |
+          python - <<'PY'
+          import json, os
+          def all_collectors_failed(outcomes):
+              failures = {'failure', 'failed', 'cancelled', 'timed_out', 'error'}
+              return all(outcomes.get(source) in failures for source in ('us', 'yuyutei', 'mercari', 'snkrdunk'))
+          outcomes = json.loads(os.environ['REFERENCE_SOURCE_OUTCOMES'])
+          if all_collectors_failed(outcomes):
+              raise SystemExit('All four source refreshes failed; last-good data and explicit health retained.')
+          print('Validated complete or partial reference data is ready for the existing deploy-only workflow.')
+          PY

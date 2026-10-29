@@ -3,6 +3,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<script src="/assets/game-registry.js?v=20261029-reference1"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>TCG Hub - 포켓몬 원피스 TCG 카드 시세 · 그레이딩 · 응모</title>
 
@@ -1274,6 +1275,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <div class="price-heading">
           <h1>시세</h1>
           <p><span class="live-dot2" aria-hidden="true"></span>SNKRDUNK 실거래가 기준</p>
+          <a href="/market-references" style="display:inline-flex;margin-top:7px;font-size:12px;font-weight:600;color:var(--text-secondary,#666560)">해외·보조 시세 보기 →</a>
         </div>
 
         <div id="cardSearchWrap" class="price-search-wrap">
@@ -1298,6 +1300,15 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         <button type="button" class="brand-tab2 active-pk tab active" data-brand="pokemon">포켓몬</button>
         <button type="button" class="brand-tab2 tab" data-brand="onepiece">원피스</button>
       </div>
+
+      <nav class="mr-game-shortcuts" aria-label="신규 종목 시세">
+        <a href="/market-references?source=snkr&amp;game=weiss_schwarz&amp;q=NIKKE">니케(바이스)</a>
+        <a href="/market-references?source=snkr&amp;game=union_arena">유니온아레나</a>
+        <a href="/market-references?source=snkr&amp;game=weiss_schwarz">바이스슈발츠</a>
+        <a href="/market-references?source=snkr&amp;game=dragon_ball_fusion_world">드래곤볼 FW</a>
+        <a href="/market-references?source=snkr&amp;game=yugioh">유희왕</a>
+        <a href="/market-references?source=snkr&amp;game=digimon">디지몬</a>
+      </nav>
 
       <!-- 2차 탭: 박스 / 카드 -->
       <div class="type-tabs2" id="priceCatTabs">
@@ -2515,6 +2526,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 <link rel="stylesheet" href="/assets/market-price-index.css?v=20261013-index19-restore1">
 <script src="/assets/market-price-index.js?v=20261013-index19-restore1"></script>
+<link rel="stylesheet" href="/assets/market-references.css?v=20261029-reference1">
+<script src="/assets/market-references.js?v=20261029-reference1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261014-japanese3">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/contained-card-match.js?v=20261014-japanese3"></script>
@@ -2523,7 +2536,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20261026-display-fallback2"></script>
+<script src="/assets/price-expanded.js?v=20261029-reference1"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -4671,7 +4684,7 @@ function renderSearchResultsTo(targetId, results, query) {
     return;
   }
   box.innerHTML = results.map(c => {
-    const brandLabel = c.brand === 'onepiece' ? '원피스' : '포켓몬';
+    const brandLabel = window.TCGGameRegistry?.label(c.brand) || 'TCG';
     const priceText = c.minPrice ? `$${c.minPrice}` : '-';
     return `
     <div class="search-result-item" data-card-id="${c.id}" style="display:grid; grid-template-columns:60px 1fr auto; gap:10px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.15s"
@@ -5527,8 +5540,8 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
   document.getElementById('slideNameEn').textContent = (product && product.name_en) || '';
   document.getElementById('slidePack').textContent = pack || '';
   const badge = document.getElementById('slideBadge');
-  badge.textContent = brand === 'onepiece' ? 'ONE PIECE' : 'POKEMON';
-  badge.className = 'slide-badge ' + (brand === 'onepiece' ? 'op' : 'pk');
+  badge.textContent = brand === 'onepiece' ? 'ONE PIECE' : brand === 'pokemon' ? 'POKEMON' : (window.TCGGameRegistry?.label(brand) || 'TCG');
+  badge.className = 'slide-badge ' + (brand === 'onepiece' ? 'op' : brand === 'pokemon' ? 'pk' : 'tcg');
   const imgWrap = document.getElementById('slideCardImg');
   imgWrap.innerHTML = image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
 
@@ -6693,17 +6706,17 @@ const CARDINFO = {
     {code:"OP12", name:"마스터의 유산 (Legacy of the Master)", release:"2025.05.24", url:"https://tcgrepublic.com/category/subcategory_page_10336.html"},
     {code:"OP11", name:"신속의 일격 (A Fist of Divine Speed)", release:"2025.02.22", url:"https://tcgrepublic.com/category/subcategory_page_10172.html"},
     {code:"EB02", name:"애니메이션 25주년 컬렉션 (Anime 25th)", release:"2025.01.25", url:"https://tcgrepublic.com/category/subcategory_page_10091.html"},
-    {code:"OP10", name:"로열 블러드 (Royal Blood)", release:"2024.11.30", url:"https://tcgrepublic.com/category/subcategory_page_9987.html"},
+    {code:"OP10", name:"로열 블러드 (Royal Blood)", boxId:"382246", release:"2024.11.30", url:"https://tcgrepublic.com/category/subcategory_page_9987.html"},
     {code:"OP09", name:"신세계의 황제들 (Emperors in the New World)", release:"2024.08.31", url:"https://tcgrepublic.com/category/subcategory_page_9758.html", boxId:"299926"},
     {code:"OP08", name:"두 전설 (Two Legends)", release:"2024.05.25", boxId:"190553", url:"https://tcgrepublic.com/category/subcategory_page_9499.html"},
     {code:"OP07", name:"500년 후의 미래 (500 Years in the Future)", release:"2024.02.24", url:"https://tcgrepublic.com/category/subcategory_page_9138.html", boxId:"178125"},
     {code:"EB01", name:"메모리얼 컬렉션 (Memorial Collection)", release:"2024.01.27", boxId:"165849", url:"https://tcgrepublic.com/category/subcategory_page_9054.html"},
     {code:"OP06", name:"선장의 날개 (Wings of Captain)", release:"2023.11.25", boxId:"145974", url:"https://tcgrepublic.com/category/category_page_67.html"},
-    {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", release:"2023.08.26", url:"https://tcgrepublic.com/category/subcategory_page_8690.html"},
+    {code:"OP05", name:"새로운 시대의 개막 (Awakening of the New Era)", boxId:"136035", release:"2023.08.26", url:"https://tcgrepublic.com/category/subcategory_page_8690.html"},
     {code:"OP04", name:"음모의 왕국 (Kingdoms of Intrigue)", release:"2023.05.27", url:"https://tcgrepublic.com/category/subcategory_page_8492.html"},
     {code:"OP03", name:"힘의 기둥 (Pillars of Strength)", release:"2023.02.11", boxId:"136033", url:"https://tcgrepublic.com/category/subcategory_page_8014.html"},
     {code:"OP02", name:"정상 전쟁 (Paramount War)", release:"2022.11.04", url:"https://tcgrepublic.com/category/subcategory_page_7712.html"},
-    {code:"OP01", name:"로맨스 던 (Romance Dawn)", release:"2022.07.22", url:"https://tcgrepublic.com/category/subcategory_page_7322.html"},
+    {code:"OP01", name:"로맨스 던 (Romance Dawn)", boxId:"136031", release:"2022.07.22", url:"https://tcgrepublic.com/category/subcategory_page_7322.html"},
   ],
 };
 CARDINFO.pokemon.sort((a,b)=>String(b.release||'').localeCompare(String(a.release||'')));
@@ -10952,7 +10965,7 @@ window.addEventListener('appinstalled', () => {
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261012-cn-names1"></script>
-<script src="/assets/english-catalog.js?v=20261012-cn-release1"></script>
+<script src="/assets/english-catalog.js?v=20261029-reference1"></script>
 <link rel="stylesheet" href="/assets/riftbound-catalog.css?v=20260909-rb1">
 <script src="/assets/riftbound-catalog.js?v=20260909-rb1"></script>
 

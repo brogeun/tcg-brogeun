@@ -278,7 +278,7 @@ jobs:
           done
           [ -d functions/price ] && cp -r functions/price _deploy/functions/price && echo "✓ functions/price/"
           echo "=== _deploy 디렉토리 구조 ==="
-          find _deploy -type f | head -30
+          find _deploy -type f | sed -n '1,30p'
           echo "=== data/ 파일 수 ==="
           ls _deploy/data/ 2>/dev/null | wc -l
 

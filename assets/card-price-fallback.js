@@ -14,7 +14,7 @@
   const cache=new Map(),tokens=new WeakMap();
   function fullNumber(target){return norm(target.fullNumber||target.fullCardNumber||target.cardNumber||target.number||'');}
   function productNumber(row,g){
-    const printedPatterns={weiss_schwarz:/^[A-Z0-9_.+-]+\/[A-Z0-9_.+-]+-[A-Z0-9_.+-]+$/,union_arena:/^(?:UA|EX|PC)[A-Z0-9]*[/-][A-Z0-9/_.+-]+$/,dragon_ball_fusion_world:/^(?:FB|FS|SB|ST|FP|E)[0-9]+-[A-Z0-9-]+$/,yugioh:/^[A-Z0-9]+-[A-Z0-9]+$/,digimon:/^[A-Z]+[0-9]*-[A-Z0-9-]+$/,onepiece:/^(?:OP|ST|EB|PRB)\d+-\d+[A-Z]*$/};
+    const printedPatterns={weiss_schwarz:/^[A-Z0-9_.+-]+\/[A-Z0-9_.+-]+-[A-Z0-9_.+-]+$/,union_arena:/^(?:UA|EX|PC)[A-Z0-9]*[/-][A-Z0-9/_.+-]+$/,dragon_ball_fusion_world:/^(?:FB|FS|SB|ST|FP|E)[0-9]+-[A-Z0-9-]+$/,yugioh:/^(?=.*[0-9])[A-Z0-9]+-[A-Z0-9]+$/,digimon:/^[A-Z]+[0-9]*-[A-Z0-9-]+$/,onepiece:/^(?:OP|ST|EB|PRB)\d+-\d+[A-Z]*$/};
     // The source title can distinguish T01 from T01R while its productNumber
     // reuses T01. Preserve the original full bracket, including E5 qualifiers.
     for(const match of String(row.name||'').matchAll(/\[([^\]]+)\]/g)){

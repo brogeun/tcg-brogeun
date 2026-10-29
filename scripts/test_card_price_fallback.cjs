@@ -156,3 +156,10 @@ test('an explicitly owned source product with unconfirmed printed number keeps i
   const result=await api.lookup(target,{fetchJson:async()=>{requests++;throw Error('Fallback must not be loaded');}});
   assert.equal(result.source,'snkrdunk');assert.equal(result.amount,2700);assert.equal(result.currency,'KRW');assert.equal(result.editionVerification,'unconfirmed');assert.equal(requests,0);
 });
+
+test('a hyphenated source title without a printed number does not override the actual source code',()=>{
+  const api=require('../assets/card-price-fallback.js');
+  const product={id:'92671',brand:'yugioh',kind:'card',language:'unknown',name:'Three-Legged Zombies USR[Three-Legged Zombies](LIMITED EDITION 1)',productNumber:'YGO-OCG-TCG-LE01K-003',fullCardNumber:'LE01K-003',minPrice:12,currency:'USD',listingCount:1,priceStatus:'available',url:'https://snkrdunk.com/apparels/92671'};
+  const result=api.resolve({id:'92671',game:'yugioh',language:'unknown',catalogSource:'SNKRDUNK',snkrdunkId:'92671',snkrProduct:product,fullCardNumber:'LE01K-003'});
+  assert.equal(result.source,'snkrdunk');assert.equal(result.amount,12);
+});

@@ -53,13 +53,10 @@ class WorkflowContractTests(unittest.TestCase):
         trigger = self.text.split("\npermissions:", 1)[0]
         self.assertIn("branches: [main]", trigger)
         self.assertIn("'scripts/game_registry.py'", trigger)
-        for script in ("metadata_index.py", "test_metadata_index.py", "test_price_metadata_shards.cjs", "build_cards_meta_index.py"):
-            self.assertIn("'scripts/" + script + "'", trigger)
-        for name in ["scripts/build_tcg_card_info.py","tests/test_build_tcg_card_info.py","assets/tcg-card-info.js","assets/tcg-card-info.css","assets/card-price-fallback.js","assets/contained-card-prices.js","scripts/test_tcg_card_info.cjs","scripts/test_card_price_fallback.cjs","scripts/test_contained_card_prices.cjs","scripts/test_card_info_pricing_integration.cjs"]:
-            self.assertIn("'" + name + "'", trigger)
-        self.assertIn(r"'functions/price/\[id\].js'", trigger)
         for script in ("collect_us_market.py", "collect_yuyutei_market.py", "collect_mercari_references.py", "collect_snkrdunk_games.py"):
             self.assertIn("'scripts/" + script + "'", trigger)
+        for name in ("assets/tcg-card-info.js", "assets/card-price-fallback.js", "scripts/build_tcg_card_info.py", ".github/workflows/market-references-daily.yml"):
+            self.assertNotIn("'" + name + "'", trigger)
         self.assertNotRegex(trigger, r"(?m)^\s+- ['\"]?data/")
         self.assertNotIn("workflow_run:", trigger)
 

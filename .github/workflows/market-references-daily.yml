@@ -6,37 +6,14 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    # Views and derived catalogues are checked by the deployment workflow.
+    # Only collector changes need an additional live-source refresh.
     paths:
-      - '.github/workflows/market-references-daily.yml'
       - 'scripts/collect_us_market.py'
-      - 'scripts/test_collect_us_market.py'
       - 'scripts/collect_yuyutei_market.py'
-      - 'tests/test_yuyutei_market.py'
       - 'scripts/collect_mercari_references.py'
-      - 'scripts/test_collect_mercari_references.py'
       - 'scripts/collect_snkrdunk_games.py'
       - 'scripts/game_registry.py'
-      - 'scripts/test_snkrdunk_games.py'
-      - 'scripts/metadata_index.py'
-      - 'scripts/test_metadata_index.py'
-      - 'scripts/test_price_metadata_shards.cjs'
-      - 'scripts/build_cards_meta_index.py'
-      - 'scripts/build_tcg_card_info.py'
-      - 'tests/test_build_tcg_card_info.py'
-      - 'assets/tcg-card-info.js'
-      - 'assets/tcg-card-info.css'
-      - 'assets/card-price-fallback.js'
-      - 'assets/contained-card-prices.js'
-      - 'scripts/test_tcg_card_info.cjs'
-      - 'scripts/test_card_price_fallback.cjs'
-      - 'scripts/test_contained_card_prices.cjs'
-      - 'scripts/test_card_info_pricing_integration.cjs'
-      - 'functions/price/\[id\].js'
-      - 'scripts/validate_reference_markets.py'
-      - 'scripts/test_validate_reference_markets.py'
-      - 'scripts/publish_data_snapshot.py'
-      - 'scripts/test_publish_data_snapshot.py'
-      - 'scripts/test_market_references_workflow.py'
 
 permissions:
   contents: write

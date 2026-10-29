@@ -23,6 +23,23 @@ Crawl-delay: 1
 export async function onRequest(context) {
   const url = new URL(context.request.url);
 
+  // The static /index.html rewrite canonicalizes this legacy destination to
+  // /. Serve the app here so old Card Info links keep their intended route.
+  if (/^\/cardinfo\/?$/.test(url.pathname)) {
+    if (!['GET','HEAD'].includes(context.request.method)) return new Response('Method not allowed', {status:405,headers:{Allow:'GET, HEAD'}});
+    const target = new URL('/', url);
+    target.search = url.search;
+    try {
+      const response = context.env.ASSETS
+        ? await context.env.ASSETS.fetch(new Request(target))
+        : await fetch(target);
+      if (!response.ok || !/\btext\/html\b/i.test(response.headers.get('Content-Type') || '')) return new Response('Page unavailable', {status:503});
+      return new Response(context.request.method === 'HEAD' ? null : response.body, {status:200,headers:response.headers});
+    } catch {
+      return new Response('Page unavailable', {status:503});
+    }
+  }
+
   // Serve the original set URLs from packed static assets. This keeps every
   // card and old client URL while avoiding Pages' per-deployment file limit.
   if (url.pathname.startsWith('/data/tcg-card-info/')) {

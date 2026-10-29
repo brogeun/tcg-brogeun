@@ -48,3 +48,12 @@ test('robots and unrelated routes retain their original behavior',async()=>{
   const robots=await request('/robots.txt');assert.equal(robots.result.status,200);assert.match(await robots.result.text(),/Sitemap: https:\/\/tcghub.kr\/sitemap.xml/);assert.equal(robots.calls.length,0);
   const ordinary=await request('/api/auth/me');assert.equal(ordinary.next,1);assert.equal(ordinary.calls.length,0);
 });
+test('legacy Card Info destinations serve HTML without canonicalizing back to home',async()=>{
+  for(const path of ['/cardinfo?verify=source','/cardinfo/']) {
+    const {result,calls,next}=await request(path,{asset:new Response('<html>TCGHUB</html>',{headers:{'Content-Type':'text/html; charset=utf-8','X-Test-Asset':'preserved'}})});
+    assert.equal(result.status,200);assert.equal(await result.text(),'<html>TCGHUB</html>');assert.equal(result.headers.get('Location'),null);
+    assert.equal(result.headers.get('X-Test-Asset'),'preserved');assert.equal(next,0);assert.equal(calls[0],path.includes('?')?'https://tcghub.kr/?verify=source':'https://tcghub.kr/');
+  }
+  const bad=await request('/cardinfo',{asset:new Response('missing',{status:404})});assert.equal(bad.result.status,503);
+  const head=await request('/cardinfo',{method:'HEAD',asset:new Response('<html>TCGHUB</html>',{headers:{'Content-Type':'text/html'}})});assert.equal(await head.result.text(),'');assert.equal(head.result.status,200);
+});

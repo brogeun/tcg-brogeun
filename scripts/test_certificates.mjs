@@ -311,6 +311,7 @@ test('PSA accepts and verifies repeated same-day submissions beyond the former p
 test('PSA shares one lookup beyond the former subscriber limit and preserves exclusive registration',async()=>{
   const env=await fixture();
   for(let userId=1;userId<=21;userId++) {
+    await env.DB.prepare('INSERT OR IGNORE INTO users(id,email) VALUES (?,?)').bind(userId,`subscriber-${userId}@audit.invalid`).run();
     const accepted=await submit(env,{holding_id:undefined},userId);
     assert.equal(accepted.http,202,`subscriber ${userId} must be accepted`);
   }
@@ -345,6 +346,7 @@ test('BGS accepts and completes same-user submissions beyond the former pending 
 test('BGS shares one lookup beyond the former subscriber limit and preserves exclusive registration',async()=>{
   const env=await fixture();
   for(let userId=1;userId<=21;userId++) {
+    await env.DB.prepare('INSERT OR IGNORE INTO users(id,email) VALUES (?,?)').bind(userId,`subscriber-${userId}@audit.invalid`).run();
     const accepted=await submit(env,{cert_number:'0016097088',card_id:'22222',holding_id:undefined},userId,'bgs');
     assert.equal(accepted.http,202,`subscriber ${userId} must be accepted`);
   }

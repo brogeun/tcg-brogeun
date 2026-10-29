@@ -11,6 +11,16 @@ function setup(fetcher){const ctx=vm.createContext({console,AbortSignal,fetch:fe
 function host(id){const nodes=Object.fromEntries(['main','origin','stock','note'].map(name=>['[data-card-price-'+name+']',{textContent:'recorded '+name}]));return {dataset:{liveCardPrice:id},isConnected:true,nodes,querySelector:s=>nodes[s]};}
 const container=(...hosts)=>({hosts,querySelectorAll(){return this.hosts;}});
 const format={formatKrw:(n,c)=>{assert.equal(c,'JPY');return '₩'+(n*10).toLocaleString('en-US');},formatOrig:(n,c)=>{assert.equal(c,'JPY');return '¥'+n.toLocaleString('en-US');}};
+test('the exact reported partial English query finds the two Japanese Rocks designs only',()=>{
+  const api=setup(async()=>{throw Error('Search must not fetch prices synchronously');});
+  const products=api.products(manifest.onepieceDon.map(card=>row(card.productId,{name:card.marketName,productNumber:'OPC-TCG-OP-17-DON'})).concat(row('882454',{name:'DON!! Card :Gold Text (Rocks Pirates)',productNumber:'OPC-TCG-OP-17-DON'})));
+  const ctx=vm.createContext({console,URLSearchParams,CardCatalogRepairs:api,_ALL_CARDS_INDEX:products,_SEARCH_ALIASES:{}});ctx.window=ctx;
+  for(const file of ['assets/japanese-card-names.js','assets/japanese-catalog.js'])vm.runInContext(read(file),ctx);
+  ctx.JapaneseCardNames.configure({schemaVersion:1});ctx.JapaneseCatalog.configure({schemaVersion:1,sets:[],cards:[]});ctx.JapaneseCatalog.setProducts(products);
+  vm.runInContext(html.slice(html.indexOf('function searchCards('),html.indexOf('function renderSearchResults(')),ctx);
+  for(const query of ['don!! card (rock','don!! card rocks','록스 해적단','ロックス海賊団'])assert.deepEqual(Array.from(ctx.searchCards(query,Infinity),r=>r.id).sort(),['871082','881694'],query);
+  assert(!ctx.searchCards('OP17 골드',Infinity).some(r=>r.id==='871082'),'Diamond must not inherit the source title\'s Gold Text label');
+});
 test('Japanese 3500 JPY quote replaces cached USD 33 without changing the stored product',async()=>{
   const calls=[],api=setup(async url=>{calls.push(url);return {ok:true,json:async()=>quote('871082')};});
   const product=row(),before=JSON.stringify(product),h=host(product.id);

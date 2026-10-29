@@ -52,7 +52,7 @@
       thumbnailUrl:card.image,
       // Source titles call the Rocks Diamond "Gold Text". Search the reviewed
       // finish, so an explicit Gold query cannot select the Diamond printing.
-      nameLower:[card.name,card.nameKo,card.setCode,'OP-17','돈 돈카드 don ドン',card.versionLabel,card.searchAliases].join(' ').toLowerCase()});
+      nameLower:[card.name,card.nameKo,String(card.marketName||'').replace(/\b(?:Gold\s+Text|Super\s+Parallel)\b/gi,''),card.setCode,'OP-17','돈 돈카드 don ドン',card.versionLabel,card.searchAliases].join(' ').toLowerCase()});
     const rows=source.map(product=>{
       if(product.brand!=='onepiece'||product.kind!=='card'||!/^opc-tcg-op-17-don$/i.test(product.productNumber||''))return product;
       const card=reviewed.get(String(product.id));

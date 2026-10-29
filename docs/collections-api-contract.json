@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "status": "implementation-in-progress",
+  "privateHeaders": {"X-Collection-Account": "authenticated account UUID on every request"},
+  "writeHeaders": {"Origin": "exact API request origin", "Content-Type": "application/json"},
+  "responses": {"common": ["ok", "accountId", "catalogVersion"], "privateCache": "no-store", "errors": {"400": "invalid input", "401": "anonymous/expired/deleted account", "403": "cross-origin write", "404": "absent or another account's collection", "409": "revision/account/catalog-version/idempotency conflict", "413": "body/items limit", "415": "non-JSON write", "503": "disabled/read-only/missing DB/schema/catalog"}},
+  "limits": {"activeCollectionsPerAccount": 50, "cardsPerCollection": 5000, "cardsPerItemsMutation": 100, "cardsPerOwnershipRead": 100, "bodyBytes": 262144, "titleCodePoints": 60, "descriptionCodePoints": 500, "listPageMax": 50},
+  "id": "UUID collection id; immutable cp1_UUID printing ids",
+  "snapshot": {"kind": "manual|artist|character", "artistId": "required for artist", "characterId": "required for character", "game": "optional supported game", "language": "optional ja|en|zh-CN|ko", "includeMega": "optional boolean for character", "includeEvolution": "optional boolean for character"},
+  "routes": [
+    {"method": "GET", "path": "/api/collections?limit=50&cursor=0", "response": {"collections": "summaries without cardKeys", "nextCursor": "offset string or null"}},
+    {"method": "POST", "path": "/api/collections", "body": ["id", "title", "description?", "cardKeys[]", "snapshot?", "catalogVersion"], "response": "collection full record plus ownership; idempotent id + original payload"},
+    {"method": "GET", "path": "/api/collections/:id", "response": "collection full record including cardKeys and ownership"},
+    {"method": "PATCH", "path": "/api/collections/:id", "body": ["expectedRevision", "title?", "description?", "mutationId?"], "response": "collection full record"},
+    {"method": "DELETE", "path": "/api/collections/:id", "body": ["expectedRevision", "mutationId?"], "response": {"deleted": true, "id": "UUID", "revision": "integer"}},
+    {"method": "PUT", "path": "/api/collections/:id/items", "body": ["expectedRevision", "addCardKeys[]", "removeCardKeys[]", "catalogVersion", "mutationId?"], "response": "collection full record"},
+    {"method": "GET", "path": "/api/collection-ownership?cardKeys=cp1_UUID,cp1_UUID", "response": {"ownership": {"cp1_UUID": {"manualOwned": "boolean", "holdingOwned": "boolean", "owned": "boolean", "revision": "manual state integer; 0 if absent"}}}},
+    {"method": "PUT", "path": "/api/collection-ownership", "body": ["cardKey", "manualOwned", "expectedRevision", "catalogVersion", "mutationId?"], "response": "ownership map for one key"}
+  ],
+  "collectionRecord": ["id", "title", "description", "revision", "itemCount", "ownedCount", "createdAt", "updatedAt", "snapshot", "sourceCatalogVersion", "cardKeys (detail only)", "ownership (detail only)"],
+  "idempotency": "Reuse mutationId(UUID) for retries. If absent, exact normalized operation payload including expectedRevision deterministically identifies the request. Successful replay returns replayed:true and acceptedRevision; current collection may have a later revision.",
+  "ownershipRule": "manual mark OR exact verified single-print SNKRDUNK link and this account's positive-qty raw/psa9/psa10 holding. Never box. Membership/manual marks never write holdings or transactions.",
+  "storage": "One atomic collections row with items_json and revision; private user_card_states; durable collection_mutations receipts. Snapshot create validates all explicit keys before one INSERT. No partial list.",
+  "runtimeFlags": {"COLLECTIONS_ENABLED": "0 or false disables feature", "COLLECTIONS_READ_ONLY": "1 or true rejects writes", "COLLECTIONS_LAZY_SCHEMA": "authenticated additive schema bootstrap is on by default; 0 or false requires supplied migration first"},
+  "validation": "Current catalogVersion required for create/items/ownership writes; ordinary private requests read the small manifest.json only. Artist/character snapshot create additionally loads catalog.json and requires matching version/readOnly. Character sourceOnly keys are rejected. Only trusted same-origin static catalog and registry are accepted; no session cookie/auth header is forwarded to static asset fetches. Same-origin/binding old shard versions are evicted and cache is limited to 16 shards.",
+  "limitations": ["Missing-price totals are not implemented by these endpoints.", "D1 staging and production verification remain required.", "Deletion keeps an owner-private tombstone and operation receipts for retry safety until account deletion."]
+}

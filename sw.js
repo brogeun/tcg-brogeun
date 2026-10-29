@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-integration-native-20261026-v3';
+const CACHE_VERSION = 'tcghub-collections-20261029-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -56,6 +56,13 @@ self.addEventListener('fetch', event => {
   // /api/* — 항상 네트워크 (인증/실시간 데이터)
   if (url.pathname.startsWith('/api/')) {
     return; // 기본 fetch 사용
+  }
+
+  // Keep collection registry shards and their decoder on the same reviewed release.
+  // Private /api routes above remain network-only and never enter Cache Storage.
+  if (url.origin === location.origin && (url.pathname.startsWith('/data/collections/') || ['/assets/collections.js', '/assets/collections.css', '/assets/collection-catalog-codec.js', '/assets/card-rarity-filters.js', '/assets/card-rarity-filters.css'].includes(url.pathname))) {
+    event.respondWith(networkFirst(req, url.pathname.startsWith('/data/') ? DATA_CACHE : STATIC_CACHE));
+    return;
   }
 
   // Chinese daily FX snapshots must not use an older cached rate.

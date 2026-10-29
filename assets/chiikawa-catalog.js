@@ -63,6 +63,7 @@
   let activeSet = null;
   let selectedCard = null;
   let cardQuery = '';
+  let cardRarities = [];
   let page = 1;
   let gridScroll = 0;
   let focusCardId = '';
@@ -318,12 +319,17 @@
     if (!activeSet || !owns()) return;
     const grid = document.getElementById('ckCardGrid');
     if (!grid) return;
-    const cards = activeSet.cards.filter(card => matches(card, cardQuery));
+    const rarityCards = window.CardRarityFilters?.filter(activeSet.cards, cardRarities) || activeSet.cards;
+    const cards = rarityCards.filter(card => matches(card, cardQuery));
     const total = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
     page = Math.max(1, Math.min(page, total));
     grid.innerHTML = cards.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map(card => `<button type="button" class="ck-card" data-ck-card="${esc(card.id)}" aria-label="${esc(card.name + ', ' + card.number)} 카드 정보">${imageHTML(card)}<span class="ck-card-copy"><strong>${esc(card.name)}</strong><span class="ck-card-number">${esc(card.number)}</span><span class="ck-badges">${badges(card)}</span></span></button>`).join('') || '<div class="ck-message">검색 결과가 없습니다. 카드 이름·번호·레어도를 확인해 주세요.</div>';
     const count = document.getElementById('ckCardCount');
-    count.textContent = `${activeSet.cards.length}개 카드${cardQuery ? ' · 검색 ' + cards.length + '개' : ''} · ${page} / ${total} 페이지`;
+    count.textContent = `${activeSet.cards.length}개 카드${cardQuery || cardRarities.length ? ' · 결과 ' + cards.length + '개' : ''} · ${page} / ${total} 페이지`;
+    window.CardRarityFilters?.mount(document.getElementById('ckRarityFilters'), {cards:activeSet.cards, selected:cardRarities, onChange(next) {
+      cardRarities = next; page = 1; gridScroll = 0; gridBody();
+      const scroll = document.getElementById('ckPanelScroll'); if (scroll) scroll.scrollTop = 0;
+    }});
     const pages = document.getElementById('ckCardPages');
     pages.innerHTML = pager(page, total);
     pages.hidden = total <= 1;
@@ -333,7 +339,7 @@
   function gridPanel(restore = false) {
     if (!activeSet) return;
     selectedCard = null;
-    present(`${toolbar()}<div class="ck-set-heading"><span>${esc(PRODUCT_TYPES[activeSet.productType])} · ${esc(activeSet.code)}</span><h2 id="ckPanelTitle">${esc(activeSet.name)}</h2>${activeSet.nameJa && activeSet.nameJa !== activeSet.name ? `<p lang="ja">${esc(activeSet.nameJa)}</p>` : ''}${releaseHTML(activeSet, 'p')}</div><label class="ck-search">카드 검색<input id="ckCardSearch" type="search" autocomplete="off" placeholder="이름·번호·레어도 (예: 하치와레, SSP)" value="${esc(cardQuery)}"></label><div class="ck-scroll" id="ckPanelScroll">${setFactsHTML(activeSet)}<p class="ck-count" id="ckCardCount" role="status" aria-live="polite"></p><div class="ck-card-grid" id="ckCardGrid"></div></div><nav class="ck-pages" id="ckCardPages" aria-label="수록 카드 페이지 이동"></nav>`, 'ckPanelTitle');
+    present(`${toolbar()}<div class="ck-set-heading"><span>${esc(PRODUCT_TYPES[activeSet.productType])} · ${esc(activeSet.code)}</span><h2 id="ckPanelTitle">${esc(activeSet.name)}</h2>${activeSet.nameJa && activeSet.nameJa !== activeSet.name ? `<p lang="ja">${esc(activeSet.nameJa)}</p>` : ''}${releaseHTML(activeSet, 'p')}</div><label class="ck-search">카드 검색<input id="ckCardSearch" type="search" autocomplete="off" placeholder="이름·번호·레어도 (예: 하치와레, SSP)" value="${esc(cardQuery)}"></label><div class="ck-scroll" id="ckPanelScroll">${setFactsHTML(activeSet)}<div class="ci-rarity-summary"><p class="ck-count" id="ckCardCount" role="status" aria-live="polite"></p><div id="ckRarityFilters"></div></div><div class="ck-card-grid" id="ckCardGrid"></div></div><nav class="ck-pages" id="ckCardPages" aria-label="수록 카드 페이지 이동"></nav>`, 'ckPanelTitle');
     gridBody();
     if (restore) {
       const scroll = document.getElementById('ckPanelScroll');
@@ -380,6 +386,7 @@
     activeSet = null;
     selectedCard = null;
     cardQuery = '';
+    cardRarities = [];
     page = 1;
     gridScroll = 0;
     focusCardId = '';

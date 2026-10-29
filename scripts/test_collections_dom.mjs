@@ -1,0 +1,84 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {createHash,webcrypto} from 'node:crypto';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {parseHTML} from './fixtures/linkedom.worker.mjs';
+import {fileURLToPath} from 'node:url';
+import {dirname,join} from 'node:path';
+// The pinned ISC-licensed worker is a test-only local fixture; CI needs no npm
+// install, remote script, user workspace path, real browser or network access.
+const overlay=join(dirname(fileURLToPath(import.meta.url)),'..');
+const source=readFileSync(overlay+'/assets/collections.js','utf8');
+const css=readFileSync(overlay+'/assets/collections.css','utf8');
+const key=n=>'cp1_00000000-0000-5000-8000-'+String(n).padStart(12,'0');
+const A='pokemon:Artist A',B='pokemon:Artist B',C='pokemon:species:15',F='pokemon:species:14';
+const card=(n,more={})=>({id:key(n),sourceKey:'jp:'+n,game:'pokemon',language:'ja',name:'카드 '+n,nameOriginal:'Card '+n,number:String(n),setCode:'SV1',image:'https://example.test/card-'+n+'.webp',artistIds:[],characterIds:[],rarity:'AR',marketVerified:false,...more});
+const ja=[card(1,{artistIds:[A]}),card(2,{artistIds:[A]}),card(3,{artistIds:[A]})];
+for(let i=10;i<32;i++)ja.push(card(i,{artistIds:[B],name:i===31?'검색끝 카드':'큰작가 카드 '+i}));
+ja.push(card(40,{name:'독침붕',characterIds:[C]}),card(41,{name:'메가독침붕',form:'mega',characterIds:[C]}),card(42,{name:'딱충이',characterIds:[F]}),card(43,{name:'출처독침붕',sourceOnly:true,characterIds:[C]}));
+const en=[card(50,{name:'Beedrill',language:'en',characterIds:[C],sprite:{col:2,row:1,cols:4,rows:3}})];
+const profile=(id,name,ids)=>({id,name,ko:name,game:'pokemon',aliases:[name],knownFor:'확인된 작가',cardIds:ids,coverCardId:ids[0],coverCard:{id:ids[0],name,image:'https://example.test/cover.webp',game:'pokemon',language:'ja'},coverLanguage:'ja',shardKeys:['pokemon-ja']});
+const catalog={schemaVersion:1,version:'test-v1',artists:[profile(A,'작가 A',[key(1),key(2),key(3)]),profile(B,'작가 B',ja.filter(c=>c.artistIds.includes(B)).map(c=>c.id))],characters:[{...profile(C,'독침붕',[key(40),key(41),key(50)]),evolutionIds:[C,F],taxonomyStatus:'verified',shardKeys:['pokemon-ja','pokemon-en']},{...profile(F,'딱충이',[key(42)]),evolutionIds:[C,F],taxonomyStatus:'verified'}],featuredArtists:[A,B],featuredCharacters:[C,F],shards:{'pokemon-ja':'/data/collections/cards/pokemon-ja.json','pokemon-en':'/data/collections/cards/pokemon-en.json'},coverage:{}};
+function boot({owner='owner-a',lostCreate=false}={}){
+  const {window}=parseHTML('<html><body data-page="cardinfo"><div id="ciTabs"><button class="tab" data-ci="pokemon">포켓몬</button><button class="tab" data-ci="onepiece">원피스</button><button class="tab" data-ci="chiikawa">치이카와</button></div><div id="cardInfoSearchWrap">박스검색</div><div id="cardInfoSrc"></div><div id="encLanguages">언어</div><div id="cardInfoList">기존박스</div></body></html>');
+  const document=window.document;
+  window.HTMLElement.prototype.focus=function(){};window.HTMLInputElement.prototype.setSelectionRange=function(){};
+  Object.defineProperty(window,'crypto',{configurable:true,value:webcrypto});
+  Object.defineProperty(window.HTMLInputElement.prototype,'checked',{configurable:true,get(){return this.hasAttribute('checked');},set(v){if(v)this.setAttribute('checked','');else this.removeAttribute('checked');}});
+  Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return (this.querySelector('option[selected]')||this.querySelector('option'))?.getAttribute('value')||'';},set(v){for(const o of this.querySelectorAll('option')){if(o.getAttribute('value')===v)o.setAttribute('selected','');else o.removeAttribute('selected');}}});
+  const records=new Map([['owner-a',[]],['owner-b',[]]]),marks=new Map(),holdings=new Set([key(1)]),calls=[],toasts=[];
+  let lose=lostCreate,loginCalls=0,heldList=null,blockList=false;
+  const states=(account,ids)=>Object.fromEntries(ids.map(id=>{const m=marks.get(account+':'+id)||{manualOwned:false,revision:0};const holdingOwned=account==='owner-a'&&holdings.has(id);return [id,{...m,holdingOwned,owned:m.manualOwned||holdingOwned}];}));
+  const full=(account,c)=>({...c,itemCount:c.cardKeys.length,ownership:states(account,c.cardKeys),ownedCount:Object.values(states(account,c.cardKeys)).filter(s=>s.owned).length});
+  const answer=(account,payload,status=200)=>({ok:status<400,status,json:async()=>({ok:status<400,accountId:account,catalogVersion:'test-v1',...payload})});
+  const fetch=async(url,options={})=>{
+    calls.push({url,options,body:options.body?JSON.parse(options.body):undefined});
+    if(url.startsWith('/data/collections/catalog'))return {ok:true,json:async()=>structuredClone(catalog)};
+    if(url.startsWith('/data/collections/cards/'))return {ok:true,json:async()=>({schemaVersion:1,version:'test-v1',cards:structuredClone(url.includes('pokemon-en')?en:ja)})};
+    const account=options.headers['X-Collection-Account'];assert.ok(account);const u=new URL(url,'https://tcghub.kr'),method=options.method||'GET';const body=options.body?JSON.parse(options.body):{};
+    if(u.pathname==='/api/collection-ownership'){
+      if(method==='GET')return answer(account,{ownership:states(account,(u.searchParams.get('cardKeys')||'').split(','))});
+      const old=marks.get(account+':'+body.cardKey)||{manualOwned:false,revision:0};if(old.revision!==body.expectedRevision)return answer(account,{message:'conflict'},409);
+      marks.set(account+':'+body.cardKey,{manualOwned:body.manualOwned,revision:old.revision+1});return answer(account,{ownership:states(account,[body.cardKey])});
+    }
+    if(u.pathname==='/api/collections'){
+      if(method==='GET'){
+        const result=()=>answer(account,{collections:(records.get(account)||[]).map(c=>{const x=full(account,c);delete x.cardKeys;delete x.ownership;return x;})});
+        if(blockList&&account==='owner-a'){heldList=()=>result();return new Promise(resolve=>{heldList=()=>resolve(result());});}
+        return result();
+      }
+      assert.ok(!('includeMega' in body.snapshot)||body.snapshot.kind==='character');assert.ok(body.snapshot.language!=='all');
+      const list=records.get(account)||[];let c=list.find(c=>c.id===body.id);if(!c){c={id:body.id,title:body.title,description:'',revision:1,cardKeys:[...new Set(body.cardKeys)],snapshot:body.snapshot};list.push(c);records.set(account,list);}else assert.equal(c.title,body.title);
+      if(lose){lose=false;throw new TypeError('Response lost after server commit');}return answer(account,{collection:full(account,c)},201);
+    }
+    const parts=u.pathname.split('/'),id=parts[3],list=records.get(account)||[],c=list.find(x=>x.id===id);assert.ok(c,'missing server collection '+id);
+    if(method==='GET')return answer(account,{collection:full(account,c)});
+    if(c.revision!==body.expectedRevision)return answer(account,{message:'conflict'},409);
+    if(method==='DELETE'){records.set(account,list.filter(x=>x.id!==id));return answer(account,{deleted:true,id,revision:c.revision+1});}
+    if(method==='PATCH')c.title=body.title;
+    if(parts[4]==='items'){c.cardKeys=[...new Set([...c.cardKeys,...body.addCardKeys])].filter(x=>!body.removeCardKeys.includes(x));}
+    c.revision++;return answer(account,{collection:full(account,c)});
+  };
+  const context=vm.createContext({window,document,fetch,URL,AbortController,Element:window.Element,console,setTimeout,clearTimeout,crypto:webcrypto,structuredClone});
+  vm.runInContext(`let CI_TAB='pokemon';let CURRENT_USER=${owner?JSON.stringify({id:owner}):'null'};function renderCardInfo(){document.getElementById('cardInfoList').textContent='기존 '+CI_TAB;} function openLoginModal(){__login();} function showToast(message,type){__toast(message,type);} document.addEventListener('click',e=>{const t=e.target.closest('#ciTabs .tab');if(t){CI_TAB=t.dataset.ci;renderCardInfo();}});`,vm.createContext(Object.assign(context,{__login:()=>loginCalls++,__toast:(m,t)=>toasts.push({message:m,type:t})})));
+  vm.runInContext(source,context);
+  const tick=async()=>{for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));};
+  const click=selector=>{const el=document.querySelector(selector);assert.ok(el,'missing '+selector);assert.ok(!el.disabled,'disabled '+selector);el.dispatchEvent(new window.Event('click',{bubbles:true}));return el;};
+  const input=(selector,value)=>{const el=document.querySelector(selector);assert.ok(el,selector);el.value=value;el.dispatchEvent(new window.Event('input',{bubbles:true}));};
+  const change=(selector,value)=>{const el=document.querySelector(selector);assert.ok(el,selector);if(el.type==='checkbox')el.checked=value;else el.value=value;el.dispatchEvent(new window.Event('change',{bubbles:true}));};
+  const submit=selector=>document.querySelector(selector).dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  const enter=async()=>{click('#ciTabs [data-ci="collections"]');await tick();};
+  return {window,document,calls,records,marks,holdings,toasts,tick,click,input,change,submit,enter,context,get loginCalls(){return loginCalls;},blockAList(){blockList=true;},releaseAList(){heldList?.();},switchOwner(id){vm.runInContext('CURRENT_USER='+JSON.stringify(id?{id}:null),context);window.TCGCollections.sessionChanged(id?{id}:null);}};
+}
+const checks=[];async function check(name,fn){await fn();checks.push(name);}
+await check('initial collection entry uses index only and hides foreign catalog chrome',async()=>{const a=boot();await a.enter();assert.equal(a.calls.filter(c=>c.url.includes('/cards/')).length,0);assert.equal(a.document.querySelectorAll('[data-tcc-tab]').length,3);assert.equal(a.document.querySelector('#ciTabs').lastElementChild.dataset.ci,'collections');assert.ok(a.document.body.classList.contains('tcc-collections-active'));assert.ok(css.includes('body.tcc-collections-active #cardInfoList'));a.click('#ciTabs [data-ci="pokemon"]');assert.equal(a.document.querySelector('#tcgCollections').hidden,true);assert.ok(!a.document.body.classList.contains('tcc-collections-active'));});
+await check('anonymous browsing is public-only and save invokes existing login',async()=>{const a=boot({owner:null});await a.enter();a.click('[data-tcc-entity="'+A+'"]');await a.tick();assert.equal(a.document.querySelectorAll('.tcc-card').length,3);a.click('[data-tcc-action="save-scope"]');assert.equal(a.loginCalls,1);assert.equal(a.calls.filter(c=>c.url.startsWith('/api/')).length,0);});
+await check('only selected language shard loads and character mega evolution source-only bounds hold',async()=>{const a=boot();await a.enter();a.click('[data-tcc-tab="characters"]');a.click('[data-tcc-entity="'+C+'"]');await a.tick();assert.equal(a.calls.filter(c=>c.url.includes('/cards/')).length,1);assert.equal(a.document.querySelectorAll('.tcc-card').length,2);a.change('[data-tcc-mega]',false);await a.tick();assert.equal(a.document.querySelectorAll('.tcc-card').length,1);a.change('[data-tcc-evolution]',true);await a.tick();assert.equal(a.document.querySelectorAll('.tcc-card').length,2);a.change('[data-tcc-language]','en');await a.tick();assert.equal(a.document.querySelectorAll('.tcc-card').length,1);assert.ok(a.document.querySelector('.tcc-card-art .tcc-sprite'));});
+await check('late search result obtains its own global ownership instead of page-one IDs',async()=>{const a=boot();await a.enter();a.click('[data-tcc-entity="'+B+'"]');await a.tick();assert.equal(a.document.querySelectorAll('.tcc-card').length,18);a.input('#tccCardQuery','검색끝');await a.tick();assert.equal(a.document.querySelectorAll('.tcc-card').length,1);const input=a.document.querySelector('input[data-tcc-own="'+key(31)+'"]');assert.ok(input&&!input.disabled);assert.ok(a.calls.some(c=>c.url.startsWith('/api/collection-ownership')&&decodeURIComponent(c.url).includes(key(31))));});
+await check('snapshot retries reuse UUID and exact first payload after response loss',async()=>{const a=boot({lostCreate:true});await a.enter();a.click('[data-tcc-entity="'+A+'"]');await a.tick();a.click('[data-tcc-action="save-scope"]');a.document.querySelector('#tccCollectionTitle').value='실제 목표';a.submit('#tccCreateForm');await a.tick();assert.ok(a.document.querySelector('#tccCreateForm'));a.document.querySelector('#tccCollectionTitle').value='retry changed input';a.submit('#tccCreateForm');await a.tick();const creates=a.calls.filter(c=>c.url==='/api/collections'&&c.options.method==='POST');assert.equal(creates.length,2);assert.deepEqual(creates[0].body,creates[1].body);assert.equal(a.records.get('owner-a').length,1);assert.equal(a.records.get('owner-a')[0].cardKeys.length,3);assert.ok(a.document.querySelector('.tcc-personal-detail').textContent.includes('실제 목표'));assert.equal(a.marks.size,0);});
+await check('collection removal and deletion leave ownership marks and holdings unchanged',async()=>{const a=boot();await a.enter();a.click('[data-tcc-entity="'+A+'"]');await a.tick();a.change('input[data-tcc-own="'+key(2)+'"]',true);await a.tick();assert.equal(a.marks.get('owner-a:'+key(2)).manualOwned,true);a.click('[data-tcc-action="save-scope"]');a.document.querySelector('#tccCollectionTitle').value='삭제 범위';a.submit('#tccCreateForm');await a.tick();a.click('[data-tcc-remove="'+key(2)+'"]');await a.tick();assert.equal(a.records.get('owner-a')[0].cardKeys.length,2);assert.equal(a.marks.get('owner-a:'+key(2)).manualOwned,true);a.click('[data-tcc-action="delete"]');a.click('[data-tcc-action="confirm-delete"]');await a.tick();assert.equal(a.records.get('owner-a').length,0);assert.equal(a.marks.get('owner-a:'+key(2)).manualOwned,true);assert.ok(a.holdings.has(key(1)));});
+await check('holdings sale refreshes on collection reentry while manual mark persists',async()=>{const a=boot();await a.enter();a.click('[data-tcc-entity="'+A+'"]');await a.tick();assert.equal(a.document.querySelector('input[data-tcc-own="'+key(1)+'"]').checked,true);a.change('input[data-tcc-own="'+key(2)+'"]',true);await a.tick();a.click('#ciTabs [data-ci="pokemon"]');a.holdings.delete(key(1));await a.enter();await a.tick();assert.equal(a.document.querySelector('input[data-tcc-own="'+key(1)+'"]').checked,false);assert.equal(a.document.querySelector('input[data-tcc-own="'+key(2)+'"]').checked,true);});
+await check('ownership also refreshes on focus without cancelling manual marks',async()=>{const a=boot();await a.enter();a.click('[data-tcc-entity="'+A+'"]');await a.tick();a.holdings.delete(key(1));a.window.dispatchEvent(new a.window.Event('focus'));await a.tick();assert.equal(a.document.querySelector('input[data-tcc-own="'+key(1)+'"]').checked,false);});
+await check('other account list cannot repopulate after delayed response',async()=>{const a=boot();a.records.set('owner-a',[{id:'a',title:'private A',revision:1,cardKeys:[key(1)],snapshot:{kind:'manual'}}]);a.records.set('owner-b',[{id:'b',title:'private B',revision:1,cardKeys:[key(2)],snapshot:{kind:'manual'}}]);await a.enter();a.blockAList();a.click('[data-tcc-tab="personal"]');await a.tick();a.switchOwner('owner-b');await a.tick();a.releaseAList();await a.tick();assert.ok(!a.document.querySelector('#tcgCollections').textContent.includes('private A'));assert.ok(a.document.querySelector('#tcgCollections').textContent.includes('private B'));});
+await check('old account add-to-collection click cannot reopen a modal after account switch',async()=>{const a=boot();await a.enter();a.click('[data-tcc-entity="'+A+'"]');await a.tick();a.blockAList();a.click('[data-tcc-add="'+key(2)+'"]');await a.tick();a.switchOwner('owner-b');await a.tick();a.releaseAList();await a.tick();const modal=a.document.querySelector('.tcc-modal-overlay');assert.ok(!modal||modal.hidden);assert.equal(a.calls.filter(c=>c.options.method==='POST').length,0);});
+const report={passed:checks.length,failed:0,checks,sourceSha256:createHash('sha256').update(source).digest('hex'),scope:'Offline production-module DOM integration with synthetic public catalog and private API; no actual account or portfolio writes.'};if(process.env.COLLECTIONS_DOM_REPORT)writeFileSync(process.env.COLLECTIONS_DOM_REPORT,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));

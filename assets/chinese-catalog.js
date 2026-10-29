@@ -3,7 +3,7 @@
   'use strict';
   const VERSION='20261012-cn-names1', PAGE_SIZE=24, CARDS_PER_PAGE=18;
   let catalog, ready, searchReady, page=1, lastQuery='', renderRequest=0, request=0;
-  let active, currentCard, opener, cardPage=1, cardQuery='', cardScroll=0, linkNotice='';
+  let active, currentCard, opener, cardPage=1, cardQuery='', cardRarities=[], cardScroll=0, linkNotice='';
   const cardCache=new Map();
   let market, marketReady, marketFailed=false;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -173,14 +173,15 @@
   }
   function setBody(){
     if(!active||!document.getElementById('cnCardGrid'))return;
-    const words=String(cardQuery).trim().split(/\s+/).map(normalize).filter(Boolean),filtered=active.cards.filter(c=>words.every(w=>c.searchText.includes(w))),total=Math.max(1,Math.ceil(filtered.length/CARDS_PER_PAGE));cardPage=Math.max(1,Math.min(cardPage,total));
+    const words=String(cardQuery).trim().split(/\s+/).map(normalize).filter(Boolean),rarityFiltered=window.CardRarityFilters?.filter(active.cards,cardRarities)||active.cards,filtered=rarityFiltered.filter(c=>words.every(w=>c.searchText.includes(w))),total=Math.max(1,Math.ceil(filtered.length/CARDS_PER_PAGE));cardPage=Math.max(1,Math.min(cardPage,total));
     document.getElementById('cnCardGrid').innerHTML=filtered.slice((cardPage-1)*CARDS_PER_PAGE,cardPage*CARDS_PER_PAGE).map(c=>'<button type="button" class="set-card-item enc-card cn-card" data-cn-card="'+esc(c.id)+'" aria-label="'+esc(name(c)+' '+c.number+' '+variantName(c)+' 카드 정보')+'"><span class="set-card-img enc-card-image">'+art(c)+'</span><span class="set-card-num"><strong>'+esc(name(c))+'</strong><span>'+esc(c.number)+' · '+esc(c.rarity||'—')+'</span>'+(c.variant?'<span class="cn-card-variant">'+esc(variantName(c))+'</span>':'')+'</span></button>').join('')||'<p>검색 결과가 없습니다.</p>';
     document.getElementById('cnCardPages').innerHTML=pagination(cardPage,total,'data-cn-card-page');
-    document.getElementById('cnCardCount').innerHTML='총 '+(active.printedCardCount||new Set(active.cards.map(c=>c.number)).size)+'개 번호 · 버전 '+active.cardCount+'종'+(words.length?' · 검색 '+filtered.length+'장':'')+'<span>카드를 누르면 상세 정보를 볼 수 있어요 · '+cardPage+' / '+total+' 페이지</span>';
+    document.getElementById('cnCardCount').innerHTML='총 '+(active.printedCardCount||new Set(active.cards.map(c=>c.number)).size)+'개 번호 · 버전 '+active.cardCount+'종'+(words.length||cardRarities.length?' · '+(cardRarities.length?'필터':'검색')+' '+filtered.length+'장':'')+'<span>카드를 누르면 상세 정보를 볼 수 있어요 · '+cardPage+' / '+total+' 페이지</span>';
+    window.CardRarityFilters?.mount(document.getElementById('cnRarityFilters'),{cards:active.cards,selected:cardRarities,onChange(next){cardRarities=next;cardPage=1;cardScroll=0;setBody();const scroll=document.querySelector('#anyModal .cn-scroll');if(scroll)scroll.scrollTop=0;}});
   }
   function setModal(restore=false){
     const previous=currentCard;currentCard=null;
-    panel(header()+'<div class="ci-panel-info">'+image(active.image,active.originalName,'ci-panel-thumb')+'<div class="ci-panel-copy"><span class="ci-brand pokemon">포켓몬 · 중판</span><h3 id="cnPanelTitle">'+esc(active.name)+'</h3><p>'+esc(active.originalName)+'</p><p>발매일: '+esc(active.release||'미확인')+'</p></div></div><div class="ci-panel-scroll enc-scroll cn-scroll">'+(linkNotice?'<p class="cn-link-notice" role="status">'+esc(linkNotice)+'</p>':'')+boxMarket(active)+'<div class="ci-panel-summary" id="cnCardCount"></div><label class="enc-search">카드 검색<input id="cnCardSearch" type="search" placeholder="한글·중국어 이름 또는 번호" value="'+esc(cardQuery)+'"></label><div class="set-card-grid" id="cnCardGrid"></div><details class="cn-product-info"><summary>박스 구성·발매 정보</summary><p class="cn-description">'+esc(active.description||'중국 본토 간체판 확장팩입니다.')+'</p><div class="cn-variants">'+variants(active)+'</div><a class="cn-official" href="'+esc(active.sourceUrl)+'" target="_blank" rel="noopener noreferrer">공식 상품 소개 ↗</a></details></div><nav id="cnCardPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동"></nav>');setBody();
+    panel(header()+'<div class="ci-panel-info">'+image(active.image,active.originalName,'ci-panel-thumb')+'<div class="ci-panel-copy"><span class="ci-brand pokemon">포켓몬 · 중판</span><h3 id="cnPanelTitle">'+esc(active.name)+'</h3><p>'+esc(active.originalName)+'</p><p>발매일: '+esc(active.release||'미확인')+'</p></div></div><div class="ci-panel-scroll enc-scroll cn-scroll">'+(linkNotice?'<p class="cn-link-notice" role="status">'+esc(linkNotice)+'</p>':'')+boxMarket(active)+'<div class="ci-rarity-summary"><div class="ci-panel-summary" id="cnCardCount"></div><div id="cnRarityFilters"></div></div><label class="enc-search">카드 검색<input id="cnCardSearch" type="search" placeholder="한글·중국어 이름 또는 번호" value="'+esc(cardQuery)+'"></label><div class="set-card-grid" id="cnCardGrid"></div><details class="cn-product-info"><summary>박스 구성·발매 정보</summary><p class="cn-description">'+esc(active.description||'중국 본토 간체판 확장팩입니다.')+'</p><div class="cn-variants">'+variants(active)+'</div><a class="cn-official" href="'+esc(active.sourceUrl)+'" target="_blank" rel="noopener noreferrer">공식 상품 소개 ↗</a></details></div><nav id="cnCardPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동"></nav>');setBody();
     if(restore){document.querySelector('#anyModal .cn-scroll').scrollTop=cardScroll;Array.from(document.querySelectorAll('[data-cn-card]')).find(b=>b.dataset.cnCard===previous?.id)?.focus({preventScroll:true});}
   }
   async function open(code,id=null){
@@ -191,7 +192,7 @@
       const data=await ensureData(),set=data.sets.find(s=>s.code===code);
       if(!set){if(own===request&&document.querySelector('#anyModal.open #cnPanelTitle'))panel(header()+'<h3 id="cnPanelTitle" class="enc-loading-title">확장팩을 찾지 못했습니다.</h3><div class="ci-panel-scroll">중판 박스 목록에서 확장팩을 선택해 주세요.</div>');return;}
       const [cards]=await Promise.all([ensureCards(code),ensureMarket()]);if(own!==request||!document.querySelector('#anyModal.open #cnPanelTitle'))return;
-      active={...cards,...set,cards:cards.cards,cardCount:cards.cardCount};cardPage=1;cardQuery='';cardScroll=0;
+      active={...cards,...set,cards:cards.cards,cardCount:cards.cardCount};cardPage=1;cardQuery='';cardRarities=[];cardScroll=0;
       if(id&&!cards.cards.some(c=>c.id===String(id)))linkNotice='공유된 카드를 찾지 못했습니다. 이 확장팩의 카드 목록을 확인해 주세요.';
       setModal();if(id&&!linkNotice)detail(id);
     }catch{

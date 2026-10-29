@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const VERSION='20260908-en4',cache=new Map(),size=24,cardsPerPage=18;
-  let catalog=null,names={},language=window.ChineseCatalog?.initialLanguage||'ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',request=0,opener=null;
+  let catalog=null,names={},language=window.ChineseCatalog?.initialLanguage||'ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',cardRarities=[],cardScroll=0,request=0,opener=null;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=c=>Number.isSafeInteger(c)&&c>0?'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):null;
   const name=c=>names[c.name]||c.name;
@@ -43,13 +43,15 @@
   }
   function setBody(){
     if(!active||!document.getElementById('encCardGrid'))return;
-    const q=searchText(cardQuery),filtered=active.cards.filter(c=>searchText(name(c)+' '+c.name+' '+c.number).includes(q));const total=Math.max(1,Math.ceil(filtered.length/cardsPerPage));cardPage=Math.min(cardPage,total);
+    const q=searchText(cardQuery),rarityFiltered=window.CardRarityFilters?.filter(active.cards,cardRarities)||active.cards,filtered=rarityFiltered.filter(c=>searchText(name(c)+' '+c.name+' '+c.number).includes(q));const total=Math.max(1,Math.ceil(filtered.length/cardsPerPage));cardPage=Math.max(1,Math.min(cardPage,total));
     document.getElementById('encCardGrid').innerHTML=filtered.slice((cardPage-1)*cardsPerPage,cardPage*cardsPerPage).map(c=>`<button type="button" class="set-card-item enc-card" data-enc-card="${esc(c.sourceId)}" aria-label="${esc(name(c))} ${esc(c.number)} 카드 정보"><span class="set-card-img enc-card-image">${art(c)}</span><span class="set-card-num"><strong>${esc(name(c))}</strong><span>${esc(c.number)}</span></span></button>`).join('')||'<p>검색 결과가 없습니다.</p>';
-    document.getElementById('encCardPages').innerHTML=pages(cardPage,total,'data-enc-card-page');document.getElementById('encCardCount').innerHTML=`총 ${active.cardCount} 카드 수록${q?` · 검색 ${filtered.length}장`:''}<span>카드를 클릭하여 시세를 확인해보세요 · ${cardPage} / ${total} 페이지</span>`;
+    document.getElementById('encCardPages').innerHTML=pages(cardPage,total,'data-enc-card-page');document.getElementById('encCardCount').innerHTML=`총 ${active.cardCount} 카드 수록${q||cardRarities.length?` · ${cardRarities.length?'필터':'검색'} ${filtered.length}장`:''}<span>카드를 클릭하여 시세를 확인해보세요 · ${cardPage} / ${total} 페이지</span>`;
+    window.CardRarityFilters?.mount(document.getElementById('encRarityFilters'),{cards:active.cards,selected:cardRarities,onChange(next){cardRarities=next;cardPage=1;cardScroll=0;setBody();const scroll=document.querySelector('#anyModal .enc-scroll');if(scroll)scroll.scrollTop=0;}});
   }
-  function setModal(){
-    currentCard=null;
-    panel(`${header()}<div class="ci-panel-info">${/^https:\/\/static\.tcgcollector\.com\//.test(active.image||'')?`<img class="ci-panel-thumb" src="${esc(active.image)}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ci-panel-thumb"></div>'}<div class="ci-panel-copy"><span class="ci-brand pokemon">포켓몬 · 영판</span><p>${esc(active.displayCode||active.code)}</p><h3 id="encPanelTitle">${esc(active.name)}</h3><p>발매일: ${esc(active.release||'미정')}</p></div></div><div class="ci-panel-scroll enc-scroll"><div class="ci-panel-summary" id="encCardCount"></div><label class="enc-search">카드 검색<input id="encCardSearch" type="search" placeholder="한글·영문 이름 또는 번호" value="${esc(cardQuery)}"></label><div class="set-card-grid" id="encCardGrid"></div></div><nav id="encCardPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동"></nav>`,'encPanelTitle');setBody();
+  function setModal(restore=false){
+    const previous=currentCard;currentCard=null;
+    panel(`${header()}<div class="ci-panel-info">${/^https:\/\/static\.tcgcollector\.com\//.test(active.image||'')?`<img class="ci-panel-thumb" src="${esc(active.image)}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ci-panel-thumb"></div>'}<div class="ci-panel-copy"><span class="ci-brand pokemon">포켓몬 · 영판</span><p>${esc(active.displayCode||active.code)}</p><h3 id="encPanelTitle">${esc(active.name)}</h3><p>발매일: ${esc(active.release||'미정')}</p></div></div><div class="ci-panel-scroll enc-scroll"><div class="ci-rarity-summary"><div class="ci-panel-summary" id="encCardCount"></div><div id="encRarityFilters"></div></div><label class="enc-search">카드 검색<input id="encCardSearch" type="search" placeholder="한글·영문 이름 또는 번호" value="${esc(cardQuery)}"></label><div class="set-card-grid" id="encCardGrid"></div></div><nav id="encCardPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동"></nav>`,'encPanelTitle');setBody();
+    if(restore){const scroll=document.querySelector('#anyModal .enc-scroll');if(scroll)scroll.scrollTop=cardScroll;Array.from(document.querySelectorAll('[data-enc-card]')).find(b=>b.dataset.encCard===String(previous?.sourceId))?.focus({preventScroll:true});}
   }
   async function open(code,keep=false,cardId=null){
     window.ChineseCatalog?.cancelPending?.();
@@ -59,7 +61,7 @@
       panel(`${header()}<h3 class="enc-loading-title" id="encPanelTitle">${esc(set.name)} · 영판</h3><div class="ci-panel-scroll">카드 불러오는 중…</div>`,'encPanelTitle');let data=cache.get(code);
       if(!data){const r=await fetch(`/data/english-sets/${encodeURIComponent(code)}.json?v=${VERSION}`);if(!r.ok)throw Error();data=await r.json();if(data.language!=='en'||data.code!==code||data.cards?.length!==set.cardCount)throw Error();cache.set(code,data);if(cache.size>8)cache.delete(cache.keys().next().value);}
       if(token!==request||!document.getElementById('anyModal')?.classList.contains('open')||!document.getElementById('encPanelTitle'))return;
-      active=data;if(!keep){cardPage=1;cardQuery='';}setModal();if(cardId)detail(cardId);
+      const reset=!keep||active?.code!==code;active=data;if(reset){cardPage=1;cardQuery='';cardRarities=[];cardScroll=0;}setModal();if(cardId)detail(cardId);
     }catch{if(token===request&&document.getElementById('anyModal')?.classList.contains('open')&&document.getElementById('encPanelTitle'))panel(`${header()}<h3 class="enc-loading-title" id="encPanelTitle">영문판 카드</h3><div class="ci-panel-scroll">카드를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</div>`,'encPanelTitle');}
   }
   function dailySales(sales){const days=new Map();for(const s of sales){const d=days.get(s.date)||{date:s.date,total:0,count:0};d.total+=s.priceCents;d.count++;days.set(s.date,d);}return [...days.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({...d,price:Math.round(d.total/d.count)}));}
@@ -70,7 +72,7 @@
     return `<svg viewBox="0 0 580 204" role="img" aria-label="공개 판매 기록 날짜별 평균 가격과 기록 수"><path d="M65 45H555M65 145H555" stroke="#EDECE8" fill="none"/>${rows.map((r,i)=>`<rect x="${x(i)-6}" y="${180-r.count/vol*45}" width="12" height="${r.count/vol*45}" fill="#CFE8E5"><title>${r.date} · 공개 기록 ${r.count}건</title></rect>`).join('')}<polyline points="${rows.map((r,i)=>`${x(i)},${y(r)}`).join(' ')}" stroke="#087D7D" stroke-width="2" fill="none"/>${rows.map((r,i)=>`<circle cx="${x(i)}" cy="${y(r)}" r="3" fill="#087D7D"><title>${r.date} · 평균 ${money(r.price)} · ${r.count}건</title></circle>`).join('')}<g fill="#888780" font-size="11"><text x="5" y="47">${money(max)}</text><text x="5" y="147">${money(min)}</text><text x="65" y="198">${rows[0].date}</text>${rows.length>1?`<text x="555" y="198" text-anchor="end">${rows.at(-1).date}</text>`:''}</g></svg>`;
   }
   function detail(id){
-    const c=active?.cards.find(c=>String(c.sourceId)===String(id));if(!c)return;currentCard=c;
+    const c=active?.cards.find(c=>String(c.sourceId)===String(id));if(!c)return;cardScroll=document.querySelector('#anyModal .enc-scroll')?.scrollTop??cardScroll;currentCard=c;
     const p=c.psa10,valid=validPrice(p),source=sourceURL(p),value=valid?money(p.sourcePriceCents):null;
     const sales=valid?(p.sales||[]).filter(s=>Number.isSafeInteger(s.priceCents)&&s.priceCents>0&&/^\d{4}-\d{2}-\d{2}$/.test(s.date||'')&&supportedSale(s.url)):[];
     const gradeNames=['PSA 10','PSA 9','미감정','BGS 10 BL','BGS 10 GL','BGS 9.5'];
@@ -92,7 +94,7 @@
     else if(b.dataset.encPage){page=Number(b.dataset.encPage);render();document.getElementById('encLanguages').scrollIntoView({block:'start'});}
     else if(b.dataset.encCardPage){cardPage=Number(b.dataset.encCardPage);setBody();document.querySelector('.enc-scroll').scrollTop=0;}
     else if(b.dataset.encCard)detail(b.dataset.encCard);
-    else if(b.hasAttribute('data-enc-back'))setModal();
+    else if(b.hasAttribute('data-enc-back'))setModal(true);
     else if(b.hasAttribute('data-enc-share'))share();
     else if(b.hasAttribute('data-enc-expand')){const on=document.getElementById('anyModal').classList.toggle('ci-expanded');b.setAttribute('aria-pressed',String(on));}
     else if(b.hasAttribute('data-enc-close')){request++;closeAnyModal();}

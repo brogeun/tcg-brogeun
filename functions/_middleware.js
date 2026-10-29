@@ -43,6 +43,7 @@ export async function onRequest(context) {
   // Serve the original set URLs from packed static assets. This keeps every
   // card and old client URL while avoiding Pages' per-deployment file limit.
   if (url.pathname.startsWith('/data/tcg-card-info/')) {
+    if (/^\/data\/tcg-card-info\/[a-z_]+\/public-[0-9]{4,6}\.json$/.test(url.pathname)) return context.next();
     const match = url.pathname.match(/^\/data\/tcg-card-info\/([a-z_]+)\/([0-9a-f]{16}(?:-part[0-9]{2,6})?\.json)$/);
     if (!match) return new Response('Not found', {status:404});
     if (!['GET','HEAD'].includes(context.request.method)) return new Response('Method not allowed', {status:405,headers:{Allow:'GET, HEAD'}});

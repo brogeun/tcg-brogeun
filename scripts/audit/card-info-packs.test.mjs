@@ -38,6 +38,9 @@ test('wrong-game, invalid and failed packs cannot expose other card data',async(
 test('unlisted files use the normal missing-file path',async()=>{
   const {result,next}=await request('/data/tcg-card-info/nikke/0123456789abcde0.json');assert.equal(next,1);assert.equal(result.status,404);
 });
+test('native public bundles remain available through the static asset path',async()=>{
+  const {calls,next}=await request('/data/tcg-card-info/nikke/public-0000.json');assert.equal(next,1);assert.equal(calls.length,0);
+});
 test('invalid set paths and write methods never fetch a pack',async()=>{
   for(const path of ['/data/tcg-card-info/nikke/not-a-set.json','/data/tcg-card-info/nikke/0123456789abcdef.json/extra']) {
     const {result,calls}=await request(path);assert.equal(result.status,404);assert.equal(calls.length,0);

@@ -94,6 +94,58 @@ def prepare(data_dir, max_files=20000, bundle_bytes=TARGET_BYTES):
     public_manifest = copy.deepcopy(manifest)
     catalog = data / "tcg-card-info"
     if not catalog.is_dir():
+        # The earlier public-bundle step can already preserve these URLs in
+        # route-backed packs. Validate that representation instead of packing
+        # a second time or discarding its original-address compatibility.
+        packed = data / "tcg-card-info-packs"
+        if packed.is_dir():
+            if len(before_files) > max_files:
+                raise ValueError(f"Public staging contains {len(before_files)} files, over {max_files}")
+            cache, parts, games = {}, set(), set()
+
+            def payload(url, game, identity):
+                prefix = "/data/tcg-card-info/" + game + "/"
+                if not isinstance(url, str) or not url.startswith(prefix):
+                    raise ValueError("Packed asset is outside its game directory")
+                leaf = url[len(prefix):]
+                if not re.fullmatch(identity + r"(?:-part[0-9]{2,6})?\.json", leaf):
+                    raise ValueError("Packed asset belongs to another set")
+                path = packed / game / (leaf[:2] + ".json")
+                if path not in cache:
+                    cache[path] = read(path)
+                pack = cache[path]
+                if pack.get("schemaVersion") != 1 or pack.get("game") != game:
+                    raise ValueError("Packed asset game mismatch")
+                body = pack.get("files", {}).get(leaf)
+                if not isinstance(body, str):
+                    raise ValueError("Missing packed set body")
+                value = json.loads(body)
+                if value.get("schemaVersion") != 1 or value.get("game") != game or value.get("set", {}).get("id") != identity or not isinstance(value.get("cards"), list):
+                    raise ValueError("Packed set payload identity mismatch")
+                return value
+
+            for game_entry in public_manifest["games"]:
+                game = game_entry.get("id")
+                if game not in GAMES or game in games:
+                    raise ValueError("Unknown/duplicate packed view game")
+                games.add(game)
+                seen = set()
+                for entry in game_entry.get("sets", []):
+                    identity = entry.get("id")
+                    if not isinstance(identity, str) or not KEY.fullmatch(identity) or identity in seen:
+                        raise ValueError("Invalid/duplicate packed set identity")
+                    seen.add(identity)
+                    first = payload(entry.get("file"), game, identity)
+                    for url in first.get("shards", []):
+                        payload(url, game, identity)
+                        parts.add(url)
+            if games != GAMES:
+                raise ValueError("All six packed views are required")
+            return {"filesBefore": len(before_files), "filesAfter": len(before_files), "maxFiles": max_files,
+                    "bundles": len(cache), "activeParts": len(parts), "historyFilesExcluded": 0,
+                    "largestBundleBytes": max((p.stat().st_size for p in cache), default=0),
+                    "setCount": sum(len(game.get("sets", [])) for game in public_manifest["games"]),
+                    "existingPackedRoutesPreserved": True}
         raise ValueError("Missing card-info directory")
     bundles, parts, seen_games = {}, {}, set()
     for game_entry in public_manifest["games"]:
@@ -212,3 +264,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -12,6 +12,13 @@ SPEC = importlib.util.spec_from_file_location(
 bundler = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(bundler)
 
+ROUTE_SPEC = importlib.util.spec_from_file_location(
+    'prepare_card_index_public_bundle',
+    Path(__file__).resolve().parents[1] / 'scripts/prepare_card_index_public_bundle.py',
+)
+route_bundler = importlib.util.module_from_spec(ROUTE_SPEC)
+ROUTE_SPEC.loader.exec_module(route_bundler)
+
 VIEWS = ("nikke", "weiss_schwarz", "union_arena",
          "dragon_ball_fusion_world", "yugioh", "digimon")
 
@@ -112,6 +119,58 @@ def unpack_entry(data_dir, entry):
 
 
 class BundlePreparationTests(unittest.TestCase):
+    def test_existing_route_packs_keep_all_public_bytes_and_urls(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            data_dir, originals = fixture(Path(temporary))
+            route_bundler.pack_card_info(data_dir.resolve())
+            before = tree_bytes(data_dir.parent)
+            result = bundler.prepare(data_dir)
+            self.assertTrue(result['existingPackedRoutesPreserved'])
+            self.assertEqual(result['setCount'], 6)
+            self.assertEqual(tree_bytes(data_dir.parent), before)
+
+    def test_route_pack_validation_still_enforces_the_total_file_budget(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            data_dir, _ = fixture(Path(temporary))
+            route_bundler.pack_card_info(data_dir.resolve())
+            before = tree_bytes(data_dir.parent)
+            with self.assertRaisesRegex(ValueError, 'files, over'):
+                bundler.prepare(data_dir, max_files=1)
+            self.assertEqual(tree_bytes(data_dir.parent), before)
+
+    def test_route_pack_validation_rejects_missing_or_wrong_game_data(self):
+        for damage in ('missing', 'wrong-game'):
+            with self.subTest(damage=damage), tempfile.TemporaryDirectory() as temporary:
+                data_dir, _ = fixture(Path(temporary))
+                route_bundler.pack_card_info(data_dir.resolve())
+                path = next((data_dir / 'tcg-card-info-packs/nikke').glob('*.json'))
+                pack = read(path)
+                if damage == 'missing': pack['files'].clear()
+                else: pack['game'] = 'digimon'
+                put(path, pack)
+                before = tree_bytes(data_dir.parent)
+                with self.assertRaises(ValueError):
+                    bundler.prepare(data_dir)
+                self.assertEqual(tree_bytes(data_dir.parent), before)
+
+    def test_route_pack_validation_checks_every_active_part(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            data_dir, originals = fixture(Path(temporary))
+            entry, body = originals['nikke']
+            part_url = entry['file'][:-5] + '-part02.json'
+            first = copy.deepcopy(body)
+            first['shards'] = [part_url]
+            put(from_url(data_dir, entry['file']), first)
+            put(from_url(data_dir, part_url), body)
+            route_bundler.pack_card_info(data_dir.resolve())
+            self.assertEqual(bundler.prepare(data_dir)['activeParts'], 1)
+            path = next((data_dir / 'tcg-card-info-packs/nikke').glob('*.json'))
+            pack = read(path)
+            del pack['files'][Path(part_url).name]
+            put(path, pack)
+            with self.assertRaisesRegex(ValueError, 'Missing packed set body'):
+                bundler.prepare(data_dir)
+
     def test_all_six_views_preserve_exact_original_payloads_and_price_semantics(self):
         with tempfile.TemporaryDirectory() as temporary:
             data_dir, originals = fixture(Path(temporary))
@@ -321,3 +380,4 @@ class BundlePreparationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

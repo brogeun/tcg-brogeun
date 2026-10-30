@@ -166,8 +166,7 @@
         }else result=await fallback.lookup(target,{isCurrent:entry.current});
         if(entry.current()){
           const html=fallback.render(result,{compact:true});
-          entry.host.innerHTML=target.snkrProduct?.reviewedPrice&&result.status==='priced'&&result.currency==='JPY'&&typeof fmtKrw==='function'
-            ? '<strong>'+fmtKrw(result.amount,'JPY')+'</strong> '+html:html;
+          entry.host.innerHTML=html;
           results[index]=result;
         }
         }catch{results[index]=delayed(entry);}

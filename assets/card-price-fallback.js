@@ -1,5 +1,5 @@
 /* A contained card keeps one price source. A listing reference is never a valuation. */
-(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.CardPriceFallback=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+(function(root,factory){const api=factory(root);if(typeof module==='object'&&module.exports)module.exports=api;else root.CardPriceFallback=api;})(typeof globalThis!=='undefined'?globalThis:this,function(root){
   'use strict';
   const aliases={weiss:'weiss_schwarz','weis-schwarz':'weiss_schwarz','weiss-schwarz':'weiss_schwarz',unionarena:'union_arena','union-arena':'union_arena',dragonball:'dragon_ball_fusion_world','dragon-ball-super-card-game':'dragon_ball_fusion_world','yu-gi-oh':'yugioh',digimoncard:'digimon','pokemon-card':'pokemon','one-piece-card-game':'onepiece'};
   const games=new Set(['pokemon','onepiece','weiss_schwarz','union_arena','dragon_ball_fusion_world','yugioh','digimon','chiikawa']);
@@ -120,7 +120,10 @@
     const g=game(target?.game||target?.brand);
     if(!target||!games.has(g)||!['ja','unknown'].includes(language(target.language))||!['RAW','UNGRADED'].includes(norm(target.grade||'raw')))return empty(['일본판 미감정 카드만 지원']);
     const own=target.snkrProduct,products=own?[own,...snkrProducts.filter(row=>String(row.id)!==String(own.id))]:snkrProducts;
+    if(target.sourceUnavailable||own?.quoteUnavailable)return {...empty(),status:'unknown',source:'snkrdunk'};
     const snkr=snkrQuote(target,products,bindings);if(snkr)return snkr;
+    const linked=products.find(row=>String(row.id)===String(target.snkrdunkId||own?.id||bindingFor(target,bindings)?.snkrdunkId||''));
+    if(linked&&['error','invalid','unverified'].includes(linked.priceStatus))return {...empty(),status:'unknown',source:'snkrdunk'};
     const matched=[...new Map(yuyuRows.filter(row=>yuyuMatch(target,row,bindings)).map(row=>[row.id,row])).values()];
     if(matched.length===1){const row=matched[0];return quote('yuyutei',row.price,'JPY',row,{priceKind:'shop_asking',condition:'raw',stockState:row.stockState||'unknown',stale:!!row.stale||row.notObservedInLatestSnapshot===true,verification:'exact_printing',notes:row.stockState==='out_of_stock'?['품절 상품의 표시가']:[]});}
     const candidates=mercariCandidates(target,mercariReferences);
@@ -137,9 +140,10 @@
     return (data.rows||[]).map(values=>{const row=Object.fromEntries((data.columns||[]).map((key,index)=>[key,values[index]]));return {...row,id:`yuyutei:${data.sourceGame}:${row.sourceSetCode}:${row.sourceProductId}`,game:data.game,language:data.language||'ja',grade:'raw',currency:data.currency,priceKind:data.priceKind,sourceUrl:`https://yuyu-tei.jp/sell/${data.sourceGame}/card/${row.sourceSetCode}/${row.sourceProductId}`};});
   }
   async function lookup(target,options={}){
+    await root.TCGFX?.ready;
     const snkrProducts=options.snkrProducts||[],bindings=options.bindings||{},provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
     let result=resolve(provided,{snkrProducts,bindings});
-    if(result.status==='priced'||!japanese(provided,provided.snkrProduct)||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
+    if(result.status==='priced'||result.status==='unknown'||!japanese(provided,provided.snkrProduct)||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
     const current=options.isCurrent||(()=>true),load=options.fetchJson||json,g=game(provided.game||provided.brand);
     let rows=options.yuyuRows||[];
     if(options.yuyuRows===undefined&&yuyuGames.has(g)){try{const data=await load(`/data/yuyutei-market/${g}.json`);if(!current())return empty(['조회 취소']);if(game(data.game)!==g)throw Error('Wrong source game');rows=decodeYuyu(data);}catch{rows=[];}}
@@ -148,14 +152,16 @@
     if(options.mercariReferences===undefined){try{const data=await load('/data/mercari-references.json');if(!current())return empty(['조회 취소']);if(data.source!=='mercari')throw Error('Wrong source');references=data.references||[];}catch{references=[];}}
     return resolve(provided,{snkrProducts,yuyuRows:rows,mercariReferences:references,bindings});
   }
-  function render(result,{compact=false}={}){
+  function render(result,{compact=false,convert=root.TCGFX?.convert}={}){
     if(!result||result.status==='none')return '<span class="card-price-fallback cpf-none">확인된 가격 없음</span>';
+    if(result.status==='unknown')return '<span class="card-price-fallback cpf-none">SNKRDUNK 가격 확인 불가</span>';
     const labels={snkrdunk:'SNKRDUNK',yuyutei:'유유테이',mercari:'메루카리'},label=result.status==='candidate'?'참고 매물 · 판본 확인 필요':result.source==='snkrdunk'&&result.condition==='unspecified'?'상태 미지정 상품 호가':result.source==='yuyutei'&&result.stockState==='out_of_stock'?'품절 표시가':result.source==='yuyutei'?'판매가':'미감정 최저 호가';
-    const price=new Intl.NumberFormat(result.currency==='JPY'?'ja-JP':'ko-KR',{style:'currency',currency:result.currency,maximumFractionDigits:result.currency==='JPY'||result.currency==='KRW'?0:2}).format(result.amount);
+    const amount=result.currency==='KRW'?result.amount:typeof convert==='function'?convert(result.amount,result.currency):null;
+    const price=positive(amount)?'₩'+Math.floor(amount).toLocaleString('ko-KR'):'환율 확인 중';
     const url=safeSource(result.sourceUrl,result.source),source=url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(labels[result.source])}</a>`:esc(labels[result.source]);
     const time=result.observedAt&&!Number.isNaN(Date.parse(result.observedAt))?new Date(result.observedAt).toISOString().slice(0,10):'확인일 미상';
     const status=result.source==='mercari'?` · ${result.saleStatus==='sold'?'판매완료 매물 표시가':result.saleStatus==='active'?'판매중 확인':'판매상태 미확인'} · 평가액 제외`:'';
-    return `<span class="card-price-fallback cpf-${esc(result.status)}${compact?' cpf-compact':''}"><strong>${esc(price)}</strong> <small>${esc(result.currency)} · ${esc(label)}</small><small>${source} · ${esc(time)}${result.stale?' · 이전 관측가':''}${result.editionVerification==='unconfirmed'?' · 판본 언어 미확인':''}${esc(status)}</small></span>`;
+    return `<span class="card-price-fallback cpf-${esc(result.status)}${compact?' cpf-compact':''}"><strong>${esc(price)}</strong> <small>원화 · ${esc(label)}</small><small>${source} · ${esc(time)}${result.stale?' · 이전 관측가':''}${result.editionVerification==='unconfirmed'?' · 판본 언어 미확인':''}${esc(status)}</small></span>`;
   }
   async function decorate(element,target,options={}){
     if(!element)return empty();const token={};tokens.set(element,token);const current=()=>tokens.get(element)===token&&element.isConnected!==false&&(!options.isCurrent||options.isCurrent());

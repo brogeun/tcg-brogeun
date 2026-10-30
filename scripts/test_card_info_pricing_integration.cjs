@@ -33,7 +33,7 @@ test('new categories live in Card Info and source page shortcuts are removed',()
   for(const game of ['pokemon','onepiece','nikke','dragon_ball_fusion_world','yugioh','digimon','weiss_schwarz','union_arena','riftbound']) assert(tabs.includes('data-ci="'+game+'"'),game);
   assert(html.indexOf('/assets/tcg-card-info.js')>html.indexOf('/assets/chiikawa-catalog.js'));
   assert(html.indexOf('/assets/card-price-fallback.js')<html.indexOf('/assets/tcg-card-info.js'));
-  assert.match(html,/data-contained-price/);
+  assert.doesNotMatch(html,/data-contained-price|ContainedCardPrices\?\.hydrate\(/);
   assert.match(html,/location\.pathname \+ location\.search \+ '#cardinfo'/);
 });
 test('a current SNKR price keeps the existing detail without querying fallback',async()=>{

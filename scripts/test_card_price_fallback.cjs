@@ -8,6 +8,40 @@ const row={id:'yuyutei:opc:op17:10001',game:'onepiece',language:'ja',grade:'raw'
 const product={id:'123',brand:'onepiece',kind:'card',language:'ja',productNumber:'OPTCG-OP17-001',name:'Edward Newgate',minPrice:10,currency:'USD',listingCount:2,priceStatus:'available',url:'https://snkrdunk.com/apparels/123',priceCheckedAt:'2026-10-29T12:00:00Z'};
 const mercari={id:'mercari:m47783276036',sourceUrl:'https://jp.mercari.com/item/m47783276036',title:'OP17-001',price:{amount:500,currency:'JPY'},observedAt:'2026-10-29T12:00:00Z',saleStatus:'unknown',verification:'unverified',valuationEligible:false,identity:{game:'onepiece',language:null,cardNumbers:['OP17-001'],grade:null,quantity:null,bundle:null}};
 
+test('all price sources display KRW using the shared rates without changing original quotes',()=>{
+ const rates=JSON.parse(fs.readFileSync(path.join(__dirname,'../data/fx-rates.json'),'utf8')).rates;
+ const convert=(amount,currency)=>Math.floor(amount*rates[currency]);
+ const cases=[
+  [api.resolve(target,{snkrProducts:[product],yuyuRows:[row],mercariReferences:[mercari]}),'snkrdunk',10,'USD'],
+  [api.resolve(target,{snkrProducts:[{...product,minPrice:null}],yuyuRows:[row],mercariReferences:[mercari]}),'yuyutei',50,'JPY'],
+  [api.resolve(target,{mercariReferences:[mercari]}),'mercari',500,'JPY'],
+ ];
+ for(const [quote,source,original,currency] of cases){
+  assert.equal(quote.source,source);const html=api.render(quote,{convert});
+  assert(html.includes('\u20a9'+Math.floor(original*rates[currency]).toLocaleString('ko-KR')));
+  assert.doesNotMatch(html,/JPY|USD|[$\u00a5\uffe5]/);
+  assert.equal(quote.amount,original);assert.equal(quote.currency,currency);
+ }
+ const won=api.render({status:'priced',source:'snkrdunk',amount:14000,currency:'KRW'},{convert:()=>{throw Error('KRW must not be converted twice');}});
+ assert(won.includes('\u20a914,000'));
+ assert.doesNotMatch(api.render(cases[0][0],{convert:()=>null}),/JPY|USD|[$\u00a5\uffe5]|13,435/);
+});
+
+test('source errors never imply missing SNKR prices and never request alternate sources',async()=>{
+ for(const changed of [{sourceUnavailable:true},{snkrProduct:{...product,minPrice:null,quoteUnavailable:true}},{snkrProduct:{...product,minPrice:null,priceStatus:'error'}}]){
+  let calls=0;const result=await api.lookup({...target,...changed},{fetchJson:async()=>{calls++;return {source:'yuyutei',game:'onepiece',records:[row]};}});
+  assert.equal(result.status,'unknown');assert.equal(calls,0);
+ }
+});
+
+test('a valid SNKR quote in every supported currency blocks both alternate sources',async()=>{
+ for(const currency of ['JPY','USD','KRW']){
+  let calls=0;const p={...product,currency,catalogAsk:null};
+  const result=await api.lookup(target,{snkrProduct:p,yuyuRows:[row],mercariReferences:[mercari],fetchJson:async()=>{calls++;throw Error('must not load');}});
+  assert.equal(result.source,'snkrdunk');assert.equal(result.currency,currency);assert.equal(calls,0);
+ }
+});
+
 test('same Japanese SNKR USD ask stops all fallback requests',async()=>{
  let calls=0;const result=await api.lookup(target,{snkrProduct:product,fetchJson:async()=>{calls++;throw Error('must not load');}});
  assert.equal(result.source,'snkrdunk');assert.equal(result.amount,10);assert.equal(result.currency,'USD');assert.equal(calls,0);

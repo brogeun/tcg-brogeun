@@ -18,7 +18,7 @@ test('strict resolver for Pokemon and OP sees full official identity',async()=>{
 test('matched raw detail price prevents any provider fetch and keeps per-card time',async()=>{
  const {hosts,container}=fixture([op]);let providers=0;
  const s=services({loadDetails:async()=>({fetchedAt:'2099-01-01',cards:{123:{fetchedAt:'2026-10-28T01:00:00Z',grades:{raw:{lowest_ask:800,currency:'JPY',active_count:2},psa10:{lowest_ask:90000,currency:'JPY'}}}}}),fallback:{...fallback,lookup:(t,o)=>fallback.lookup(t,{...o,fetchJson:async()=>{providers++;throw Error('must not fetch');}})}});
- const [r]=await bridge.hydrate(container,{services:s});assert.equal(r.source,'snkrdunk');assert.equal(r.amount,800);assert.equal(r.observedAt,'2026-10-28T01:00:00Z');assert.equal(providers,0);assert.match(hosts[0].innerHTML,/800/);assert.doesNotMatch(hosts[0].innerHTML,/90000|2099/);
+ const [r]=await bridge.hydrate(container,{services:s});assert.equal(r.source,'snkrdunk');assert.equal(r.amount,800);assert.equal(r.observedAt,'2026-10-28T01:00:00Z');assert.equal(providers,0);assert.doesNotMatch(hosts[0].innerHTML,/[¥$]|JPY|USD/);assert.match(hosts[0].innerHTML,/SNKRDUNK/);assert.doesNotMatch(hosts[0].innerHTML,/90000|2099/);
 });
 test('same number p1 does not inherit plain price or old heuristic priority',async()=>{
  const {container}=fixture([{...op,fullId:'OP17-001_p1',variant:'p1'}]);const received=[];

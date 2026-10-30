@@ -50,6 +50,7 @@
     const links={};
     for(const target of targets){
       if(target.brand!=='onepiece'||!target.fullId)continue;
+      if(target.marketLinkPolicy==='verified-only')continue;
       const key=upper(target.fullId),id=overrides?.[key],product=products.find(row=>String(row.id)===String(id));
       if(!id||!product||!match.sameIdentity(target,product))continue;
       links[[target.brand,upper(target.boxCode),key].join(':')]={id:String(id),brand:target.brand,fullId:key};
@@ -86,7 +87,13 @@
     let details={cards:{}},detailsFailed=false;
     if(targets.some(target=>target.snkrProduct))try{details=await(services.loadDetails||defaultDetails)();if(!details?.cards||typeof details.cards!=='object')throw Error('Invalid detail catalogue');}catch{details={cards:{}};detailsFailed=true;}
     if(!isCurrent())return unavailable();
-    return targets.map(target=>target.snkrProduct?{...target,snkrProduct:withRawDetail(target.snkrProduct,details),detailsStatus:detailsFailed?'unavailable':'available'}:target);
+    return await Promise.all(targets.map(async target=>{
+      if(!target.snkrProduct)return target;
+      let product=withRawDetail(target.snkrProduct,details);
+      if(root.CardCatalogRepairs?.reviewedProduct?.(product.id))product=await root.CardCatalogRepairs.quoteProduct(product);
+      return {...target,snkrProduct:product,sourceUnavailable:!!product.quoteUnavailable,
+        detailsStatus:product.reviewedDon?'available':detailsFailed?'unavailable':'available'};
+    }));
   }
   async function prepareTarget(identity,options={}){return (await prepareTargets([identity],options))[0];}
   async function hydrate(container,{isCurrent=()=>true,services={}}={}){
@@ -116,7 +123,12 @@
         if(target.bundle===true||target.quantity>1||target.kind==='box'||target.unprintedNumber||!target.fullNumber){
           result=target.snkrProduct&&!target.bundle&&!(target.quantity>1)&&target.kind!=='box'?fallback.resolve(target):fallback.resolve({...target,language:'unavailable'});
         }else result=await fallback.lookup(target,{isCurrent:entry.current});
-        if(entry.current()){entry.host.innerHTML=fallback.render(result,{compact:true});results[index]=result;}
+        if(entry.current()){
+          const html=fallback.render(result,{compact:true});
+          entry.host.innerHTML=target.snkrProduct?.reviewedDon&&result.status==='priced'&&result.currency==='JPY'&&typeof fmtKrw==='function'
+            ? '<strong>'+fmtKrw(result.amount,'JPY')+'</strong> '+html:html;
+          results[index]=result;
+        }
         }catch{results[index]=delayed(entry);}
       }
     }

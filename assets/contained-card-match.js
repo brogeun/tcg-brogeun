@@ -113,6 +113,7 @@
       if (product && !sameIdentity(card, product, candidateProofs)) return {status: 'conflict', id: null};
       return {status: product ? 'matched' : 'verified-link', id: String(proof.id), proof};
     }
+    if(card.marketLinkPolicy==='verified-only'&&!/^OP\d+-DON-\d{2}(?:_P1)?$/.test(fullId))return {status:'unlinked',id:null};
     const candidates = [...new Map(products.filter(p => sameIdentity(card, p, candidateProofs)).map(p => [String(p.id), p])).values()];
     if(card.brand==='onepiece'&&/^OP\d+-DON-\d{2}(?:_P1)?$/.test(fullId))return {status:candidates.length===1?'matched':candidates.length?'ambiguous':'unlinked',id:candidates.length===1?String(candidates[0].id):null};
     if(candidates.length&&candidates.every(paired))return {status:'paired-product',id:null};

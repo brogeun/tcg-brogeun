@@ -2526,14 +2526,14 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/market-references.js?v=20261029-reference1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261014-japanese3">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
-<script src="/assets/card-catalog-repairs.js?v=20261030-live-quotes1"></script>
-<script src="/assets/contained-card-match.js?v=20261030-don1"></script>
+<script src="/assets/card-catalog-repairs.js?v=20261030-consistent1"></script>
+<script src="/assets/contained-card-match.js?v=20261030-consistent1"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
-<script src="/assets/japanese-catalog.js?v=20261030-images1"></script>
+<script src="/assets/japanese-catalog.js?v=20261030-consistent1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20261029-reference1"></script>
+<script src="/assets/price-expanded.js?v=20261030-consistent1"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -3705,6 +3705,7 @@ async function showPriceDetailPanel(productId) {
       if (found) {
         // 인덱스 포맷 → showPriceDetailPanel 이 기대하는 포맷으로 변환
         product = {
+          ...found,
           id: found.id,
           name: found.name,
           image: found.thumbnailUrl,
@@ -4000,7 +4001,7 @@ async function renderBoxesPanel(productId, product) {
 
 // 카드 식별: 이름에 [세트코드 번호] 대괄호가 있으면 카드, 아니면 박스 (Python 분류 로직 동일)
 function isCardProduct(name) {
-  return /\[[^\]]*\d+[^\]]*\]/.test(name || '');
+  return /^DON!!\s*Card\b/i.test(name || '') || /\[[^\]]*\d+[^\]]*\]/.test(name || '');
 }
 
 async function renderGradesPanel(productId, product) {
@@ -5396,7 +5397,7 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
       await loadCardSearchData();
       const found = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(productId)) || window.JapaneseCatalog?.getProduct(productId);
       if (found) {
-        product = { id: found.id, name: found.name, image: found.thumbnailUrl, brand: found.brand || 'pokemon', _brand: found.brand || 'pokemon' };
+        product = { ...found, id: found.id, name: found.name, image: found.thumbnailUrl, brand: found.brand || 'pokemon', _brand: found.brand || 'pokemon' };
       }
     } catch (e) { console.warn('[slide] card index fallback fail:', e); }
   }
@@ -5404,6 +5405,8 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
   const anniversaryProduct = window.AnniversaryMarket?.products().find(p=>p.id===String(productId));
   if (anniversaryProduct) product = {...product,...anniversaryProduct};
   if (product) await enrichPriceProductMetadata([product], PRICE_CAT);
+  if(product)product=await window.CardCatalogRepairs?.quoteProduct?.(product) || product;
+  if(!current())return;
   // 2. history 받기 — 등급별 가격
   let history = null;
   try {
@@ -5414,7 +5417,7 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
     }
   } catch (e) {}
 
-  const name = ((product && product.name) || `카드 #${productId}`)
+  const name = ((product && (product.nameKo || product.name)) || `카드 #${productId}`)
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&');
@@ -5505,9 +5508,14 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
       }
     }
   }
-  const topListing = product?._isTop10 ? HomeMarket.quote(product) : null;
-  const rawLabel = window.AnniversaryMarket?.rawLabel(anniversaryProduct) || 'A급(미개봉)';
-  const preferTopRaw = !isBox && (!!topListing || !!anniversaryProduct);
+  if(product?.reviewedDon){
+    rawJpy=product.grades?.raw?.lowest_ask ?? null;rawCur='JPY';
+    liveNoListingGrades.delete('raw');
+    if(product.priceStatus==='no-listings')liveNoListingGrades.add('raw');
+  }
+  const topListing = product?._isTop10 && !product.reviewedDon ? HomeMarket.quote(product) : null;
+  const rawLabel = product?.reviewedDon ? 'A급(싱글)' : window.AnniversaryMarket?.rawLabel(anniversaryProduct) || 'A급(미개봉)';
+  const preferTopRaw = !isBox && (!!topListing || !!anniversaryProduct || !!product?.reviewedDon);
   if (topListing && !liveNoListingGrades.has('raw')) { rawJpy = topListing.value; rawCur = topListing.currency; }
   if (liveNoListingGrades.has('psa10')) psa10Jpy = null;
   if (liveNoListingGrades.has('psa9')) psa9Jpy = null;
@@ -6959,7 +6967,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
                data-card-name="${escapeHtml(localizedName)}"
                ${['M6a','MF','FURBOX'].includes(setCode) ? `data-anniversary-ids="${escapeHtml(JSON.stringify(c.marketIds || []))}"` : ''}
                data-card-search="${escapeHtml(searchKey)}"
-               data-card-identity="${escapeHtml(JSON.stringify({brand:cardBrand,language:'ja',boxCode:setCode,setCode:cardSetCode,number:c.number || '',baseNumber:c.baseNumber || '',fullId:c.fullId || '',id:c.id || '',name:c.name || '',rarity:c.rarity || '',sourceUrl:c.url || '',sourceId:c.sourceId || '',image:c.image || '',bundle:!!c.isBundle,marketLinkPolicy:c.marketLinkPolicy || '',unprintedNumber:!!c.unprintedNumber,inventoryNumber:c.inventoryNumber || '',variant:c.variant || ''}))}"
+               data-card-identity="${escapeHtml(JSON.stringify({brand:cardBrand,language:'ja',boxCode:setCode,setCode:cardSetCode,number:c.number || '',baseNumber:c.baseNumber || '',fullId:c.fullId || '',id:c.id || '',name:c.name || '',rarity:c.rarity || '',sourceUrl:c.url || '',sourceId:c.sourceId || '',image:c.image || '',bundle:!!c.isBundle,cardType:c.cardType || '',finish:c.finish || '',marketLinkPolicy:c.marketLinkPolicy || '',unprintedNumber:!!c.unprintedNumber,inventoryNumber:c.inventoryNumber || '',variant:c.variant || ''}))}"
                data-card-variant="${escapeHtml(variantSuffix)}">
             <div class="set-card-img" style="background:#f3f4f6">
               ${primarySrc ? `<img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(localizedName)}" loading="lazy" referrerpolicy="no-referrer" ${onerrorAttr}>` : `<span style="padding:12px;text-align:center;font-size:12px;color:var(--ink-sub)">${escapeHtml(localizedName)}<br>이미지 준비 중</span>`}
@@ -10905,7 +10913,7 @@ window.addEventListener('appinstalled', () => {
 <!-- TCGHUB_CHIIKAWA_END -->
 <link rel="stylesheet" href="/assets/tcg-card-info.css?v=20261029-cardinfo2">
 <script src="/assets/card-price-fallback.js?v=20261029-cardinfo2"></script>
-<script src="/assets/contained-card-prices.js?v=20261029-cardinfo2"></script>
+<script src="/assets/contained-card-prices.js?v=20261030-consistent1"></script>
 <script src="/assets/tcg-card-info.js?v=20261029-cardinfo2" defer></script>
 </body>
 </html>

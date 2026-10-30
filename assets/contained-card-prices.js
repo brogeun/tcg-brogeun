@@ -75,7 +75,7 @@
     if(!isCurrent())return unavailable();
     let overrides={};if(targets.some(target=>target.brand==='onepiece'))try{overrides=await(services.loadOverrides||defaultOverrides)();}catch{}
     if(!isCurrent())return unavailable();
-    const links=reviewedLinks(targets,products,overrides,match),resolve=match.createResolver(products,links,services.candidateProofs||{});
+    const links={...reviewedLinks(targets,products,overrides,match),...(root.CardCatalogRepairs?.verifiedLinks?.(targets,products)||{})},resolve=match.createResolver(products,links,services.candidateProofs||{});
     for(const target of targets){
       if(!['pokemon','onepiece'].includes(target.brand)||target.language!=='ja'||target.bundle===true||target.quantity>1||target.kind==='box'){target.snkrdunkStatus='unlinked';continue;}
       const result=resolve(target);target.snkrdunkStatus=result.status;
@@ -92,7 +92,7 @@
       let product=withRawDetail(target.snkrProduct,details);
       if(root.CardCatalogRepairs?.reviewedProduct?.(product.id))product=await root.CardCatalogRepairs.quoteProduct(product);
       return {...target,snkrProduct:product,sourceUnavailable:!!product.quoteUnavailable,
-        detailsStatus:product.reviewedDon?'available':detailsFailed?'unavailable':'available'};
+        detailsStatus:product.reviewedPrice?'available':detailsFailed?'unavailable':'available'};
     }));
   }
   async function prepareTarget(identity,options={}){return (await prepareTargets([identity],options))[0];}
@@ -125,7 +125,7 @@
         }else result=await fallback.lookup(target,{isCurrent:entry.current});
         if(entry.current()){
           const html=fallback.render(result,{compact:true});
-          entry.host.innerHTML=target.snkrProduct?.reviewedDon&&result.status==='priced'&&result.currency==='JPY'&&typeof fmtKrw==='function'
+          entry.host.innerHTML=target.snkrProduct?.reviewedPrice&&result.status==='priced'&&result.currency==='JPY'&&typeof fmtKrw==='function'
             ? '<strong>'+fmtKrw(result.amount,'JPY')+'</strong> '+html:html;
           results[index]=result;
         }

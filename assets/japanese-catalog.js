@@ -84,8 +84,10 @@
       row._searchText=normalize([row.nameLower,row.productNumber].join(' '));
       return row;
     });
+    const reprints=root.CardCatalogRepairs?.catalogueRows?.()||[],reprintProducts=new Set(reprints.map(c=>String(c.productId||'')));
     const marketOnly = products.filter(product => {
       if (!japanese(product)) return false;
+      if(product.brand==='onepiece'&&reprintProducts.has(String(product.id)))return false;
       return product.brand !== 'pokemon' || product.kind === 'box' || !covered.has(String(product.id));
     }).map(product => {
       const row={...product, displayName:product.kind === 'box' ? product.displayName || product.name : product.cardType==='DON' ? product.nameKo : title(product)};
@@ -99,7 +101,7 @@
       kind:'box', brand:'pokemon', language:'ja', _catalogue:true,
       thumbnailUrl:set.image || '/images/sets/'+encodeURIComponent(set.code)+'.jpg', productNumber:set.code, listingCount:0
     }));
-    const supplements=(root.CardCatalogRepairs?.catalogueRows?.()||[]).map(card=>({...card,_searchText:normalize(card.nameLower)}));
+    const supplements=reprints.map(card=>({...card,_searchText:normalize(card.nameLower)}));
     rows = [...printed, ...marketOnly, ...catalogBoxes, ...supplements];
     return rows;
   }

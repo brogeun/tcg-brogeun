@@ -18,6 +18,17 @@ function searchContext(){
   const html=text('index.html'),start=html.indexOf('function searchCards('),end=html.indexOf('function renderSearchResults(',start);
   vm.runInContext(html.slice(start,end),browser);return browser;
 }
+test('all restored reprints have one searchable exact market destination without duplicate rows',()=>{
+  const b=searchContext(),rows=b.JapaneseCatalog.getSearchRows();
+  for(const card of manifest.onepieceReprints){
+    const matched=rows.filter(row=>row.id===card.productId);
+    assert.equal(matched.length,1,card.fullId);
+    assert.equal(matched[0].fullId,card.fullId);
+    assert.equal(matched[0].catalogueId,card.id);
+    assert.equal(b.JapaneseCatalog.href(matched[0]),'#price/'+card.productId);
+    assert(b.searchCards('OP17 '+card.nameKo,Infinity).some(row=>row.id===card.productId),card.fullId);
+  }
+});
 test('reported OP17 Rocks parallel is searchable by spaced, compact, Korean and Japanese names',()=>{
   const b=searchContext();
   for(const q of ['OP17','OP-17','OP 17','OP17 돈','록스 해적단','ロックス海賊団','돈카드']){
@@ -57,7 +68,7 @@ test('reviewed DON metadata preserves current quotes and never reassigns product
   const original={...metadata.find(p=>String(p.id)==='871082'),minPrice:999,currency:'USD',priceCheckedAt:'2026-10-29T01:00:00Z',listingCount:20};
   const saved=JSON.stringify(original),updated=repairs.products([original]).find(p=>p.id==='871082');
   assert.equal(updated.minPrice,999);assert.equal(updated.currency,'USD');assert.equal(updated.priceCheckedAt,original.priceCheckedAt);assert.equal(updated.listingCount,20);assert.equal(JSON.stringify(original),saved);
-  const absent=repairs.products([]);assert.equal(absent.length,8);assert(absent.every(p=>p.minPrice===null));
+  const absent=repairs.products([]);assert.equal(absent.length,8+manifest.onepieceReprints.length);assert(absent.every(p=>p.minPrice===null));
   const conflict={...original,brand:'pokemon'};assert.equal(repairs.products([conflict]).find(p=>p.id==='871082'),conflict);
   const unrelated={id:'1',brand:'onepiece',kind:'card',productNumber:'OP17-001'};assert.equal(repairs.products([unrelated])[0],unrelated);
 });

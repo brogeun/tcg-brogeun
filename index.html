@@ -2526,14 +2526,14 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/market-references.js?v=20261029-reference1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261014-japanese3">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
-<script src="/assets/card-catalog-repairs.js?v=20261030-consistent1"></script>
+<script src="/assets/card-catalog-repairs.js?v=20261030-reprint-prices1"></script>
 <script src="/assets/contained-card-match.js?v=20261030-consistent1"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
-<script src="/assets/japanese-catalog.js?v=20261030-consistent1"></script>
+<script src="/assets/japanese-catalog.js?v=20261030-reprint-prices1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20261030-consistent1"></script>
+<script src="/assets/price-expanded.js?v=20261030-reprint-prices1"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -5508,14 +5508,14 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
       }
     }
   }
-  if(product?.reviewedDon){
+  if(product?.reviewedPrice){
     rawJpy=product.grades?.raw?.lowest_ask ?? null;rawCur='JPY';
     liveNoListingGrades.delete('raw');
     if(product.priceStatus==='no-listings')liveNoListingGrades.add('raw');
   }
-  const topListing = product?._isTop10 && !product.reviewedDon ? HomeMarket.quote(product) : null;
-  const rawLabel = product?.reviewedDon ? 'A급(싱글)' : window.AnniversaryMarket?.rawLabel(anniversaryProduct) || 'A급(미개봉)';
-  const preferTopRaw = !isBox && (!!topListing || !!anniversaryProduct || !!product?.reviewedDon);
+  const topListing = product?._isTop10 && !product.reviewedPrice ? HomeMarket.quote(product) : null;
+  const rawLabel = product?.reviewedPrice ? 'A급(싱글)' : window.AnniversaryMarket?.rawLabel(anniversaryProduct) || 'A급(미개봉)';
+  const preferTopRaw = !isBox && (!!topListing || !!anniversaryProduct || !!product?.reviewedPrice);
   if (topListing && !liveNoListingGrades.has('raw')) { rawJpy = topListing.value; rawCur = topListing.currency; }
   if (liveNoListingGrades.has('psa10')) psa10Jpy = null;
   if (liveNoListingGrades.has('psa9')) psa9Jpy = null;
@@ -10913,7 +10913,7 @@ window.addEventListener('appinstalled', () => {
 <!-- TCGHUB_CHIIKAWA_END -->
 <link rel="stylesheet" href="/assets/tcg-card-info.css?v=20261030-boxes1">
 <script src="/assets/card-price-fallback.js?v=20261029-cardinfo2"></script>
-<script src="/assets/contained-card-prices.js?v=20261030-consistent1"></script>
+<script src="/assets/contained-card-prices.js?v=20261030-reprint-prices1"></script>
 <script src="/assets/tcg-card-info.js?v=20261030-boxes1" defer></script>
 </body>
 </html>

@@ -16,11 +16,17 @@
           !/^OP\d+-DON-\d{2}(?:_p1)?$/.test(card.fullId)||!card.image.startsWith('/images/onepiece/'))throw Error('Invalid reviewed DON!! identity');
       ids.add(card.productId);fullIds.add(card.fullId);
     }
+    for(const card of next.onepieceReprints||[]){
+      if(!card.productId)continue;
+      if(!/^\d+$/.test(card.productId)||ids.has(card.productId)||!card.marketName||!card.marketProductNumber||
+        !/^[a-f0-9]{64}$/.test(card.marketImageSHA256||'')||card.boxCode!=='OP17')throw Error('Invalid reviewed reprint market binding');
+      ids.add(card.productId);
+    }
     data=next;return api;
   }
   async function ensureData(){
     if(data)return data;
-    if(!ready)ready=fetch('/data/card-catalog-repairs.json?v=20261030-consistent1',{signal:AbortSignal.timeout(12000)}).then(r=>{
+    if(!ready)ready=fetch('/data/card-catalog-repairs.json?v=20261030-reprint-prices1',{signal:AbortSignal.timeout(12000)}).then(r=>{
       if(!r.ok)throw Error('Card catalogue repairs HTTP '+r.status);
       return r.json();
     }).then(next=>{configure(next);return data;}).catch(error=>{
@@ -66,7 +72,22 @@
         minPrice:null,currency:'JPY',listingCount:0};
       rows.push(decorate(product,card));
     }
-    return rows;
+    const reprints=new Map((data.onepieceReprints||[]).filter(c=>c.productId).map(c=>[String(c.productId),c]));
+    const decorateReprint=(product,card)=>({...product,language:'ja',kind:'card',_productKind:'card',
+      setCode:card.setCode,boxCode:card.boxCode,code:card.boxCode,fullId:card.fullId,
+      nameKo:card.nameKo+' · '+card.versionLabel,_koName:card.nameKo+' · '+card.versionLabel,
+      reviewedPrice:true,thumbnailUrl:card.image,
+      nameLower:[card.name,card.nameKo,card.marketName,card.fullId,card.setCode,card.boxCode,card.versionLabel].join(' ').toLowerCase()});
+    const result=rows.map(product=>{
+      const card=reprints.get(String(product.id));
+      return card&&product.brand==='onepiece'&&product.kind==='card'&&(!product.language||product.language==='ja')&&
+        product.name===card.marketName&&upper(product.productNumber)===upper(card.marketProductNumber)
+        ? decorateReprint(product,card):product;
+    });
+    for(const card of reprints.values())if(!result.some(p=>String(p.id)===String(card.productId)))result.push(decorateReprint({
+      id:String(card.productId),brand:'onepiece',kind:'card',name:card.marketName,productNumber:card.marketProductNumber,
+      minPrice:null,currency:'JPY',listingCount:0},card));
+    return result;
   }
   async function liveQuote(id){
     id=String(id);
@@ -101,22 +122,38 @@
     // A catalogue USD ask and an A-grade JPY ask describe different observations.
     // Never retain the former when the exact Japanese quote is unavailable.
     return {...product,...reviewed,kind:'card',_productKind:'card',_brand:'onepiece',image:reviewed.thumbnailUrl,
-      reviewedDon:true,quoteUnavailable:!price,minPrice:price?.amount??null,lastPrice:price?.amount??null,lowestAsk:price?.amount??null,
+      reviewedDon:reviewed.cardType==='DON',reviewedPrice:true,quoteUnavailable:!price,minPrice:price?.amount??null,lastPrice:price?.amount??null,lowestAsk:price?.amount??null,
       currency:'JPY',listingCount:price?.amount?price.count||1:0,catalogAsk:null,
       priceCheckedAt:price?.observedAt||null,gradeCheckedAt:price?.observedAt||null,
       priceStatus:!price?'error':price.amount===null?'no-listings':'available',
       grades:price?.amount?{raw:{lowest_ask:price.amount,currency:'JPY',active_count:price.count||1}}:{}};
   }
   function catalogueRows(){return (data?.onepieceReprints||[]).map(card=>({...card,
-    id:card.id,brand:'onepiece',kind:'card',language:'ja',_catalogue:true,catalogueId:card.id,
-    productId:null,productIds:[],thumbnailUrl:card.image,setName:card.boxCode,displayName:card.nameKo||card.name,
-    nameLower:[card.name,card.nameKo,card.fullId,card.number,card.boxCode,card.versionLabel].join(' ').toLowerCase()}));}
+    id:card.productId||card.id,brand:'onepiece',kind:'card',language:'ja',_catalogue:true,catalogueId:card.id,
+    productId:card.productId||null,productIds:card.productId?[card.productId]:[],minPrice:null,currency:'JPY',
+    reviewedPrice:!!card.productId,thumbnailUrl:card.image,setName:card.boxCode,displayName:card.nameKo||card.name,
+    nameLower:[card.name,card.nameKo,card.marketName,card.fullId,card.number,card.boxCode,card.versionLabel].join(' ').toLowerCase()}));}
+  function verifiedLinks(targets,products){
+    const links={};
+    for(const target of targets){
+      if(target.brand!=='onepiece'||target.language!=='ja')continue;
+      const card=data?.onepieceReprints?.find(c=>c.productId&&upper(c.boxCode)===upper(target.boxCode)&&
+        upper(c.setCode)===upper(target.setCode)&&upper(c.fullId)===upper(target.fullId)&&
+        upper(c.number)===upper(target.number)&&(!target.image||target.image===c.image));
+      const product=card&&products.find(p=>String(p.id)===String(card.productId));
+      if(!product||product.brand!=='onepiece'||product.kind!=='card'||product.language!=='ja'||
+        product.name!==card.marketName||upper(product.productNumber)!==upper(card.marketProductNumber)||
+        upper(product.fullId)!==upper(card.fullId)||upper(product.boxCode)!==upper(card.boxCode))continue;
+      links[['onepiece',upper(card.boxCode),upper(card.fullId)].join(':')]={id:String(card.productId),brand:'onepiece',fullId:upper(card.fullId)};
+    }
+    return links;
+  }
   async function hydratePrices(container,rows,{isCurrent=()=>true,formatKrw,formatOrig}={}){
     if(!container||!isCurrent())return;
     const token={};priceTokens.set(container,token);
     if(!data)await ensureData();
     if(!data||priceTokens.get(container)!==token||!isCurrent())return;
-    const reviewed=new Set(data.onepieceDon.map(card=>card.productId)),byId=new Map(rows.map(row=>[String(row.id),row]));
+    const reviewed=new Set([...data.onepieceDon,...(data.onepieceReprints||[])].map(card=>card.productId).filter(Boolean)),byId=new Map(rows.map(row=>[String(row.id),row]));
     const entries=[];
     for(const host of container.querySelectorAll('[data-live-card-price]')){
       const id=String(host.dataset.liveCardPrice||''),row=byId.get(id);
@@ -141,6 +178,6 @@
     }
     await Promise.all(Array.from({length:Math.min(3,entries.length)},worker));
   }
-  const api={configure,ensureData,printed,setCards,products,hydratePrices,liveQuote,reviewedProduct,quoteProduct,catalogueRows};return api;
+  const api={configure,ensureData,printed,setCards,products,hydratePrices,liveQuote,reviewedProduct,quoteProduct,catalogueRows,verifiedLinks};return api;
 });
 

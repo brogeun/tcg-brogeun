@@ -96,7 +96,7 @@
     const pack=decode(sets.map(PriceProductInfo.label).join(' / ') || product.set_name || product.pack || '');
     const release=sets.length ? sets.map(s=>`${sets.length>1?s.code+' · ':''}${s.release || '카드정보에 발매일 미등록'}`).join(' / ')
       : product.release_date || product.releaseDate || '카드정보에 발매일 미등록';
-    const keys=box?[['box','박스']]:grades.map(([key,label])=>[key,key==='raw'&&product.reviewedDon?'A급(싱글)':key==='raw'&&product.packaging?window.AnniversaryMarket.rawLabel(product):label]);
+    const keys=box?[['box','박스']]:grades.map(([key,label])=>[key,key==='raw'&&product.reviewedPrice?'A급(싱글)':key==='raw'&&product.packaging?window.AnniversaryMarket.rawLabel(product):label]);
     const values={};
     const noListingGrades=new Set();
     const staticGrades=detail?.cards?.[id]?.grades || {};
@@ -108,14 +108,14 @@
     const listing = HomeMarket.quote(product);
     if (box && listing) values.box = listing;
     if (!box && product._isTop10 && listing) values.raw = listing;
-    if(product.reviewedDon){
+    if(product.reviewedPrice){
       values.raw=quote(product.grades?.raw);
       if(product.priceStatus==='no-listings')noListingGrades.add('raw');
     }
     const anniversary = window.AnniversaryMarket?.product(id);
     if (anniversary) for (const [key] of keys) values[key] = window.AnniversaryMarket.gradeQuote(id,key);
     // A general ungraded product price must never be labelled PSA 10.
-    const state={grade:box?'box':product.reviewedDon || anniversary || product._isTop10 && listing?'raw':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
+    const state={grade:box?'box':product.reviewedPrice || anniversary || product._isTop10 && listing?'raw':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
     const extURL=(()=>{try{const u=new URL(product.url || `https://snkrdunk.com/apparels/${id}`);return u.protocol==='https:' && /(^|\.)snkrdunk\.com$/.test(u.hostname)?u.href:`https://snkrdunk.com/apparels/${id}`;}catch{return `https://snkrdunk.com/apparels/${id}`;}})();
     panel.innerHTML=`<article class="px-detail" data-product-kind="${box?'box':'card'}">${head()}
       <section class="px-summary" aria-label="상품 기본 정보">
@@ -161,7 +161,7 @@
       panel.querySelector('#pxLabel').textContent=keys.find(([k])=>k===state.grade)[1]+' 기준';
       const display=(q,key)=>q?krw(q):anniversary || noListingGrades.has(key)?'출품 없음':'—';
       panel.querySelector('#pxCurrent').textContent=display(q,state.grade);
-      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || (product.reviewedDon&&product.quoteUnavailable&&state.grade==='raw'?'가격 확인 지연':anniversary?'수집 시점 출품 없음':noListingGrades.has(state.grade)?'현재 출품 없음':'가격 데이터 없음'))+(product.reviewedDon&&q?.currency==='JPY'?' · ¥'+q.value.toLocaleString('ja-JP'):'');
+      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || (product.reviewedPrice&&product.quoteUnavailable&&state.grade==='raw'?'가격 확인 지연':anniversary?'수집 시점 출품 없음':noListingGrades.has(state.grade)?'현재 출품 없음':'가격 데이터 없음'))+(product.reviewedPrice&&q?.currency==='JPY'?' · ¥'+q.value.toLocaleString('ja-JP'):'');
       const portfolio=panel.querySelector('#pxPortfolio');
       portfolio.disabled=state.grade.startsWith('bgs');
       portfolio.title=portfolio.disabled?'BGS는 시세 참고용입니다. 현재 포트폴리오는 PSA 10·PSA 9·A급·박스 등급을 지원합니다.':'선택한 등급으로 포트폴리오 추가';
@@ -174,7 +174,7 @@
     // Align action buttons with the summary text on desktop, spanning both columns on mobile.
     update(); observer?.disconnect();observer=new ResizeObserver(draw);observer.observe(panel.querySelector('#pxChart'));
     // Static data renders immediately; live current asks update only this still-active product.
-    if (!box && !anniversary && !product.reviewedDon) {
+    if (!box && !anniversary && !product.reviewedPrice) {
       const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}&v=3`);
       if (!current() || !live?.ok) return;
       for (const [key] of keys) {

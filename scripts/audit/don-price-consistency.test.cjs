@@ -53,6 +53,6 @@ test('OP17 retains 169 official numbered cards and 8 DON designs, with exact rep
   assert.equal(b.CardCatalogRepairs.setCards(source,'OP17').cards.length,177);
   for(const card of manifest.onepieceReprints){
     assert.equal(b.ContainedCardMatch.resolve({...card,brand:'onepiece'},[{id:'1',brand:'onepiece',productNumber:card.setCode+'-'+card.baseNumber,kind:'card'}]).id,null);
-    assert.equal(b.CardCatalogRepairs.catalogueRows().find(c=>c.fullId===card.fullId).productId,null);
+    assert.equal(b.CardCatalogRepairs.catalogueRows().find(c=>c.fullId===card.fullId).productId,card.productId);
   }
 });

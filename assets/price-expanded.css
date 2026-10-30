@@ -1,8 +1,11 @@
 /* Price detail presentation. The list, card catalog and news remain unchanged. */
 body.price-expanded { background:#fff; }
-body.price-expanded .app { display:block; }
-body.price-expanded .sidebar, body.price-expanded .topbar, body.price-expanded .mnav,
+/* Desktop detail views retain the shared sidebar and header. */
 body.price-expanded .main > footer { display:none!important; }
+@media(max-width:960px) {
+  body.price-expanded .app { display:block; }
+  body.price-expanded .sidebar, body.price-expanded .topbar, body.price-expanded .mnav { display:none!important; }
+}
 body.price-expanded .main { margin:0!important; padding:0!important; width:100%; max-width:none; }
 body.price-expanded [data-page="price"] { padding:0!important; margin:0!important; }
 body.price-expanded [data-page="price"] > :not(#priceDetailPanel) { display:none!important; }

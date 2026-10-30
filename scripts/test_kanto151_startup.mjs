@@ -4,6 +4,12 @@ import {readFile} from 'node:fs/promises';
 import {startRuntime,preloadScenery} from '../games/kanto151/src/startup.mjs';
 
 const pending=()=>{let resolve;const promise=new Promise(done=>resolve=done);return {promise,resolve};};
+test('HTML preloads JSON without speculatively linking import-map modules',async()=>{
+ const html=await readFile(new URL('../games/kanto151/index.html',import.meta.url),'utf8');
+ assert.doesNotMatch(html,/<link\b[^>]*rel=["']modulepreload["']/i);
+ assert.equal((html.match(/<link\b[^>]*as="fetch"/g)||[]).length,13);
+ assert.ok(html.indexOf('type="importmap"')<html.indexOf('type="module"'));
+});
 const source=await readFile(new URL('../games/kanto151/src/game.mjs',import.meta.url),'utf8');
 // Evaluate the real class without browser-only imports. Only the methods under
 // test run; their dependencies are supplied by the fixture.

@@ -161,7 +161,10 @@ export function moveWildToward(game,actor,target,dt,speed=2.8) {
  for(const turn of [0,side*.5,-side*.5,side*1.05,-side*1.05,side*1.57,-side*1.57]){
   const heading=angle+turn,x=pos.x+Math.sin(heading)*travel,z=pos.z+Math.cos(heading)*travel;
   if(!legal(game,actor,x,z,pos))continue;
-  pos.x=x;pos.z=z;pos.y=wildGroundHeight(game.world,actor.id,x,z);actor.model.rotation.y=heading;actor.angle=heading;actor.moving=true;actor.roaming=null;return true;
+  pos.x=x;pos.z=z;pos.y=wildGroundHeight(game.world,actor.id,x,z);
+  const delta=Math.atan2(Math.sin(heading-actor.model.rotation.y),Math.cos(heading-actor.model.rotation.y));
+  actor.model.rotation.y+=Math.max(-6*dt,Math.min(6*dt,delta));
+  actor.angle=heading;actor.moving=true;actor.roaming=null;return true;
  }
  actor.moving=false;
  if(state.path){state.stalled+=dt;if(state.stalled>.35){state.path=null;state.stalled=1;}}

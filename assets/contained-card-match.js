@@ -7,6 +7,8 @@
   'use strict';
   const escape = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const upper = value => String(value || '').toUpperCase();
+  const artworkKey = card => [card.brand, upper(card.boxCode), upper(card.fullId || card.number), String(card.image || '')].join('|');
+  const proofFor = (card, verified) => verified[[card.brand, upper(card.boxCode), upper(card.fullId)].join(':')] || verified[artworkKey(card)];
   // Only aliases established by an actual productNumber; never collapse split sets.
   const aliases = {
     'ADV4':['ADVEX'], // Local Magma vs Aqua (080); SNKRDUNK ADV4 is a different 083-card set.
@@ -106,7 +108,7 @@
   }
   function resolve(card, products, verified = {}, candidateProofs = {}) {
     const fullId = upper(card.fullId || ''), key = [card.brand, upper(card.boxCode), fullId].join(':');
-    const proof = verified[key];
+    const proof = proofFor(card, verified);
     if (proof && /^\d+$/.test(String(proof.id)) && proof.brand === card.brand && upper(proof.fullId) === fullId) {
       const product = products.find(p => String(p.id) === String(proof.id));
       // A verified link can exist before the price feed contains that product.
@@ -152,7 +154,7 @@
       return pools.get(key);
     }
     const find = card => {
-      const proof = verified[[card.brand, upper(card.boxCode), upper(card.fullId)].join(':')];
+      const proof = proofFor(card, verified);
       const pool = poolFor(card);
       // Include the verified product even if its metadata is inconsistent, so
       // resolve can report a conflict instead of silently trusting the ID.
@@ -162,5 +164,5 @@
     find.candidates = card => [...new Map(poolFor(card).filter(p=>sameIdentity(card,p,candidateProofs)).map(p=>[String(p.id),p])).values()];
     return find;
   }
-  return {resolve, createResolver, sameIdentity, numberOf, foreign, aliases, legacy, paired};
+  return {resolve, createResolver, sameIdentity, numberOf, foreign, aliases, legacy, paired, artworkKey};
 });

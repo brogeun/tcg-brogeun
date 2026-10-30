@@ -4,7 +4,7 @@
   const VERSION='20260908-en4',cache=new Map(),size=24,cardsPerPage=18;
   let catalog=null,names={},language=window.ChineseCatalog?.initialLanguage||'ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',cardRarities=[],cardScroll=0,request=0,opener=null;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const money=c=>Number.isSafeInteger(c)&&c>0?'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):null;
+  const money=c=>{if(!Number.isSafeInteger(c)||c<=0)return null;const won=window.TCGFX?.getState?.().available===false?null:window.TCGFX?.convert?.(c/100,'USD');return Number.isFinite(won)&&won>0?'₩'+Math.floor(won).toLocaleString('ko-KR'):'환율 확인 중';};
   const name=c=>names[c.name]||c.name;
   const searchText=s=>String(s||'').toLocaleLowerCase().replace(/\s/g,'');
   const validPrice=p=>p?.language==='en'&&p.grade==='PSA 10'&&p.currency==='USD';
@@ -103,5 +103,6 @@
   },true);
   ensureLanguages();
   ready.then(()=>{renderCardInfo();const query=new URLSearchParams(location.search),code=query.get('set');if(code?.startsWith('EN-')&&location.hash==='#cardinfo'){language='en';CI_TAB='pokemon';renderCardInfo();open(code,false,query.get('card'));}}).catch(()=>{if(language==='en')document.getElementById('cardInfoList').innerHTML='<p>영문판 목록을 불러오지 못했습니다. 새로고침해 주세요.</p>';});
+  window.addEventListener?.('tcg:fx-updated',()=>{const modal=document.getElementById('anyModal');if(typeof CI_TAB!=='undefined'&&CI_TAB==='pokemon'&&language==='en'&&modal?.classList.contains('open')&&modal.querySelector('.enc-scroll,.enc-detail-scroll')){if(currentCard)detail(currentCard.sourceId);else setBody();}});
   window.EnglishCatalog={art,quote,open,name,dailySales,historyHTML,cancelPending(){request++;}};
 })();

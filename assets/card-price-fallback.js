@@ -119,6 +119,7 @@
   function resolve(target,{snkrProducts=[],yuyuRows=[],mercariReferences=[],bindings={}}={}){
     const g=game(target?.game||target?.brand);
     if(!target||!games.has(g)||!['ja','unknown'].includes(language(target.language))||!['RAW','UNGRADED'].includes(norm(target.grade||'raw')))return empty(['일본판 미감정 카드만 지원']);
+    if(['ambiguous','artwork-pending','conflict','verified-link'].includes(target.snkrdunkStatus)&&!target.snkrProduct)return {...empty(),status:'unknown',source:'snkrdunk',reason:'unlinked-artwork'};
     const own=target.snkrProduct,products=own?[own,...snkrProducts.filter(row=>String(row.id)!==String(own.id))]:snkrProducts;
     if(target.sourceUnavailable||own?.quoteUnavailable)return {...empty(),status:'unknown',source:'snkrdunk'};
     const snkr=snkrQuote(target,products,bindings);if(snkr)return snkr;
@@ -128,6 +129,7 @@
     if(matched.length===1){const row=matched[0];return quote('yuyutei',row.price,'JPY',row,{priceKind:'shop_asking',condition:'raw',stockState:row.stockState||'unknown',stale:!!row.stale||row.notObservedInLatestSnapshot===true,verification:'exact_printing',notes:row.stockState==='out_of_stock'?['품절 상품의 표시가']:[]});}
     const candidates=mercariCandidates(target,mercariReferences);
     if(candidates.length)return {...candidates[0],candidates};
+    if(target.snkrdunkStatus==='unlinked'&&!own)return {...empty(),status:'unknown',source:'snkrdunk',reason:'catalog-unlinked'};
     return empty(matched.length>1?['같은 번호의 판본을 확정할 수 없음']:['확인된 가격 없음']);
   }
   async function json(path){
@@ -139,12 +141,44 @@
     if(Array.isArray(data.records))return data.records;
     return (data.rows||[]).map(values=>{const row=Object.fromEntries((data.columns||[]).map((key,index)=>[key,values[index]]));return {...row,id:`yuyutei:${data.sourceGame}:${row.sourceSetCode}:${row.sourceProductId}`,game:data.game,language:data.language||'ja',grade:'raw',currency:data.currency,priceKind:data.priceKind,sourceUrl:`https://yuyu-tei.jp/sell/${data.sourceGame}/card/${row.sourceSetCode}/${row.sourceProductId}`};});
   }
+  const liveSnkrCache=new Map();
+  async function currentSnkrQuote(id){
+    const saved=liveSnkrCache.get(id);if(saved&&saved.until>Date.now())return saved.promise;
+    const entry={until:Date.now()+60000};
+    entry.promise=fetch('/api/card-grades?id='+encodeURIComponent(id),{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error('SNKR quote unavailable');return r.json();}).catch(error=>{liveSnkrCache.delete(id);throw error;});
+    liveSnkrCache.set(id,entry);return entry.promise;
+  }
+  function exactSnkrTarget(target){
+    const p=target.snkrProduct,id=String(target.snkrdunkId||p?.id||'');
+    if(!p||!/^\d+$/.test(id)||String(p.id)!==id||!sameGame(target,p)||foreign(p))return false;
+    const declared=productNumber(p,game(target.game||target.brand));
+    if(fullNumber(target)&&declared&&fullNumber(target)!==declared)return false;
+    return japanese(target,p)||(target.catalogSource==='SNKRDUNK'&&String(target.snkrdunkId||'')===id);
+  }
+  async function confirmSnkrAbsence(target,load){
+    const p=target.snkrProduct,id=String(p.id),value=await load(id),now=Date.now(),stamp=Date.parse(value?.fetchedAt||'');
+    if(value?.ok!==true||String(value.id)!==id||!Number.isFinite(stamp)||stamp>now+300000||now-stamp>4200000)throw Error('Unverified SNKR quote');
+    const raw=value.grades?.raw,noListings=value.noListingGrades?.includes('raw');
+    if(raw&&currency(raw.currency)&&positive(raw.lowest_ask)&&raw.active_count!==0&&!noListings){
+      return {...target,sourceUnavailable:false,snkrProduct:{...p,quoteUnavailable:false,grades:{...(value.grades||{}),raw},catalogAsk:null,minPrice:raw.lowest_ask,currency:raw.currency,listingCount:raw.active_count||1,priceStatus:'available',gradeCheckedAt:value.fetchedAt,priceCheckedAt:value.fetchedAt}};
+    }
+    if(noListings&&!raw){
+      const grades={...(value.grades||{})};delete grades.raw;
+      return {...target,sourceUnavailable:false,snkrProduct:{...p,quoteUnavailable:false,grades,catalogAsk:null,minPrice:null,currency:'JPY',listingCount:0,priceStatus:'no-listings',gradeCheckedAt:value.fetchedAt,priceCheckedAt:value.fetchedAt}};
+    }
+    throw Error('SNKR raw availability unconfirmed');
+  }
   async function lookup(target,options={}){
-    await root.TCGFX?.ready;
-    const snkrProducts=options.snkrProducts||[],bindings=options.bindings||{},provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
+    const snkrProducts=options.snkrProducts||[],bindings=options.bindings||{};let provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
     let result=resolve(provided,{snkrProducts,bindings});
-    if(result.status==='priced'||result.status==='unknown'||!japanese(provided,provided.snkrProduct)||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
+    if(result.status==='priced'||(result.status==='unknown'&&result.reason!=='catalog-unlinked')||(!japanese(provided,provided.snkrProduct)&&!exactSnkrTarget(provided))||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
     const current=options.isCurrent||(()=>true),load=options.fetchJson||json,g=game(provided.game||provided.brand);
+    if(exactSnkrTarget(provided)&&(root.document||options.loadSnkrQuote)){
+      try{provided=await confirmSnkrAbsence(provided,options.loadSnkrQuote||currentSnkrQuote);root.ContainedCardPrices?.cacheProduct?.(provided.snkrProduct);if(!current())return empty(['조회 취소']);}
+      catch{return {...empty(),status:'unknown',source:'snkrdunk',reason:'source-unavailable'};}
+      result=resolve(provided,{snkrProducts,bindings});if(result.status==='priced'||result.status==='unknown')return result;
+    }
+    if(!japanese(provided,provided.snkrProduct)||provided.bundle||provided.quantity>1||provided.unprintedNumber||!fullNumber(provided))return result;
     let rows=options.yuyuRows||[];
     if(options.yuyuRows===undefined&&yuyuGames.has(g)){try{const data=await load(`/data/yuyutei-market/${g}.json`);if(!current())return empty(['조회 취소']);if(game(data.game)!==g)throw Error('Wrong source game');rows=decodeYuyu(data);}catch{rows=[];}}
     result=resolve(provided,{snkrProducts,yuyuRows:rows,bindings});if(result.status==='priced'||!current())return result;
@@ -152,16 +186,27 @@
     if(options.mercariReferences===undefined){try{const data=await load('/data/mercari-references.json');if(!current())return empty(['조회 취소']);if(data.source!=='mercari')throw Error('Wrong source');references=data.references||[];}catch{references=[];}}
     return resolve(provided,{snkrProducts,yuyuRows:rows,mercariReferences:references,bindings});
   }
+  const renderedQuotes=new Map();let renderSequence=0;
+  function wonPrice(result,convert=root.TCGFX?.convert){
+    const waiting=convert===root.TCGFX?.convert&&root.TCGFX?.getState?.().available===false;
+    const amount=result.currency==='KRW'?result.amount:!waiting&&typeof convert==='function'?convert(result.amount,result.currency):null;
+    return positive(amount)?'₩'+Math.floor(amount).toLocaleString('ko-KR'):'환율 확인 중';
+  }
+  root.addEventListener?.('tcg:fx-updated',()=>{
+    for(const host of root.document?.querySelectorAll?.('[data-cpf-render]')||[]){
+      const quote=renderedQuotes.get(host.dataset.cpfRender),strong=host.querySelector('strong');
+      if(quote&&strong)strong.textContent=wonPrice(quote);
+    }
+  });
   function render(result,{compact=false,convert=root.TCGFX?.convert}={}){
     if(!result||result.status==='none')return '<span class="card-price-fallback cpf-none">확인된 가격 없음</span>';
-    if(result.status==='unknown')return '<span class="card-price-fallback cpf-none">SNKRDUNK 가격 확인 불가</span>';
+    if(result.status==='unknown')return '<span class="card-price-fallback cpf-none">'+(['unlinked-artwork','catalog-unlinked'].includes(result.reason)?'카드별 가격 연결 확인 필요':'SNKRDUNK 가격 확인 불가')+'</span>';
     const labels={snkrdunk:'SNKRDUNK',yuyutei:'유유테이',mercari:'메루카리'},label=result.status==='candidate'?'참고 매물 · 판본 확인 필요':result.source==='snkrdunk'&&result.condition==='unspecified'?'상태 미지정 상품 호가':result.source==='yuyutei'&&result.stockState==='out_of_stock'?'품절 표시가':result.source==='yuyutei'?'판매가':'미감정 최저 호가';
-    const amount=result.currency==='KRW'?result.amount:typeof convert==='function'?convert(result.amount,result.currency):null;
-    const price=positive(amount)?'₩'+Math.floor(amount).toLocaleString('ko-KR'):'환율 확인 중';
+    const price=wonPrice(result,convert),renderId=String(++renderSequence);renderedQuotes.set(renderId,{amount:result.amount,currency:result.currency});if(renderedQuotes.size>256)renderedQuotes.delete(renderedQuotes.keys().next().value);
     const url=safeSource(result.sourceUrl,result.source),source=url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(labels[result.source])}</a>`:esc(labels[result.source]);
     const time=result.observedAt&&!Number.isNaN(Date.parse(result.observedAt))?new Date(result.observedAt).toISOString().slice(0,10):'확인일 미상';
     const status=result.source==='mercari'?` · ${result.saleStatus==='sold'?'판매완료 매물 표시가':result.saleStatus==='active'?'판매중 확인':'판매상태 미확인'} · 평가액 제외`:'';
-    return `<span class="card-price-fallback cpf-${esc(result.status)}${compact?' cpf-compact':''}"><strong>${esc(price)}</strong> <small>원화 · ${esc(label)}</small><small>${source} · ${esc(time)}${result.stale?' · 이전 관측가':''}${result.editionVerification==='unconfirmed'?' · 판본 언어 미확인':''}${esc(status)}</small></span>`;
+    return `<span data-cpf-render="${renderId}" class="card-price-fallback cpf-${esc(result.status)}${compact?' cpf-compact':''}"><strong>${esc(price)}</strong> <small>원화 · ${esc(label)}</small><small>${source} · ${esc(time)}${result.stale?' · 이전 관측가':''}${result.editionVerification==='unconfirmed'?' · 판본 언어 미확인':''}${esc(status)}</small></span>`;
   }
   async function decorate(element,target,options={}){
     if(!element)return empty();const token={};tokens.set(element,token);const current=()=>tokens.get(element)===token&&element.isConnected!==false&&(!options.isCurrent||options.isCurrent());

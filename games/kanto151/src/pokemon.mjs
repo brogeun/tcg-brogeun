@@ -204,7 +204,7 @@ export class PokemonResources {
   }
   async _load(id) {
     const info=this.manifest.get(id);
-    if(!info)throw new Error(`Unknown Pokémon ${id}`);
+    if(!info)throw new Error(`Unknown Pokemon ${id}`);
     const THREE=this.THREE;
     const [model,animationData]=await Promise.all([this.json(info.model),Promise.all(info.animationFiles.map(path=>this.json(path)))]);
     // Some regional files reuse base clip names; preserve the primary definition.
@@ -281,6 +281,13 @@ export class PokemonResources {
     const combatProfile=createCombatProfile(info,boneMap.keys());
     let elapsed=0,actionElapsed=0,lastAction='',lastCastSerial=null,released=false;
     let visualHeight=1,recoilTail=null;
+    // Keep the base pose separate from attacks so a gait change cannot snap the
+    // rig or carry recoil into the next walk. Cache once rather than per frame.
+    const basePose=new Map([...boneMap].map(([name,bone])=>[name,{
+      position:bone.position.clone(),quaternion:bone.quaternion.clone(),scale:bone.scale.clone(),
+    }]));
+    let baseClip=null,baseBlendRemaining=0;
+    const targetQuaternion=new THREE.Quaternion();
     const context={time:0,moving:false};
     const apply=(name,time,state,weight=1,actionLayer=false)=>{
       const clip=record.animations[name];if(!clip)return;
@@ -308,7 +315,21 @@ export class PokemonResources {
       lastCastSerial=castSerial;
       for(const bone of boneMap.values()){bone.position.copy(bone.userData.restPosition);bone.rotation.copy(bone.userData.restRotation);bone.scale.set(1,1,1);}
       const semantic=state.moving?'walk':state.battle?'battle':'idle';
-      apply(info.clips[semantic]||info.clips.idle,elapsed,state);
+      const clip=info.clips[semantic]||info.clips.idle;
+      if(clip!==baseClip){baseBlendRemaining=baseClip===null?0:.16;baseClip=clip;}
+      apply(clip,elapsed,state);
+      const poseBlend=dt>0&&baseBlendRemaining>0?Math.min(1,dt/baseBlendRemaining):1;
+      for(const [name,bone] of boneMap){
+        const previous=basePose.get(name);
+        if(poseBlend<1){
+          bone.position.lerpVectors(previous.position,bone.position,poseBlend);
+          targetQuaternion.copy(bone.quaternion);
+          bone.quaternion.copy(previous.quaternion).slerp(targetQuaternion,poseBlend);
+          bone.scale.lerpVectors(previous.scale,bone.scale,poseBlend);
+        }
+        previous.position.copy(bone.position);previous.quaternion.copy(bone.quaternion);previous.scale.copy(bone.scale);
+      }
+      baseBlendRemaining=dt>0?Math.max(0,baseBlendRemaining-dt):0;
       let combatPose=null;
       const nativeMotionWeight=state.reducedMotion?.25:1;
       if(state.combatMotion){

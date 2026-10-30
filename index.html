@@ -6955,9 +6955,9 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
           const localizedName=brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...c,brand:'pokemon'}) : c.nameKo || c.name || displayNum;
           const isOnePiece = externalUrl.includes('onepiece-cardgame.com') || fullId.match(/^(OP|EB|ST|PRB)\d+/i);
           const localPath = (isOnePiece && fullId) ? `images/onepiece/${fullId}.png` : '';
-          // 우선순위: 외부 URL → 로컬 → hide
-          let primarySrc = externalUrl;
-          let fallbackSrc = localPath;
+          // 캐시 이미지가 있으면 먼저 표시하고 원본 URL을 대체 경로로 유지한다.
+          let primarySrc = c.localImage || externalUrl;
+          let fallbackSrc = c.localImage ? (externalUrl || localPath) : localPath;
           // 외부 URL 없으면 로컬 만 사용
           if (!primarySrc && localPath) primarySrc = localPath;
           // 외부 URL 과 로컬 둘 다 동일이면 fallback 의미 없음

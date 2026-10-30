@@ -15,6 +15,7 @@ import {buildVerdantLandscape,VERDANT_TREE_PROP} from './verdant-landscape.mjs';
 import {terrainMaterial} from './terrain-material.mjs';
 import {buildLandscapeDressing} from './landscape-dressing.mjs';
 import {currentLocale,t,tx} from './i18n.mjs';
+import {preloadScenery} from './startup.mjs';
 // Region-specific rebuilding is cloned so saves and source compositions stay intact.
 function detailedComposition(c){
  c=expeditionComposition(c);
@@ -100,7 +101,8 @@ export async function buildRegion(world,biome,onProgress=()=>{}){
  if(c.labDoor){const gate=world.gates?.find(g=>g.spec.id===c.labDoor.id),p=gate?.spec.position;marker('door',t('exp.labDoor'),...c.labDoor.interaction,{door:c.labDoor,...(p?{anchor:{x:p[0],z:p[2]}}:{})});}
  for(const shortcut of world.compositions.shortcuts.filter(s=>s.regionId===biome.id&&s.capability!=='flash')){const item=marker('capability',label(shortcut.name),...shortcut.interaction,{shortcut});if(['climb','surf'].includes(shortcut.capability)){createFieldObject(world,item);createFieldObject(world,marker('capability',label(shortcut.name),...shortcut.to,{shortcut}));}}
  for(const [i,l] of c.landmarks.entries()){const p=l.position,key=c.staged===false?l.id:`${biome.id}-landmark-${i}`,spot=base&&l.id==='verdant-camp'?BASE_LAYOUT.points.pickup:[[3,3],[-3,3],[3,-3],[-3,-3],[5,2],[-5,2],[0,5],[0,-5]].map(([dx,dz])=>[p.x+dx,p.z+dz]).find(([x,z])=>{const [cx,cz]=world.collision(x,z,.55);return Math.hypot(cx-x,cz-z)<.01&&!waterAt(world,x,z)&&Math.abs(world.height(x,z)-world.height(p.x,p.z))<1.5&&world.interactions.every(i=>Math.hypot(i.x-x,i.z-z)>=2);})||[p.x+3,p.z+3];marker('pickup',t('interaction.pickup'),...spot,{key});add('survival/chest',{x:spot[0],z:spot[1],height:.5,rotation:.5,pickupKey:key});}
- let done=0;for(const batch of batches.values()){await placeComposedBatch(world,batch.path,batch.placements);onProgress(++done/batches.size*.9);}
+ await preloadScenery(world,batches.values(),6,p=>onProgress(p*.45));
+ let done=0;for(const batch of batches.values()){await placeComposedBatch(world,batch.path,batch.placements);onProgress(.45+(++done)/batches.size*.45);}
  addSetpieces(world,c);if(base){buildVerdantLandscape(world,c);world.sun?.color?.set(0xffdda5);world.hemi?.color?.set(0xe4ebd6);world.hemi?.groundColor?.set(0x283d30);}else{await buildLandscapeDressing(world,c);world.sun?.color?.set(0xffe3b5);world.hemi?.color?.set(0xe8ffe8);world.hemi?.groundColor?.set(0x40574b);}if(biome.id==='complex'){world.sun?.color?.set(0xffd69b);world.hemi?.color?.set(0xc6d7c1);world.hemi?.groundColor?.set(0x35432d);}bindShortcutObjects(world);world.addAtmosphere(()=>Math.random(),biome.id);world.cameraTarget.set(safe.x,1,safe.z);onProgress(1);return world;
 }
 async function placeComposedBatch(world,path,placements){const template=await world.template(path),bounds=template.userData.bounds,size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3()),sources=[];template.traverse(m=>{if(m.isMesh)sources.push(m);});
@@ -128,6 +130,7 @@ function addSetpieces(world,c){for(const s of c.setpieces||[])if(s.kind==='conta
 }
 
 export function deckAt(world,x,z){return (world.walkSurfaces||[]).find(s=>{const dx=x-s.x,dz=z-s.z,co=Math.cos(s.rotation),si=Math.sin(s.rotation);return Math.abs(dx*co-dz*si)<s.width/2&&Math.abs(dx*si+dz*co)<s.length/2;});}
+
 
 
 

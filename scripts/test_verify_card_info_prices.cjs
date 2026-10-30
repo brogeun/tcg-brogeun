@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {createRequire}=require('node:module'),root=path.resolve(__dirname,'..'),file=path.join(root,'scripts/verify_card_info_prices_production.cjs');
 test('production verification exercises every stored artwork and the complete OP16/OP17 click targets',async()=>{
  const output=[],errors=[],calls=[],state={env:{},exitCode:0};
- const context={require:createRequire(file),process:state,AbortSignal,URL,Date,setTimeout:fn=>{fn();return 0;},
+ const context={require:createRequire(file),process:state,AbortSignal,URL,Date,JSON,setTimeout:fn=>{fn();return 0;},
   console:{log:s=>output.push(s),error:s=>errors.push(String(s))},fetch:async address=>{
    const url=new URL(address);calls.push(url.pathname);
    if(url.pathname==='/api/card-grades'){const id=url.searchParams.get('id');return new Response(JSON.stringify({ok:true,id,grades:{raw:{lowest_ask:100,currency:'JPY'}},fetchedAt:new Date().toISOString()}));}

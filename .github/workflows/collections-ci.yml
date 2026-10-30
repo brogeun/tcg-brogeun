@@ -1,0 +1,57 @@
+name: Collection scope and persistence checks
+
+on:
+  pull_request:
+    paths:
+      - 'assets/*collection*'
+      - 'assets/*catalog*'
+      - 'assets/card-rarity-filters*'
+      - 'data/collections/**'
+      - 'images/collections/**'
+      - 'scripts/fixtures/**'
+      - 'functions/**'
+      - 'scripts/*collection*'
+      - 'scripts/tests/*collection*'
+      - 'scripts/*rarity*'
+      - 'index.html'
+      - 'sw.js'
+      - '.github/workflows/collections-ci.yml'
+      - '.github/workflows/scrape.yml'
+  push:
+    branches: ['feat/collections']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collections-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /assets/
+            /images/collections/
+            /functions/
+            /scripts/
+            /data/
+            /.github/
+            /index.html
+            /sw.js
+            /_routes.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate catalogue, collection isolation and actual client routes
+        run: node scripts/test_collections_release.mjs

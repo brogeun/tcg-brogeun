@@ -99,7 +99,8 @@
       kind:'box', brand:'pokemon', language:'ja', _catalogue:true,
       thumbnailUrl:set.image || '/images/sets/'+encodeURIComponent(set.code)+'.jpg', productNumber:set.code, listingCount:0
     }));
-    rows = [...printed, ...marketOnly, ...catalogBoxes];
+    const supplements=(root.CardCatalogRepairs?.catalogueRows?.()||[]).map(card=>({...card,_searchText:normalize(card.nameLower)}));
+    rows = [...printed, ...marketOnly, ...catalogBoxes, ...supplements];
     return rows;
   }
   function getSearchRows() { return rows.length ? rows : products; }
@@ -117,7 +118,7 @@
     if (card.productId) return '#price/'+encodeURIComponent(card.productId);
     if (!card._catalogue) return '#price/'+encodeURIComponent(card.id);
     const query = new URLSearchParams({set:card.boxCode || card.setCode});
-    if (card.kind === 'card') query.set('card', card.number || card.sourceId || card.id);
+    if (card.kind === 'card') query.set('card', card.brand==='onepiece'&&card.fullId ? card.fullId : card.number || card.sourceId || card.id);
     return '/?'+query+'#cardinfo';
   }
   function find(id) { return rows.find(card => card.id === id); }

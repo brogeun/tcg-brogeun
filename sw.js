@@ -179,4 +179,3 @@ self.addEventListener('message', event => {
   }
 });
 
-

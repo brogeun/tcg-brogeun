@@ -20,7 +20,7 @@
   }
   async function ensureData(){
     if(data)return data;
-    if(!ready)ready=fetch('/data/card-catalog-repairs.json?v=20261030-1',{signal:AbortSignal.timeout(12000)}).then(r=>{
+    if(!ready)ready=fetch('/data/card-catalog-repairs.json?v=20261030-consistent1',{signal:AbortSignal.timeout(12000)}).then(r=>{
       if(!r.ok)throw Error('Card catalogue repairs HTTP '+r.status);
       return r.json();
     }).then(next=>{configure(next);return data;}).catch(error=>{
@@ -38,7 +38,7 @@
   function setCards(source,code){
     if(!source||!data)return source;
     const cards=(source.cards||[]).map(card=>printed(card,code));
-    for(const card of data.onepieceDon.filter(row=>upper(row.setCode)===upper(code))){
+    for(const card of [...data.onepieceDon,...(data.onepieceReprints||[])].filter(row=>upper(row.boxCode||row.setCode)===upper(code))){
       if(!cards.some(row=>row.fullId===card.fullId))cards.push({...card});
     }
     return {...source,cards,cardCount:cards.length};
@@ -69,6 +69,7 @@
     return rows;
   }
   async function liveQuote(id){
+    id=String(id);
     const now=Date.now(),saved=quoteCache.get(id);
     if(saved&&saved.until>now)return saved.promise;
     const entry={until:now+60000};
@@ -79,18 +80,37 @@
         const value=await response.json(),stamp=Date.parse(value.fetchedAt||'');
         if(value.ok!==true||String(value.id)!==id||!Number.isFinite(stamp)||stamp>now+300000||now-stamp>4200000)throw Error('Unverified live quote');
         const raw=value.grades?.raw;
-        if(raw&&raw.currency==='JPY'&&Number.isFinite(raw.lowest_ask)&&raw.lowest_ask>0){
+        if(raw&&raw.active_count!==0&&raw.currency==='JPY'&&Number.isFinite(raw.lowest_ask)&&raw.lowest_ask>0){
           entry.until=Math.max(now+1000,Math.min(now+1800000,stamp+3600000));
-          return {amount:raw.lowest_ask,currency:'JPY',count:Number.isInteger(raw.active_count)&&raw.active_count>0?raw.active_count:null};
+          return {amount:raw.lowest_ask,currency:'JPY',count:Number.isInteger(raw.active_count)&&raw.active_count>0?raw.active_count:null,observedAt:value.fetchedAt};
         }
         if(!raw&&Array.isArray(value.noListingGrades)&&value.noListingGrades.includes('raw')){
-          entry.until=now+300000;return {amount:null,currency:'JPY',count:0};
+          entry.until=now+300000;return {amount:null,currency:'JPY',count:0,observedAt:value.fetchedAt};
         }
       }catch{/* Retain the recorded quote when the exact Japanese source is unavailable. */}
       return null;
     })();
     quoteCache.set(id,entry);return entry.promise;
   }
+  function reviewedProduct(id){return products([]).find(row=>row.id===String(id))||null;}
+  async function quoteProduct(product){
+    await ensureData();
+    const reviewed=reviewedProduct(product?.id);
+    if(!reviewed||product.brand&&product.brand!=='onepiece'||product.language&&product.language!=='ja')return product;
+    const price=await liveQuote(product.id);
+    // A catalogue USD ask and an A-grade JPY ask describe different observations.
+    // Never retain the former when the exact Japanese quote is unavailable.
+    return {...product,...reviewed,kind:'card',_productKind:'card',_brand:'onepiece',image:reviewed.thumbnailUrl,
+      reviewedDon:true,quoteUnavailable:!price,minPrice:price?.amount??null,lastPrice:price?.amount??null,lowestAsk:price?.amount??null,
+      currency:'JPY',listingCount:price?.amount?price.count||1:0,catalogAsk:null,
+      priceCheckedAt:price?.observedAt||null,gradeCheckedAt:price?.observedAt||null,
+      priceStatus:!price?'error':price.amount===null?'no-listings':'available',
+      grades:price?.amount?{raw:{lowest_ask:price.amount,currency:'JPY',active_count:price.count||1}}:{}};
+  }
+  function catalogueRows(){return (data?.onepieceReprints||[]).map(card=>({...card,
+    id:card.id,brand:'onepiece',kind:'card',language:'ja',_catalogue:true,catalogueId:card.id,
+    productId:null,productIds:[],thumbnailUrl:card.image,setName:card.boxCode,displayName:card.nameKo||card.name,
+    nameLower:[card.name,card.nameKo,card.fullId,card.number,card.boxCode,card.versionLabel].join(' ').toLowerCase()}));}
   async function hydratePrices(container,rows,{isCurrent=()=>true,formatKrw,formatOrig}={}){
     if(!container||!isCurrent())return;
     const token={};priceTokens.set(container,token);
@@ -121,6 +141,6 @@
     }
     await Promise.all(Array.from({length:Math.min(3,entries.length)},worker));
   }
-  const api={configure,ensureData,printed,setCards,products,hydratePrices};return api;
+  const api={configure,ensureData,printed,setCards,products,hydratePrices,liveQuote,reviewedProduct,quoteProduct,catalogueRows};return api;
 });
 

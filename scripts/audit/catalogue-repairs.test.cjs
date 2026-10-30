@@ -30,13 +30,13 @@ test('reported OP17 Rocks parallel is searchable by spaced, compact, Korean and 
   for(const q of ['OP17 다이아','OP17 다이아몬드','록스 diamond'])assert.deepEqual(Array.from(b.searchCards(q,Infinity).filter(c=>c.cardType==='DON'),c=>c.id),['871082']);
   assert.deepEqual(Array.from(b.searchCards('OP17 골드',Infinity).filter(c=>c.cardType==='DON'),c=>c.id).sort(),['871079','871080','871081']);
 });
-test('OP17 contains all eight numberless designs once and retains its original 158 cards',()=>{
+test('OP17 contains all eight numberless designs once and retains all 169 official numbered cards',()=>{
   const source=read('data/cards-by-set/OP17.json');
   const before=source.cards.filter(card=>card.cardType!=='DON'),after=repairs.setCards({...source,cards:before},'OP17');
-  assert.equal(before.length,158);assert.equal(after.cards.length,166);assert.equal(after.cardCount,166);
-  assert.deepEqual(after.cards.slice(0,158),before);
-  assert.equal(repairs.setCards(after,'OP17').cards.length,166);
-  assert.equal(new Set(after.cards.map(card=>card.fullId)).size,166);
+  assert.equal(before.length,169);assert.equal(after.cards.length,177);assert.equal(after.cardCount,177);
+  assert.deepEqual(after.cards.slice(0,169),before);
+  assert.equal(repairs.setCards(after,'OP17').cards.length,177);
+  assert.equal(new Set(after.cards.map(card=>card.fullId)).size,177);
   assert.equal(repairs.setCards({cards:[],code:'OP16'},'OP16').cards.length,0);
 });
 test('DON identity never borrows another design, finish or English product price',()=>{

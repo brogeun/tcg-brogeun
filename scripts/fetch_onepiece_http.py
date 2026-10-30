@@ -12,6 +12,7 @@ fetch_onepiece_http.py — 원피스 일판 공식 카드리스트 (selenium 없
 """
 
 import argparse
+import html as html_lib
 import json
 import re
 import time
@@ -97,16 +98,22 @@ def parse_cards(html: str, code: str) -> list[dict]:
 
     for block_id, block in blocks:
         # block_id 예: "OP15-001" / "OP15-001_p1" (parallel)
-        id_m = re.match(r'([A-Z]+\d+)[\-_](\d+)(?:_(\w+))?', block_id)
+        id_m = re.fullmatch(r'([A-Z]+\d*)[\-_](\d+)(?:_(\w+))?', block_id)
         if not id_m:
             continue
         set_part = id_m.group(1)
         number = id_m.group(2)
         variant = id_m.group(3) or ""  # p1, p2, sp 등
 
-        # 박스 봉입 카드는 그 박스 코드와 같은 카드만 (재록 X, 페이지 노출 noise X)
-        if set_part.upper() != code.upper():
-            continue
+        # Printed code and the booster containing this artwork are different
+        # identities. SP reprints keep OP/ST/P numbers from their original set.
+        reprint = set_part.upper() != code.upper()
+        if reprint:
+            pack = re.search(r'class=["\']getInfo["\'][^>]*>(.*?)</div>', block, re.DOTALL)
+            label = html_lib.unescape(re.sub(r'<[^>]+>', '', pack.group(1))) if pack else ''
+            prefix, digits = re.fullmatch(r'([A-Z]+)(\d+)', code).groups()
+            if not re.search(r'【' + re.escape(prefix) + r'-?0*' + str(int(digits)) + r'】', label):
+                continue
 
         full_id = block_id
 
@@ -141,8 +148,19 @@ def parse_cards(html: str, code: str) -> list[dict]:
             "name": name,
             "image": img,
         }
+        if reprint:
+            cards[full_id].update(boxCode=code, reprint=True, marketLinkPolicy="verified-only")
 
     return list(cards.values())
+
+
+def validate_inventory(cards, previous):
+    """A partial/changed remote page cannot silently erase an existing artwork."""
+    expected = {c.get('fullId') for c in previous if c.get('fullId') and c.get('cardType') != 'DON'}
+    found = {c.get('fullId') for c in cards}
+    missing = expected - found
+    if missing:
+        raise ValueError('Official response would remove saved card identities: ' + ', '.join(sorted(missing)))
 
 
 def supplement_don_cards(cards: list[dict], code: str, manifest_path=None) -> list[dict]:
@@ -203,6 +221,9 @@ def main():
             continue
 
         cards = supplement_don_cards(cards, code)
+        previous_path = OUT_DIR / f"{code}.json"
+        previous = json.loads(previous_path.read_text(encoding="utf-8")).get("cards", []) if previous_path.exists() else []
+        validate_inventory(cards, previous)
         # Official pages may list only base cards before release; retain reviewed variants.
         if code == "EB05" and (OUT_DIR / "EB05.json").exists():
             previous = json.loads((OUT_DIR / "EB05.json").read_text(encoding="utf-8"))

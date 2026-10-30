@@ -12,10 +12,10 @@ class DonSupplementTests(unittest.TestCase):
         saved = json.loads((ROOT / 'data/cards-by-set/OP17.json').read_text())
         original = [card for card in saved['cards'] if card.get('cardType') != 'DON']
         result = supplement_don_cards(original, 'OP17')
-        self.assertEqual(len(original), 158)
-        self.assertEqual(len(result), 166)
-        self.assertEqual(result[:158], original)
-        self.assertEqual(len({card['fullId'] for card in result}), 166)
+        self.assertEqual(len(original), 169)
+        self.assertEqual(len(result), 177)
+        self.assertEqual(result[:169], original)
+        self.assertEqual(len({card['fullId'] for card in result}), 177)
         self.assertEqual(supplement_don_cards(result, 'OP17'), result)
         self.assertEqual(supplement_don_cards(original, 'OP16'), original)
 

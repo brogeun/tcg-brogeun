@@ -34,6 +34,8 @@
   }
   function isBox(product,history) {
     const source=product._srcFile || product._src || '';
+    if(product.kind==='card'||product.cardType==='DON')return false;
+    if(product.kind==='box')return true;
     if (isCardProduct(product.name) || product._productKind==='card' || /-card$/.test(source) || /^[A-Za-z]+\d*[A-Za-z]?-\d+/.test(String(product.productNumber||''))) return false;
     if (product._productKind==='box' || /-box$/.test(source) || /^manual-boxes/.test(source)) return true;
     return !history.some(r=>grades.some(([key])=>r[key+'_price']!=null));
@@ -80,7 +82,7 @@
       panel.querySelector('.px-empty').textContent='상품 정보를 찾을 수 없습니다. 시세 목록에서 다시 선택해 주세요.';
       return;
     }
-    const product={...original};
+    const product=await window.CardCatalogRepairs?.quoteProduct?.({...original}) || {...original};
     const [histData,detail,,localizeNames]=await Promise.all([json(`/data/history/${encodeURIComponent(id)}.json`),loadCardsDetail(),enrichPriceProductMetadata([product],'box'),window.JapaneseCardNames?.ensureDisplayData?.()]);
     if (!current()) return;
     const history=sortedHistory(histData?.history);
@@ -90,11 +92,11 @@
     if (!current()) return;
     const sets=catalogInfo.sets;
     const originalName=decode(product.name);
-    const name=decode((box && getBoxKoreanName(product,brand)) || (localizeNames && !box && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : '') || HOME_TOP_KO_NAMES[String(id)] || product._koName || product.name_ko || originalName);
+    const name=decode((box && getBoxKoreanName(product,brand)) || (localizeNames && !box && brand==='pokemon' && window.JapaneseCardNames ? JapaneseCardNames.title({...product,brand}) : '') || HOME_TOP_KO_NAMES[String(id)] || product.nameKo || product._koName || product.name_ko || originalName);
     const pack=decode(sets.map(PriceProductInfo.label).join(' / ') || product.set_name || product.pack || '');
     const release=sets.length ? sets.map(s=>`${sets.length>1?s.code+' · ':''}${s.release || '카드정보에 발매일 미등록'}`).join(' / ')
       : product.release_date || product.releaseDate || '카드정보에 발매일 미등록';
-    const keys=box?[['box','박스']]:grades.map(([key,label])=>[key,key==='raw'&&product.packaging?window.AnniversaryMarket.rawLabel(product):label]);
+    const keys=box?[['box','박스']]:grades.map(([key,label])=>[key,key==='raw'&&product.reviewedDon?'A급(싱글)':key==='raw'&&product.packaging?window.AnniversaryMarket.rawLabel(product):label]);
     const values={};
     const noListingGrades=new Set();
     const staticGrades=detail?.cards?.[id]?.grades || {};
@@ -106,10 +108,14 @@
     const listing = HomeMarket.quote(product);
     if (box && listing) values.box = listing;
     if (!box && product._isTop10 && listing) values.raw = listing;
+    if(product.reviewedDon){
+      values.raw=quote(product.grades?.raw);
+      if(product.priceStatus==='no-listings')noListingGrades.add('raw');
+    }
     const anniversary = window.AnniversaryMarket?.product(id);
     if (anniversary) for (const [key] of keys) values[key] = window.AnniversaryMarket.gradeQuote(id,key);
     // A general ungraded product price must never be labelled PSA 10.
-    const state={grade:box?'box':anniversary || product._isTop10 && listing?'raw':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
+    const state={grade:box?'box':product.reviewedDon || anniversary || product._isTop10 && listing?'raw':values.psa10?'psa10':values.raw?'raw':keys.find(([k])=>values[k])?.[0] || 'psa10',range:'all'};
     const extURL=(()=>{try{const u=new URL(product.url || `https://snkrdunk.com/apparels/${id}`);return u.protocol==='https:' && /(^|\.)snkrdunk\.com$/.test(u.hostname)?u.href:`https://snkrdunk.com/apparels/${id}`;}catch{return `https://snkrdunk.com/apparels/${id}`;}})();
     panel.innerHTML=`<article class="px-detail" data-product-kind="${box?'box':'card'}">${head()}
       <section class="px-summary" aria-label="상품 기본 정보">
@@ -155,7 +161,7 @@
       panel.querySelector('#pxLabel').textContent=keys.find(([k])=>k===state.grade)[1]+' 기준';
       const display=(q,key)=>q?krw(q):anniversary || noListingGrades.has(key)?'출품 없음':'—';
       panel.querySelector('#pxCurrent').textContent=display(q,state.grade);
-      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || (anniversary?'수집 시점 출품 없음':noListingGrades.has(state.grade)?'현재 출품 없음':'가격 데이터 없음'));
+      panel.querySelector('#pxSource').textContent='SNKRDUNK · '+(q?.source || (product.reviewedDon&&product.quoteUnavailable&&state.grade==='raw'?'가격 확인 지연':anniversary?'수집 시점 출품 없음':noListingGrades.has(state.grade)?'현재 출품 없음':'가격 데이터 없음'))+(product.reviewedDon&&q?.currency==='JPY'?' · ¥'+q.value.toLocaleString('ja-JP'):'');
       const portfolio=panel.querySelector('#pxPortfolio');
       portfolio.disabled=state.grade.startsWith('bgs');
       portfolio.title=portfolio.disabled?'BGS는 시세 참고용입니다. 현재 포트폴리오는 PSA 10·PSA 9·A급·박스 등급을 지원합니다.':'선택한 등급으로 포트폴리오 추가';
@@ -168,7 +174,7 @@
     // Align action buttons with the summary text on desktop, spanning both columns on mobile.
     update(); observer?.disconnect();observer=new ResizeObserver(draw);observer.observe(panel.querySelector('#pxChart'));
     // Static data renders immediately; live current asks update only this still-active product.
-    if (!box && !anniversary) {
+    if (!box && !anniversary && !product.reviewedDon) {
       const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}&v=3`);
       if (!current() || !live?.ok) return;
       for (const [key] of keys) {

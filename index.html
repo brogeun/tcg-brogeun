@@ -3701,7 +3701,7 @@ async function showPriceDetailPanel(productId) {
   if (!product) {
     try {
       await loadCardSearchData();
-      const found = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(productId)) || window.JapaneseCatalog?.getProduct(productId);
+      const found = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(productId)) || window.ContainedCardPrices?.getPreparedProduct(productId) || window.JapaneseCatalog?.getProduct(productId);
       if (found) {
         // 인덱스 포맷 → showPriceDetailPanel 이 기대하는 포맷으로 변환
         product = {
@@ -5395,7 +5395,7 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
   if (!product) {
     try {
       await loadCardSearchData();
-      const found = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(productId)) || window.JapaneseCatalog?.getProduct(productId);
+      const found = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(productId)) || window.ContainedCardPrices?.getPreparedProduct(productId) || window.JapaneseCatalog?.getProduct(productId);
       if (found) {
         product = { ...found, id: found.id, name: found.name, image: found.thumbnailUrl, brand: found.brand || 'pokemon', _brand: found.brand || 'pokemon' };
       }
@@ -5404,6 +5404,8 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
   // 가격 파일에 임시 이름(Card #ID)만 있어도 실제 카드 메타로 상세명을 복원한다.
   const anniversaryProduct = window.AnniversaryMarket?.products().find(p=>p.id===String(productId));
   if (anniversaryProduct) product = {...product,...anniversaryProduct};
+  const containedProduct=window.ContainedCardPrices?.getPreparedProduct(productId);
+  if(containedProduct)product={...product,...containedProduct};
   if (product) await enrichPriceProductMetadata([product], PRICE_CAT);
   if(product)product=await window.CardCatalogRepairs?.quoteProduct?.(product) || product;
   if(!current())return;
@@ -10913,7 +10915,7 @@ window.addEventListener('appinstalled', () => {
 <!-- TCGHUB_CHIIKAWA_END -->
 <link rel="stylesheet" href="/assets/tcg-card-info.css?v=20261030-boxes1">
 <script src="/assets/card-price-fallback.js?v=20261029-cardinfo2"></script>
-<script src="/assets/contained-card-prices.js?v=20261030-reprint-prices1"></script>
+<script src="/assets/contained-card-prices.js?v=20261030-eb05-verified2"></script>
 <script src="/assets/tcg-card-info.js?v=20261030-boxes1" defer></script>
 </body>
 </html>

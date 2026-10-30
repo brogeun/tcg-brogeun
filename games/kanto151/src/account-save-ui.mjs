@@ -28,9 +28,10 @@ export class AccountSaveUI{
   document.addEventListener('visibilitychange',this._visibility);
  }
  async init(){
+  const startingSave=this.game.save;
   try{
    const s=await this.controller.init(readAccountGameBundle(this.game));
-   if(s.status==='cloud-available')await this.restoreCloud();
+   if(s.status==='cloud-available'&&this.game.phase==='title'&&this.game.save===startingSave&&!this.ui.startScreen.busy)await this.restoreCloud();
   }catch(error){this.problem=error.message;}
   this.changed();
  }
@@ -121,8 +122,9 @@ export class AccountSaveUI{
   try{
    await this.controller.useCloud({apply:bundle=>applyAccountGameBundle(this.game,bundle)});
    this.game.audio.setVolume(this.game.save.settings.volume);this.game.world.setQuality(this.game.save.settings.quality);setLocale(this.game.save.settings.locale);
-   if(this.game.showcase.length)this.ui.startScreen.ready();
+   if(this.game.phase==='title')this.ui.startScreen.ready();
   }finally{this.applying=false;}
  }
  dispose(){this.controller.dispose();window.removeEventListener('storage',this._storage);document.removeEventListener('visibilitychange',this._visibility);}
 }
+

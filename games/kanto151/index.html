@@ -1,5 +1,110 @@
 <!doctype html>
-<html lang="ko-KR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#122c33"><meta name="robots" content="noindex,nofollow"><title>Kanto 151 · An expedition to remember</title><link rel="icon" href="data:,"><link rel="stylesheet" href="./style.css?v=20261017-startup-actions-r1"><script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script><link rel="stylesheet" href="./account-save.css?v=20261017-startup-actions-r1"></head>
+<html lang="ko-KR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#122c33"><meta name="robots" content="noindex,nofollow"><title>Kanto 151 · An expedition to remember</title><link rel="icon" href="data:,"><link rel="stylesheet" href="./style.css?v=20261017-startup-actions-r1"><script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script><link rel="stylesheet" href="./account-save.css?v=20261017-startup-actions-r1">
+<!-- kanto-startup-preloads:begin -->
+<link rel="modulepreload" href="./src/account-save-game.mjs">
+<link rel="modulepreload" href="./src/account-save-ui.mjs">
+<link rel="modulepreload" href="./src/account-save.mjs">
+<link rel="modulepreload" href="./src/audio.mjs">
+<link rel="modulepreload" href="./src/bag.mjs">
+<link rel="modulepreload" href="./src/ball-visuals.mjs">
+<link rel="modulepreload" href="./src/base-facilities.mjs">
+<link rel="modulepreload" href="./src/base-layout.mjs">
+<link rel="modulepreload" href="./src/base-wayfinding.mjs">
+<link rel="modulepreload" href="./src/caldera-expedition.mjs">
+<link rel="modulepreload" href="./src/camp-guidance.mjs">
+<link rel="modulepreload" href="./src/camp.mjs">
+<link rel="modulepreload" href="./src/canopy-visibility.mjs">
+<link rel="modulepreload" href="./src/checkpoints.mjs">
+<link rel="modulepreload" href="./src/combat-feedback.mjs">
+<link rel="modulepreload" href="./src/combat-motion.mjs">
+<link rel="modulepreload" href="./src/combat-rules.mjs">
+<link rel="modulepreload" href="./src/complex-ruins.mjs">
+<link rel="modulepreload" href="./src/cooldowns.mjs">
+<link rel="modulepreload" href="./src/core.mjs">
+<link rel="modulepreload" href="./src/dialog-focus.mjs">
+<link rel="modulepreload" href="./src/ecology.mjs">
+<link rel="modulepreload" href="./src/elite-combat.mjs">
+<link rel="modulepreload" href="./src/environment-detail.mjs">
+<link rel="modulepreload" href="./src/escape-action.mjs">
+<link rel="modulepreload" href="./src/expedition-frame.mjs">
+<link rel="modulepreload" href="./src/expedition-routes.mjs">
+<link rel="modulepreload" href="./src/expedition.mjs">
+<link rel="modulepreload" href="./src/field-actions.mjs">
+<link rel="modulepreload" href="./src/field-expeditions.mjs">
+<link rel="modulepreload" href="./src/field-objects.mjs">
+<link rel="modulepreload" href="./src/five-regions.mjs">
+<link rel="modulepreload" href="./src/game.mjs">
+<link rel="modulepreload" href="./src/habitat.mjs">
+<link rel="modulepreload" href="./src/highlands-cavern.mjs">
+<link rel="modulepreload" href="./src/highlands-outdoor.mjs">
+<link rel="modulepreload" href="./src/hud-artwork.mjs">
+<link rel="modulepreload" href="./src/hud-layout.mjs">
+<link rel="modulepreload" href="./src/i18n.mjs">
+<link rel="modulepreload" href="./src/interaction-state.mjs">
+<link rel="modulepreload" href="./src/interactions.mjs">
+<link rel="modulepreload" href="./src/journey-state.mjs">
+<link rel="modulepreload" href="./src/journey-view.mjs">
+<link rel="modulepreload" href="./src/journey.mjs">
+<link rel="modulepreload" href="./src/landscape-dressing.mjs">
+<link rel="modulepreload" href="./src/lighting.mjs">
+<link rel="modulepreload" href="./src/liquid-material.mjs">
+<link rel="modulepreload" href="./src/main.mjs">
+<link rel="modulepreload" href="./src/move-effects.mjs">
+<link rel="modulepreload" href="./src/move-presentation.mjs">
+<link rel="modulepreload" href="./src/move-vfx-catalog-offense.mjs">
+<link rel="modulepreload" href="./src/move-vfx-catalog-status.mjs">
+<link rel="modulepreload" href="./src/move-vfx-offense.mjs">
+<link rel="modulepreload" href="./src/move-vfx-status.mjs">
+<link rel="modulepreload" href="./src/navigation.mjs">
+<link rel="modulepreload" href="./src/objectives.mjs">
+<link rel="modulepreload" href="./src/pathfinding.mjs">
+<link rel="modulepreload" href="./src/pokemon.mjs">
+<link rel="modulepreload" href="./src/rare-encounters.mjs">
+<link rel="modulepreload" href="./src/region-world.mjs">
+<link rel="modulepreload" href="./src/remaining-expedition.mjs">
+<link rel="modulepreload" href="./src/rest.mjs">
+<link rel="modulepreload" href="./src/run-variants.mjs">
+<link rel="modulepreload" href="./src/save-import.mjs">
+<link rel="modulepreload" href="./src/save-migration.mjs">
+<link rel="modulepreload" href="./src/signatures.mjs">
+<link rel="modulepreload" href="./src/species-ecology.mjs">
+<link rel="modulepreload" href="./src/start-screen.mjs">
+<link rel="modulepreload" href="./src/startup.mjs">
+<link rel="modulepreload" href="./src/status-rules.mjs">
+<link rel="modulepreload" href="./src/structures.mjs">
+<link rel="modulepreload" href="./src/supplies.mjs">
+<link rel="modulepreload" href="./src/target-selection.mjs">
+<link rel="modulepreload" href="./src/terrain-material.mjs">
+<link rel="modulepreload" href="./src/touch-steering.mjs">
+<link rel="modulepreload" href="./src/ui.mjs">
+<link rel="modulepreload" href="./src/verdant-expedition.mjs">
+<link rel="modulepreload" href="./src/verdant-landscape.mjs">
+<link rel="modulepreload" href="./src/verdant-village.mjs">
+<link rel="modulepreload" href="./src/vfx-textures.mjs">
+<link rel="modulepreload" href="./src/waterside-expedition.mjs">
+<link rel="modulepreload" href="./src/wild-ecology-pose.mjs">
+<link rel="modulepreload" href="./src/wild-population.mjs">
+<link rel="modulepreload" href="./src/wild-roaming.mjs">
+<link rel="modulepreload" href="./src/world.mjs">
+<link rel="modulepreload" href="./vendor/BufferGeometryUtils.js">
+<link rel="modulepreload" href="./vendor/GLTFLoader.js">
+<link rel="modulepreload" href="./vendor/three.core.js">
+<link rel="modulepreload" href="./vendor/three.module.js">
+<link rel="preload" as="fetch" href="./data/species.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/moves.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/biomes.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/type-chart.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/pokemon-manifest.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/game-design.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/locale-entities.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/locale-messages.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/locale-literals.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/species-localized.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/regions-localized.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/region-compositions.json" crossorigin>
+<link rel="preload" as="fetch" href="./data/moves-localized.json" crossorigin>
+<!-- kanto-startup-preloads:end -->
+</head>
 <body>
  <canvas id="world" aria-label="Kanto 151 3D world"></canvas><div id="vignette"></div><div id="labels" aria-hidden="true"></div>
  <div id="loading" class="full-screen loading startup" role="status" aria-live="polite">
@@ -33,3 +138,4 @@
  <div id="modal-backdrop" class="hidden"><section id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title"><header class="panel-header"><div><span id="panel-kicker" class="eyebrow">FIELD JOURNAL</span><h1 id="panel-title">Pokédex</h1></div><button id="close-panel" aria-label="Close"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M5 5L19 19M19 5L5 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></header><div id="panel-body"></div></section></div>
  <script type="module" src="./src/main.mjs"></script>
 </body></html>
+

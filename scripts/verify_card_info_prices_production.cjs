@@ -21,15 +21,16 @@ async function run(){
  let resolved=0,priced=0;
  for(const row of bindings.links){
   const card=sets.get(row.boxCode).find(c=>c.image===row.image&&String(c.number||'')===String(row.number||'')&&String(c.fullId||'')===String(row.fullId||''));assert(card,row.boxCode+' '+row.number);
-  const target=bridge.targetFor({...card,brand:row.brand,language:'ja',boxCode:row.boxCode}),p=byId.get(row.id);
+  const target=bridge.targetFor({...card,brand:row.brand,language:'ja',boxCode:row.boxCode,setCode:card.setCode||row.boxCode}),p=byId.get(row.id);
   const links={...bridge.reviewedLinks([target],products,overrides,match),...bridge.reviewedArtworkLinks([target],products,bindings,match)},result=match.createResolver(products,links)(target);
-  assert.equal(result.status,'matched',row.fullId||row.number);assert.equal(result.id,row.id);resolved++;
+  assert.equal(result.status,'matched',[row.brand,row.boxCode,row.fullId||row.number||row.image,row.id].join(' '));assert.equal(result.id,row.id);resolved++;
   const q=fallback.resolve({...target,snkrdunkId:row.id,snkrProduct:p});
   if(q.status==='priced'){priced++;const html=fallback.render(q,{convert:n=>Math.round(n*8.5)});assert(html.includes('₩'));assert(!/JPY|USD|[$¥]/.test(html));}
  }
  for(const [code,count] of [['OP16',149],['OP17',158]]){
   const cards=sets.get(code).filter(c=>new RegExp('^'+code+'-\\d+(?:_p\\d+)?$').test(c.fullId));assert.equal(cards.length,count);
-  const targets=await bridge.prepareTargets(cards.map(c=>({...c,brand:'onepiece',language:'ja',boxCode:code})),{services:{match,loadProducts:async()=>products,loadOverrides:async()=>overrides,loadDetails:async()=>({cards:{}}),loadArtworkBindings:async()=>bindings}});
+  const services={match,loadProducts:async()=>products,loadOverrides:async()=>overrides,loadDetails:async()=>({cards:{}}),loadArtworkBindings:async()=>bindings};
+  const targets=await Promise.all(cards.map(c=>bridge.prepareTarget({...c,brand:'onepiece',language:'ja',boxCode:code,setCode:c.setCode||code},{services})));
   assert(targets.every(t=>t.snkrdunkStatus==='matched'),code+' contains unresolved printing');assert.equal(new Set(targets.map(t=>t.snkrdunkId)).size,count);
  }
  const live=[];

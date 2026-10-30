@@ -12,7 +12,7 @@ concurrency:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,6 +20,7 @@ jobs:
           filter: blob:none
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            /functions/
             /assets/
             /scripts/
             /data/*.json
@@ -38,31 +39,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Verify all price source, artwork, FX and OP17 regressions
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache/price-link-audit/image-hashes.jsonl
+          key: card-price-artwork-v1-41035877629
+      - name: Calibrate remaining artwork links against reviewed OP17 ground truth
         run: |
-          node --test scripts/test_op17_contained_prices.cjs scripts/test_card_price_fallback.cjs scripts/test_contained_card_prices.cjs scripts/test_tcg_card_info.cjs scripts/test_card_info_pricing_integration.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_artwork_data.cjs
+          python -m pip install Pillow==11.3.0 ImageHash==4.3.2
+          node scripts/prepare_card_artwork_calibration.cjs
+          python -u scripts/calibrate_card_artwork_links.py
+      - name: Verify every published artwork binding and all price source regressions
+        run: |
+          node --test scripts/test_op17_contained_prices.cjs scripts/test_op16_contained_prices.cjs scripts/test_card_price_fallback.cjs scripts/test_contained_card_prices.cjs scripts/test_tcg_card_info.cjs scripts/test_card_info_pricing_integration.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_artwork_data.cjs scripts/audit/card-grades-source.test.mjs scripts/audit/grade-availability.test.mjs
           node scripts/test_english_catalog.cjs
+          node scripts/test_fx_display.cjs
       - name: Audit every stored Japanese printing after repairs
         run: node scripts/audit_card_info_price_links.cjs .cache/price-link-audit/after
       - name: Audit additional games without dropping known source prices
         run: node scripts/test_card_info_quote_coverage.cjs
       - name: Probe exact Japanese prices missing from overseas catalogue
         run: node scripts/probe_missing_snkr_prices.cjs
-      - uses: actions/cache/restore@v4
-        with:
-          path: .cache/price-link-audit/image-hashes.jsonl
-          key: card-price-artwork-v1-41035877629
-      - name: Prepare remaining OP16 artwork comparisons for review
-        run: |
-          python -m pip install Pillow==11.3.0
-          python scripts/create_card_price_audit_preview.py
       - name: Save reviewed audit evidence
         if: always()
         run: |
           if [ -f .cache/price-link-audit/after/summary.json ]; then cp .cache/price-link-audit/after/summary.json audit/card-info-price/after.json; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add audit/card-info-price
+          git add audit/card-info-price data/contained-card-market-links.json
           if ! git diff --cached --quiet; then git commit -m "Save complete price-link repair verification"; git push origin HEAD:fix/card-info-price-audit; fi
       - uses: actions/upload-artifact@v4
         if: always()

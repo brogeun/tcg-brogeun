@@ -159,8 +159,8 @@
     const p=target.snkrProduct,id=String(p.id),value=await load(id),now=Date.now(),stamp=Date.parse(value?.fetchedAt||'');
     if(value?.ok!==true||String(value.id)!==id||!Number.isFinite(stamp)||stamp>now+300000||now-stamp>4200000)throw Error('Unverified SNKR quote');
     const raw=value.grades?.raw,noListings=value.noListingGrades?.includes('raw');
-    if(raw&&raw.currency==='JPY'&&positive(raw.lowest_ask)&&raw.active_count!==0&&!noListings){
-      return {...target,sourceUnavailable:false,snkrProduct:{...p,quoteUnavailable:false,grades:{...(value.grades||{}),raw},catalogAsk:null,minPrice:raw.lowest_ask,currency:'JPY',listingCount:raw.active_count||1,priceStatus:'available',gradeCheckedAt:value.fetchedAt,priceCheckedAt:value.fetchedAt}};
+    if(raw&&currency(raw.currency)&&positive(raw.lowest_ask)&&raw.active_count!==0&&!noListings){
+      return {...target,sourceUnavailable:false,snkrProduct:{...p,quoteUnavailable:false,grades:{...(value.grades||{}),raw},catalogAsk:null,minPrice:raw.lowest_ask,currency:raw.currency,listingCount:raw.active_count||1,priceStatus:'available',gradeCheckedAt:value.fetchedAt,priceCheckedAt:value.fetchedAt}};
     }
     if(noListings&&!raw){
       const grades={...(value.grades||{})};delete grades.raw;

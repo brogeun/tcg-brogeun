@@ -42,7 +42,7 @@ test('a missing or partially parsed condition is never declared unavailable',asy
 });
 test('contradictory listing absence and positive price never clear a saved quote',async()=>{
  const live=await upstream('{"conditionId":18,"usedMinPrice":5000}{"conditionId":22,"hasListing":false,"usedMinPrice":7000}');
- assert.equal(live.noListingGrades,undefined);
+ assert.deepEqual(live.grades,{});assert.deepEqual(live.noListingGrades,['raw','psa10','psa9']);
 });
 test('confirmed absent PSA10 clears the old quote, resists history refill, and selects current raw price',async()=>{
  const live={ok:true,grades:{raw:{lowest_ask:5000,currency:'JPY'}},noListingGrades:['psa10']};

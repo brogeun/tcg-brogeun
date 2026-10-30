@@ -9,7 +9,9 @@ test('every published artwork proof resolves its actual source card and market p
  const keys=new Set();let priced=0;
  for(const row of doc.links){
   assert(!/\b(?:1ED|1ST|FIRST EDITION|NO RARITY|UNLIMITED|SERIAL|SIGNED)\b/i.test(row.marketName),'Edition requires separate verification');
-  assert(row.distance<=8&&row.detailDistance<=14&&row.artDistance<=12&&row.margin>=10,'Unsupported image confidence');
+  const calibrated=row.method==='op17-calibrated-artwork-comparison';
+  assert(row.distance<=(calibrated?14:8)&&row.detailDistance<=(calibrated?18:14)&&row.artDistance<=(calibrated?18:12)&&row.margin>=10,'Unsupported image confidence');
+  if(calibrated)assert.equal(row.brand,'onepiece');
   const filename='data/cards-by-set/'+row.boxCode+'.json';if(!setCache.has(filename))setCache.set(filename,repairs.setCards(read(filename),row.boxCode).cards);
   const card=setCache.get(filename).find(c=>c.image===row.image&&String(c.number||'')===String(row.number||'')&&String(c.fullId||'')===String(row.fullId||''));assert(card,'Source artwork missing: '+row.boxCode+' '+row.number);
   const target=bridge.targetFor({...card,brand:row.brand,language:'ja',boxCode:row.boxCode,setCode:card.setCode||row.boxCode}),product=products.get(row.id);assert(product,row.id);

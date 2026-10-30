@@ -63,7 +63,7 @@ export async function onRequestGet({ request }) {
   // 1시간 엣지 캐시
   const cache = caches.default;
   // 계산 기준이 바뀔 때 이전 1시간 캐시와 섞이지 않도록 버전을 포함한다.
-  const cacheKey = new Request(`https://tcghub.kr/api/card-grades?id=${id}&v=3`);
+  const cacheKey = new Request(`https://tcghub.kr/api/card-grades?id=${id}&v=4`);
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
@@ -71,6 +71,7 @@ export async function onRequestGet({ request }) {
   // usedMinPrice. SNKRDUNK 화면과 동일한 JPY 값이며 별도 환율 역산이 필요 없다.
   try {
     const page = await fetch(`https://snkrdunk.com/apparels/${id}`, {
+      signal: AbortSignal.timeout(3000),
       headers: {
         ...API_HEADERS,
         Accept: 'text/html,application/xhtml+xml',
@@ -123,80 +124,66 @@ export async function onRequestGet({ request }) {
     // 페이지 구조/일시 장애 시 아래 used-listings API로 폴백한다.
   }
 
-  // active listings 수집 (중복 제거)
-  const seen = new Set();
-  const items = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    let data;
-    try {
-      const r = await fetch(
-        `https://snkrdunk.com/en/v1/products/SW---${id}/used-listings` +
-        `?conditionId=22&page=${page}&perPage=50&isOnlyOnSale=true`,
-        { headers: API_HEADERS }
-      );
-      if (!r.ok) break;
-      data = await r.json();
-    } catch {
-      break;
+  // Query each condition independently. PSA10-only queries cannot establish raw availability.
+  const conditionGrades = { 18: 'raw', 22: 'psa10', 23: 'psa9' };
+  const results = await Promise.all(Object.entries(conditionGrades).map(async ([condition, grade]) => {
+    const pairs = [], seen = new Set(), deadline = Date.now() + 6000;
+    let complete = false, successful = false, invalidPrice = false;
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      try {
+        const response = await fetch(
+          'https://snkrdunk.com/en/v1/products/SW---' + id + '/used-listings' +
+          '?conditionId=' + condition + '&page=' + page + '&perPage=50&isOnlyOnSale=true',
+          { headers: API_HEADERS, signal: AbortSignal.timeout(remaining) }
+        );
+        if (!response.ok) break;
+        const data = await response.json();
+        const batch = data.usedListings || data.usedTradingCards;
+        if (!Array.isArray(batch)) break;
+        successful = true;
+        for (const item of batch) {
+          if (item.isSold) continue;
+          if (gradeOf(item.condition) !== grade) { invalidPrice = true; continue; }
+          const uid = item.listingUID || item.id;
+          if (uid && seen.has(uid)) continue;
+          if (uid) seen.add(uid);
+          const amount = Number(item.priceAmount || 0);
+          const declared = String(item.currency || '').toUpperCase();
+          const [value, parsedCurrency] = amount > 0 && ['JPY','USD','KRW'].includes(declared)
+            ? [amount, declared] : parsePrice(item.price);
+          const currency = parsedCurrency || (amount > 0 ? declared : '') || 'USD';
+          if (value > 0 && ['JPY','USD','KRW'].includes(currency)) pairs.push([value, currency]);
+          else invalidPrice = true;
+        }
+        if (batch.length < 50) { complete = true; break; }
+      } catch { break; }
     }
-    const batch = data.usedListings || data.usedTradingCards || [];
-    if (!batch.length) break;
-    let added = 0;
-    for (const it of batch) {
-      const uid = it.listingUID || it.id;
-      if (uid && !seen.has(uid)) {
-        seen.add(uid);
-        items.push(it);
-        added++;
-      }
+    if (pairs.length) {
+      const counts = new Map();
+      for (const [, currency] of pairs) counts.set(currency, (counts.get(currency) || 0) + 1);
+      const currency = [...counts].sort((a,b) => b[1] - a[1])[0][0];
+      const prices = pairs.filter(pair => pair[1] === currency).map(pair => pair[0]);
+      return { grade, quote: { lowest_ask: Math.min(...prices), currency, active_count: prices.length,
+        after_filter: prices.length, live: true, source: 'snkrdunk used-listings' }, complete };
     }
-    if (!added || batch.length < 50) break;
+    return { grade, absent: successful && complete && !invalidPrice, complete };
+  }));
+  const grades = {}, noListingGrades = [], unavailableGrades = [];
+  for (const result of results) {
+    if (result.quote) grades[result.grade] = result.quote;
+    else if (result.absent) noListingGrades.push(result.grade);
+    else unavailableGrades.push(result.grade);
   }
-
-  // 등급별 가격 집계 (통화는 다수파 채택, en API 기본 USD)
-  const byGrade = { psa10: [], psa9: [], raw: [] };
-  for (const it of items) {
-    if (it.isSold) continue;
-    const g = gradeOf(it.condition);
-    if (!g) continue;
-    // 문자열 price 는 접속 지역에 따라 ¥/$/₩로 현지화된다. API가 함께 주는
-    // priceAmount/currency 를 우선 사용해야 숫자와 통화가 어긋나지 않는다.
-    const amount = Number(it.priceAmount || 0);
-    const itemCurrency = (it.currency || '').toUpperCase() || null;
-    const [amt, cur] = amount > 0 ? [amount, itemCurrency] : parsePrice(it.price);
-    if (amt && amt > 0) byGrade[g].push([amt, cur]);
+  if (!Object.keys(grades).length && !noListingGrades.length) {
+    return json({ ok: false, id, error: 'SNKRDUNK temporarily unavailable', unavailableGrades,
+      fetchedAt: new Date().toISOString() }, 503, { 'Cache-Control': 'no-store' });
   }
-
-  const grades = {};
-  for (const [g, pairs] of Object.entries(byGrade)) {
-    if (!pairs.length) continue;
-    const jpy = pairs.filter(([, c]) => c === 'JPY').length;
-    const usd = pairs.filter(([, c]) => c === 'USD').length;
-    const krw = pairs.filter(([, c]) => c === 'KRW').length;
-    const currency = krw > jpy && krw > usd ? 'KRW' : (jpy > usd ? 'JPY' : 'USD');
-    let prices = pairs.filter(([, c]) => c === currency || !c).map(([p]) => p);
-    if (!prices.length) prices = pairs.map(([p]) => p);
-    prices.sort((a, b) => a - b);
-    grades[g] = {
-      // 현재 출품 최저가는 낮다는 이유로 이상치 제거하면 안 된다.
-      // SNKRDUNK 등급 탭의 헤드라인과 동일하게 실제 최소값을 사용한다.
-      lowest_ask: prices[0],
-      currency,
-      active_count: prices.length,
-      after_filter: prices.length,
-      live: true,
-    };
-  }
-
-  const res = json(
-    { ok: true, id, grades, fetchedAt: new Date().toISOString() },
-    200,
-    { 'Cache-Control': 'public, max-age=3600' }
-  );
-  try {
-    await cache.put(cacheKey, res.clone());
-  } catch {
-    /* 캐시 실패 무시 */
-  }
+  const partial = results.some(result => !result.complete);
+  const res = json({ ok: true, id, grades, noListingGrades, unavailableGrades, partial,
+    fetchedAt: new Date().toISOString() }, 200,
+    { 'Cache-Control': 'public, max-age=' + (partial ? 60 : 3600) });
+  try { await cache.put(cacheKey, res.clone()); } catch { /* Cache failure does not invalidate evidence. */ }
   return res;
 }

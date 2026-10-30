@@ -102,3 +102,6 @@ test('EB05 DON reviewed links cannot cross designs, languages, editions, or boxe
  assert.equal(match.sameIdentity(don,{...row,name:'DON!! Card(Extra Booster "Heroines Edition")'}),false);
  assert.equal(bridge.reviewedLinks([don],[row],{'EB05-DON_SNKR932711':'932711'},match)['onepiece:EB05:EB05-DON_SNKR932711'].id,'932711');
 });
+
+// EB05 has reviewed artwork bindings independent of generic numbered-card matching.
+require('./test_eb05_verified_prices.cjs');

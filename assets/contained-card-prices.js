@@ -1,7 +1,7 @@
 /* Existing Japanese grids keep their official identity and use one price host. */
 (function(root,factory){const api=factory(root);if(typeof module==='object'&&module.exports)module.exports=api;else root.ContainedCardPrices=api;})(typeof globalThis!=='undefined'?globalThis:this,function(root){
   'use strict';
-  const tokens=new WeakMap();let overridePromise,eb05Promise;
+  const tokens=new WeakMap();let overridePromise,eb05Promise,eb05CardsPromise;
   const upper=value=>String(value||'').normalize('NFKC').trim().toUpperCase();
   function targetFor(identity){
     const target={...identity,game:identity.brand,language:identity.language||'ja',grade:'raw'};
@@ -31,13 +31,45 @@
     if(!eb05Promise)eb05Promise=fetch('/data/onepiece-eb05-market.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('EB05 snapshot unavailable');return r.json();}).then(d=>{if(d.code!=='EB05'||!Array.isArray(d.products))throw Error('Invalid EB05 snapshot');return d.products;}).catch(e=>{eb05Promise=null;throw e;});
     return eb05Promise;
   }
+  async function defaultSetCards(){
+    if(!eb05CardsPromise)eb05CardsPromise=fetch('/data/cards-by-set/EB05.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('EB05 artwork registry unavailable');return r.json();}).then(d=>{if(d.code!=='EB05'||!Array.isArray(d.cards))throw Error('Invalid EB05 artwork registry');return d.cards;}).catch(e=>{eb05CardsPromise=null;throw e;});
+    return eb05CardsPromise;
+  }
+  function reviewedSetLinks(targets,products,cards,match){
+    const links={};
+    for(const target of targets){
+      if(target.brand!=='onepiece'||target.language!=='ja'||upper(target.boxCode)!=='EB05')continue;
+      const card=cards.find(c=>upper(c.fullId)===upper(target.fullId)&&upper(c.setCode)===upper(target.setCode)&&String(c.number)===String(target.number)&&c.image===target.image);
+      if(!card||card.marketSource!=='snkrdunk'||!/^\d+$/.test(String(card.marketProductId))||(!card.officialId&&card.cardType!=='DON'))continue;
+      const product=products.find(p=>String(p.id)===String(card.marketProductId));
+      if(!product||product.setSnapshot!=='EB05'||product.kind!=='card'||product.language!=='ja'||upper(product.fullId)!==upper(card.fullId)||product.productNumber!==card.productNumber||!match.sameIdentity({...target,marketProductId:card.marketProductId,productNumber:card.productNumber},product))continue;
+      links[['onepiece','EB05',upper(card.fullId)].join(':')]={id:String(card.marketProductId),brand:'onepiece',fullId:upper(card.fullId)};
+    }
+    return links;
+  }
+  const liveQuotes=new Map(),preparedProducts=new Map();
+  function getPreparedProduct(id){const p=preparedProducts.get(String(id));return p&&Date.now()-Date.parse(p.gradeCheckedAt)<4200000?{...p}:null;}
+  async function defaultLiveQuote(id){
+    const saved=liveQuotes.get(id);if(saved&&saved.until>Date.now())return saved.promise;
+    const entry={until:Date.now()+60000};
+    entry.promise=fetch('/api/card-grades?id='+encodeURIComponent(id),{signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error('Live quote unavailable');return r.json();}).catch(e=>{liveQuotes.delete(id);throw e;});
+    liveQuotes.set(id,entry);return entry.promise;
+  }
+  function withLiveQuote(product,quote,now=Date.now()){
+    const stamp=Date.parse(quote?.fetchedAt||'');
+    if(!quote?.ok||String(quote.id)!==String(product.id)||!Number.isFinite(stamp)||stamp>now+300000||now-stamp>4200000)throw Error('Invalid live EB05 quote');
+    const raw=quote.grades?.raw,absent=quote.noListingGrades?.includes('raw');
+    if(raw&&raw.currency==='JPY'&&Number.isFinite(raw.lowest_ask)&&raw.lowest_ask>0&&raw.active_count!==0&&!absent)return {...product,grades:quote.grades,gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:raw.lowest_ask,currency:'JPY',listingCount:raw.active_count||1,priceStatus:'priced',catalogAsk:null};
+    if(absent&&!raw)return {...product,grades:quote.grades||{},gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:null,currency:'JPY',listingCount:0,priceStatus:'no-listings',catalogAsk:null};
+    throw Error('Unconfirmed live EB05 availability');
+  }
   function mergeSetProducts(products,extra){
     const rows=new Map(products.map(p=>[String(p.id),p]));
     for(const p of extra){
       if(p.brand!=='onepiece'||p.kind!=='card'||!/^\d+$/.test(String(p.id))||!/Extra Booster "Heroines Edition Vol\.2"/.test(p.name||''))continue;
       const old=rows.get(String(p.id)),stamp=row=>Date.parse(row?.priceCheckedAt||row?.fetchedAt||'')||0;
       const selected=old&&stamp(old)>=stamp(p)?old:p;
-      rows.set(String(p.id),{...selected,setSnapshot:'EB05'});
+      rows.set(String(p.id),{...selected,setSnapshot:'EB05',...(p.fullId?{fullId:p.fullId,boxCode:p.boxCode,setCode:p.setCode,language:p.language}:{})});
     }
     return [...rows.values()];
   }
@@ -75,7 +107,10 @@
     if(!isCurrent())return unavailable();
     let overrides={};if(targets.some(target=>target.brand==='onepiece'))try{overrides=await(services.loadOverrides||defaultOverrides)();}catch{}
     if(!isCurrent())return unavailable();
-    const links={...reviewedLinks(targets,products,overrides,match),...(root.CardCatalogRepairs?.verifiedLinks?.(targets,products)||{})},resolve=match.createResolver(products,links,services.candidateProofs||{});
+    let eb05Links={};
+    if(targets.some(t=>t.brand==='onepiece'&&upper(t.boxCode)==='EB05'))try{eb05Links=reviewedSetLinks(targets,products,await(services.loadSetCards||defaultSetCards)(),match);}catch{}
+    if(!isCurrent())return unavailable();
+    const links={...eb05Links,...reviewedLinks(targets,products,overrides,match),...(root.CardCatalogRepairs?.verifiedLinks?.(targets,products)||{})},resolve=match.createResolver(products,links,services.candidateProofs||{});
     for(const target of targets){
       if(!['pokemon','onepiece'].includes(target.brand)||target.language!=='ja'||target.bundle===true||target.quantity>1||target.kind==='box'){target.snkrdunkStatus='unlinked';continue;}
       const result=resolve(target);target.snkrdunkStatus=result.status;
@@ -90,6 +125,12 @@
     return await Promise.all(targets.map(async target=>{
       if(!target.snkrProduct)return target;
       let product=withRawDetail(target.snkrProduct,details);
+      if(upper(target.boxCode)==='EB05'&&links[['onepiece','EB05',upper(target.fullId)].join(':')]){
+        try{product=withLiveQuote(product,await(services.loadLiveQuote||defaultLiveQuote)(product.id));
+          product={...product,reviewedPrice:true,image:target.image,thumbnailUrl:target.image,nameKo:target.nameKo||target.name,_brand:'onepiece',brand:'onepiece',kind:'card',_productKind:'card'};preparedProducts.set(String(product.id),product);}
+        catch{return {...target,sourceUnavailable:true};}
+      }
+
       if(root.CardCatalogRepairs?.reviewedProduct?.(product.id))product=await root.CardCatalogRepairs.quoteProduct(product);
       return {...target,snkrProduct:product,sourceUnavailable:!!product.quoteUnavailable,
         detailsStatus:product.reviewedPrice?'available':detailsFailed?'unavailable':'available'};
@@ -134,5 +175,5 @@
     }
     await Promise.all(Array.from({length:Math.min(4,entries.length)},worker));return results;
   }
-  return {hydrate,prepareTarget,targetFor,reviewedLinks,withRawDetail,mergeSetProducts};
+  return {hydrate,prepareTarget,targetFor,reviewedLinks,withRawDetail,mergeSetProducts,reviewedSetLinks,withLiveQuote,getPreparedProduct};
 });

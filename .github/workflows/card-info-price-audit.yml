@@ -1,0 +1,72 @@
+name: Card information price audit
+on:
+  push:
+    branches: ['fix/card-info-price-audit']
+    paths-ignore: ['audit/card-info-price/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: card-info-price-audit
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/card-info-price-audit
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /assets/
+            /scripts/
+            /data/*.json
+            /data/cards-by-set/
+            /data/tcg-card-info/
+            /data/yuyutei-market/
+            /images/onepiece/
+            /index.html
+            /sw.js
+            /.github/workflows/
+            /audit/card-info-price/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install image verification dependencies
+        run: python -m pip install Pillow==11.3.0 ImageHash==4.3.2
+      - name: Verify reported OP17 regressions and source priority
+        run: node --test scripts/test_op17_contained_prices.cjs scripts/test_card_price_fallback.cjs scripts/test_contained_card_prices.cjs scripts/test_tcg_card_info.cjs scripts/test_card_info_pricing_integration.cjs
+      - name: Audit every stored Japanese printing and displayed set
+        run: node scripts/audit_card_info_price_links.cjs .cache/price-link-audit/baseline
+      - uses: actions/cache@v4
+        with:
+          path: .cache/price-link-audit/image-hashes.jsonl
+          key: card-price-artwork-v1-${{ github.run_id }}
+          restore-keys: card-price-artwork-v1-
+      - name: Verify source and exact-number candidate artwork
+        run: python -u scripts/build_contained_card_artwork_links.py
+      - name: Audit additional games without dropping known source prices
+        run: node scripts/test_card_info_quote_coverage.cjs
+      - name: Save reviewable investigation output on the audit branch
+        if: always()
+        run: |
+          mkdir -p audit/card-info-price
+          for name in summary unresolved; do
+            if [ -f ".cache/price-link-audit/baseline/$name.json" ]; then cp ".cache/price-link-audit/baseline/$name.json" "audit/card-info-price/$name.json"; fi
+          done
+          if [ -f .cache/price-link-audit/proposed-links.json ]; then cp .cache/price-link-audit/proposed-links.json audit/card-info-price/proposed-links.json; fi
+          if [ -f .cache/price-link-audit/pending-artworks.json ]; then cp .cache/price-link-audit/pending-artworks.json audit/card-info-price/pending-artworks.json; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add audit/card-info-price
+          if ! git diff --cached --quiet; then git commit -m "Save complete price-link audit evidence"; git push origin HEAD:fix/card-info-price-audit; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: card-info-price-audit
+          path: audit/card-info-price

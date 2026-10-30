@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-latest-sidebar-eb05-images-20261030-v1';
+const CACHE_VERSION = 'tcghub-verified-op17-prices-20261030-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -102,7 +102,7 @@ self.addEventListener('fetch', event => {
 
   // /data/*.json — stale-while-revalidate
   // Search labels and printing identities form one current catalogue release.
-  if (url.origin === location.origin && (['/data/card-catalog-repairs.json', '/data/japanese-catalog.json', '/data/japanese-card-names-ko.json'].includes(url.pathname) || url.pathname.startsWith('/data/cards-by-set/'))) {
+  if (url.origin === location.origin && (['/data/onepiece-card-overrides.json', '/data/card-catalog-repairs.json', '/data/japanese-catalog.json', '/data/japanese-card-names-ko.json'].includes(url.pathname) || url.pathname.startsWith('/data/cards-by-set/'))) {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }

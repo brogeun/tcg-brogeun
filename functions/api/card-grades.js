@@ -30,6 +30,8 @@ function parsePrice(raw) {
   const s = String(raw);
   let m = s.match(/¥\s*([\d,]+)/);
   if (m) return [parseFloat(m[1].replace(/,/g, '')), 'JPY'];
+  m = s.match(/₩\s*([\d,.]+)/);
+  if (m) return [parseFloat(m[1].replace(/,/g, '')), 'KRW'];
   m = s.match(/\$\s*([\d,.]+)/);
   if (m) return [parseFloat(m[1].replace(/,/g, '')), 'USD'];
   m = s.match(/([\d,.]+)/);

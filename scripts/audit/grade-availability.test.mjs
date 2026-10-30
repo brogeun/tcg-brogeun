@@ -40,7 +40,7 @@ test('a missing or partially parsed condition is never declared unavailable',asy
  const live=await upstream('{"conditionId":18,"usedMinPrice":5000}{"conditionId":22}');
  assert.deepEqual(live.noListingGrades,[]);
 });
-test('contradictory listing absence and positive price never clear a saved quote',async()=>{
+test('contradictory page availability requires independent listing API evidence',async()=>{
  const live=await upstream('{"conditionId":18,"usedMinPrice":5000}{"conditionId":22,"hasListing":false,"usedMinPrice":7000}');
  assert.deepEqual(live.grades,{});assert.deepEqual(live.noListingGrades,['raw','psa10','psa9']);
 });

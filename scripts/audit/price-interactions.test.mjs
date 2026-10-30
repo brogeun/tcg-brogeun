@@ -5,6 +5,7 @@ import vm from 'node:vm';
 const root=new URL('../../',import.meta.url);
 const html=readFileSync(new URL('index.html',root),'utf8');
 const expanded=readFileSync(new URL('assets/price-expanded.js',root),'utf8');
+const cacheVersion=readFileSync(new URL('functions/api/card-grades.js',root),'utf8').match(/[?&]v=(\d+)/)[1];
 const flush=()=>new Promise(setImmediate);
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const response=data=>({ok:true,json:async()=>data});
@@ -61,7 +62,7 @@ test('active expanded detail clears unavailable PSA quotes and never refills fro
  const rows=h.node('panel #pxGradeRows').innerHTML;
  for(const old of ['123456','88888','77777'])assert(!rows.includes(old));
  assert(rows.includes('JPY:5000'));
- assert(h.calls.some(x=>x.includes('/api/card-grades?id=A&v=3')),'active detail must use the same cache schema version');
+ assert(h.calls.some(x=>x.includes('/api/card-grades?id=A&v='+cacheVersion)),'active detail must use the same cache schema version');
 });
 test('explicit raw absence also clears a collected home raw quote',async()=>{
  const h=expandedHarness({product:{_isTop10:true,lastPrice:222222,currency:'JPY'},live:{ok:true,grades:{},noListingGrades:['raw']}});await h.render();

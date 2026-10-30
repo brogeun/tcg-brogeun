@@ -33,3 +33,8 @@ test('unexpected upstream response shape is a source failure',async()=>{
 test('confirmed empty API pages preserve per-grade absence evidence',async()=>{
  const r=await call(()=>ok([]));assert.equal(r.body.ok,true);assert.deepEqual(r.body.noListingGrades,['raw','psa10','psa9']);assert.equal(r.response.headers.get('Cache-Control'),'public, max-age=3600');
 });
+
+test('localized won strings retain KRW when structured currency fields are unavailable',async()=>{
+ const r=await call(c=>c==='18'?ok([{id:'won',condition:'A',price:'₩1,000'}]):ok([]));
+ assert.equal(r.body.grades.raw.currency,'KRW');assert.equal(r.body.grades.raw.lowest_ask,1000);
+});

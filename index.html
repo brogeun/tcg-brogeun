@@ -2525,7 +2525,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20261030-reprint-prices1"></script>
+<script src="/assets/price-expanded.js?v=20261030-price-audit2"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -3715,6 +3715,8 @@ async function showPriceDetailPanel(productId) {
 
   const anniversaryProduct = window.AnniversaryMarket?.products().find(p=>p.id===String(productId));
   if (anniversaryProduct) product = {...product,...anniversaryProduct};
+  const preparedProduct = window.ContainedCardPrices?.getPreparedProduct(productId);
+  if (preparedProduct) product = {...product,...preparedProduct};
   if (!current() || panel.dataset.productId !== String(productId)) return;
   if (window.renderExpandedPriceDetail) {
     await window.renderExpandedPriceDetail(productId, product, panel);
@@ -4110,7 +4112,7 @@ async function renderGradesPanel(productId, product) {
     // 1순위: SNKRDUNK 현재 출품 최저가 (엣지에서 1시간 캐시)
     // cards-detail.json 이 오래돼도 상세 화면은 라이브 값을 우선한다.
     try {
-      const liveR = await fetch(`/api/card-grades?id=${productId}&v=3`);
+      const liveR = await fetch(`/api/card-grades?id=${productId}&v=4`);
       if (liveR.ok) {
         const live = await liveR.json();
         if (live.ok && live.grades) {
@@ -5476,7 +5478,7 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
     } catch (e) {}
     // 1순위 — 라이브 현재 출품 최저가로 정적 값을 덮어쓴다.
     try {
-      const liveR = await fetch(`/api/card-grades?id=${productId}&v=3`);
+      const liveR = await fetch(`/api/card-grades?id=${productId}&v=4`);
       if (liveR.ok) {
         const live = await liveR.json();
         const lg = live?.ok ? live.grades || {} : {};
@@ -5503,7 +5505,7 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
     }
   }
   if(product?.reviewedPrice){
-    rawJpy=product.grades?.raw?.lowest_ask ?? null;rawCur='JPY';
+    rawJpy=product.grades?.raw?.lowest_ask ?? null;rawCur=product.grades?.raw?.currency || product.currency || 'JPY';
     liveNoListingGrades.delete('raw');
     if(product.priceStatus==='no-listings')liveNoListingGrades.add('raw');
   }

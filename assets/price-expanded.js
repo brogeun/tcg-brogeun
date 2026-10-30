@@ -175,7 +175,7 @@
     update(); observer?.disconnect();observer=new ResizeObserver(draw);observer.observe(panel.querySelector('#pxChart'));
     // Static data renders immediately; live current asks update only this still-active product.
     if (!box && !anniversary && !product.reviewedPrice) {
-      const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}&v=3`);
+      const live=await json(`/api/card-grades?id=${encodeURIComponent(id)}&v=4`);
       if (!current() || !live?.ok) return;
       for (const [key] of keys) {
         if (Array.isArray(live.noListingGrades) && live.noListingGrades.includes(key)) { values[key]=null; noListingGrades.add(key); continue; }

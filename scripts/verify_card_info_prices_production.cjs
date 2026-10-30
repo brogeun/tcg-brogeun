@@ -5,7 +5,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
 const base=process.env.PRICE_VERIFY_ORIGIN||'https://tcghub.kr',version=process.env.DEPLOY_COMMIT||Date.now();
 async function get(path,json=false){const r=await fetch(base+path+(path.includes('?')?'&':'?')+'audit='+version,{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(30000)});assert(r.ok,path+' HTTP '+r.status);return json?r.json():r.text();}
 async function run(){
- for(const path of ['assets/contained-card-match.js','assets/contained-card-prices.js','assets/card-price-fallback.js','assets/english-catalog.js','sw.js']){
+ for(const path of ['assets/contained-card-match.js','assets/contained-card-prices.js','assets/card-price-fallback.js','assets/english-catalog.js','assets/price-expanded.js','sw.js']){
   const remote=await get('/'+path),local=fs.readFileSync(path,'utf8');
   assert.equal(crypto.createHash('sha256').update(remote).digest('hex'),crypto.createHash('sha256').update(local).digest('hex'),'Stale production asset: '+path);
  }

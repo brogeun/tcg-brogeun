@@ -50,7 +50,7 @@
   }
   const liveQuotes=new Map(),preparedProducts=new Map();
   function getPreparedProduct(id){const p=preparedProducts.get(String(id));return p&&Date.now()-Date.parse(p.gradeCheckedAt)<4200000?{...p}:null;}
-  function cacheProduct(product){const stamp=Date.parse(product?.gradeCheckedAt||'');if(!/^\d+$/.test(String(product?.id))||!Number.isFinite(stamp)||Date.now()-stamp>4200000||stamp>Date.now()+300000)return;preparedProducts.set(String(product.id),{...product,reviewedPrice:true,kind:'card',_productKind:'card',_brand:product.brand});if(preparedProducts.size>256)preparedProducts.delete(preparedProducts.keys().next().value);}
+  function cacheProduct(product){const stamp=Date.parse(product?.gradeCheckedAt||'');if(!/^\d+$/.test(String(product?.id))||!Number.isFinite(stamp)||Date.now()-stamp>4200000||stamp>Date.now()+300000)return;preparedProducts.set(String(product.id),{...product,image:product.image||product.thumbnailUrl||'',reviewedPrice:true,kind:'card',_productKind:'card',_brand:product.brand});if(preparedProducts.size>256)preparedProducts.delete(preparedProducts.keys().next().value);}
   async function defaultLiveQuote(id){
     const saved=liveQuotes.get(id);if(saved&&saved.until>Date.now())return saved.promise;
     const entry={until:Date.now()+60000};

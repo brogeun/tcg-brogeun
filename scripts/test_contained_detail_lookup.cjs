@@ -23,3 +23,15 @@ test('opening the full detail page shares the raw product catalogue without sear
  vm.runInContext(extract('showPriceDetailPanel'),ctx);await ctx.showPriceDetailPanel('871062');
  assert.equal(seen.id,'871062');assert.equal(seen.lowestAsk,510000);assert.equal(seen.currency,'JPY');
 });
+
+test('live cached quotes preserve their actual currency and artwork in the full detail view',async()=>{
+ const bridge=require('../assets/contained-card-prices.js');
+ bridge.cacheProduct({...product,grades:{raw:{lowest_ask:500,currency:'USD'}},currency:'USD',minPrice:500,gradeCheckedAt:new Date().toISOString()});
+ const prepared=bridge.getPreparedProduct('871062');assert.equal(prepared.image,product.thumbnailUrl);
+ let seen;const panel={dataset:{},style:{},innerHTML:''};
+ const ctx=vm.createContext({console,FX_READY:Promise.resolve(),PRICE_DETAIL_REQUEST:0,HOME_TOP_CACHE:{onepiece:[product]},PRICE_CACHE:{},
+  document:{body:{dataset:{page:'price'}},getElementById:()=>panel},location:{hash:'#price/871062'},parsePageRoute:()=>({productId:'871062'}),
+  fetch:async()=>({ok:false}),window:{ContainedCardPrices:bridge,renderExpandedPriceDetail:async(id,p)=>{seen=p;}}});
+ vm.runInContext(extract('showPriceDetailPanel'),ctx);await ctx.showPriceDetailPanel('871062');
+ assert.equal(seen.grades.raw.lowest_ask,500);assert.equal(seen.grades.raw.currency,'USD');assert.equal(seen.image,product.thumbnailUrl);
+});

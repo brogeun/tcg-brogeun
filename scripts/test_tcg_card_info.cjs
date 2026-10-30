@@ -6,6 +6,8 @@ function fixture(){
   const games=['nikke','weiss_schwarz','union_arena','dragon_ball_fusion_world','yugioh','digimon'];
   const manifest={schemaVersion:1,games:games.map(game=>({id:game,label:game,setCount:2,sets:['a','b'].map(id=>({id:game+'-'+id,code:game.toUpperCase()+'-'+id,name:game+' Set '+id,file:`/data/tcg-card-info/${game}/${id}.json`,cardCount:2,coverType:'card',image:'https://cdn.snkrdunk.com/card.webp'}))}))};
   const files=new Map([['/data/tcg-card-info.json',manifest]]);
+  manifest.navigationVersion=1;
+  for(const game of manifest.games){for(const set of game.sets)set.sourceGame=game.id==='nikke'?'union_arena':game.id;game.boxes=game.sets.map((set,index)=>({...set,id:'BOX:'+game.id+'-'+index,coverType:'box',series:index?'니케':'블리치',seriesId:index?'nikke':'bleach',setIds:[set.id]}));}
   for(const game of manifest.games)for(const set of game.sets){const underlying=game.id==='nikke'?'union_arena':game.id;const cards=[1,2].map((number)=>{const id=String(games.indexOf(game.id)*100+(set.id.endsWith('-a')?0:10)+number),fullCardNumber=underlying==='weiss_schwarz'?'NIK/S117-001SP':'UA18BT/NIK-1-00'+number;return {id,name:`${game.id} Card ${number}`,fullCardNumber,rarity:number===1?'SR':'SP',game:underlying,language:'ja',variant:'Exact variant '+number,image:'https://cdn.snkrdunk.com/card.webp',snkrProduct:{id,brand:underlying,kind:'card',name:'source',minPrice:100+number,currency:'JPY',url:'https://snkrdunk.com/apparels/'+id}};});files.set(set.file,{schemaVersion:1,game:game.id,set:{...set},cards});}
   return {manifest,files};
 }
@@ -106,4 +108,24 @@ test('public bundle rejects mismatched inner set identity',()=>{
 });
 test('flat additional parts remain lazy and valid after public base bundle',async()=>{
   const {files,manifest}=fixture(),game=manifest.games.find(item=>item.id==='union_arena'),set=game.sets[0],flat=files.get(set.file),part='/data/tcg-card-info/union_arena/a-part02.json',bundle='/data/tcg-card-info/union_arena/public-0000.json';flat.shards=[part];const extra={...flat.cards[0],id:'999',snkrProduct:{...flat.cards[0].snkrProduct,id:'999'}};files.set(part,{schemaVersion:1,game:'union_arena',set:{...flat.set},cards:[extra]});files.set(bundle,{schemaVersion:1,bundleVersion:1,game:'union_arena',sets:{[set.id]:flat}});set.file=bundle;const r=runtime(files);await r.api.open('union_arena',set.id);assert.ok(!r.requests.includes(part));assert.equal(await r.api.more(),true);assert.ok(r.requests.includes(part));assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="999"/);assert.equal(r.api.state().set,set.id);
+});
+
+
+test('additional game grids contain only sealed boxes; card-cover groups stay out',async()=>{
+  const {files,manifest}=fixture(),r=runtime(files);for(const game of manifest.games){r.tab(game.id);await tick();const html=r.get('cardInfoList').innerHTML;assert.match(html,/data-tci-set="BOX:/);assert.doesNotMatch(html,/대표 카드/);assert.match(html,/봉입 카드/);assert.equal(/id="tciSeries"/.test(html),['weiss_schwarz','union_arena'].includes(game.id));}
+});
+test('work selection filters boxes and survives opening and closing a box',async()=>{
+  const {files}=fixture(),r=runtime(files);r.tab('union_arena');await tick();const select=r.get('tciSeries');select.value='bleach';r.dispatch('change',select);await tick();assert.match(r.get('cardInfoList').innerHTML,/BOX:union_arena-0/);assert.doesNotMatch(r.get('cardInfoList').innerHTML,/data-tci-set="BOX:union_arena-1"/);await r.api.open('union_arena','BOX:union_arena-0');assert.match(r.get('tciCardGrid').innerHTML,/201/);r.api.close();await r.api.render();assert.match(r.get('cardInfoList').innerHTML,/<option value="bleach" selected>/);
+});
+test('box opens all member printings and parts without leaking cards from another box',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(x=>x.id==='union_arena'),box=game.boxes[0],a=game.sets[0],b=game.sets[1],first=files.get(a.file),part='/data/tcg-card-info/union_arena/a-part02.json';box.setIds=[a.id,b.id];first.shards=[part];const extra={...first.cards[0],id:'999',snkrProduct:{...first.cards[0].snkrProduct,id:'999'}};files.set(part,{schemaVersion:1,game:game.id,set:first.set,cards:[extra,first.cards[0]]});const r=runtime(files);await r.api.open(game.id,box.id);await tick();assert.equal(r.api.state().set,box.id);assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="999"/);assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="211"/);assert.equal((r.get('tciCardGrid').innerHTML.match(/data-tci-card="201"/g)||[]).length,1);assert.equal(r.oldOpens.length,0);
+});
+test('missing contents show an honest empty state instead of unrelated cards',async()=>{
+  const {files,manifest}=fixture();manifest.games.find(x=>x.id==='digimon').boxes[0].setIds=[];const r=runtime(files);await r.api.open('digimon','BOX:digimon-0');assert.match(r.get('tciCardGrid').innerHTML,/등록 준비 중/);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card=/);
+});
+test('late box fetch cannot replace another game',async()=>{
+  const {files}=fixture(),key='/data/tcg-card-info/union_arena/a.json',original=files.get(key);let release;files.set(key,()=>new Promise(resolve=>release=()=>resolve(original)));const r=runtime(files),opening=r.api.open('union_arena','BOX:union_arena-0');await tick();r.tab('digimon');await tick();release();await opening;assert.equal(r.api.state().game,'digimon');assert.equal(r.api.state().set,null);assert.equal(r.get('anyModal').classList.contains('open'),false);
+});
+test('box deep links retain the exact box, card and price identity',async()=>{
+  const {files}=fixture(),r=runtime(files,{search:'?brand=union_arena&set=BOX%3Aunion_arena-0&card=201'});await tick();await tick();assert.equal(r.api.state().selected,'201');assert.match(r.get('tciDetailPrice').innerHTML,/JPY/);const address=new URL(r.api.href('union_arena','BOX:union_arena-0','201'),'https://tcghub.kr');assert.equal(address.searchParams.get('set'),'BOX:union_arena-0');
 });

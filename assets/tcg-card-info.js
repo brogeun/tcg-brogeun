@@ -8,7 +8,7 @@
 
   if(window.TCGCardInfo||typeof renderCardInfo!=='function'||typeof openSetGrid!=='function')return;
   const GAMES={nikke:'니케',weiss_schwarz:'바이스슈발츠',union_arena:'유니온아레나',dragon_ball_fusion_world:'드래곤볼 퓨전월드',yugioh:'유희왕',digimon:'디지몬'};
-  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261029-ci1',files=new Map(),pages=new Map(),languageState=new Map();
+  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261030-boxes1',files=new Map(),pages=new Map(),seriesState=new Map(),languageState=new Map();
   let manifest=null,pendingManifest=null,listToken=0,session=0,priceToken=0,active=null,selected=null,cardQuery='',rarity='',cardPage=1,gridScroll=0,opener=null,entered=false,lastListQuery='';
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const compact=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/[\s/_\-.]+/g,'');
@@ -23,7 +23,7 @@
   }
   function prepareManifest(data){
     if(data?.schemaVersion!==1||!Array.isArray(data.games))throw Error('Invalid catalogue manifest');
-    const games=new Set();for(const game of data.games){if(!isOwn(game.id)||games.has(game.id)||!Array.isArray(game.sets))throw Error('Invalid catalogue game');games.add(game.id);const ids=new Set();for(const set of game.sets){if(!set.id||ids.has(String(set.id))||!dataPath(set.file)||!set.file.startsWith('/data/tcg-card-info/'+game.id+'/'))throw Error('Invalid set identity');ids.add(String(set.id));}}
+    const games=new Set();for(const game of data.games){if(!isOwn(game.id)||games.has(game.id)||!Array.isArray(game.sets))throw Error('Invalid catalogue game');games.add(game.id);const ids=new Set();for(const set of game.sets){if(!set.id||ids.has(String(set.id))||!dataPath(set.file)||!set.file.startsWith('/data/tcg-card-info/'+game.id+'/'))throw Error('Invalid set identity');ids.add(String(set.id));}const boxes=new Set();for(const box of game.boxes||[]){if(!String(box.id).startsWith('BOX:')||boxes.has(box.id)||!isOwn(box.sourceGame)||!Array.isArray(box.setIds)||new Set(box.setIds).size!==box.setIds.length||box.setIds.some(id=>!ids.has(id)))throw Error('Invalid box membership');boxes.add(box.id);}}
     return data;
   }
   function ensureManifest(){if(manifest)return Promise.resolve(manifest);if(!pendingManifest)pendingManifest=json('/data/tcg-card-info.json').then(prepareManifest).then(data=>manifest=data).catch(error=>{pendingManifest=null;files.delete('/data/tcg-card-info.json');throw error;});return pendingManifest;}
@@ -36,13 +36,20 @@
   function invalidate(close=false){listToken++;session++;priceToken++;if(close&&modal()?.querySelector('[data-tci-shell]'))closeAnyModal();active=null;selected=null;}
   function selectTab(game){CI_TAB=game;document.querySelectorAll('#ciTabs [data-ci]').forEach(button=>{const on=button.dataset.ci===game;button.classList.toggle('active',on);button.setAttribute('aria-pressed',String(on));});bars(true);}
   function pager(page,total,attribute){return `<button type="button" ${attribute}="${page-1}"${page<=1?' disabled':''}>이전</button><span>${page} / ${total}</span><button type="button" ${attribute}="${page+1}"${page>=total?' disabled':''}>다음</button>`;}
+  function seriesFilter(game){
+    if(!['weiss_schwarz','union_arena'].includes(game.id))return '';
+    const values=[...new Map((game.boxes||[]).map(box=>[box.seriesId,box.series])).entries()].sort((a,b)=>a[1].localeCompare(b[1],'ko'));
+    return `<div class="tci-series-filter"><label for="tciSeries">작품 선택</label><select id="tciSeries"><option value="">전체 작품</option>${values.map(([id,label])=>`<option value="${esc(id)}"${seriesState.get(game.id)===id?' selected':''}>${esc(label)}</option>`).join('')}</select></div>`;
+  }
   async function render(){
     if(!ownTab())return;bars(true);const gameId=CI_TAB,token=++listToken,list=document.getElementById('cardInfoList');if(!list)return;
     list.innerHTML='<p class="tci-message" role="status">수록 카드 목록을 불러오는 중…</p>';
     try{const data=await ensureManifest();if(token!==listToken||CI_TAB!==gameId)return;const game=data.games.find(item=>item.id===gameId),query=typeof CI_QUERY==='string'?CI_QUERY:'';
-      if(lastListQuery!==gameId+'|'+query){pages.set(gameId,1);lastListQuery=gameId+'|'+query;}
-      const sets=(game?.sets||[]).filter(set=>textMatch([set.name,set.code,set.sourceGame,set.releasedAt].join(' '),query)),total=Math.max(1,Math.ceil(sets.length/SET_SIZE)),page=Math.min(pages.get(gameId)||1,total);pages.set(gameId,page);
-      list.innerHTML=`<div class="tci-list-note"><strong>${esc(GAMES[gameId])}</strong><span>${(game?.setCount??game?.sets?.length??0).toLocaleString()}개 세트 · 등록된 수록 카드 기준</span></div>`+sets.slice((page-1)*SET_SIZE,page*SET_SIZE).map(set=>`<button type="button" class="set-tile tci-set" data-tci-set="${esc(set.id)}" data-tci-game="${esc(gameId)}"><span class="tci-cover">${url(set.image)?`<img src="${esc(url(set.image))}" alt="" loading="lazy" decoding="async">`:`<span class="tci-cover-fallback">${esc(GAMES[gameId])}</span>`}${set.coverType==='card'?'<span class="tci-cover-label">대표 카드</span>':''}</span><span class="set-tile-body"><span class="set-tile-code">${esc(set.code||set.sourceGame)}</span><span class="set-tile-name">${esc(set.name)}</span><span class="set-tile-meta">등록 ${Number(set.cardCount||0).toLocaleString()}개 카드${set.releasedAt?' · '+esc(String(set.releasedAt).slice(0,10)):''}</span></span></button>`).join('')+(!sets.length?'<p class="tci-message">등록된 세트가 없습니다. 다른 이름이나 세트 코드로 검색해 주세요.</p>':'')+(total>1?`<nav class="tci-pager tci-list-pager" aria-label="세트 페이지">${pager(page,total,'data-tci-set-page')}</nav>`:'');
+      const series=seriesState.get(gameId)||'',key=gameId+'|'+series+'|'+query;
+      if(lastListQuery!==key){pages.set(gameId,1);lastListQuery=key;}
+      // Card-image fallbacks and promotional groupings are never box tiles.
+      const boxes=Array.isArray(game?.boxes)?game.boxes:[],sets=boxes.filter(set=>(!series||set.seriesId===series)&&textMatch([set.name,set.code,set.series,set.sourceGame,set.releasedAt].join(' '),query)),total=Math.max(1,Math.ceil(sets.length/SET_SIZE)),page=Math.min(pages.get(gameId)||1,total);pages.set(gameId,page);
+      list.innerHTML=seriesFilter(game||{id:gameId})+`<div class="tci-list-note"><strong>${esc(series?boxes.find(box=>box.seriesId===series)?.series:GAMES[gameId])}</strong><span>${sets.length.toLocaleString()}개 박스 · 박스를 선택하면 봉입 카드가 열립니다</span></div>`+sets.slice((page-1)*SET_SIZE,page*SET_SIZE).map(set=>`<button type="button" class="set-tile tci-set" data-tci-set="${esc(set.id)}" data-tci-game="${esc(gameId)}"><span class="tci-cover">${url(set.image)?`<img src="${esc(url(set.image))}" alt="${esc(set.name)} 박스" loading="lazy" decoding="async">`:`<span class="tci-cover-fallback">박스 이미지 준비 중</span>`}</span><span class="set-tile-body"><span class="set-tile-code">${esc(set.code||GAMES[set.sourceGame]||'')}</span><span class="set-tile-name">${esc(set.name)}</span><span class="set-tile-meta">${set.cardCount?'봉입 카드 '+Number(set.cardCount).toLocaleString()+'개':'봉입 카드 등록 준비 중'}${set.releasedAt&&String(set.releasedAt)>'1900'?' · '+esc(String(set.releasedAt).slice(0,10)):''}</span></span></button>`).join('')+(!sets.length?'<p class="tci-message">조건에 맞는 박스가 없습니다.</p>':'')+(total>1?`<nav class="tci-pager tci-list-pager" aria-label="박스 페이지">${pager(page,total,'data-tci-set-page')}</nav>`:'');
     }catch{if(token===listToken&&CI_TAB===gameId)list.innerHTML='<p class="tci-message">목록을 불러오지 못했습니다. <button type="button" data-tci-retry-list>다시 시도</button></p>';}
   }
   function owns(token=session){return token===session&&ownTab()&&active?.viewGame===CI_TAB&&modal()?.classList.contains('open')&&!!modal()?.querySelector('[data-tci-shell]');}
@@ -76,7 +83,7 @@
     const count=document.getElementById('tciCardCount');if(count)count.textContent=`${active.cards.length.toLocaleString()}개 등록 카드${active.total>active.cards.length?' / 총 '+active.total.toLocaleString()+'개':''} · 검색 ${rows.length.toLocaleString()}개`;const navigation=document.getElementById('tciCardPages');if(navigation)navigation.innerHTML=pager(cardPage,total,'data-tci-page');fillPrices(visible);
   }
   function gridPanel(){
-    if(!active)return;selected=null;present(`${header()}<div class="ci-panel-info tci-set-info"><div><span class="tci-brand">${esc(GAMES[active.viewGame])}</span><h3 id="tciSetTitle">${esc(active.set.name)}</h3><p>${esc(active.set.code||'')} · 등록된 수록 카드 기준</p></div></div><div class="ci-panel-scroll tci-scroll"><div id="tciCardCount" class="tci-count"></div><div class="tci-filters"><label>카드 검색<input id="tciCardSearch" type="search" value="${esc(cardQuery)}" placeholder="카드 이름 · 전체 카드 번호"></label><label>희귀도<select id="tciRarity"><option value="">전체</option>${[...new Set(active.cards.map(card=>card.rarity).filter(Boolean))].sort().map(value=>`<option value="${esc(value)}"${value===rarity?' selected':''}>${esc(value)}</option>`).join('')}</select></label></div><div class="set-card-grid tci-grid" id="tciCardGrid"></div>${active.parts.length?'<button type="button" class="tci-more" data-tci-more>추가 수록 카드 불러오기</button>':''}</div><nav class="ci-panel-pages tci-pager" id="tciCardPages" aria-label="수록 카드 페이지"></nav>`,'tciSetTitle');gridBody();const scroll=modal()?.querySelector('.tci-scroll');if(scroll)scroll.scrollTop=gridScroll;
+    if(!active)return;selected=null;present(`${header()}<div class="ci-panel-info tci-set-info">${active.box&&url(active.set.image)?`<img class="tci-box-thumbnail" src="${esc(url(active.set.image))}" alt="박스">`:''}<div><span class="tci-brand">${esc(GAMES[active.viewGame])}${active.box?' · '+esc(active.set.series||''):''}</span><h3 id="tciSetTitle">${esc(active.set.name)}</h3><p>${esc(active.set.code||'')} · ${active.box?'봉입 카드':'등록된 수록 카드'}${active.cards.length?' · 등록된 카드 기준':''}</p></div></div><div class="ci-panel-scroll tci-scroll"><div id="tciCardCount" class="tci-count"></div><div class="tci-filters"><label>카드 검색<input id="tciCardSearch" type="search" value="${esc(cardQuery)}" placeholder="카드 이름 · 전체 카드 번호"></label><label>희귀도<select id="tciRarity"><option value="">전체</option>${[...new Set(active.cards.map(card=>card.rarity).filter(Boolean))].sort().map(value=>`<option value="${esc(value)}"${value===rarity?' selected':''}>${esc(value)}</option>`).join('')}</select></label></div><div class="set-card-grid tci-grid" id="tciCardGrid"></div>${active.parts.length?'<button type="button" class="tci-more" data-tci-more>추가 수록 카드 불러오기</button>':''}</div><nav class="ci-panel-pages tci-pager" id="tciCardPages" aria-label="수록 카드 페이지"></nav>`,'tciSetTitle');gridBody();const scroll=modal()?.querySelector('.tci-scroll');if(scroll)scroll.scrollTop=gridScroll;
   }
   function detail(id){
     if(!owns())return;const card=active.cards.find(item=>String(item.id)===String(id));if(!card)return;gridScroll=modal()?.querySelector('.tci-scroll')?.scrollTop||0;selected=card;
@@ -91,10 +98,23 @@
     return {viewGame:game,set:{...set,...data.set},cards:data.cards.slice(),parts:[...(data.shards||[])],total:set.cardCount||data.cards.length};
   }
   async function open(game,setId,cardId=''){
+    if(String(setId).startsWith('BOX:'))return openBox(game,setId,cardId);
     if(!isOwn(game))return;invalidate();cancelOld();selectTab(game);const token=++session;opener=document.activeElement;cardPage=1;cardQuery='';rarity='';gridScroll=0;
     active={viewGame:game,set:{name:GAMES[game]},cards:[],parts:[],total:0};present(`${header()}<h3 class="tci-message" id="tciSetTitle">수록 카드를 불러오는 중…</h3>`,'tciSetTitle');
     try{const data=await ensureManifest();if(!owns(token)||CI_TAB!==game)return;const gameData=data.games.find(item=>item.id===game),matches=(gameData?.sets||[]).filter(set=>String(set.id)===String(setId)||set.code===setId);if(matches.length!==1)throw Error('Set not found');const set=matches[0],body=await json(set.file);if(!owns(token)||CI_TAB!==game)return;const prepared=prepareSet(body,game,set);active=prepared;gridPanel();if(cardId){while(!active.cards.some(card=>String(card.id)===String(cardId))&&active.parts.length&&token===session){if(!await more(false))break;}if(owns(token))detail(cardId);}}
     catch{if(owns(token)&&CI_TAB===game)present(`${header()}<h3 class="tci-message" id="tciSetTitle">카드를 불러오지 못했습니다.</h3><button class="tci-more" type="button" data-tci-set="${esc(setId)}" data-tci-game="${esc(game)}">다시 시도</button>`,'tciSetTitle');}
+  }
+  async function openBox(game,boxId,cardId=''){
+    if(!isOwn(game))return;invalidate();cancelOld();selectTab(game);const token=++session;opener=document.activeElement;cardPage=1;cardQuery='';rarity='';gridScroll=0;
+    active={viewGame:game,set:{name:GAMES[game]},cards:[],parts:[],total:0,box:true};present(`${header()}<h3 class="tci-message" id="tciSetTitle">봉입 카드를 불러오는 중…</h3>`,'tciSetTitle');
+    try{
+      const data=await ensureManifest();if(!owns(token))return;const gameData=data.games.find(item=>item.id===game),box=gameData?.boxes?.find(item=>item.id===boxId);if(!box||!Array.isArray(box.setIds))throw Error('Box not found');
+      const members=box.setIds.map(id=>gameData.sets.find(set=>set.id===id));if(members.some(set=>!set||set.sourceGame!==box.sourceGame))throw Error('Box membership mismatch');
+      let index=0;const rows=new Map();
+      async function worker(){while(index<members.length&&owns(token)){const set=members[index++],first=prepareSet(await json(set.file),game,set);if(!owns(token))return;const parts=[first,...await Promise.all(first.parts.map(async path=>prepareSet(await json(path),game,set)))];if(!owns(token))return;for(const part of parts)for(const card of part.cards){if(card.game!==box.sourceGame)throw Error('Box card game mismatch');rows.set(String(card.id),card);}}}
+      await Promise.all(Array.from({length:Math.min(4,members.length)},worker));if(!owns(token))return;
+      active={viewGame:game,set:box,cards:[...rows.values()].sort((a,b)=>a.fullCardNumber.localeCompare(b.fullCardNumber,undefined,{numeric:true})||a.name.localeCompare(b.name)),parts:[],total:rows.size,box:true};gridPanel();if(!rows.size){const grid=document.getElementById('tciCardGrid');if(grid)grid.innerHTML='<p class="tci-message">이 박스의 봉입 카드는 등록 준비 중입니다.</p>';}if(cardId)detail(cardId);
+    }catch{if(owns(token))present(`${header()}<h3 class="tci-message" id="tciSetTitle">봉입 카드를 불러오지 못했습니다.</h3><button class="tci-more" type="button" data-tci-set="${esc(boxId)}" data-tci-game="${esc(game)}">다시 시도</button>`,'tciSetTitle');}
   }
   async function more(show=true){
     if(!owns()||!active.parts.length)return;const token=session,path=active.parts[0],prior=active;try{const data=await json(path);if(!owns(token)||active!==prior)return;const prepared=prepareSet(data,active.viewGame,active.set),cards=prepared.cards;const ids=new Set(active.cards.map(card=>String(card.id)));for(const card of cards)if(!ids.has(String(card.id))){ids.add(String(card.id));active.cards.push(card);}active.parts.shift();if(show)gridPanel();return true;}catch{if(owns(token))window.showToast?.('추가 카드를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');return false;}}
@@ -111,10 +131,11 @@
   },true);
   document.addEventListener('input',event=>{if(event.target?.id==='tciCardSearch'&&!event.isComposing){cardQuery=event.target.value;cardPage=1;gridBody();}});
   document.addEventListener('compositionend',event=>{if(event.target?.id==='tciCardSearch'){cardQuery=event.target.value;cardPage=1;gridBody();}});
-  document.addEventListener('change',event=>{if(event.target?.id==='tciRarity'){rarity=event.target.value;cardPage=1;gridBody();}});
+  document.addEventListener('change',event=>{if(event.target?.id==='tciRarity'){rarity=event.target.value;cardPage=1;gridBody();}else if(event.target?.id==='tciSeries'&&ownTab()){seriesState.set(CI_TAB,event.target.value);pages.set(CI_TAB,1);render();}});
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&owns()){event.preventDefault();event.stopImmediatePropagation();close();}},true);
   window.addEventListener('hashchange',()=>{if(location.hash!=='#cardinfo'&&active)close();});
   function deepLink(){if(location.hash!=='#cardinfo')return;const params=new URLSearchParams(location.search),game=params.get('brand');if(!isOwn(game))return;selectTab(game);render();if(params.get('set'))open(game,params.get('set'),params.get('card')||'');}
   window.TCGCardInfo=Object.freeze({render,open,detail,more,close,href,ensureManifest,prepareManifest,prepareSet,dataPath,textMatch,target,priceHTML,cancelPending(){invalidate();},state:()=>({game:CI_TAB,set:active?.set?.id||null,selected:selected?.id||null,page:cardPage,query:cardQuery})});
   deepLink();
 })();
+

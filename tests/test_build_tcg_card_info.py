@@ -165,3 +165,32 @@ class CatalogBuildTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BoxNavigationTests(unittest.TestCase):
+    def test_dragon_ball_reprints_link_by_pack_title_not_old_printed_number(self):
+        sets = [dict(id='a', sourceGame='dragon_ball_fusion_world', sourcePackTitle='FUSION WORLD "Booster Pack Heartbeat of Awakening"', code='FB01', cardCount=2),
+                dict(id='b', sourceGame='dragon_ball_fusion_world', sourcePackTitle='FUSION WORLD "MANGA BOOSTER 01"', code='FB01', cardCount=3),
+                dict(id='c', sourceGame='dragon_ball_fusion_world', sourcePackTitle='Promotional Card "Battle Pack 01"', code='FB01', cardCount=1)]
+        boxes = [card('box', 'dragon_ball_fusion_world', 'DRAGON BALL SUPER CARD GAME FUSION WORLD "MANGA BOOSTER 01" Box', kind='box', productNumber='DBFW-SB01')]
+        result = builder.navigation_boxes(sets, boxes, 'dragon_ball_fusion_world')
+        self.assertEqual(result[0]['setIds'], ['b'])
+
+    def test_nikke_never_merges_weiss_and_union_contents(self):
+        sets = [dict(id=game, sourceGame=game, sourcePackTitle='Booster Pack "NIKKE"', code='NIK/S117', cardCount=2) for game in ('weiss_schwarz','union_arena')]
+        boxes = [card('box', name='Weiss Schwarz Booster Pack "NIKKE" Box', kind='box')]
+        result = builder.navigation_boxes(sets, boxes, 'weiss_schwarz')
+        self.assertEqual(result[0]['setIds'], ['weiss_schwarz'])
+
+    def test_loose_packs_cases_and_bonus_cards_are_not_box_navigation(self):
+        names = ['Weiss Schwarz Booster Pack "NIKKE" Box', 'Weiss Schwarz Booster Pack "NIKKE" Pack', 'Weiss Schwarz Booster Pack "NIKKE" Case', 'Weiss Schwarz Booster Pack "NIKKE Bonus for Purchasing 3 BOX" Pack']
+        boxes = [card(str(i),name=name,kind='box') for i,name in enumerate(names)]
+        self.assertEqual(len(builder.navigation_boxes([], boxes, 'weiss_schwarz')), 1)
+
+    def test_bleach_legacy_marketplace_deck_typo_uses_full_bt_code(self):
+        sets = [dict(id='booster', sourceGame='union_arena', sourcePackTitle='UNIONARENA Starter Deck BLEACH Thousand-year blood war', code='UA08BT', cardCount=132),
+                dict(id='deck', sourceGame='union_arena', sourcePackTitle='UNIONARENA Starter Deck BLEACH Thousand-year blood war', code='UA08ST', cardCount=22)]
+        boxes = [card('box','union_arena','UNION ARENA Booster Pack "BLEACH Thousand-year blood war" Box',kind='box',productNumber='UATCG-UA08BT-BLC-1')]
+        result = builder.navigation_boxes(sets, boxes, 'union_arena')
+        self.assertEqual(result[0]['setIds'], ['booster'])
+        self.assertEqual(result[0]['series'], '블리치')

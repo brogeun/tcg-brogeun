@@ -203,6 +203,102 @@ def box_cover(boxes, game, context, card_language):
     return matches[0] if len(matches) == 1 else None
 
 
+def navigation_title(value):
+    """Compare product titles, never printed numbers shared by later reprints."""
+    value = normalized(value)
+    value = re.sub(r'^(?:Weiss Schwarz|UNION\s*ARENA|DRAGON BALL SUPER CARD GAME FUSION WORLD|FUSION WORLD|DIGIMON CARD GAME|Yu-Gi-Oh!?(?: OCG)?(?: Duel Monsters)?)\s*', '', value, flags=re.I)
+    value = value.strip('"「」『』“” ')
+    value = re.sub(r'^(?:(?:Extra|Premium|Theme|Advanced|Reboot|Basic|Deck Build|Duelist|Expansion|Concept|Special|Limited)\s+)?(?:Booster(?:\s+Pack)?|Pack)\s*', '', value, flags=re.I)
+    value = re.sub(r'\s*\bBox\b.*$', '', value, flags=re.I)
+    value = re.sub(r'\s*(?:First Edition|Second Edition|1st Edition|2nd Edition|JP Edition|Japanese Version)\s*$', '', value, flags=re.I)
+    value = value.strip('"「」『』“” ')
+    key = ''.join(char for char in value.casefold() if char.isalnum())
+    # Both spellings are used by the source for the same licensed title.
+    key = key.replace('goddessofvictorynikke', 'nikke')
+    return key
+
+
+def series_title(value):
+    value = normalized(value)
+    value = re.sub(r'^(?:Weiss Schwarz|UNION ARENA)\s*', '', value, flags=re.I)
+    value = re.sub(r'^(?:(?:Extra|Premium)\s+)?Booster(?:\s+Pack)?\s*', '', value, flags=re.I)
+    value = re.sub(r'\s*\bBox\b.*$', '', value, flags=re.I).strip('"「」『』“” ')
+    value = re.sub(r'\s*(?:First Edition|Second Edition|1st Edition|2nd Edition)\s*$', '', value, flags=re.I).strip('" ')
+    aliases = (
+        (r'BLEACH|ブリーチ', '블리치'), (r'NIKKE|勝利の女神', '니케'),
+        (r'HUNTER.?HUNTER', '헌터×헌터'), (r'Jujutsu Kaisen|呪術廻戦', '주술회전'),
+        (r'Demon Slayer|鬼滅', '귀멸의 칼날'), (r'Hololive|ホロライブ', '홀로라이브'),
+        (r'Blue Archive|ブルーアーカイブ', '블루 아카이브'),
+        (r'Frieren|葬送のフリーレン', '장송의 프리렌'),
+        (r'Sword Art Online|ソードアート', '소드 아트 온라인'),
+        (r'Chainsaw Man|チェンソーマン', '체인소 맨'), (r'My Hero Academia|僕のヒーロー', '나의 히어로 아카데미아'),
+        (r'Code Geass|コードギアス', '코드 기어스'), (r'Haikyu|ハイキュー', '하이큐!!'),
+        (r'Gintama|銀魂', '은혼'), (r'Attack on Titan|進撃の巨人', '진격의 거인'),
+        (r'Oshi no Ko|推しの子', '최애의 아이'), (r'Bocchi|ぼっち', '봇치 더 록!'),
+        (r'Puella Magi Madoka|魔法少女まどか', '마법소녀 마도카☆마기카'),
+        (r'Re:ZERO|Re：ゼロ', '리제로'), (r'Jojo|ジョジョ', '죠죠의 기묘한 모험'),
+        (r'Solo Leveling', '나 혼자만 레벨업'), (r'Kaiju No.?8|怪獣8', '괴수 8호'),
+    )
+    for pattern, label in aliases:
+        if re.search(pattern, value, re.I):
+            return label
+    return re.sub(r'\s*[,：:]?\s*(?:Vol\.?\s*\d+|\d+(?:st|nd|rd|th) Anniversary).*$', '', value, flags=re.I).strip() or value
+
+
+def navigation_boxes(sets, products, game):
+    """Expose sealed boxes only and link exact source-pack memberships."""
+    by_title = defaultdict(list)
+    for entry in sets:
+        if entry.get('sourceGame') != game:
+            continue
+        context = entry.get('sourcePackTitle') or ''
+        if not context or re.search(r'promo|promotional|特典|プロモ', context, re.I):
+            continue
+        by_title[navigation_title(context)].append(entry)
+    result, seen = [], set()
+    for product in products:
+        name = str(product.get('name') or '')
+        # kind=box also includes single packs, cases and store bonus packs.
+        if not re.search(r'\bBox\b|ボックス', name, re.I) or re.search(r'\bCase\b|\bBox Purchase Bonus\b|Bonus for Purchasing|\b(?:EN|English|Korean|Chinese)\b', name, re.I):
+            continue
+        if re.search(r'\bPack\s*$', name, re.I):
+            continue
+        if language(product, game, full_number(product, game)) is None:
+            continue
+        title = navigation_title(name)
+        if not title:
+            continue
+        matches = [entry for entry in by_title.get(title, [])
+                   if (not edition(entry['sourcePackTitle']) or edition(entry['sourcePackTitle']) == edition(name))]
+        code = WRAPPERS.sub('', normalized(product.get('productNumber') or product.get('code')))
+        if game == 'union_arena':
+            code = printed_set(game, code)
+            # Legacy marketplace labels include wrong deck/volume text. Match
+            # their full printed BT set code, never later reprint contexts.
+            known = {entry['id'] for entry in matches}
+            matches += [entry for entry in sets if entry['id'] not in known and entry.get('sourceGame') == game
+                        and entry['code'].casefold() == code.casefold()
+                        and re.match(r'^UNION\s*ARENA\b', entry.get('sourcePackTitle') or '', re.I)
+                        and not re.search(r'promo|selection|bonus', entry['sourcePackTitle'], re.I)]
+            known = {entry['id'] for entry in matches}
+            matches += [entry for entry in sets if entry['id'] not in known and entry.get('sourceGame') == game
+                        and entry['code'].casefold() == code.casefold()
+                        and navigation_title(entry.get('sourcePackTitle')) == re.sub(r'vol\d+$', '', title)
+                        and re.match(r'^Booster Pack', entry.get('sourcePackTitle') or '', re.I)]
+        # Multiple marketplace listings of one printing are one navigation box.
+        identity = (title, edition(name))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        label = series_title(name) if game in ('weiss_schwarz', 'union_arena') else GAMES[game]
+        result.append({'id': 'BOX:' + str(product['id']), 'name': name, 'code': code,
+                       'sourceGame': game, 'series': label, 'seriesId': flat(label),
+                       'image': product.get('image') or product.get('thumbnailUrl') or '', 'coverType': 'box',
+                       'releasedAt': product.get('releasedAt'), 'setIds': [entry['id'] for entry in matches],
+                       'cardCount': sum(entry['cardCount'] for entry in matches), 'officialComplete': False})
+    return sorted(result, key=lambda entry: (entry.get('releasedAt') or '', entry['name']), reverse=True)
+
+
 def build(root):
     root = Path(root)
     views = {game: defaultdict(list) for game in VIEWS}
@@ -291,6 +387,14 @@ def build(root):
         manifest["games"].append({"id": view_game, "label": VIEWS[view_game], "cardCount": sum(s["cardCount"] for s in sets),
                                   "setCount": len(sets), "sets": sets, "officialComplete": False,
                                   "coverCounts": dict(Counter(s["coverType"] for s in sets))})
+    for game in manifest['games']:
+        sources = ('weiss_schwarz', 'union_arena') if game['id'] == 'nikke' else (game['id'],)
+        boxes = [box for source_game in sources
+                 for box in navigation_boxes(game['sets'], metadata[source_game][0], source_game)
+                 if game['id'] != 'nikke' or is_nikke(box)]
+        game['boxes'] = boxes
+        game['boxCount'] = len(boxes)
+    manifest['navigationVersion'] = 1
     if len(json_bytes(manifest)) >= 4_000_000:
         raise ValueError("Card-info manifest exceeds 4MB")
     # Keep obsolete files: publication preserves concurrent/last-good assets.
@@ -358,6 +462,23 @@ def validate(root):
                 game_count += set_count
             if game_count != game["cardCount"]:
                 raise ValueError("View card count mismatch")
+            if manifest.get('navigationVersion') == 1:
+                boxes = game.get('boxes')
+                if not isinstance(boxes, list) or game.get('boxCount') != len(boxes):
+                    raise ValueError('Box navigation count mismatch')
+                members = {entry['id']: entry for entry in game['sets']}
+                box_ids = set()
+                for box in boxes:
+                    if not isinstance(box.get('id'), str) or not box['id'].startswith('BOX:') or box['id'] in box_ids or box.get('coverType') != 'box':
+                        raise ValueError('Invalid/duplicate box identity')
+                    box_ids.add(box['id'])
+                    ids = box.get('setIds')
+                    if not isinstance(ids, list) or len(ids) != len(set(ids)) or any(identity not in members for identity in ids):
+                        raise ValueError('Invalid box members')
+                    if any(members[identity]['sourceGame'] != box['sourceGame'] for identity in ids):
+                        raise ValueError('Box mixes source games')
+                    if box.get('cardCount') != sum(members[identity]['cardCount'] for identity in ids):
+                        raise ValueError('Box card count mismatch')
         if seen_games != set(VIEWS):
             raise ValueError("Missing card-info view")
     except (ValueError, KeyError, TypeError, OSError, json.JSONDecodeError) as exc:
@@ -380,3 +501,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

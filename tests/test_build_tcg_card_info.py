@@ -202,3 +202,52 @@ class BoxNavigationTests(unittest.TestCase):
                  card('premium-box', name='Weiss Schwarz Premium Booster Pack Hololive Production Box', kind='box')]
         result = {box['id']: box['setIds'] for box in builder.navigation_boxes(sets, boxes, 'weiss_schwarz')}
         self.assertEqual(result, {'BOX:standard-box':['standard'], 'BOX:premium-box':['premium']})
+
+
+class ContentsRegressionTests(unittest.TestCase):
+    def test_story_booster_and_energy_markers_preserve_full_printed_numbers(self):
+        for number in ('ST01-001', 'ST01-004', 'E01-01', 'E02-12'):
+            row = card('db', 'dragon_ball_fusion_world', f'Son Goku SR [{number}](Booster Pack "STORY BOOSTER 01")', code='')
+            self.assertEqual(builder.full_number(row, 'dragon_ball_fusion_world'), number)
+
+    def test_old_yugioh_branding_and_nested_pack_words_match_exact_titles(self):
+        pairs = [
+            ('Yu-Gi-Oh 5D\'s OCG The Duelist Genesis Box', 'Basic Pack "THE DUELIST GENESIS"'),
+            ('Yu-Gi-Oh ARC-V OCG Maximum Crisis Box', 'Maximum Crisis'),
+            ('Yu-Gi-Oh OCG Duel Monsters Concept Pack "Concept Pack「WORLD PREMIERE PACK 2026」" JP Edition Box', 'Concept Pack "WORLD PREMIERE PACK 2026"'),
+        ]
+        for box, context in pairs:
+            self.assertEqual(builder.navigation_title(box), builder.navigation_title(context))
+
+    def test_box_inside_actual_title_does_not_merge_different_duelist_products(self):
+        titles = ['Yu-Gi-Oh ZEXAL OCG Duelist Box 2012',
+                  'Yu-Gi-Oh OCG Duel Monsters DUELIST BOX PRISMATIC SUMMON Box JP Edition',
+                  'Yu-Gi-Oh 5D\'s OCG Duelist Box']
+        self.assertEqual(len({builder.navigation_title(title) for title in titles}), 3)
+
+    def test_precious_nikke_and_standard_nikke_never_share_contents(self):
+        sets = [dict(id='standard', sourceGame='union_arena', sourcePackTitle='Booster Pack "NIKKE"', code='UA18BT', cardCount=140),
+                dict(id='precious', sourceGame='union_arena', sourcePackTitle='Precious Booster Pack "NIKKE"', code='PC02BT', cardCount=18)]
+        boxes = [card('standard', 'union_arena', 'UNION ARENA Booster Pack "NIKKE" Box', kind='box'),
+                 card('precious', 'union_arena', 'UNION ARENA Precious Booster Pack "NIKKE" Box', kind='box')]
+        result = {box['id']: box['setIds'] for box in builder.navigation_boxes(sets, boxes, 'union_arena')}
+        self.assertEqual(result, {'BOX:standard':['standard'], 'BOX:precious':['precious']})
+
+    def test_plus_one_pack_is_attached_only_when_explicitly_included(self):
+        sets = [dict(id='main', sourceGame='yugioh', sourcePackTitle='Basic Pack "IMMORTAL PHOENIX"', code='IMPH', cardCount=22),
+                dict(id='bonus', sourceGame='yugioh', sourcePackTitle='Basic Pack "IMMORTAL PHOENIX +1 Expansion Pack"', code='IMPH', cardCount=4),
+                dict(id='unrelated', sourceGame='yugioh', sourcePackTitle='Basic Pack "CHAOS ORIGINS +1 Expansion Pack"', code='CORI', cardCount=33)]
+        for suffix, expected in [('', ['main']), (' (+1 Expansion Pack Included)', ['main','bonus'])]:
+            boxes = [card('b', 'yugioh', 'Yu-Gi-Oh OCG Duel Monsters Basic Pack "IMMORTAL PHOENIX" JP Edition Box'+suffix, kind='box')]
+            self.assertEqual(builder.navigation_boxes(sets, boxes, 'yugioh')[0]['setIds'], expected)
+
+    def test_container_special_packs_and_bonus_cards_keep_exact_container(self):
+        sets = [dict(id='special',sourceGame='yugioh',sourcePackTitle='SECRET UTILITY BOX SPECIAL PACK',code='SUB1',cardCount=92),
+                dict(id='bonus',sourceGame='yugioh',sourcePackTitle='SECRET UTILITY BOX Bonus Card',code='SUB1',cardCount=11),
+                dict(id='wrong',sourceGame='yugioh',sourcePackTitle='SECRET SHINY BOX SPECIAL PACK',code='SSB1',cardCount=50)]
+        boxes = [card('b','yugioh','Yu-Gi-Oh OCG Duel Monsters Secret Utility Box',kind='box')]
+        self.assertEqual(builder.navigation_boxes(sets, boxes, 'yugioh')[0]['setIds'], ['special','bonus'])
+
+    def test_box_word_in_loose_pack_title_does_not_create_a_box_tile(self):
+        boxes = [card('b','yugioh','Yu-Gi-Oh OCG Duel Monsters DUELIST BOX PRISMATIC SUMMON Pack JP Edition',kind='box')]
+        self.assertEqual(builder.navigation_boxes([],boxes,'yugioh'), [])

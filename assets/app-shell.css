@@ -1,0 +1,17 @@
+/* Shared desktop shell: use the newer compact Card Info design on every route. */
+@media (min-width: 961px) {
+  .app { grid-template-columns:219px minmax(0,1fr); }
+  .app > .sidebar { top:72px; height:calc(100vh - 72px); height:calc(100dvh - 72px); }
+  .app > .sidebar > .brand {
+    position:fixed; left:0; top:0; width:219px; height:72px;
+    margin:0; padding:12px 16px; border:0; border-bottom:1px solid #EDECE8;
+    border-radius:0; background:#fff; z-index:11;
+  }
+  .app > .sidebar .brand-sub { display:none; }
+  .app > .sidebar .brand-logo { width:40px; height:40px; }
+  .app > .main > .topbar { position:fixed; left:219px; right:0; height:72px; }
+  .app > .main { padding-top:72px; }
+  .app > .sidebar .nav-item.active { background:#E8FAFA; color:#066666; }
+  /* Price detail resets main padding for its full-width content. Keep header clearance. */
+  body.price-expanded .app > .main { padding-top:72px!important; }
+}

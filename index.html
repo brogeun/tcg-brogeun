@@ -2517,7 +2517,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261030-sidebar1">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/card-catalog-repairs.js?v=20261030-reprint-prices1"></script>
-<script src="/assets/contained-card-match.js?v=20261030-consistent1"></script>
+<script src="/assets/contained-card-match.js?v=20261030-price-audit2"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261030-rarity1">
 <script src="/assets/card-rarity-filters.js?v=20261030-rarity1"></script>
@@ -7168,7 +7168,7 @@ document.addEventListener('click', async e => {
       const direct=window.CardPriceFallback.resolve(target);
       if (direct.status==='priced') price=direct;
       else if (target.detailsStatus==='unavailable') unavailable=true;
-      else if (target.bundle || target.quantity>1 || target.unprintedNumber || !target.fullNumber) price=direct;
+      else if (target.bundle || target.quantity>1 || ((target.unprintedNumber || !target.fullNumber) && !target.snkrProduct)) price=direct;
       else price=await window.CardPriceFallback.lookup(target,{isCurrent:current});
     }
   } catch { unavailable=true; }
@@ -10914,7 +10914,7 @@ window.addEventListener('appinstalled', () => {
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261030-rarity1"></script>
-<script src="/assets/english-catalog.js?v=20261030-rarity1"></script>
+<script src="/assets/english-catalog.js?v=20261030-price-audit2"></script>
 <link rel="stylesheet" href="/assets/riftbound-catalog.css?v=20260909-rb1">
 <script src="/assets/riftbound-catalog.js?v=20261030-rarity1"></script>
 
@@ -10923,8 +10923,8 @@ window.addEventListener('appinstalled', () => {
 <script src="/assets/chiikawa-catalog.js?v=20261030-rarity1" defer></script>
 <!-- TCGHUB_CHIIKAWA_END -->
 <link rel="stylesheet" href="/assets/tcg-card-info.css?v=20261030-scroll-contents2">
-<script src="/assets/card-price-fallback.js?v=20261030-krw-only1"></script>
-<script src="/assets/contained-card-prices.js?v=20261030-krw-only1"></script>
+<script src="/assets/card-price-fallback.js?v=20261030-price-audit2"></script>
+<script src="/assets/contained-card-prices.js?v=20261030-price-audit2"></script>
 <script src="/assets/tcg-card-info.js?v=20261030-list-krw1" defer></script>
 <!-- Collections stay within Card info; private records are never cached by this module. -->
 <link rel="stylesheet" href="/assets/collections.css?v=20261030-collections1">

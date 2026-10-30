@@ -3,15 +3,16 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.resolve(__dirname,'..'),read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
 const match=require('../assets/contained-card-match.js'),bridge=require('../assets/contained-card-prices.js'),fallback=require('../assets/card-price-fallback.js'),repairs=require('../assets/card-catalog-repairs.js');
 repairs.configure(read('data/card-catalog-repairs.json'));
-const all=repairs.products(read('data/all-cards.json').details).filter(p=>!match.foreign(p)),byId=new Map(all.map(p=>[String(p.id),p])),overrides=read('data/onepiece-card-overrides.json'),details=read('data/cards-detail.json');
+const all=bridge.mergeSetProducts(repairs.products(read('data/all-cards.json').details),read('data/onepiece-eb05-market.json').products).filter(p=>!match.foreign(p)),byId=new Map(all.map(p=>[String(p.id),p])),overrides=read('data/onepiece-card-overrides.json'),details=read('data/cards-detail.json');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),context=vm.createContext({});
 vm.runInContext(html.slice(html.indexOf('const CARDINFO = {'),html.indexOf('let CI_TAB',html.indexOf('const CARDINFO = {'))),context);
 const visible=vm.runInContext('CARDINFO',context),visibleKeys=new Set(Object.entries(visible).flatMap(([brand,sets])=>sets.map(s=>brand+':'+s.code.toUpperCase())));
+const artworkFile='data/contained-card-market-links.json',artwork=fs.existsSync(path.join(root,artworkFile))?read(artworkFile):{schemaVersion:1,links:[]};
 const totals={},sets=[],unresolved=[],matched=[];
 for(const file of fs.readdirSync(path.join(root,'data/cards-by-set')).filter(f=>f.endsWith('.json'))){
  const code=file.slice(0,-5),raw=read('data/cards-by-set/'+file),brand=raw.brand||(/^(?:(?:OP|EB|PRB|ST)\d|OPCD)/.test(code)?'onepiece':'pokemon'),body=repairs.setCards(raw,code);
  const identities=body.cards.map(card=>({...card,brand,language:'ja',boxCode:code,setCode:card.setCode||code}));
- const targets=identities.map(bridge.targetFor),links={...bridge.reviewedLinks(targets,all,overrides,match),...repairs.verifiedLinks(targets,all)},resolve=match.createResolver(all,links);
+ const targets=identities.map(bridge.targetFor),links={...(code==='EB05'?bridge.reviewedSetLinks(targets,all,raw.cards,match):{}),...bridge.reviewedLinks(targets,all,overrides,match),...repairs.verifiedLinks(targets,all),...(bridge.reviewedArtworkLinks?.(targets,all,artwork,match)||{})},resolve=match.createResolver(all,links);
  const summary={brand,code,visible:visibleKeys.has(brand+':'+code.toUpperCase()),cards:targets.length,status:{},priced:0};
  for(const target of targets){
   const result=resolve(target);summary.status[result.status]=(summary.status[result.status]||0)+1;

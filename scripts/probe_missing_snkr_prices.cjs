@@ -1,0 +1,7 @@
+'use strict';
+const fs=require('node:fs'),match=require('../assets/contained-card-match.js'),bridge=require('../assets/contained-card-prices.js'),fallback=require('../assets/card-price-fallback.js');
+const all=JSON.parse(fs.readFileSync('data/all-cards.json','utf8')).details,details=JSON.parse(fs.readFileSync('data/cards-detail.json','utf8'));
+const eligible=all.filter(p=>p.kind!=='box'&&!match.foreign(p)&&['pokemon','onepiece'].includes(p.brand)&&fallback.resolve({game:p.brand,language:'ja',snkrdunkId:String(p.id),snkrProduct:bridge.withRawDetail(p,details)}).status!=='priced');
+const selected=[...eligible.filter(p=>p.brand==='onepiece'&&/OP16/.test(p.productNumber||'')).slice(0,4),...eligible.filter(p=>p.brand==='onepiece'&&/OP17/.test(p.productNumber||'')).slice(0,4),...eligible.filter(p=>p.brand==='pokemon').slice(0,4)];
+(async()=>{const rows=[];for(const p of selected){try{const response=await fetch('https://tcghub.kr/api/card-grades?id='+p.id,{signal:AbortSignal.timeout(20000),headers:{'User-Agent':'Mozilla/5.0'}}),d=await response.json();rows.push({id:p.id,brand:p.brand,name:p.name,status:response.status,raw:d.grades?.raw||null,confirmedNoListing:d.noListingGrades?.includes('raw')||false,ok:d.ok===true});}catch(e){rows.push({id:p.id,error:e.message});}}
+fs.mkdirSync('audit/card-info-price',{recursive:true});fs.writeFileSync('audit/card-info-price/live-sample.json',JSON.stringify(rows,null,2));console.log(JSON.stringify({checked:rows.length,recoveredJapaneseQuotes:rows.filter(r=>r.raw?.lowest_ask>0).length,rows}));})();

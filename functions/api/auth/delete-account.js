@@ -2,6 +2,7 @@
 import { getCurrentUser, jsonResponse, serverError } from '../../_shared/auth.js';
 
 const OWNED_TABLES = [
+  'collection_mutations', 'user_card_states', 'collections',
   'cert_registration_requests', 'psa_certs', 'bgs_certs',
   'transactions', 'watchlists', 'holdings',
   'kanto151_save_backups', 'kanto151_saves',

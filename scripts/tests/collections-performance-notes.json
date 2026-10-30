@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-29",
+  "scope": "Local Node v24.15.0 read-only measurement; not Cloudflare CPU or memory measurement",
+  "dataVersionObserved": "20261029-cp1-5e50f0669b1f",
+  "dataBuildStatusAtMeasurement": "13 complete key shards (0..c), 78269 entries; d.json.tmp still existed and e/f were absent. Figures describe this partial build, not a frozen final registry.",
+  "catalogBytes": 5841223,
+  "catalogGuardBytes": 8388608,
+  "catalogParseFirstMs": 15.264,
+  "catalogParseMean5Ms": 12.12,
+  "keyShardBytesRange": [831816, 860733],
+  "keyShardParseMean5MsRange": [2.993, 4.393],
+  "retainedMemoryExperiment": {
+    "method": "Fresh node --expose-gc; GC; memoryUsage baseline; parse catalog and all 13 complete shards once and retain parsed values; GC; memoryUsage again",
+    "beforeHeapUsed": 4171840,
+    "retainedHeapUsed": 31321800,
+    "retainedHeapDelta": 27149960,
+    "beforeRSS": 46211072,
+    "retainedRSS": 83755008,
+    "caveat": "Node process RSS includes runtime and differs from a Cloudflare isolate. Repeated parse-loop RSS with uncollected garbage was discarded as a retained-memory estimate."
+  },
+  "change": "Every ordinary private request reads only manifest.json (maximum 16KiB). Only artist/character snapshot creation parses full catalog.json. Same-origin/binding observed version changes evict old shard generations; global cache cap is 16 shards.",
+  "behaviorProof": {
+    "command": "node --test scripts/tests/test_collections_api.mjs",
+    "passed": 23,
+    "failed": 0,
+    "checks": [
+      "Five ordinary private GET/manual operations perform five manifest reads and zero full-catalog reads.",
+      "Artist snapshot creation performs a full-catalog read in addition to manifest validation.",
+      "Missing manifest returns503 without fetching a legacy full-catalog fallback.",
+      "Snapshot catalog version/readOnly disagreement returns503 before inserting a collection.",
+      "Same binding version v1 -> v2 -> v1 forces a new v1 shard read, proving old-generation eviction.",
+      "Source-only character scope requires exact boolean characterDiscoveryVerified=true plus group membership; string true is rejected, and the exception never permits asset-derived ownership.",
+      "Original signed-session/SQLite CAS, idempotency, user isolation, collection/asset separation, limits and account deletion scenarios remain passing."
+    ]
+  },
+  "remaining": "Final registry freeze, compiled Cloudflare bundle and actual staging/production isolate behavior are verified by the integration owner. Cold random ownership keys still require the relevant JSON shards; no new lookup format was introduced."
+}

@@ -239,10 +239,22 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
             json.loads(raw)
         snapshots[name] = raw
     temporary = Path(tempfile.mkdtemp(prefix='tcg-data-publication-', dir=temp_parent or os.environ.get('RUNNER_TEMP'))).resolve()
+    retained_concurrent = []
     for attempt in range(1, attempts + 1):
         git(root, 'fetch', '--no-tags', '--depth=1', 'origin', 'refs/heads/main')
         head = git(root, 'rev-parse', 'FETCH_HEAD').stdout.strip()
         changed = [name for name in files if tree_entry(root, head, name) != original[name]]
+        # The reference collector independently refreshes this per-card cache.
+        # Retain its concurrent version; the other daily snapshots remain valid.
+        # Search groups, inventories and all other overlaps still stop atomically.
+        if daily and changed == ['data/cards-detail.json'] and tree_entry(root, head, changed[0]):
+            retained_concurrent.append(changed[0])
+            files = [name for name in files if name != changed[0]]
+            snapshots.pop(changed[0], None)
+            changed = []
+            if not files:
+                return {'status': 'unchanged', 'commit': head, 'attempt': attempt, 'files': [],
+                        'retainedConcurrentFiles': retained_concurrent}
         if changed:
             raise PublicationError('Publication stopped: target files changed since collection; preserve those edits and rerun: ' + ', '.join(changed))
         worktree = temporary / ('attempt-' + str(attempt))
@@ -259,7 +271,8 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         if not staged <= set(files):
             raise PublicationError('Refusing a commit containing unrelated paths')
         if not staged:
-            return {'status': 'unchanged', 'commit': head, 'attempt': attempt, 'files': files}
+            return {'status': 'unchanged', 'commit': head, 'attempt': attempt, 'files': files,
+                    'retainedConcurrentFiles': retained_concurrent}
         git(worktree, '-c', 'user.name=github-actions[bot]', '-c',
             'user.email=41898282+github-actions[bot]@users.noreply.github.com',
             '-c', 'commit.gpgsign=false', 'commit', '-m', message)
@@ -267,7 +280,7 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         if outcome.returncode == 0:
             return {'status': 'published', 'commit': git(worktree, 'rev-parse', 'HEAD').stdout.strip(),
                     'previousMain': head, 'collectionCommit': base, 'attempt': attempt, 'files': files,
-                    'unrelatedCommitsPreserved': True}
+                    'unrelatedCommitsPreserved': True, 'retainedConcurrentFiles': retained_concurrent}
         if attempt == attempts:
             raise PublicationError('Normal push failed after bounded retries; no force or merge was attempted: ' + outcome.stderr.strip()[-1500:])
         # Each retry fetches again and checks every target against the original base.

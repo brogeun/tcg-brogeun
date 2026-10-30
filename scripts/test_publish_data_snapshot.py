@@ -196,6 +196,17 @@ class PublicationTests(unittest.TestCase):
             self.publish_daily()
         self.assertTrue(all(self.remote_content(name) == '{"old":true}' for name in self.search))
 
+    def test_daily_retains_concurrent_detail_cache_and_publishes_independent_outputs(self):
+        self.daily_fixture()
+        name = 'data/cards-detail.json'
+        (self.runner / name).write_text('{"daily":true}', encoding='utf-8')
+        self.advance(name, '{"newReference":true}')
+        result = self.publish_daily()
+        self.assertEqual(result['status'], 'published')
+        self.assertEqual(result['retainedConcurrentFiles'], [name])
+        self.assertEqual(json.loads(self.remote_content(name)), {'newReference': True})
+        self.assertTrue(all(json.loads(self.remote_content(path)) == {'verified': True} for path in self.search))
+
     def test_deploy_source_contains_latest_ui_chinese_and_published_search(self):
         self.daily_fixture()
         self.advance('data/chinese-market.json', '{"newChinese":true}')

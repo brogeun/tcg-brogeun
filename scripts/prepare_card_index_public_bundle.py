@@ -138,6 +138,16 @@ def main():
         removed.append(cache.name + '/')
     catalogue = prepare_search_catalogue(target)
     card_info = pack_card_info(target)
+    # Collector-only history is consumed during builds, never by the browser or
+    # runtime handlers. Keep repository evidence; omit only this deployment copy.
+    history = target / 'snkrdunk-history'
+    if history.exists():
+        if history.is_symlink() or not history.is_dir() or history.resolve().parent != target:
+            parser.error('Refuse an unsafe collector history cache')
+        if any(path.is_symlink() for path in history.rglob('*')):
+            parser.error('Collector history cache must not contain symlinks')
+        shutil.rmtree(history)
+        removed.append('snkrdunk-history/')
     print(json.dumps({'publicIndexSourcesOmitted': removed, 'publicSearchCatalogue': catalogue,
                       'publicCardInfoPacks': card_info,
                       'originalSourcesModified': False}))

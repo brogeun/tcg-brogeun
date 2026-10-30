@@ -10,6 +10,22 @@ from pathlib import Path
 import prepare_card_index_public_bundle as bundle
 
 class PublicBundleTests(unittest.TestCase):
+    def test_collector_history_is_omitted_only_from_public_copy(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, script = self.fixture(folder)
+            for base in (root / 'data', root / '_deploy/data'):
+                path = base / 'snkrdunk-history/123.json'
+                path.parent.mkdir()
+                path.write_text('{"history":[1,2,3]}')
+            public = root / '_deploy/data/history/123.json'
+            public.parent.mkdir()
+            public.write_text('{"history":[4,5,6]}')
+            result = subprocess.run([sys.executable, str(script)], cwd=root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((root / '_deploy/data/snkrdunk-history').exists())
+            self.assertTrue((root / 'data/snkrdunk-history/123.json').is_file())
+            self.assertEqual(json.loads(public.read_text()), {'history':[4,5,6]})
+            self.assertIn('snkrdunk-history/', json.loads(result.stdout)['publicIndexSourcesOmitted'])
     def fixture(self, folder):
         root = Path(folder)
         (root / 'scripts').mkdir()

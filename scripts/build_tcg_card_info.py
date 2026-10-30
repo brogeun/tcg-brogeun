@@ -268,8 +268,10 @@ def navigation_boxes(sets, products, game):
         title = navigation_title(name)
         if not title:
             continue
+        kind = package_kind(name)
         matches = [entry for entry in by_title.get(title, [])
-                   if (not edition(entry['sourcePackTitle']) or edition(entry['sourcePackTitle']) == edition(name))]
+                   if (not edition(entry['sourcePackTitle']) or edition(entry['sourcePackTitle']) == edition(name))
+                   and (kind == 'unspecified' or package_kind(entry['sourcePackTitle']) in ('unspecified', kind))]
         code = WRAPPERS.sub('', normalized(product.get('productNumber') or product.get('code')))
         if game == 'union_arena':
             code = printed_set(game, code)
@@ -286,7 +288,7 @@ def navigation_boxes(sets, products, game):
                         and navigation_title(entry.get('sourcePackTitle')) == re.sub(r'vol\d+$', '', title)
                         and re.match(r'^Booster Pack', entry.get('sourcePackTitle') or '', re.I)]
         # Multiple marketplace listings of one printing are one navigation box.
-        identity = (title, edition(name))
+        identity = (title, kind, edition(name))
         if identity in seen:
             continue
         seen.add(identity)

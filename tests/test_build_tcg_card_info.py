@@ -194,3 +194,11 @@ class BoxNavigationTests(unittest.TestCase):
         result = builder.navigation_boxes(sets, boxes, 'union_arena')
         self.assertEqual(result[0]['setIds'], ['booster'])
         self.assertEqual(result[0]['series'], '블리치')
+
+    def test_same_title_standard_and_premium_boosters_keep_separate_boxes_and_contents(self):
+        sets = [dict(id='standard', sourceGame='weiss_schwarz', sourcePackTitle='Booster Pack "hololive production"', code='HOL/W91', cardCount=350),
+                dict(id='premium', sourceGame='weiss_schwarz', sourcePackTitle='Premium Booster "hololive production"', code='HOL/WE36', cardCount=159)]
+        boxes = [card('standard-box', name='Weiss Schwarz Booster Pack Hololive Production Box', kind='box'),
+                 card('premium-box', name='Weiss Schwarz Premium Booster Pack Hololive Production Box', kind='box')]
+        result = {box['id']: box['setIds'] for box in builder.navigation_boxes(sets, boxes, 'weiss_schwarz')}
+        self.assertEqual(result, {'BOX:standard-box':['standard'], 'BOX:premium-box':['premium']})

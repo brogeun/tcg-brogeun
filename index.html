@@ -3692,8 +3692,8 @@ async function showPriceDetailPanel(productId) {
   // 검색은 이 풀에서 되니까 검색→클릭 흐름에선 무조건 여기서 잡힘
   if (!product) {
     try {
-      await loadCardSearchData();
-      const found = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(productId)) || window.ContainedCardPrices?.getPreparedProduct(productId) || window.JapaneseCatalog?.getProduct(productId);
+      const found = window.ContainedCardPrices?.getPreparedProduct(productId) ||
+        (await loadCardProductData()).find(c => String(c.id) === String(productId)) || window.JapaneseCatalog?.getProduct(productId);
       if (found) {
         // 인덱스 포맷 → showPriceDetailPanel 이 기대하는 포맷으로 변환
         product = {
@@ -5386,8 +5386,8 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
   // 최종 fallback — 검색 인덱스 재사용 (9MB 중복 다운로드 제거)
   if (!product) {
     try {
-      await loadCardSearchData();
-      const found = (_ALL_CARDS_INDEX || []).find(c => String(c.id) === String(productId)) || window.ContainedCardPrices?.getPreparedProduct(productId) || window.JapaneseCatalog?.getProduct(productId);
+      const found = window.ContainedCardPrices?.getPreparedProduct(productId) ||
+        (await loadCardProductData()).find(c => String(c.id) === String(productId)) || window.JapaneseCatalog?.getProduct(productId);
       if (found) {
         product = { ...found, id: found.id, name: found.name, image: found.thumbnailUrl, brand: found.brand || 'pokemon', _brand: found.brand || 'pokemon' };
       }

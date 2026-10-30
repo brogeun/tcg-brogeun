@@ -93,7 +93,7 @@ def full_number(product, game):
     patterns = {
         "weiss_schwarz": r"[A-Za-z0-9+_.]+/[A-Za-z0-9+_.]+-[A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*",
         "union_arena": r"(?:UA|EX|PC)[A-Za-z0-9]*[/-][A-Za-z0-9][A-Za-z0-9/_-]*",
-        "dragon_ball_fusion_world": r"(?:FB|FS|FP|SB|FBP)[0-9]{0,3}-[A-Za-z0-9]+",
+        "dragon_ball_fusion_world": r"(?:FB|FS|FP|SB|ST|E|FBP)[0-9]{0,3}-[A-Za-z0-9]+",
         "yugioh": r"[A-Za-z0-9]+-[A-Za-z0-9]+",
         "digimon": r"(?:BT|EX|ST|LM|RB|P|AD|TS)[0-9]{0,3}-[A-Za-z0-9]+",
     }
@@ -141,6 +141,7 @@ def package_kind(value):
     for kind, pattern in (
         ("trial_deck", r"trial\s*deck|トライアルデッキ"),
         ("starter_deck", r"starter\s*deck|スタートデッキ|スターターデッキ"),
+        ("precious_booster", r"precious\s*booster|プレシャスブースター"),
         ("extra_booster", r"extra\s*booster|エクストラブースター"),
         ("premium_booster", r"premium\s*booster|プレミアムブースター"),
         ("booster_pack", r"booster\s*(?:pack)?|ブースターパック|ブースター"),
@@ -204,18 +205,35 @@ def box_cover(boxes, game, context, card_language):
 
 
 def navigation_title(value):
-    """Compare product titles, never printed numbers shared by later reprints."""
+    """Exact title normalization only; keep volumes and printing qualifiers."""
     value = normalized(value)
-    value = re.sub(r'^(?:Weiss Schwarz|UNION\s*ARENA|DRAGON BALL SUPER CARD GAME FUSION WORLD|FUSION WORLD|DIGIMON CARD GAME|Yu-Gi-Oh!?(?: OCG)?(?: Duel Monsters)?)\s*', '', value, flags=re.I)
-    value = value.strip('"「」『』“” ')
-    value = re.sub(r'^(?:(?:Extra|Premium|Theme|Advanced|Reboot|Basic|Deck Build|Duelist|Expansion|Concept|Special|Limited)\s+)?(?:Booster(?:\s+Pack)?|Pack)\s*', '', value, flags=re.I)
-    value = re.sub(r'\s*\bBox\b.*$', '', value, flags=re.I)
+    value = re.sub(r"^Yu-Gi-Oh!?(?:\s+(?:ARC-V|Arc Five|ZEXAL|5D's|GX))?(?:\s+OCG)?(?:\s+Duel Monsters)?\s*", '', value, flags=re.I)
+    value = re.sub(r'^(?:Weiss Schwarz|UNION\s*ARENA|DRAGON BALL SUPER CARD GAME FUSION WORLD|FUSION WORLD|DIGIMON CARD GAME)\s*', '', value, flags=re.I)
+    # Marketplace package words may surround another quoted package title.
+    for _ in range(4):
+        previous = value
+        value = value.strip('"「」『』“” ')
+        value = re.sub(r'^(?:(?:Extra|Premium|Precious|Theme|Advanced|Reboot|Basic|Deck Build|Duelist|Expansion|Concept|Special|Limited|Tactical[- ]Try)\s+)?(?:Booster(?:\s+Pack)?|Pack)\s*', '', value, flags=re.I)
+        if value == previous:
+            break
+    value = re.sub(r'\s*(?:JP Edition|Japanese Version)\s*$', '', value, flags=re.I)
+    value = re.sub(r'\s*\bBox\b(?:\s+(?:(?:First|Second|1st|2nd)\s+Edition|Resale\s+ver(?:sion)?\.?))?\s*(?:\([^)]*\)|\+1\s+(?:Bonus|Assist|Expansion)\s+Pack)?\s*$', '', value, flags=re.I)
     value = re.sub(r'\s*(?:First Edition|Second Edition|1st Edition|2nd Edition|JP Edition|Japanese Version)\s*$', '', value, flags=re.I)
     value = value.strip('"「」『』“” ')
     key = ''.join(char for char in value.casefold() if char.isalnum())
-    # Both spellings are used by the source for the same licensed title.
     key = key.replace('goddessofvictorynikke', 'nikke')
-    return key
+    # Explicit spelling/translation aliases, never fuzzy title or card-number joins.
+    aliases = {
+        'lovelivehasunozoragirlsacademyschoolidolclubfeatlinklikelovelive': 'lovelivehasunosoragirlsacademyschoolidolclubfeatlinklikelovelive',
+        'movieshojokagekirevuestarlight': 'movieversionshojokagekirevuestarlight',
+        'pyroxeneduelistedition': 'duelistsofpyroxene',
+        'structuresecretshiny': 'secretshiny',
+        'dueldeckbuildpackmonstersancientguardians': 'ancientguardians',
+        'legendgold': 'legendarygold',
+        'duelistcollectorspack2018': 'collectorspack2018',
+        'worldchampionship2026limitedpack': 'worldchampionship2026',
+    }
+    return aliases.get(key, key)
 
 
 def series_title(value):
@@ -261,7 +279,7 @@ def navigation_boxes(sets, products, game):
         # kind=box also includes single packs, cases and store bonus packs.
         if not re.search(r'\bBox\b|ボックス', name, re.I) or re.search(r'\bCase\b|\bBox Purchase Bonus\b|Bonus for Purchasing|\b(?:EN|English|Korean|Chinese)\b', name, re.I):
             continue
-        if re.search(r'\bPack\s*$', name, re.I):
+        if re.search(r'\bPack\s*(?:JP Edition|Japanese Version)?\s*$', name, re.I) or re.search(r'[\"」]\s*Special\s*Pack\s*Box', name, re.I):
             continue
         if language(product, game, full_number(product, game)) is None:
             continue
@@ -287,6 +305,16 @@ def navigation_boxes(sets, products, game):
                         and entry['code'].casefold() == code.casefold()
                         and navigation_title(entry.get('sourcePackTitle')) == re.sub(r'vol\d+$', '', title)
                         and re.match(r'^Booster Pack', entry.get('sourcePackTitle') or '', re.I)]
+        if game == 'yugioh':
+            known = {entry['id'] for entry in matches}
+            matches += [entry for entry in sets if entry['id'] not in known and entry.get('sourceGame') == game
+                        and re.search(r'\b(?:SPECIAL PACK(?:\s+Bonus Card)?|Bonus Card)\s*$', entry.get('sourcePackTitle') or '', re.I)
+                        and navigation_title(re.sub(r'\s+(?:SPECIAL PACK(?:\s+Bonus Card)?|Bonus Card)\s*$', '', entry['sourcePackTitle'], flags=re.I)) == title]
+        if game == 'yugioh' and re.search(r'\+1\s*(?:Expansion|Bonus)\s*Pack\s+Included', name, re.I):
+            known = {entry['id'] for entry in matches}
+            matches += [entry for entry in sets if entry['id'] not in known and entry.get('sourceGame') == game
+                        and re.search(r'\+1\s*(?:Expansion|Bonus)\s*Pack', entry.get('sourcePackTitle') or '', re.I)
+                        and navigation_title(re.sub(r'\s*\+1\s*(?:Expansion|Bonus)\s*Pack', '', entry['sourcePackTitle'], flags=re.I)) == title]
         # Multiple marketplace listings of one printing are one navigation box.
         identity = (title, kind, edition(name))
         if identity in seen:

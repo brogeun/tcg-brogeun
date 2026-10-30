@@ -4,3 +4,10 @@
 .ci-contained-price{text-align:center;min-height:86px}.ci-card-detail-price{max-width:340px;margin:16px auto;text-align:center;border-bottom:1px solid #edf1f1}.ci-card-detail-price strong{font-size:23px}.ci-contained-price .cpf-none{color:#879393;font-size:11px}
 
 .tci-series-filter{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 0 8px}.tci-series-filter label{font-size:13px;font-weight:600;color:#315b5b;white-space:nowrap}.tci-series-filter select{font:inherit;font-size:14px;color:#244646;background:#fff;border:1px solid #dce5e5;border-radius:8px;min-height:44px;width:min(100%,420px);padding:10px 12px}.tci-set-info{align-items:center;gap:18px}.tci-box-thumbnail{width:80px;height:100px;object-fit:contain;flex:none}.tci-series-filter select:focus-visible{outline:3px solid #67cece;outline-offset:2px}@media(max-width:720px){.tci-series-filter{gap:10px}.tci-box-thumbnail{width:58px;height:78px}.tci-set-info{gap:12px}}
+
+/* The wrapper must carry the panel height to its scrollable flex child. */
+#anyModal.ci-panel .tci-shell{display:flex;flex-direction:column;flex:1 1 0;min-height:0;min-width:0;width:100%;overflow:hidden}
+.tci-shell>.tci-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.tci-shell>.tci-set-info{max-height:35dvh;overflow-y:auto;flex-shrink:0}.tci-set-info>div{min-width:0}
+
+.tci-shell .tci-pager button{flex:0 0 auto;min-width:64px;max-width:none;white-space:nowrap}

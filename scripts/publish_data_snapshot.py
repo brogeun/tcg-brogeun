@@ -1,11 +1,13 @@
 """Publish validated JSON atop current main only while every target is unchanged.
 
-Unrelated newer commits are preserved exactly. A changed target is never merged,
-reset or overwritten. Only a newly created detached worktree is modified.
+Unrelated newer commits are preserved exactly. Identical concurrent outputs are
+already satisfied; different target bytes or modes are never merged or overwritten.
+Only a newly created detached worktree is modified.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -271,12 +273,19 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         else:
             json.loads(raw)
         snapshots[name] = raw
+    # Exact blob identity, not parsed JSON equality: formatting, binary assets and
+    # file modes remain protected. The accepted 40-character commit format uses
+    # SHA-1 Git object IDs; hashing here does not write objects into the checkout.
+    generated = {name: ((original[name] or ('100644', None))[0],
+                        hashlib.sha1(b'blob ' + str(len(raw)).encode('ascii') + b'\0' + raw).hexdigest())
+                 for name, raw in snapshots.items()}
     temporary = Path(tempfile.mkdtemp(prefix='tcg-data-publication-', dir=temp_parent or os.environ.get('RUNNER_TEMP'))).resolve()
     retained_concurrent = []
     for attempt in range(1, attempts + 1):
         git(root, 'fetch', '--no-tags', '--depth=1', 'origin', 'refs/heads/main')
         head = git(root, 'rev-parse', 'FETCH_HEAD').stdout.strip()
-        changed = [name for name in files if tree_entry(root, head, name) != original[name]]
+        current = {name: tree_entry(root, head, name) for name in files}
+        changed = [name for name in files if current[name] not in (original[name], generated[name])]
         # The reference collector independently refreshes this per-card cache.
         # Retain its concurrent version; the other daily snapshots remain valid.
         # Search groups, inventories and all other overlaps still stop atomically.
@@ -368,3 +377,4 @@ def main():
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

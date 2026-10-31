@@ -92,6 +92,97 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(after, before)
         self.assertEqual(json.loads(self.remote_content(self.files[0])), {'user': True})
 
+    def test_identical_concurrent_output_publishes_only_remaining_changes(self):
+        name = self.files[0]
+        self.advance(name, '{"verified":true}')
+        result = self.publish()
+        self.assertEqual(result['status'], 'published')
+        changed = self.git(self.root, '--git-dir', str(self.remote), 'diff-tree',
+                           '--no-commit-id', '--name-only', '-r', result['commit']).splitlines()
+        self.assertEqual(set(changed), set(self.files) - {name})
+        self.assertTrue(all(self.remote_content(path) == '{"verified":true}' for path in self.files))
+
+    def test_all_identical_concurrent_outputs_need_no_duplicate_commit(self):
+        for name in self.files:
+            self.advance(name, '{"verified":true}')
+        before = self.git(self.writer, 'rev-parse', 'HEAD')
+        result = self.publish()
+        self.assertEqual(result['status'], 'unchanged')
+        self.assertEqual(result['commit'], before)
+        self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'rev-parse', 'refs/heads/main'), before)
+
+    def test_identical_official_inventory_and_binary_asset_are_already_published(self):
+        import hashlib
+        image = 'images/onepiece-official/OP01-001.webp'
+        raw = b'RIFF\x00\x80\xffreviewed fixture'
+        (self.runner / image).parent.mkdir(parents=True)
+        (self.runner / image).write_bytes(raw)
+        (self.runner / 'config').mkdir()
+        record = {'image': '/' + image, 'sha256': hashlib.sha256(raw).hexdigest()}
+        for name, data in [('onepiece-local-artworks.json', {'OP01-001': record}),
+                           ('onepiece-product-images.json', {})]:
+            (self.runner / 'config' / name).write_text(json.dumps(data), encoding='utf-8')
+        manifest = 'data/onepiece-official-manifest.json'
+        (self.runner / manifest).write_text('{"sets":[]}', encoding='utf-8')
+        (self.writer / image).parent.mkdir(parents=True)
+        (self.writer / image).write_bytes(raw)
+        self.advance(manifest, '{"sets":[]}')
+        self.git(self.writer, 'add', '--', image)
+        self.git(self.writer, 'commit', '-m', 'Concurrent identical reviewed asset')
+        self.git(self.writer, 'push', 'origin', 'main')
+        before = self.git(self.writer, 'rev-parse', 'HEAD')
+        env = {'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'safe.directory', 'GIT_CONFIG_VALUE_0': '*'}
+        with patch.dict(os.environ, env):
+            files = target.official_release_files(self.runner, self.base)
+            result = target.publish(self.runner, self.base, files, 'Official fixture',
+                                    temp_parent=self.root, official=True)
+        self.assertEqual(set(files), {manifest, image})
+        self.assertEqual(result['status'], 'unchanged')
+        self.assertEqual(result['commit'], before)
+
+    def test_identical_content_does_not_allow_concurrent_mode_change(self):
+        name = self.files[0]
+        self.advance(name, '{"verified":true}')
+        self.git(self.writer, 'update-index', '--chmod=+x', '--', name)
+        self.git(self.writer, 'commit', '-m', 'Concurrent file mode change')
+        self.git(self.writer, 'push', 'origin', 'main')
+        before = self.git(self.writer, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(target.PublicationError, 'target files changed'):
+            self.publish()
+        self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'rev-parse', 'refs/heads/main'), before)
+
+    def test_equivalent_json_with_different_bytes_is_still_a_conflict(self):
+        self.advance(self.files[0], '{ "verified": true }\n')
+        before = self.git(self.writer, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(target.PublicationError, 'target files changed'):
+            self.publish()
+        self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'rev-parse', 'refs/heads/main'), before)
+
+    def test_identical_push_race_retries_without_duplicate_commit(self):
+        real_git = target.git
+        raced = False
+        def race(root, *args, **kwargs):
+            nonlocal raced
+            if args[0] == 'push' and not raced:
+                raced = True
+                for name in self.files:
+                    self.advance(name, '{"verified":true}')
+            return real_git(root, *args, **kwargs)
+        with patch.object(target, 'git', race):
+            result = self.publish()
+        self.assertEqual(result['status'], 'unchanged')
+        self.assertEqual(result['attempt'], 2)
+        self.assertEqual(result['commit'], self.git(self.writer, 'rev-parse', 'HEAD'))
+
+    def test_divergent_output_rejects_even_with_an_identical_concurrent_output(self):
+        self.advance(self.files[0], '{"verified":true}')
+        self.advance(self.files[1], '{"user":true}')
+        before = self.git(self.writer, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(target.PublicationError, 'target files changed'):
+            self.publish()
+        self.assertEqual(self.git(self.root, '--git-dir', str(self.remote), 'rev-parse', 'refs/heads/main'), before)
+        self.assertEqual(self.remote_content(self.files[1]), '{"user":true}')
+
     def test_push_race_retries_without_losing_disjoint_commit(self):
         real_git = target.git
         raced = False
@@ -531,3 +622,4 @@ class PublicationTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

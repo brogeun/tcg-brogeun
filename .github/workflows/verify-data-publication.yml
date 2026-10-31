@@ -1,0 +1,33 @@
+name: Verify concurrent data publication
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/publish_data_snapshot.py'
+      - 'scripts/test_publish_data_snapshot.py'
+      - '.github/workflows/verify-data-publication.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-data-publication-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/publish_data_snapshot.py
+            /scripts/test_publish_data_snapshot.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Reproduce concurrent writes against disposable local Git remotes
+        run: python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py

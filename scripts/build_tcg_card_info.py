@@ -44,6 +44,13 @@ def json_bytes(value):
 
 def atomic_write(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_file() and isinstance(value, dict) and 'cards' in value and 'set' in value:
+        previous = read_json(path)
+        # An unchanged shard is already valid. Retain its timestamp/body rather
+        # than republishing thousands of identical legacy catalogues each run.
+        if ({k: v for k, v in previous.items() if k != 'generatedAt'}
+                == {k: v for k, v in value.items() if k != 'generatedAt'}):
+            return
     temp = path.with_suffix(".json.tmp")
     temp.write_bytes(json_bytes(value))
     temp.replace(path)
@@ -291,6 +298,12 @@ def navigation_boxes(sets, products, game):
                    if (not edition(entry['sourcePackTitle']) or edition(entry['sourcePackTitle']) == edition(name))
                    and (kind == 'unspecified' or package_kind(entry['sourcePackTitle']) in ('unspecified', kind))]
         code = WRAPPERS.sub('', normalized(product.get('productNumber') or product.get('code')))
+        if game == 'weiss_schwarz' and re.fullmatch(r'[A-Za-z0-9+_.]+/[SW](?:E)?[0-9]+', code, re.I):
+            # Identical titles can belong to different releases (e.g. SMP/W60
+            # and SMP/W137). Mixed-code reprint products do not enter this rule.
+            exact = [entry for entry in matches if entry['code'].casefold() == code.casefold()]
+            if exact:
+                matches = exact
         if game == 'union_arena':
             code = printed_set(game, code)
             # Legacy marketplace labels include wrong deck/volume text. Match
@@ -316,7 +329,7 @@ def navigation_boxes(sets, products, game):
                         and re.search(r'\+1\s*(?:Expansion|Bonus)\s*Pack', entry.get('sourcePackTitle') or '', re.I)
                         and navigation_title(re.sub(r'\s*\+1\s*(?:Expansion|Bonus)\s*Pack', '', entry['sourcePackTitle'], flags=re.I)) == title]
         # Multiple marketplace listings of one printing are one navigation box.
-        identity = (title, kind, edition(name))
+        identity = (title, kind, edition(name), code.casefold() if game == 'weiss_schwarz' else '')
         if identity in seen:
             continue
         seen.add(identity)
@@ -425,6 +438,11 @@ def build(root):
         game['boxes'] = boxes
         game['boxCount'] = len(boxes)
     manifest['navigationVersion'] = 1
+    try:
+        from official_card_contents import augment
+    except ModuleNotFoundError:
+        from scripts.official_card_contents import augment
+    augment(root, manifest, outputs)
     if len(json_bytes(manifest)) >= 4_000_000:
         raise ValueError("Card-info manifest exceeds 4MB")
     # Keep obsolete files: publication preserves concurrent/last-good assets.
@@ -435,6 +453,10 @@ def build(root):
 
 
 def validate(root):
+    try:
+        from official_card_contents import validate_official_card
+    except ModuleNotFoundError:
+        from scripts.official_card_contents import validate_official_card
     root = Path(root)
     errors, count = [], 0
     try:
@@ -454,8 +476,9 @@ def validate(root):
                 key, url = entry["id"], entry["file"]
                 if not re.fullmatch(r"[0-9a-f]{16}", key) or url != "/data/tcg-card-info/" + view + "/" + key + ".json":
                     raise ValueError("Unsafe set path")
-                if entry.get("officialComplete") is not False:
-                    raise ValueError("Set incorrectly claims official completeness")
+                official = entry.get('coverage') == 'official-product-list'
+                if entry.get("officialComplete") is not official or (official and not entry.get('officialProductId')):
+                    raise ValueError("Set official coverage/identity mismatch")
                 first = read_json(root / url.lstrip("/"))
                 urls = [url] + (first.get("shards") or [])
                 set_count = 0
@@ -470,7 +493,7 @@ def validate(root):
                     if path.stat().st_size >= 4_000_000:
                         raise ValueError("Oversized card-info file")
                     data = first if part_url == url else read_json(path)
-                    if data.get("game") != view or data.get("set", {}).get("id") != key or data.get("officialComplete") is not False:
+                    if data.get("game") != view or data.get("set", {}).get("id") != key or data.get("officialComplete") is not official:
                         raise ValueError("Set/part identity mismatch")
                     if data.get("sourceGame") != entry["sourceGame"]:
                         raise ValueError("Set source game mismatch")
@@ -480,10 +503,13 @@ def validate(root):
                             raise ValueError("Duplicate/wrong-game card")
                         if card["language"] not in ("ja", "unknown"):
                             raise ValueError("Foreign card in Japanese view")
-                        if card.get("catalogSource") != "SNKRDUNK" or str(card.get("snkrdunkId")) != identity or str(card.get("snkrProduct", {}).get("id")) != identity:
-                            raise ValueError("Source product identity mismatch")
-                        if card["snkrProduct"].get("fullCardNumber") != card.get("fullCardNumber"):
-                            raise ValueError("Source printed identity mismatch")
+                        if official:
+                            validate_official_card(card, entry)
+                        else:
+                            if card.get("catalogSource") != "SNKRDUNK" or str(card.get("snkrdunkId")) != identity or str(card.get("snkrProduct", {}).get("id")) != identity:
+                                raise ValueError("Source product identity mismatch")
+                            if card["snkrProduct"].get("fullCardNumber") != card.get("fullCardNumber"):
+                                raise ValueError("Source printed identity mismatch")
                         seen_ids.add(identity)
                         set_count += 1
                 if set_count != entry["cardCount"]:
@@ -507,7 +533,11 @@ def validate(root):
                         raise ValueError('Invalid box members')
                     if any(members[identity]['sourceGame'] != box['sourceGame'] for identity in ids):
                         raise ValueError('Box mixes source games')
-                    if box.get('cardCount') != sum(members[identity]['cardCount'] for identity in ids):
+                    market_ids, market_sets = box.get('marketCardIds', []), box.get('marketSetIds', [])
+                    if (len(market_ids) != len(set(market_ids)) or any(sid not in members or members[sid]['sourceGame'] != box['sourceGame'] for sid in market_sets)
+                            or any(str(identity) not in seen_ids for identity in market_ids)):
+                        raise ValueError('Invalid market supplement membership')
+                    if box.get('cardCount') != sum(members[identity]['cardCount'] for identity in ids) + len(market_ids):
                         raise ValueError('Box card count mismatch')
         if seen_games != set(VIEWS):
             raise ValueError("Missing card-info view")

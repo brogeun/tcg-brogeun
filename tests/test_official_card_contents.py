@@ -1,0 +1,126 @@
+import copy
+import gzip
+import tempfile
+import unittest
+from pathlib import Path
+
+from test_build_tcg_card_info import builder, card, source_files
+
+
+class OfficialContentsTests(unittest.TestCase):
+    def fixture(self, root):
+        old = card('10', 'digimon', 'Agumon C [BT1-001](Booster Pack "NEW EVOLUTION")', code='DGCG-BT1-001')
+        box = {'id': '20', 'kind': 'box', 'name': 'DIGIMON CARD GAME Booster Pack "NEW EVOLUTION" Box',
+               'code': 'DGCG-BT-01', 'language': 'ja'}
+        source_files(root, {'digimon': [old]}, {'digimon': [box]})
+        cards = [{'id': 'BT1-001', 'number': 'BT1-001', 'name': 'アグモン', 'rarity': 'C', 'variant': 'base',
+                  'image': 'https://digimoncard.com/images/BT1-001.png', 'url': 'https://digimoncard.com/cards/#BT1-001'},
+                 {'id': 'BT1-002', 'number': 'BT1-002', 'name': '価格のないカード', 'rarity': 'C', 'variant': 'base',
+                  'image': None, 'url': 'https://digimoncard.com/cards/#BT1-002'}]
+        product = {'id': 'official-bt1', 'code': 'BT01', 'name': 'NEW EVOLUTION', 'complete': True,
+                   'kind': 'booster', 'url': 'https://digimoncard.com/cards/?category=1',
+                   'expectedCardCount': 2, 'cards': cards}
+        data = {'game': 'digimon', 'source': 'official manufacturer Japanese card list',
+                'sourceUrl': 'https://digimoncard.com/cards/', 'fetchedAt': '2026-10-31T00:00:00Z',
+                'complete': True, 'expectedProducts': 1, 'products': [product]}
+        path = root / 'data/official-card-contents/digimon.json'
+        builder.atomic_write(path, data)
+        return path, data
+
+    def official(self, root, manifest):
+        game = next(g for g in manifest['games'] if g['id'] == 'digimon')
+        entry = next(s for s in game['sets'] if s['officialComplete'])
+        rows = builder.read_json(root / entry['file'].lstrip('/'))['cards']
+        return game, entry, rows
+
+    def test_price_free_official_cards_appear_and_exact_market_quote_survives(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); self.fixture(root)
+            manifest = builder.build(root)
+            game, entry, rows = self.official(root, manifest)
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(rows[0]['snkrdunkId'], '10')
+            self.assertEqual(rows[0]['snkrProduct']['minPrice'], 12.34)
+            self.assertNotIn('snkrProduct', rows[1])
+            self.assertTrue(game['boxes'][0]['officialMembershipComplete'])
+            self.assertEqual(game['boxes'][0]['setIds'], [entry['id']])
+            self.assertEqual(builder.validate(root)[0], [])
+
+    def test_compressed_source_snapshot_uses_the_same_validated_membership(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); path, _ = self.fixture(root)
+            path.with_suffix('.json.gz').write_bytes(gzip.compress(path.read_bytes(), mtime=0)); path.unlink()
+            manifest = builder.build(root)
+            _, _, rows = self.official(root, manifest)
+            self.assertEqual(len(rows), 2)
+            self.assertEqual(builder.validate(root)[0], [])
+
+    def test_ambiguous_same_number_artwork_is_kept_without_guessing_a_price(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); path, data = self.fixture(root)
+            base = data['products'][0]['cards'][0]
+            data['products'][0]['cards'].extend([{**base, 'id': 'BT1-001_P1', 'variant': '_P1'},
+                                                {**base, 'id': 'BT1-001_P2', 'variant': '_P2'}])
+            data['products'][0]['expectedCardCount'] = 4
+            builder.atomic_write(path, data)
+            manifest = builder.build(root)
+            _, _, rows = self.official(root, manifest)
+            self.assertEqual(len({r['id'] for r in rows}), 4)
+            self.assertTrue(all('snkrdunkId' not in r for r in rows if r['variant'] != 'base'))
+            self.assertEqual(builder.validate(root)[0], [])
+
+    def test_invalid_official_count_preserves_last_good_manifest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); path, data = self.fixture(root)
+            builder.build(root); manifest_path = root / 'data/tcg-card-info.json'; before = manifest_path.read_bytes()
+            data['products'][0]['expectedCardCount'] = 999
+            builder.atomic_write(path, data)
+            with self.assertRaisesRegex(ValueError, 'count/integrity'):
+                builder.build(root)
+            self.assertEqual(manifest_path.read_bytes(), before)
+
+    def test_box_with_explicit_bonus_components_keeps_both_official_lists(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); path, data = self.fixture(root)
+            first = data['products'][0]; first['marketBoxIds'] = ['BOX:20']
+            bonus = copy.deepcopy(first); bonus.update({'id': 'bonus', 'code': 'BONUS', 'name': 'Included bonus pack'})
+            bonus['cards'] = [{**first['cards'][0], 'id': 'BONUS-001', 'number': 'BONUS-001'}]
+            bonus['expectedCardCount'] = 1
+            data['products'].append(bonus); data['expectedProducts'] = 2
+            builder.atomic_write(path, data)
+            manifest = builder.build(root)
+            game = next(g for g in manifest['games'] if g['id'] == 'digimon')
+            self.assertEqual(len(game['boxes'][0]['setIds']), 2)
+            self.assertEqual(game['boxes'][0]['officialCardCount'], 3)
+            self.assertEqual(builder.validate(root)[0], [])
+
+    def test_promo_aggregate_does_not_replace_an_individual_box(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); path, data = self.fixture(root)
+            data['products'][0]['isAggregate'] = True
+            builder.atomic_write(path, data)
+            manifest = builder.build(root)
+            game = next(g for g in manifest['games'] if g['id'] == 'digimon')
+            self.assertTrue(all(not s['officialComplete'] for s in game['sets']))
+            self.assertFalse(game['boxes'][0]['officialComplete'])
+
+    def test_receipt_cannot_rebind_another_market_product(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); self.fixture(root); manifest = builder.build(root)
+            _, entry, rows = self.official(root, manifest)
+            path = root / entry['file'].lstrip('/'); body = builder.read_json(path)
+            body['cards'][0]['snkrProduct']['id'] = 'wrong-product'
+            builder.atomic_write(path, body)
+            self.assertIn('binding identity', builder.validate(root)[0][0])
+
+    def test_identical_weiss_titles_are_separated_by_full_printed_set_code(self):
+        sets = [{'id': 'old', 'sourceGame': 'weiss_schwarz', 'sourcePackTitle': 'Booster Pack "Summer Pockets"', 'code': 'SMP/W60', 'cardCount': 140},
+                {'id': 'new', 'sourceGame': 'weiss_schwarz', 'sourcePackTitle': 'Booster Pack "Summer Pockets"', 'code': 'SMP/W137', 'cardCount': 232}]
+        boxes = [{'id': '1', 'name': 'Weiss Schwarz Booster Pack "Summer Pockets" Box', 'code': 'WS-TCG-SMP/W60'},
+                 {'id': '2', 'name': 'Weiss Schwarz Booster Pack "Summer Pockets" Box', 'code': 'WS-TCG-SMP/W137'}]
+        result = builder.navigation_boxes(sets, boxes, 'weiss_schwarz')
+        self.assertEqual({b['code']: b['setIds'] for b in result}, {'SMP/W60': ['old'], 'SMP/W137': ['new']})
+
+
+if __name__ == '__main__':
+    unittest.main()

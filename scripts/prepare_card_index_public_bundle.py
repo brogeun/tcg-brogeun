@@ -140,14 +140,15 @@ def main():
     card_info = pack_card_info(target)
     # Collector-only history is consumed during builds, never by the browser or
     # runtime handlers. Keep repository evidence; omit only this deployment copy.
-    history = target / 'snkrdunk-history'
-    if history.exists():
-        if history.is_symlink() or not history.is_dir() or history.resolve().parent != target:
-            parser.error('Refuse an unsafe collector history cache')
-        if any(path.is_symlink() for path in history.rglob('*')):
-            parser.error('Collector history cache must not contain symlinks')
-        shutil.rmtree(history)
-        removed.append('snkrdunk-history/')
+    for folder in ('snkrdunk-history', 'official-card-contents'):
+        history = target / folder
+        if history.exists():
+            if history.is_symlink() or not history.is_dir() or history.resolve().parent != target:
+                parser.error('Refuse an unsafe collector source cache')
+            if any(path.is_symlink() for path in history.rglob('*')):
+                parser.error('Collector source cache must not contain symlinks')
+            shutil.rmtree(history)
+            removed.append(folder + '/')
     print(json.dumps({'publicIndexSourcesOmitted': removed, 'publicSearchCatalogue': catalogue,
                       'publicCardInfoPacks': card_info,
                       'originalSourcesModified': False}))

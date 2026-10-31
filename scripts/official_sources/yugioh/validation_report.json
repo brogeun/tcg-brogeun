@@ -1,0 +1,50 @@
+{
+  "coverage": {
+    "navigationBoxes": 286,
+    "mappedNavigationBoxes": 285,
+    "collectedProducts": 297,
+    "completeProducts": 297,
+    "officialMemberRows": 19172,
+    "printingRows": 27968,
+    "verifiedPrintedNumbers": 1071,
+    "detailCardsCollected": 250
+  },
+  "checks": {
+    "expected_products_match": true,
+    "all_source_totals_match": true,
+    "unique_product_ids": true,
+    "unique_printing_ids": true,
+    "verified_numbers_have_source": true,
+    "all_images_native_official": true,
+    "no_unmapped_market_assignment": true,
+    "all_ids_japanese_ocg": true
+  },
+  "codes": {
+    "official per-card printing number": 281,
+    "official manufacturer product page identifier": 3,
+    "unavailable": 13
+  },
+  "numberStatus": {
+    "verified": 1071,
+    "unavailable": 26880,
+    "not-listed-by-manufacturer": 17
+  },
+  "futureUnmapped": [
+    {
+      "id": "BOX:924418",
+      "name": "Yu-Gi-Oh OCG Duel Monsters Concept Pack \"REVOLUTION BOOSTER －Cubic・Marincess・Ghostrick－\" JP Edition Box"
+    }
+  ],
+  "sourceImageProbe": {
+    "httpStatus": 200,
+    "pngSignatureVerified": true,
+    "cookiesRequired": false
+  },
+  "outputs": {
+    "integration": "yugioh.json",
+    "mappings": "reviewed_box_mappings.json",
+    "details": "official_printings.json",
+    "collector": "collect_konami.py",
+    "crosswalkExporter": "expand_and_export.py"
+  }
+}

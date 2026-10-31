@@ -87,6 +87,22 @@ test('paging and filtering a box never request prices; selecting one card does',
 test('unsafe files and mismatched card/source identity are rejected',()=>{
   const {files,manifest}=fixture(),r=runtime(files);assert.equal(r.api.dataPath('/data/tcg-card-info/union_arena/a.json'),true);assert.equal(r.api.dataPath('/data/tcg-card-info/../secret.json'),false);assert.equal(r.api.dataPath('https://evil.test/cards.json'),false);const data=structuredClone(files.get('/data/tcg-card-info/union_arena/a.json'));data.cards[0].snkrProduct.id='different';assert.throws(()=>r.api.prepareSet(data,'union_arena',manifest.games.find(game=>game.id==='union_arena').sets[0]),/identity/);
 });
+test('official cards without market prices remain visible and verified bindings retain the market ID',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='union_arena'),set=game.sets[0],body=files.get(set.file),old=body.cards[0];
+  const official={...old,id:'official:union_arena:native1',catalogSource:'OFFICIAL',officialProductId:'570118',officialCardId:'native1',snkrdunkId:old.id,snkrProduct:{...old.snkrProduct,fullCardNumber:old.fullCardNumber},marketBinding:{verified:true,method:'exact-product-number-rarity-unique-variant',game:'union_arena',fullCardNumber:old.fullCardNumber,officialProductId:'570118',officialCardId:'native1',snkrdunkId:old.id}};
+  const unpriced={...official,id:'official:union_arena:native2',officialCardId:'native2',name:'가격 없는 공식 카드',snkrProduct:undefined,snkrdunkId:undefined,marketBinding:undefined};body.cards=[official,unpriced];
+  Object.assign(game.boxes[0],{officialMembershipComplete:true,officialCardCount:2,cardCount:2});const r=runtime(files);
+  await r.api.open(game.id,game.boxes[0].id);assert.match(r.get('tciCardGrid').innerHTML,/가격 없는 공식 카드/);assert.match(r.get('anyModal').innerHTML,/공식 상품 목록 2종/);assert.equal(r.quoteTargets.length,0);
+  r.api.detail(old.id);await tick();assert.equal(r.quoteTargets[0].snkrdunkId,old.id);
+  const bad=structuredClone(body);bad.cards[0].marketBinding.officialCardId='wrong';assert.throws(()=>r.api.prepareSet(bad,game.id,set),/identity/);
+});
+test('official box adds only explicit unmatched market printings and preserves their price identity',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='union_arena'),box=game.boxes[0],a=game.sets[0],b=game.sets[1],original=files.get(a.file).cards[0];
+  files.get(a.file).cards=[{...original,id:'official:union_arena:printing',catalogSource:'OFFICIAL',snkrProduct:undefined,snkrdunkId:undefined}];for(const card of files.get(b.file).cards)card.catalogSource='SNKRDUNK';
+  Object.assign(box,{officialMembershipComplete:true,officialCardCount:1,marketSupplementCount:1,marketSetIds:[b.id],marketCardIds:['211'],cardCount:2});const r=runtime(files);
+  await r.api.open(game.id,box.id);const html=r.get('tciCardGrid').innerHTML;assert.match(html,/official:union_arena:printing/);assert.match(html,/data-tci-card="211"/);assert.doesNotMatch(html,/data-tci-card="212"/);assert.match(r.get('anyModal').innerHTML,/대조 중인 시장 판본 1종/);
+  r.api.detail('211');await tick();assert.equal(r.quoteTargets[0].snkrProduct.id,'211');
+});
 test('untrusted source titles are escaped and shared links retain game/set/card',async()=>{
   const {files}=fixture();files.get('/data/tcg-card-info/union_arena/a.json').cards[0].name='<script>alert(1)</script>';const r=runtime(files);await r.api.open('union_arena','union_arena-a');assert.match(r.get('tciCardGrid').innerHTML,/&lt;script&gt;/);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/<script>/);const address=new URL(r.api.href('union_arena','union_arena-a','201'),'https://tcghub.kr');assert.equal(address.hash,'#cardinfo');assert.equal(address.searchParams.get('brand'),'union_arena');assert.equal(address.searchParams.get('card'),'201');
 });

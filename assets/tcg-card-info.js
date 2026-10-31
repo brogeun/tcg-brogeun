@@ -8,7 +8,7 @@
 
   if(window.TCGCardInfo||typeof renderCardInfo!=='function'||typeof openSetGrid!=='function')return;
   const GAMES={nikke:'니케',weiss_schwarz:'바이스슈발츠',union_arena:'유니온아레나',dragon_ball_fusion_world:'드래곤볼 퓨전월드',yugioh:'유희왕',digimon:'디지몬'};
-  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261031-official-contents1',files=new Map(),pages=new Map(),seriesState=new Map(),languageState=new Map();
+  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261031-official-contents2',files=new Map(),pages=new Map(),seriesState=new Map(),languageState=new Map();
   let manifest=null,pendingManifest=null,listToken=0,session=0,priceToken=0,active=null,selected=null,cardQuery='',rarity='',cardPage=1,gridScroll=0,opener=null,entered=false,lastListQuery='';
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const compact=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/[\s/_\-.]+/g,'');
@@ -59,8 +59,17 @@
     const box=element.querySelector('.modal-box');box?.setAttribute('role','dialog');box?.setAttribute('aria-modal','true');box?.setAttribute('aria-labelledby',titleId);element.querySelector('[data-tci-close]')?.focus({preventScroll:true});
   }
   function art(card,large=false){const image=url(card.image||card.snkrProduct?.image);return `<span class="tci-art${large?' tci-art-large':''}">${image?`<img src="${esc(image)}" alt="${esc(card.name)}" loading="lazy" decoding="async">`:'<span class="tci-no-image">이미지 없음</span>'}</span>`;}
-  function officialBinding(card){const p=card.snkrProduct,b=card.marketBinding;return card.catalogSource==='OFFICIAL'&&card.language==='ja'&&String(card.id).startsWith('official:'+card.game+':')&&b?.verified===true&&b.method==='exact-product-number-rarity-unique-variant'&&b.game===card.game&&b.officialProductId===card.officialProductId&&b.officialCardId===card.officialCardId&&b.fullCardNumber===card.fullCardNumber&&String(b.snkrdunkId)===String(card.snkrdunkId)&&String(p?.id)===String(card.snkrdunkId)&&p?.brand===card.game&&compact(p?.fullCardNumber)===compact(card.fullCardNumber);}
-  function target(card){const exact=card.snkrProduct&&String(card.snkrProduct.id)===String(card.id);return {...card,brand:card.game,fullNumber:card.fullCardNumber,number:card.fullCardNumber,snkrProduct:card.snkrProduct,...(exact?{catalogSource:'SNKRDUNK',snkrdunkId:String(card.snkrProduct.id)}:{})};}
+  function printedNumber(value,game){const n=String(value||'').normalize('NFKC').trim().toUpperCase();return game==='union_arena'?n.replace(/^((?:UA[0-9]+(?:BT|ST|DC)|EX[0-9]+BT|PC[0-9]+BT))-/,'$1/'):n;}
+  function officialBinding(card){const p=card.snkrProduct,b=card.marketBinding;return card.catalogSource==='OFFICIAL'&&card.language==='ja'&&String(card.id).startsWith('official:'+card.game+':')&&b?.verified===true&&b.method==='exact-product-number-rarity-unique-variant'&&b.game===card.game&&b.officialProductId===card.officialProductId&&b.officialCardId===card.officialCardId&&b.fullCardNumber===card.fullCardNumber&&String(b.snkrdunkId)===String(card.snkrdunkId)&&String(p?.id)===String(card.snkrdunkId)&&p?.brand===card.game&&printedNumber(p?.fullCardNumber,card.game)===printedNumber(card.fullCardNumber,card.game);}
+  function target(card){
+    const exact=card.snkrProduct&&String(card.snkrProduct.id)===String(card.id),value={...card,brand:card.game,fullNumber:card.fullCardNumber,number:card.fullCardNumber,snkrProduct:card.snkrProduct,...(exact?{catalogSource:'SNKRDUNK',snkrdunkId:String(card.snkrProduct.id)}:{})};
+    if(officialBinding(card)){
+      const source={...value,fullNumber:card.snkrProduct.fullCardNumber},resolve=window.CardPriceFallback?.resolve;
+      if(typeof resolve!=='function')return source;
+      const quote=resolve(source);if(quote.status==='priced'&&quote.source==='snkrdunk')return source;
+    }
+    return value;
+  }
   function coverageText(set){if(set.coverage==='release-pending')return '출시 예정 · 수록 목록 확인 중';if(set.officialMembershipComplete||set.officialComplete)return `공식 상품 목록 ${Number(set.officialCardCount||set.cardCount).toLocaleString()}종${set.marketSupplementCount?' · 대조 중인 시장 판본 '+Number(set.marketSupplementCount).toLocaleString()+'종':''}`;if(set.coverage==='official-list-unavailable')return '공식 수록 목록 확인 중 · 현재 등록된 카드만 표시';return '수집된 카드 기준, 전체 목록과 다를 수 있습니다';}
   function priceHTML(result,compactView=true){
     if(window.CardPriceFallback?.render)return window.CardPriceFallback.render(result,{compact:compactView});

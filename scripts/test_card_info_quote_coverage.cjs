@@ -23,7 +23,7 @@ for(const game of manifest.games){
    for(const card of part.cards){
     const key=game.id+':'+card.id;assert(!seen.has(key),'Duplicate canonical source card '+key);seen.add(key);cards++;
     const p=card.snkrProduct;if(!originalHasQuote(p))continue;expected++;if(card.catalogSource==='SNKRDUNK')sourceExpected++;
-    const target={...card,grade:'raw',fullNumber:card.fullCardNumber,snkrdunkId:String(card.snkrdunkId),catalogSource:'SNKRDUNK'};
+    const target={...card,grade:'raw',fullNumber:card.catalogSource==='OFFICIAL'&&card.marketBinding?.verified?p.fullCardNumber:card.fullCardNumber,snkrdunkId:String(card.snkrdunkId),catalogSource:'SNKRDUNK'};
     const quote=prices.resolve(target);
     if(quote.status==='priced'&&quote.source==='snkrdunk'){matched++;if(card.catalogSource==='SNKRDUNK')sourceMatched++;}
     else if(failures.length<20)failures.push({game:game.id,id:card.id,number:card.fullCardNumber,status:quote.status,source:quote.source});

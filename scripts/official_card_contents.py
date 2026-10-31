@@ -21,6 +21,8 @@ HOSTS = {
     'digimon': {'digimoncard.com', 'www.digimoncard.com'},
     'yugioh': {'www.db.yugioh-card.com', 'www.yugioh-card.com'},
 }
+PREVIEW_HOSTS = {game: hosts | ({'yu-gi-oh.jp'} if game == 'yugioh' else set())
+                 for game, hosts in HOSTS.items()}
 CODE_PATTERNS = {
     'union_arena': r'(?:UA[0-9]+(?:BT|ST|DC)|EX[0-9]+BT|PC[0-9]+BT)',
     'dragon_ball_fusion_world': r'(?:FB|FS|SB|ST)[0-9]{2}',
@@ -75,6 +77,34 @@ def metadata_state(card, field):
     return status
 
 
+def published_previews(future, game):
+    """Publisher assets are evidence of previews, not a fabricated card roster."""
+    previews = future.get('previews', {})
+    def safe(value):
+        parsed = urlparse(str(value or ''))
+        return (parsed.scheme == 'https' and parsed.hostname in PREVIEW_HOSTS[game]
+                and not parsed.username and not parsed.password)
+    images, names = [], []
+    seen = set()
+    for item in previews.get('images', []):
+        if item.get('containsUnselectedCells') or item.get('notAnIndividualCard'):
+            continue
+        if not safe(item.get('image')) or not safe(item.get('url')):
+            raise ValueError('Invalid manufacturer preview image')
+        if item['image'] in seen:
+            raise ValueError('Duplicate manufacturer preview image')
+        seen.add(item['image'])
+        images.append({k: item[k] for k in ('image', 'url', 'alt', 'group', 'assetRole') if k in item})
+    for item in previews.get('cardNames', []):
+        if not item.get('name') or not safe(item.get('sourceUrl')):
+            raise ValueError('Invalid manufacturer preview name')
+        names.append({k: item[k] for k in ('name', 'sourceUrl', 'theme') if k in item})
+    if previews.get('publishedNameCount', len(names)) != len(names):
+        raise ValueError('Published name count includes image-only or unrevealed cards')
+    return {'images': images, 'cardNames': names,
+            **{k: previews[k] for k in ('announcedBasePreviewCount', 'declaredBaseCount', 'unpublishedBaseCount') if k in previews}}
+
+
 def reviewed_editions(data, game):
     """An edition is the exact native inventory minus documented exclusions."""
     native = {str(p['id']): p for p in data['products']}
@@ -84,6 +114,12 @@ def reviewed_editions(data, game):
             continue
         if product.get('membershipMethod') == 'official-explicit-number-roster-with-unchanged-printings':
             validate_reprint_roster(product, native, game)
+            editions.append(product)
+            continue
+        if product.get('membershipMethod') in (
+                'manufacturer-native-inventory-minus-explicit-retailer-reprint-AGR-exclusion',
+                'manufacturer-native-core-inventory-minus-explicit-reprint-box-bonus-exclusion'):
+            validate_documented_reprint(product, native, game)
             editions.append(product)
             continue
         base = native.get(str(product.get('sourceNativeProductId')))
@@ -120,6 +156,57 @@ def reviewed_editions(data, game):
                 raise ValueError('Edition exclusion has no exact artwork proof')
         editions.append(product)
     return editions
+
+
+def public_proof(proof, host, path_pattern):
+    parsed = urlparse(str(proof.get('url') or ''))
+    return (parsed.scheme == 'https' and parsed.hostname == host
+            and not parsed.username and not parsed.password
+            and re.fullmatch(path_pattern, parsed.path)
+            and re.fullmatch(r'[0-9a-f]{64}', proof.get('sha256') or ''))
+
+
+def validate_documented_reprint(product, native, game):
+    """Confirm the roster separately from an unproved finish/price equivalence."""
+    base = native.get(str(product.get('sourceNativeProductId')))
+    if (game != 'weiss_schwarz' or not base or product.get('isDerivedProduct') is not True
+            or product.get('edition') != 'reprint' or not product.get('marketBoxIds')
+            or set(product['marketBoxIds']) != set(product.get('reviewedBoxIds', []))
+            or not official_url(product.get('url'), game)
+            or product.get('allowInheritedMarketBindings') is not False):
+        raise ValueError('Invalid documented reprint identity')
+    originals = {str(c['id']): c for c in base['cards']}
+    members = {str(c['id']): c for c in product['cards']}
+    excluded = set(map(str, product.get('excludedCardIds', [])))
+    identity = ('id', 'number', 'name', 'rarity', 'image', 'url', 'variation', 'parallelParam', 'isParallel')
+    if (not excluded or not excluded <= originals.keys()
+            or members.keys() != originals.keys() - excluded
+            or len(members) != len(product['cards'])
+            or any(any(c.get(k) != originals[cid].get(k) for k in identity) for cid, c in members.items())
+            or Counter(c['rarity'] for c in members.values()) != product.get('advertisedRarityCounts')
+            or product.get('expectedPackTypes') != {
+                'normal': sum(c.get('isParallel') is False for c in members.values()),
+                'parallel': sum(c.get('isParallel') is True for c in members.values()), 'total': len(members)}):
+        raise ValueError('Documented reprint changes native roster facts')
+    evidence = product.get('editionEvidence', {})
+    if product['membershipMethod'].endswith('AGR-exclusion'):
+        retailer = evidence.get('retailerProduct', {})
+        policy = evidence.get('publisherAGRPolicy', {})
+        if (any(originals[cid]['rarity'] != 'AGR' for cid in excluded)
+                or retailer.get('explicitExcludedRarities') != ['AGR']
+                or retailer.get('rarityCounts') != product['advertisedRarityCounts']
+                or not re.fullmatch(r'[0-9]{13}', retailer.get('jan') or '')
+                or not public_proof(retailer.get('provenance', {}), 'item.rakuten.co.jp', r'/amiami/card-[0-9]+/')
+                or not public_proof(policy.get('provenance', {}), 'prtimes.jp', r'/main/html/rd/p/[0-9]+\.000014827\.html')):
+            raise ValueError('Missing explicit reprint AGR exclusion proof')
+    else:
+        exclusion = evidence.get('confirmedManufacturerReprintExclusion', {})
+        shipment = evidence.get('publisherReprintAnnouncement', {})
+        if (set(map(str, exclusion.get('excludedCardIds', []))) != excluded
+                or any(originals[cid]['rarity'] != 'PR' for cid in excluded)
+                or not public_proof(exclusion.get('provenance', {}), 'ws-tcg.com', r'/products/bp_sby/')
+                or not public_proof(shipment.get('provenance', {}), 'x.com', r'/wstcg/status/[0-9]+')):
+            raise ValueError('Missing manufacturer reprint bonus exclusion proof')
 
 
 def validate_reprint_roster(product, native, game):
@@ -196,7 +283,9 @@ def inclusion_groups(product):
 
 def emit_official_set(root, outputs, manifest, view, source_game, pid, product, data, boxes, rows, related=False):
     key = key_for('official-related' if related else 'official', view, source_game, pid)
-    entry = {'id': key, 'name': product['name'] + (' · 관련 프로모' if related else ''),
+    overseas = related and any(r.get('distributionEdition') == 'overseas' for r in rows)
+    related_label = '프로모·해외 유통판' if overseas else '관련 프로모'
+    entry = {'id': key, 'name': product['name'] + (' · ' + related_label if related else ''),
              'code': product.get('code') or '', 'sourceGame': source_game,
              'sourcePackTitle': product['name'], 'language': 'ja',
              'packageKind': product.get('kind') or 'unspecified', 'officialProductId': pid,
@@ -205,7 +294,8 @@ def emit_official_set(root, outputs, manifest, view, source_game, pid, product, 
              'file': '/data/tcg-card-info/' + view + '/' + key + '.json',
              'image': boxes[0].get('image') or '', 'coverType': 'box',
              'releasedAt': product.get('releasedAt'),
-             'inclusionScope': 'related-promo' if related else 'product',
+             'inclusionScope': ('related-edition' if overseas else 'related-promo') if related else 'product',
+             'relatedLabel': related_label if related else '',
              'packMembershipComplete': product.get('packMembershipComplete', True)}
     entry['metadataCoverage'] = {'unknownNumbers': sum(r['numberStatus'] == 'unavailable' for r in rows),
                                  'unprintedNumbers': sum(r['numberStatus'] == 'unprinted' for r in rows),
@@ -232,6 +322,10 @@ def emit_official_set(root, outputs, manifest, view, source_game, pid, product, 
 
 
 def load_sources(root):
+    try:
+        from catalogue_resolutions import apply_resolutions
+    except ModuleNotFoundError:
+        from scripts.catalogue_resolutions import apply_resolutions
     sources = {}
     for game in HOSTS:
         path = root / 'data/official-card-contents' / (game + '.json')
@@ -240,6 +334,7 @@ def load_sources(root):
             if not path.exists():
                 continue
         data = json.loads(gzip.decompress(path.read_bytes()) if path.suffix == '.gz' else path.read_bytes())
+        data = apply_resolutions(root, data)
         if data.get('game') != game or not official_url(data.get('sourceUrl'), game) or not data.get('fetchedAt'):
             raise ValueError('Invalid official source identity: ' + game)
         products = data.get('products')
@@ -260,6 +355,7 @@ def load_sources(root):
             if not cards or expected != len(cards) or product.get('problems'):
                 raise ValueError('Official product count/integrity failure: ' + pid)
             identities = set()
+            native_ids = {str(c.get('id')) for c in cards}
             for card in cards:
                 identity = str(card.get('id') or '')
                 if not identity or identity in identities or not card.get('name') or not official_url(card.get('url'), game):
@@ -269,6 +365,9 @@ def load_sources(root):
                     raise ValueError('Nonmanufacturer card image: ' + pid)
                 metadata_state(card, 'number')
                 metadata_state(card, 'rarity')
+                if (card.get('foilNativeCardIds') and (len(card['foilNativeCardIds']) != len(set(card['foilNativeCardIds']))
+                        or not set(map(str, card['foilNativeCardIds'])) <= native_ids)):
+                    raise ValueError('Invalid existing native foil references')
                 identities.add(identity)
         if data.get('complete') and data.get('expectedProducts', len(products)) != len(products):
             raise ValueError('Incomplete official product inventory: ' + game)
@@ -294,6 +393,8 @@ def market_bindings(rows, official_rows):
             market[(number, core, parallel)].append(row)
             market_core[(number, re.sub(r'[★☆*]', '', core), parallel)].append(row)
     for row in official_rows:
+        if row.get('distributionEdition') == 'overseas':
+            continue
         number, rarity = printed_number(row.get('fullCardNumber'), row['game']), norm(row.get('rarity'))
         if number and rarity:
             parallel = row['game'] not in ('yugioh', 'weiss_schwarz') and row.get('variant') not in ('', 'base', None)
@@ -393,6 +494,9 @@ def augment(root, manifest, outputs):
                     box['coverage'] = 'official-not-published'
                     box['officialSourceUrl'] = pending.get('announcementProvenance', {}).get('url')
                     box['officialMembershipComplete'] = False
+                    box['officialReleaseDate'] = pending.get('releaseDate')
+                    box['publicationCheckedAt'] = pending.get('checkedAt')
+                    box['previews'] = published_previews(pending, source_game)
                     continue
                 # Explicit links are reviewed against manufacturer product identity.
                 exact = [p for p in products.values() if box['id'] in p.get('marketBoxIds', [])]
@@ -434,6 +538,17 @@ def augment(root, manifest, outputs):
                            'game': source_game, 'language': 'ja', 'image': native.get('image') or '',
                            'sourceUrl': native['url'], 'sourcePackTitle': product['name'],
                            'setCode': product.get('code') or '', 'releasedAt': product.get('releasedAt')}
+                    if native.get('distributionEdition'):
+                        row['distributionEdition'] = native['distributionEdition']
+                        if native['distributionEdition'] == 'overseas':
+                            row['priceLookupPolicy'] = 'exact-region-required'
+                    if native.get('availableFinishes'):
+                        row['availableFinishes'] = native['availableFinishes']
+                    if native.get('foilNativeCardIds'):
+                        targets = {str(c['id']): c for c in product['cards']}
+                        row['finishVariants'] = [{'id': 'official:' + source_game + ':' + key_for(pid, str(cid)),
+                                                   'number': targets[str(cid)]['number'], 'rarity': targets[str(cid)]['rarity']}
+                                                  for cid in native['foilNativeCardIds']]
                     aliases = ['official:' + source_game + ':' + key_for(pid, str(old)) for old in native.get('legacyIds', [])]
                     if aliases:
                         row['aliases'] = sorted(set(aliases) - {row['id']})
@@ -482,7 +597,8 @@ def augment(root, manifest, outputs):
                 if row.get('snkrdunkId') and row['officialProductId'] == row['printingFamilyId']:
                     native_quotes[same_print(row)].append(row)
             for row in official_rows:
-                if row.get('snkrdunkId') or not products[row['officialProductId']].get('isDerivedProduct'):
+                if (row.get('snkrdunkId') or not products[row['officialProductId']].get('isDerivedProduct')
+                        or products[row['officialProductId']].get('allowInheritedMarketBindings') is False):
                     continue
                 donors = native_quotes.get(same_print(row), [])
                 if len(donors) != 1:
@@ -518,11 +634,13 @@ def augment(root, manifest, outputs):
                             'cardCount': total + len(extras),
                             'relatedSetIds': [s['id'] for s in box_related[bid]],
                             'relatedCardCount': sum(s['cardCount'] for s in box_related[bid]),
+                            'relatedLabel': '프로모·해외 유통판' if any(s.get('inclusionScope') == 'related-edition' for s in box_related[bid]) else '관련 프로모',
                             'officialCatalogueComplete': True,
                             'officialMembershipComplete': all(p.get('packMembershipComplete', True) for p in selected_products),
                             'officialComplete': not extras and all(p.get('packMembershipComplete', True) for p in selected_products), 'coverage': 'official-product-list'})
                 box['metadataCoverage'] = {field: sum(s['metadataCoverage'][field] for s in selected)
                                            for field in ('unknownNumbers', 'unprintedNumbers', 'unknownRarities', 'rarityNotApplicable')}
+                box['inventoryAuditStates'] = sorted({p.get('sourceStatusReason') for p in selected_products if p.get('sourceStatusReason')})
             if view != 'nikke':
                 source_stats[source_game] = {'sourceUrl': data['sourceUrl'], 'fetchedAt': data['fetchedAt'],
                                             'inventoryComplete': data.get('complete', False),

@@ -8,6 +8,70 @@ from test_build_tcg_card_info import builder, card, source_files
 
 
 class OfficialContentsTests(unittest.TestCase):
+    def test_resolution_rejects_newer_source_instead_of_overwriting_it(self):
+        from scripts.catalogue_resolutions import apply_resolutions
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            builder.atomic_write(root / 'data/official-card-contents/resolutions-20261031.json',
+                {'schemaVersion': 1, 'games': {'digimon': {'fields': {}, 'derivedProducts': [], 'products': [
+                    {'id': '1', 'fields': {'packMembershipComplete': {'before': False, 'after': True}}, 'cards': []}]}}})
+            data = {'game': 'digimon', 'products': [{'id': '1', 'packMembershipComplete': False, 'cards': []}]}
+            result = apply_resolutions(root, data)
+            self.assertTrue(result['products'][0]['packMembershipComplete'])
+            self.assertEqual(apply_resolutions(root, result), result)
+            data['products'][0]['packMembershipComplete'] = 'new manufacturer state'
+            with self.assertRaisesRegex(ValueError, 'newer source'):
+                apply_resolutions(root, data)
+
+    def test_published_preview_validation_excludes_sprites_and_foreign_hosts(self):
+        from scripts.official_card_contents import published_previews
+        future = {'previews': {'images': [
+            {'url': 'https://www.yugioh-card.com/japan/products/rv02/', 'image': 'https://www.yugioh-card.com/a.png'},
+            {'url': 'https://www.yugioh-card.com/japan/products/rv02/', 'image': 'https://www.yugioh-card.com/sheet.png', 'notAnIndividualCard': True}]}}
+        result = published_previews(future, 'yugioh')
+        self.assertEqual(len(result['images']), 1)
+        future['previews']['images'].append({'url': 'https://untrusted.test/', 'image': 'https://untrusted.test/a.png'})
+        with self.assertRaisesRegex(ValueError, 'preview image'):
+            published_previews(future, 'yugioh')
+
+    def test_retailer_foil_is_separate_from_native_roster_and_price(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source_files(root, {'weiss_schwarz': [card()]}, {'weiss_schwarz': [
+                {'id': '20', 'kind': 'box', 'name': 'Trial Deck "Goddess of Victory : NIKKE" Box', 'code': 'WS-TCG-NIK/S117'}]})
+            product = {'id': 'ws-jp:1', 'name': 'NIKKE', 'complete': True,
+                       'url': 'https://ws-tcg.com/cardlist/', 'marketBoxIds': ['BOX:20'],
+                       'expectedCardCount': 1, 'cards': [{'id': '1', 'name': 'ネオン', 'number': 'NIK/S117-T01', 'rarity': 'TD',
+                         'url': 'https://ws-tcg.com/cardlist/?cardno=NIK/S117-T01'}]}
+            builder.atomic_write(root / 'data/official-card-contents/weiss_schwarz.json',
+                {'game': 'weiss_schwarz', 'sourceUrl': 'https://ws-tcg.com/cardlist/', 'source': 'official',
+                 'fetchedAt': '2026-10-31', 'products': [product]})
+            foil = {'id': 'retailer:c-labo:123', 'nativeProductId': 'ws-jp:1', 'nativeCardId': '1',
+                    'nativeNumberNameMatch': True, 'cardNumber': 'NIK/S117-T01', 'name': 'ネオン',
+                    'sourceDeclaredRarity': 'TD', 'finish': 'foil', 'sourceProductId': '123',
+                    'sourceUrl': 'https://www.c-labo-online.jp/product/123',
+                    'sourceTitle': '【WS】ネオン(foil)【TD】NIK/S117-T01', 'finishEvidence': 'literal foil'}
+            supplemental = {'schemaVersion': 1, 'game': 'weiss_schwarz', 'source': 'c-labo',
+                            'products': [{'nativeProductId': 'ws-jp:1', 'supplementalPrintings': [foil]}]}
+            path = root / 'data/retailer-printings/weiss_schwarz.json.gz'
+            path.parent.mkdir(parents=True)
+            import json
+            path.write_bytes(gzip.compress(json.dumps(supplemental).encode(), mtime=0))
+            manifest = builder.build(root)
+            game = next(g for g in manifest['games'] if g['id'] == 'weiss_schwarz')
+            box = game['boxes'][0]
+            self.assertEqual(box['officialCardCount'], 1)
+            self.assertEqual(box['retailerPrintingCount'], 1)
+            entry = next(s for s in game['sets'] if s.get('coverage') == 'verified-retailer-printings')
+            row = builder.read_json(root / entry['file'].lstrip('/'))['cards'][0]
+            self.assertEqual(row['id'], 'retailer:c-labo:123')
+            self.assertNotIn('snkrProduct', row)
+            self.assertEqual(builder.validate(root)[0], [])
+            foil['cardNumber'] += 'S'
+            path.write_bytes(gzip.compress(json.dumps(supplemental).encode(), mtime=0))
+            with self.assertRaisesRegex(ValueError, 'proof mismatch'):
+                builder.build(root)
+
     def fixture(self, root):
         old = card('10', 'digimon', 'Agumon C [BT1-001](Booster Pack "NEW EVOLUTION")', code='DGCG-BT1-001')
         box = {'id': '20', 'kind': 'box', 'name': 'DIGIMON CARD GAME Booster Pack "NEW EVOLUTION" Box',

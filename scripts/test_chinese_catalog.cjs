@@ -600,6 +600,13 @@ async function test(name, run) {
     await h.click({dataset: {encLanguage: 'en'}});assert.match(h.list.innerHTML, /data-enc-set="EN-TEST"/);
     h.ctx.CI_TAB = 'onepiece';h.ctx.renderCardInfo();assert.match(h.list.innerHTML, /data-set-code="OP-TEST"/);
     assert.equal(h.node('encLanguages').hidden, true);
+    assert.equal(h.node('onepieceCategoryFilters').hidden, false);
+    h.ctx.CI_TAB = 'pokemon';h.ctx.renderCardInfo();
+    assert.equal(h.node('onepieceCategoryFilters').hidden, true, 'One Piece categories stay hidden in English');
+    await h.click({dataset: {encLanguage: 'zh-CN'}});
+    assert.equal(h.node('onepieceCategoryFilters').hidden, true, 'One Piece categories stay hidden in Chinese');
+    h.ctx.CI_TAB = 'onepiece';h.ctx.renderCardInfo();
+    assert.equal(h.node('onepieceCategoryFilters').hidden, false);
   });
   await test('late English catalog loading cannot replace a newer Chinese product dialog', async () => {
     const gate = deferred(), h = harness({english: true, enGate: gate});

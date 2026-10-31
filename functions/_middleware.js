@@ -48,7 +48,7 @@ export async function onRequest(context) {
     if (!match) return new Response('Not found', {status:404});
     if (!['GET','HEAD'].includes(context.request.method)) return new Response('Method not allowed', {status:405,headers:{Allow:'GET, HEAD'}});
     const [,game,file] = match;
-    const target = new URL('/data/tcg-card-info-packs/'+game+'/'+file.slice(0,2)+'.json', url);
+    const target = new URL('/data/tcg-card-info-packs/'+game+'/'+file.slice(0,1)+'.json', url);
     try {
       const response = context.env.ASSETS
         ? await context.env.ASSETS.fetch(new Request(target))

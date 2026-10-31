@@ -335,6 +335,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install official HTML parser
+        run: python -m pip install "beautifulsoup4>=4.12,<5"
+      - name: Refresh complete official One Piece acquisition inventories
+        continue-on-error: true
+        run: python scripts/refresh_onepiece_official.py
+      - name: Validate and rebuild official One Piece search
+        run: |
+          python scripts/build_onepiece_official.py
+          python scripts/build_onepiece_official.py --validate-only
+          node scripts/build_onepiece_search.cjs
+          node --test scripts/test_onepiece_official.cjs
+      - name: Publish official inventories with concurrent changes protected
+        run: python scripts/publish_data_snapshot.py --daily --base "$COLLECTION_COMMIT" --message "Refresh official One Piece artwork inventory"
       - name: Validate current main and record honest source outcomes
         run: python scripts/validate_reference_markets.py --root . --output data/reference-market-health.json
       - name: Publish final health without replacing unrelated commits

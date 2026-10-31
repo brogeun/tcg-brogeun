@@ -35,6 +35,23 @@ class PublicationTests(unittest.TestCase):
         for name in self.files:
             (self.runner / name).write_text('{"verified":true}', encoding='utf-8')
 
+    def test_official_assets_require_reviewed_hash_and_exclude_other_paths(self):
+        import hashlib
+        (self.runner / 'config').mkdir()
+        (self.runner / 'images/onepiece-official').mkdir(parents=True)
+        image = 'images/onepiece-official/OP01-001.webp'
+        (self.runner / image).write_bytes(b'reviewed image fixture')
+        record = {'image': '/' + image, 'sha256': hashlib.sha256(b'reviewed image fixture').hexdigest()}
+        for name, value in [('onepiece-local-artworks.json', {'OP01-001': record}), ('onepiece-product-images.json', {})]:
+            (self.runner / 'config' / name).write_text(json.dumps(value), encoding='utf-8')
+        (self.runner / 'data/onepiece-official-manifest.json').write_text('{"sets":[]}', encoding='utf-8')
+        selected = target.official_release_files(self.runner, self.base)
+        self.assertIn(image, selected)
+        self.assertNotIn('notes.txt', selected)
+        (self.runner / image).write_bytes(b'unreviewed replacement')
+        with self.assertRaises(target.PublicationError):
+            target.official_release_files(self.runner, self.base)
+
     def git(self, root, *args):
         result = subprocess.run(['git', '-c', 'safe.directory=*', '-C', str(root), *args],
                                 capture_output=True, text=True, encoding='utf-8', errors='replace')

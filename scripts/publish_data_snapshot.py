@@ -18,6 +18,8 @@ ALLOWED = {'data/market-price-index.json', 'data/market-price-index-model-state.
            'data/market-price-index-validation.json', 'data/market-price-index-independent-verification.json',
            'data/chinese-market.json'}
 DAILY_NEW_FILES = {'data/update-health.json', 'data/all-cards.json', 'data/cards-meta.json',
+    'data/onepiece-official-source.json', 'data/onepiece-official-manifest.json',
+    'data/onepiece-official-search.json', 'data/onepiece-official-refresh.json',
     'data/cards-prices.json', 'data/fx-rates.json', 'data/cards-detail.json', 'data/news.json',
     'data/promo-search.json', 'data/anniversary-market.json', 'data/anniversary-audit.json',
     'data/futuristic-market.json', 'data/futuristic-audit.json',
@@ -160,7 +162,12 @@ def daily_path(name):
     return bool(re.fullmatch(r'data/[A-Za-z0-9][A-Za-z0-9_.-]*\.json', name)
                 or re.fullmatch(r'data/history/[1-9][0-9]{0,19}\.json', name)
                 or metadata_bucket_path(name)
-                or name in ('data/cards-by-set/M6a.json', 'data/cards-by-set/MF.json'))
+                or name in ('data/cards-by-set/M6a.json', 'data/cards-by-set/MF.json')
+                or official_onepiece_path(name))
+
+
+def official_onepiece_path(name):
+    return isinstance(name, str) and re.fullmatch(r'data/cards-by-set/(?:(?:OP|EB|PRB|ST)[0-9]{2,3}|ONEPIECE-(?:PROMO|LIMITED|FAMILY))\.json', name) is not None
 
 
 def daily_files(root, base):
@@ -171,7 +178,7 @@ def daily_files(root, base):
     changed = set(git(root, 'diff', '--no-renames', '--name-only', '-z', base, '--').stdout.split('\0'))
     changed.update(git(root, 'ls-files', '--others', '--exclude-standard', '-z').stdout.split('\0'))
     selected = sorted(name for name in changed if daily_path(name) and
-                      (name in tracked or name in DAILY_NEW_FILES or metadata_bucket_path(name)
+                      (name in tracked or name in DAILY_NEW_FILES or metadata_bucket_path(name) or official_onepiece_path(name)
                        or re.fullmatch(r'data/history/[1-9][0-9]{0,19}\.json', name)))
     search = {'data/all-cards.json', 'data/cards-meta.json', 'data/cards-prices.json'}
     if set(selected) & search and not search <= set(selected):
@@ -205,23 +212,47 @@ def tree_entry(root, revision, name):
     return mode, digest
 
 
-def publish(root, base, files, message, attempts=3, temp_parent=None, daily=False, references=False):
+def official_release_files(root, base):
+    """Only generated official inventories and hash-reviewed static image assets."""
+    root = Path(root)
+    manifest = json.loads((root / 'data/onepiece-official-manifest.json').read_text(encoding='utf-8'))
+    allowed = {'data/onepiece-official-manifest.json', 'data/onepiece-official-search.json',
+               'data/onepiece-official-source.json', 'data/promo-search.json'}
+    allowed.update('data/cards-by-set/' + s.get('fileCode', s['code']) + '.json' for s in manifest['sets'])
+    for config in ('config/onepiece-local-artworks.json', 'config/onepiece-product-images.json'):
+        for record in json.loads((root / config).read_text(encoding='utf-8')).values():
+            name = record['image'].lstrip('/')
+            if not re.fullmatch(r'images/onepiece-(?:official|products)/[A-Za-z0-9_-]+\.webp', name):
+                raise PublicationError('Unexpected official image path')
+            path = root / name
+            import hashlib
+            if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != record['sha256']:
+                raise PublicationError('Official static image bytes do not match reviewed asset: ' + name)
+            allowed.add(name)
+    changed = set(git(root, 'diff', '--no-renames', '--name-only', '-z', base, '--').stdout.split('\0'))
+    changed.update(git(root, 'ls-files', '--others', '--exclude-standard', '-z').stdout.split('\0'))
+    return sorted(allowed & changed)
+
+
+def publish(root, base, files, message, attempts=3, temp_parent=None, daily=False, references=False, official=False):
     root = Path(root).resolve()
     if not re.fullmatch(r'[0-9a-fA-F]{40}', base or '') or not 1 <= attempts <= 3:
         raise PublicationError('Use an exact original commit and at most three push attempts')
-    if daily and references:
+    if sum(bool(value) for value in (daily, references, official)) > 1:
         raise PublicationError('Choose exactly one publication mode')
-    catalog_only = not daily and not references and list(files) == [CARD_INFO_MANIFEST]
+    catalog_only = not daily and not references and not official and list(files) == [CARD_INFO_MANIFEST]
     if catalog_only:
         files = sorted(card_info_files(root))
     if daily and set(files) != set(daily_files(root, base)):
         raise PublicationError('Daily output selection changed before publication')
     if references and (len(files) != len(set(files)) or set(files) != set(reference_files(root, base))):
         raise PublicationError('Reference output selection changed before publication')
-    if not daily and not references and not catalog_only and (len(files) != len(set(files))
+    if official and set(files) != set(official_release_files(root, base)):
+        raise PublicationError('Official output selection changed before publication')
+    if not daily and not references and not official and not catalog_only and (len(files) != len(set(files))
             or set(files) not in (ALLOWED - {'data/chinese-market.json'}, {'data/chinese-market.json'})):
         raise PublicationError('Publish the complete four-file verified index set or the single Chinese market snapshot')
-    if (daily or references) and not files:
+    if (daily or references or official) and not files:
         return {'status': 'unchanged', 'collectionCommit': base, 'files': []}
     git(root, 'cat-file', '-e', base + '^{commit}')
     snapshots = {}
@@ -233,7 +264,9 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         if path.is_symlink() or not path.resolve().is_relative_to(root) or not path.is_file():
             raise PublicationError('Unsafe or missing generated output: ' + name)
         raw = path.read_bytes()
-        if references or catalog_only or metadata_bucket_path(name):
+        if official and name.startswith('images/'):
+            pass  # Exact bytes were checked against the committed review above.
+        elif references or catalog_only or metadata_bucket_path(name):
             json.loads(raw, parse_constant=reject_non_json_constant)
         else:
             json.loads(raw)

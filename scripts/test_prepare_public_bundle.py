@@ -113,7 +113,7 @@ class PublicBundleTests(unittest.TestCase):
             self.assertEqual(report['packFiles'], 4)
             self.assertFalse((root / '_deploy/data/tcg-card-info').exists())
             for (game, name), body in bodies.items():
-                pack = json.loads((root / '_deploy/data/tcg-card-info-packs' / game / (name[:2] + '.json')).read_bytes())
+                pack = json.loads((root / '_deploy/data/tcg-card-info-packs' / game / (name[:1] + '.json')).read_bytes())
                 self.assertEqual(pack['files'][name].encode('utf-8'), body)
                 self.assertEqual((root / 'data/tcg-card-info' / game / name).read_bytes(), body)
 

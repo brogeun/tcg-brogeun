@@ -75,6 +75,11 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Materialize reviewed official inventories and images
+        run: |
+          python -m pip install "Pillow==12.2.0"
+          python scripts/materialize_onepiece_release.py --base "$COLLECTION_COMMIT"
+
       - name: Validate certificate matching, retries and polling
         run: node --test scripts/test_certificates.mjs scripts/test_bgs_cert.mjs scripts/test_psa_polling.mjs
 
@@ -106,6 +111,13 @@ jobs:
           python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
           node --test scripts/test_beezie_snapshot_api.cjs
           node --test scripts/test_japanese_market_reviews.cjs
+
+      - name: Verify official One Piece inventory and real fallback regressions
+        run: |
+          python scripts/build_onepiece_official.py --validate-only
+          node scripts/build_onepiece_search.cjs
+          node --test scripts/test_onepiece_official.cjs
+          python -m unittest scripts.test_yuyutei_index_migration
 
       - name: Build integrated Card Info from the current source snapshots
         run: |
@@ -193,6 +205,13 @@ jobs:
 
       - name: Validate Futuristic Box market links
         run: node scripts/test_futuristic_market.mjs
+
+      - name: Reconcile official One Piece artwork search after market refresh
+        run: |
+          python scripts/build_onepiece_official.py
+          python scripts/build_onepiece_official.py --validate-only
+          node scripts/build_onepiece_search.cjs
+          node --test scripts/test_onepiece_official.cjs
 
       - name: Commit JSON updates (if any)
         if: env.COLLECT_DATA == 'true'
@@ -455,6 +474,10 @@ jobs:
       - name: Verify every repaired artwork binding and reported prices in production
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: node scripts/verify_card_info_prices_production.cjs
+
+      - name: Verify official promotions, starter decks and every artwork in production
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: python scripts/verify_onepiece_official_production.py
 
       - name: Report incomplete daily collection after retaining valid independent updates
         # Deployment-only runs report stale datasets above, but did not request collection.

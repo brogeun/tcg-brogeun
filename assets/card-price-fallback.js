@@ -110,6 +110,14 @@
     return rows.filter(row=>{
       const identity=row.identity||{},hint=row.matchHints||{},rowGame=game(identity.game||hint.game);
       if(rowGame!==game(target.game||target.brand)||foreign({...identity,name:row.title})||norm(identity.grade||'raw')!=='RAW'||identity.bundle===true||identity.quantity>1)return false;
+      // A stamped, prize or parallel artwork may share its printed number with
+      // a cheap base card. Number-only reference candidates cannot identify it.
+      const artwork=norm(target.officialId||target.fullId);
+      if(numberedArtwork(target)||['promotion','limited_product'].includes(target.sourceCategory)||variantSignature([target.variant,target.name].join(' '))){
+        if(!artwork||norm(identity.officialId||identity.artworkId)!==artwork||row.verification!=='exact_printing'||language(identity.language)!=='ja')return false;
+      }
+      if(identity.rarity&&target.rarity&&rarity(identity.rarity)!==rarity(target.rarity))return false;
+      if(identity.setCode&&setCode(target)&&norm(identity.setCode)!==setCode(target))return false;
       if(/\b(?:PSA|BGS|CGC|ARS)\s*\d|鑑定|\bENGLISH\b|英語版|韓国語版|中国語版/i.test(row.title||''))return false;
       if(![...(identity.cardNumbers||[]),identity.cardNumber,...(hint.cardNumbers||[])].some(value=>norm(value)===fullNumber(target)))return false;
       if(/(?:\d+\s*(?:枚|点)|まとめ売り|セット売り|\bLOT\b|\bBUNDLE\b)/i.test(row.title||''))return false;
@@ -126,7 +134,7 @@
     const linked=products.find(row=>String(row.id)===String(target.snkrdunkId||own?.id||bindingFor(target,bindings)?.snkrdunkId||''));
     if(linked&&['error','invalid','unverified'].includes(linked.priceStatus))return {...empty(),status:'unknown',source:'snkrdunk'};
     const matched=[...new Map(yuyuRows.filter(row=>yuyuMatch(target,row,bindings)).map(row=>[row.id,row])).values()];
-    if(matched.length===1){const row=matched[0];return quote('yuyutei',row.price,'JPY',row,{priceKind:'shop_asking',condition:'raw',stockState:row.stockState||'unknown',stale:!!row.stale||row.notObservedInLatestSnapshot===true,verification:'exact_printing',notes:row.stockState==='out_of_stock'?['품절 상품의 표시가']:[]});}
+    if(matched.length===1){const row=matched[0],stamp=Date.parse(row.sourceAsOf||row.observedAt||'');return quote('yuyutei',row.price,'JPY',row,{priceKind:'shop_asking',condition:'raw',stockState:row.stockState||'unknown',stale:!!row.stale||row.notObservedInLatestSnapshot===true||row.fetchStatus==='error'||(Number.isFinite(stamp)&&Date.now()-stamp>36*3600000),verification:'exact_printing',notes:row.stockState==='out_of_stock'?['품절 상품의 표시가']:[]});}
     const candidates=mercariCandidates(target,mercariReferences);
     if(candidates.length)return {...candidates[0],candidates};
     if(target.snkrdunkStatus==='unlinked'&&!own)return {...empty(),status:'unknown',source:'snkrdunk',reason:'catalog-unlinked'};

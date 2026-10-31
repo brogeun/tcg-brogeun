@@ -74,6 +74,7 @@ function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGa
     return nodes.get(id);
   }
   const list = node('cardInfoList'), modal = node('anyModal');
+  list.parentNode = {insertBefore(child){nodes.set(child.id, child);}};
   node('ciLanguageTabs');
   modal.querySelector = selector => {
     if(selector === '.modal-box') return node('modalBox');
@@ -95,7 +96,7 @@ function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGa
     return [];
   };
   const ctx = {console, URL, URLSearchParams, Date, JSON, Math, Number, String, Map, Set,
-    CI_TAB: 'pokemon', CI_QUERY: '', CI_LANGUAGE: 'ja', navigator: {clipboard:{async writeText(url){shared.push(url);}}},
+    CI_TAB: 'pokemon', CI_QUERY: '', CI_ONEPIECE_CATEGORY: '', CI_LANGUAGE: 'ja', navigator: {clipboard:{async writeText(url){shared.push(url);}}},
     CARDINFO: {pokemon: [{code: 'JP-TEST', name: 'Japanese Test'}], pokemon_en: [enSet], onepiece: [{code: 'OP-TEST', name: 'One Piece Test'}]},
     escapeHtml: value => String(value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])),
     location: {search, hash: '#cardinfo', href: 'https://local.test/' + search + '#cardinfo'},

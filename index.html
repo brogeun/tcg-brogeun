@@ -6742,7 +6742,7 @@ let CI_ONEPIECE_CATEGORY = '';
 function renderCardInfo() {
   const allList = (CARDINFO[CI_TAB] || []).filter(set => CI_TAB!=='onepiece' || !CI_ONEPIECE_CATEGORY || set.category===CI_ONEPIECE_CATEGORY);
   let categoryBar=document.getElementById('onepieceCategoryFilters');
-  if(!categoryBar){categoryBar=document.createElement('div');categoryBar.id='onepieceCategoryFilters';categoryBar.className='op-category-filters';const list=document.getElementById('cardInfoList');list?.parentNode.insertBefore(categoryBar,list);}
+  if(!categoryBar){categoryBar=document.createElement('div');categoryBar.id='onepieceCategoryFilters';categoryBar.className='op-category-filters';const list=document.getElementById('cardInfoList');list?.parentNode?.insertBefore(categoryBar,list);}
   categoryBar.hidden=CI_TAB!=='onepiece';
   if(CI_TAB==='onepiece'){
     const choices=[['','전체'],...Object.entries(window.OnePieceCatalog?.labels||{})];

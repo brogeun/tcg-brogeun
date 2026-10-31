@@ -202,3 +202,13 @@ test('Japanese release midnight is rendered on its local date rather than the UT
   assert.match(r.get('cardInfoList').innerHTML,/2026-11-13/);
   assert.doesNotMatch(r.get('cardInfoList').innerHTML,/2026-11-26/);
 });
+
+test('a publisher-verified unchanged reprint retains the parent quote and rejects another native family',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='union_arena'),set=game.sets[0],body=files.get(set.file),source=body.cards[0];
+  source.snkrProduct.fullCardNumber=source.fullCardNumber.replace('/','-');
+  const card={...source,id:'official:union_arena:reprint',catalogSource:'OFFICIAL',officialProductId:'reviewed-second',officialCardId:'native1',printingFamilyId:'570118',snkrdunkId:source.id,marketBinding:{verified:true,method:'exact-product-number-rarity-unique-variant',derivationMethod:'verified-unchanged-native-reprint',sourceNativeProductId:'570118',sourceOfficialCardId:'native1',game:game.id,fullCardNumber:source.fullCardNumber,officialProductId:'reviewed-second',officialCardId:'native1',snkrdunkId:source.id}};
+  body.cards=[card];const r=runtime(files);r.context.CardPriceFallback.resolve=()=>({status:'priced',source:'snkrdunk'});
+  r.api.prepareSet(body,game.id,set);await r.api.open(game.id,set.id,card.id);await tick();
+  assert.equal(r.quoteTargets[0].snkrProduct.id,source.id);assert.equal(r.quoteTargets[0].fullNumber,source.snkrProduct.fullCardNumber);
+  const bad=structuredClone(body);bad.cards[0].marketBinding.sourceNativeProductId='other-family';assert.throws(()=>r.api.prepareSet(bad,game.id,set),/identity/);
+});

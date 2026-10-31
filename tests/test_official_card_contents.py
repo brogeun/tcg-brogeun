@@ -196,6 +196,26 @@ class OfficialContentsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'alters a retained native printing'):
                 builder.build(root)
 
+    def test_verified_reprint_without_its_own_market_inventory_reuses_exact_native_parent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); path, data = self.fixture(root)
+            data['derivedProducts'] = [self.edition(data)]
+            builder.atomic_write(path, data)
+            boxes = builder.read_json(root / 'data/price-digimon-box.json')
+            boxes['products'].append({'id': '21', 'kind': 'box', 'name': 'DIGIMON CARD GAME Booster Pack "DISTINCT REPRINT" Box',
+                                      'code': 'DGCG-BT02', 'language': 'ja'})
+            boxes['totalCount'] = 2
+            builder.atomic_write(root / 'data/price-digimon-box.json', boxes)
+            manifest = builder.build(root); game = next(g for g in manifest['games'] if g['id'] == 'digimon')
+            second = next(b for b in game['boxes'] if b['id'] == 'BOX:21')
+            entry = next(s for s in game['sets'] if s['id'] == second['setIds'][0])
+            row = builder.read_json(root / entry['file'].lstrip('/'))['cards'][0]
+            self.assertEqual(row['snkrdunkId'], '10')
+            self.assertEqual(row['marketBinding']['derivationMethod'], 'verified-unchanged-native-reprint')
+            self.assertEqual(row['marketBinding']['sourceNativeProductId'], 'official-bt1')
+            self.assertEqual(row['snkrProduct']['minPrice'], 12.34)
+            self.assertEqual(builder.validate(root)[0], [])
+
     def test_verified_unprinted_and_not_applicable_are_distinct_from_unknown(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); path, data = self.fixture(root)

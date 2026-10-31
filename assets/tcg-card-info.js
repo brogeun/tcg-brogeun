@@ -8,7 +8,7 @@
 
   if(window.TCGCardInfo||typeof renderCardInfo!=='function'||typeof openSetGrid!=='function')return;
   const GAMES={nikke:'니케',weiss_schwarz:'바이스슈발츠',union_arena:'유니온아레나',dragon_ball_fusion_world:'드래곤볼 퓨전월드',yugioh:'유희왕',digimon:'디지몬'};
-  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261031-official-contents3',files=new Map(),pages=new Map(),seriesState=new Map(),languageState=new Map();
+  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261031-official-contents4',files=new Map(),pages=new Map(),seriesState=new Map(),languageState=new Map();
   let manifest=null,pendingManifest=null,listToken=0,session=0,priceToken=0,active=null,selected=null,cardQuery='',rarity='',cardPage=1,gridScroll=0,opener=null,entered=false,lastListQuery='';
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const compact=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/[\s/_\-.]+/g,'');
@@ -64,7 +64,7 @@
   function rarityText(card){return card.rarityLabel||card.rarity||(card.rarityStatus==='not_applicable'?'희귀도 표기 없음':'희귀도 확인 중');}
   function cardMatches(card,id){return String(card.id)===String(id)||String(card.snkrdunkId)===String(id)||(Array.isArray(card.aliases)&&card.aliases.includes(String(id)));}
   function printedNumber(value,game){const n=String(value||'').normalize('NFKC').trim().toUpperCase();return game==='union_arena'?n.replace(/^((?:UA[0-9]+(?:BT|ST|DC)|EX[0-9]+BT|PC[0-9]+BT))-/,'$1/'):n;}
-  function officialBinding(card){const p=card.snkrProduct,b=card.marketBinding;return card.catalogSource==='OFFICIAL'&&card.language==='ja'&&String(card.id).startsWith('official:'+card.game+':')&&b?.verified===true&&b.method==='exact-product-number-rarity-unique-variant'&&b.game===card.game&&b.officialProductId===card.officialProductId&&b.officialCardId===card.officialCardId&&b.fullCardNumber===card.fullCardNumber&&String(b.snkrdunkId)===String(card.snkrdunkId)&&String(p?.id)===String(card.snkrdunkId)&&p?.brand===card.game&&printedNumber(p?.fullCardNumber,card.game)===printedNumber(card.fullCardNumber,card.game);}
+  function officialBinding(card){const p=card.snkrProduct,b=card.marketBinding;return card.catalogSource==='OFFICIAL'&&card.language==='ja'&&String(card.id).startsWith('official:'+card.game+':')&&b?.verified===true&&b.method==='exact-product-number-rarity-unique-variant'&&(!b.derivationMethod||(b.derivationMethod==='verified-unchanged-native-reprint'&&b.sourceNativeProductId===card.printingFamilyId&&b.sourceNativeProductId!==card.officialProductId&&b.sourceOfficialCardId===card.officialCardId))&&b.game===card.game&&b.officialProductId===card.officialProductId&&b.officialCardId===card.officialCardId&&b.fullCardNumber===card.fullCardNumber&&String(b.snkrdunkId)===String(card.snkrdunkId)&&String(p?.id)===String(card.snkrdunkId)&&p?.brand===card.game&&printedNumber(p?.fullCardNumber,card.game)===printedNumber(card.fullCardNumber,card.game);}
   function target(card){
     const exact=card.snkrProduct&&String(card.snkrProduct.id)===String(card.id),value={...card,brand:card.game,fullNumber:card.fullCardNumber,number:card.fullCardNumber,snkrProduct:card.snkrProduct,...(exact?{catalogSource:'SNKRDUNK',snkrdunkId:String(card.snkrProduct.id)}:{})};
     if(officialBinding(card)){

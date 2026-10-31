@@ -10,6 +10,18 @@ from pathlib import Path
 import prepare_card_index_public_bundle as bundle
 
 class PublicBundleTests(unittest.TestCase):
+    def test_official_source_snapshots_remain_in_repo_but_not_public_bundle(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, script = self.fixture(folder)
+            for base in (root / 'data', root / '_deploy/data'):
+                path = base / 'official-card-contents/digimon.json'
+                path.parent.mkdir()
+                path.write_text('{"source":"manufacturer"}')
+            result = subprocess.run([sys.executable, str(script)], cwd=root, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((root / '_deploy/data/official-card-contents').exists())
+            self.assertTrue((root / 'data/official-card-contents/digimon.json').is_file())
+
     def test_collector_history_is_omitted_only_from_public_copy(self):
         with tempfile.TemporaryDirectory() as folder:
             root, script = self.fixture(folder)

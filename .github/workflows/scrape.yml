@@ -131,6 +131,7 @@ jobs:
           python -m unittest scripts.test_metadata_index
           node --test scripts/test_market_references.cjs scripts/test_reference_integration.cjs scripts/test_price_metadata_shards.cjs
           python -m unittest discover -s tests -p test_build_tcg_card_info.py
+          python -m unittest discover -s tests -p test_official_card_contents.py
           python -m unittest discover -s tests -p test_prepare_tcg_card_info_bundle.py
           python -m unittest scripts.test_market_references_workflow
           node --test scripts/test_card_price_fallback.cjs scripts/test_contained_card_prices.cjs scripts/test_tcg_card_info.cjs scripts/test_card_info_pricing_integration.cjs scripts/test_op16_contained_prices.cjs scripts/test_op17_contained_prices.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_artwork_data.cjs scripts/test_contained_detail_lookup.cjs scripts/test_verify_card_info_prices.cjs

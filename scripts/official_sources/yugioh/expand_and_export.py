@@ -89,7 +89,7 @@ def main():
   for card in p['cards']:coverage[card['cardId']]=coverage.get(card['cardId'],0)+1
  representatives=list(dict.fromkeys(p['cards'][0]['cardId'] for p in parsed if p['cards']))
  selected=list(dict.fromkeys(representatives+sorted(coverage,key=lambda cid:coverage[cid],reverse=True)))
- selected=[cid for cid in selected if cid not in existing][:max(0,250-len(existing))]
+ selected=[cid for cid in selected if cid not in existing]
  print(json.dumps({'additionalDetailsRequested':len(selected),'alreadyCached':len(existing)}),flush=True)
  with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
   fut={pool.submit(c.collect_one_detail,cid):cid for cid in selected}
@@ -100,35 +100,9 @@ def main():
  export_snapshot(products,ms,errors)
 
 def export_snapshot(products,ms,errors):
- wanted={pid for m in ms for pid in m['productIds']}
- result=c.build_output(products,ms,errors)
- by_market={pid:[] for pid in wanted}
- for m in ms:
-  for pid in m['productIds']:by_market[pid].append(m['boxId'])
- for p in result['products']:
-  p['marketBoxIds']=by_market.get(p['id'],[]);p['isAggregate']=False;p['language']='ja'
-  if p.get('code'):
-   p['codeSource']='official per-card printing number'
-  else:
-   cross=json.loads((c.ROOT/'manufacturer_code_crosswalk.json').read_text())
-   matches=[x for x in cross if any(q['id']==p['id'] for q in x['officialProducts']) and re.fullmatch(r'[A-Z0-9]+',x['code'])]
-   codes={x['code'] for x in matches}
-   if len(codes)==1:
-    p['code']=next(iter(codes));p['codeSource']='official manufacturer product page identifier'
-    p['codeSourceUrls']=[x['manufacturerUrl'] for x in matches]
-  p['expectedCardCount']=len(p['cards']);p['expectedMemberCount']=p['officialCardCount'];p['cardCount']=len(p['cards']);p['membershipComplete']=p['complete']
-  p['rarityComplete']=p['complete'];p['sourceCountMethod']='official total unique card/artwork rows; rarity variants expanded'
-  p['provenance']={'url':p['sourceUrl'],'method':'GET','status':200,'fetchedAt':p['fetchedAt'],'sha256':p['sourceSha256']}
-  for card in p['cards']:
-   card['printedNumber']=card['number'];card['printedNumberSource']=card.get('printingSourceUrl','unavailable')
- result['expectedProducts']=len(wanted);result['expectedMarketBoxes']=len(ms)
- result['incompleteMarketBoxes']=[m for m in ms if not m['productIds']]
- result['complete']=not result['errors'] and all(p['complete'] for p in result['products']) and len(result['products'])==len(wanted)
- result['navigationCoverageComplete']=all(m['productIds'] for m in ms)
- temporary=c.ROOT/'yugioh.json.tmp';temporary.write_text(json.dumps(result,ensure_ascii=False,separators=(',',':')))
- temporary.replace(c.ROOT/'yugioh.json')
- (c.ROOT/'coverage_report.json').write_text(json.dumps({'coverage':result['coverage'],'unmappedBoxes':result['incompleteMarketBoxes'],'errors':errors},ensure_ascii=False,indent=2))
- print(json.dumps(result['coverage']),flush=True)
- return result
+ # The membership IID is representative. Use explicit detail-table artwork,
+ # rarity and printed-number identities for the native printing inventory.
+ import export_complete
+ return export_complete.export_snapshot(products,ms,errors)
 
 if __name__=='__main__':main()

@@ -1,123 +1,127 @@
-# KONAMI Japanese OCG intermediate source snapshot
+# KONAMI Japanese OCG complete printing verification
 
-`yugioh.json` is the integration snapshot. It contains official Japanese OCG
-printing memberships for the reviewed marketplace box crosswalk. It does not
-contain Rush Duel, English TCG product memberships, marketplace prices, or
-numbers inferred from card order.
+This isolated continuation never edits or publishes the application repository.
+The ready state is `snapshot_manifest.json: allValidationChecksPass=true`.
+A snapshot exported during collection remains explicitly incomplete.
+
+## Validated final snapshot, 2026-10-31
+
+| Measure | Count |
+| --- | ---: |
+| Reviewed official products | 297 |
+| Target CIDs independently source-audited | 12,469 |
+| Official unique card-member rows | 19,172 |
+| Aggregate membership-rarity rows | 27,968 |
+| Actual native artwork/rarity/number printings | 28,372 |
+| Explicit official printed numbers | 27,951 |
+| Explicitly blank manufacturer number rows | 421 |
+| Unresolved number rows | 0 |
+| Products with complete printing/number-state inventory | 297 |
+| Actual-artwork corrections from list representative | 565 |
+| Unambiguous v1 legacy aliases | 27,759 |
+| Ambiguous v1 IDs deliberately left unaliased | 21 |
+| Products with codes verified by actual printings | 289 |
+
+All 16 validation checks pass. Independent XPath extraction matched the raw
+SHA256 and every explicit tuple for all 12,469 card detail pages (38,184 printing
+rows across their full official histories), plus all 297 product membership
+pages. No collection errors, access blocks, 429 responses or backoff occurred.
+READY.json records the validated snapshot manifest. JSON and gzip hashes are
+verified, and decompressing the gzip reproduces the JSON byte-for-byte.
 
 ## Reproduce
 
-Keep these files together: `collect_konami.py`, `expand_and_export.py`,
-`requirements.txt`, `reviewed_box_mappings.json`, and
-`manufacturer_code_crosswalk.json`. `products.json` is an optional cached
-official index; without it, the collector fetches and parses the public index.
-Raw caches and `deps/` are optional and should not be committed.
+Keep the scripts, requirements, products.json, reviewed_box_mappings.json, and
+manufacturer_code_crosswalk.json together. Raw/parsed caches are resumable and
+need not be committed.
 
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python -u expand_and_export.py
+.venv/bin/python -u collect_all_details.py
+.venv/bin/python -u export_complete.py
 ```
 
-The exporter resumes cached product/detail requests. It fetches only reviewed
-product IDs, with at most six concurrent public GET requests and a shared
-minimum 0.55-second interval between new request starts. Detail collection is
-bounded to 250 unique CIDs. It never tries to defeat an access challenge.
+Collection covers all 12,469 unique CIDs in the 297 reviewed products without a
+detail cap. Six workers share a minimum 0.34-second request-start interval
+(at most 2.94 starts/second). This self-imposed interval was increased from 0.55s
+after more than 2400 stable successful requests and a standard robots.txt check
+returned 404 without a published rate directive or Retry-After. This is not a
+claimed official limit. Failures, Retry-After, or sustained latency growth
+restore 0.55s. Access blocks stop collection.
+Normal public HTTPS connections are reused without cookies or credentials.
+HTTP failures preserve raw responses; denials, rate limits, or access challenges
+stop collection without bypass. Progress is atomic and refreshed every 55s.
+Run export_complete.py alone for offline export. Every output is replaced
+atomically. snapshot_manifest.json hashes the JSON and deterministic gzip.
 
-To regenerate the integration snapshot from existing parsed data, without
-network requests:
+## Corrected printing identity
 
-```sh
-.venv/bin/python - <<'PY'
-import expand_and_export as exporter
-products = exporter.c.load_index()  # products.json must exist for offline use
-exporter.export_snapshot(products, exporter.mappings(products), [])
-PY
-```
+Official product totals count unique **card members**, not artwork variants or
+physical copies. The detail-link IID is a representative image. The 297 product
+pages have 19,172 rows and exactly 19,172 unique product/CID memberships.
+Their rarity icons expand to 27,968 aggregate membership-rarity rows. These
+counts stay in officialMemberRows and membershipRarityRows.
 
-Do not run the offline command while a collector is writing parsed data.
-The final integration snapshot is replaced atomically.
+Native printings come only from explicit per-card detail rows: product ID + CID
++ artwork IID + rarity ID + printed number (including explicitly blank values).
+Membership limits the relevant product/CID set. The detail table supplies actual
+artwork, rarity, and number. No number comes from row order, image filenames,
+card text, or old navigation associations.
 
-## Validated snapshot on 2026-10-31
+Example: YAS3 Blue-Eyes White Dragon has UR numbers JP003/JP004/JP005 and UL
+artwork IIDs 18/19 sharing JPP01. The membership IID1 and UR/UL icons cannot
+express this inventory. Every explicit tuple is retained, without overwriting
+multiple numbers or restricting all rarities to the representative artwork.
+Native IDs include number; blank numbers use an identity token UNNUMBERED.
+Exact duplicate source tuples retain all sourcePrintingIndexes and are reported.
+legacy_printing_identities.json freezes the v1 source identity baseline.
+legacyIds is added only when exact product/CID/IID/rarity plus the old verified
+number (when present) identifies exactly one new native printing. Ambiguous
+representative-image rows never receive guessed aliases. The full decisions
+are recorded in legacy_alias_report.json.
 
-| Measure | Count |
-| --- | ---: |
-| Official products in the full Japanese index | 1,530 |
-| Existing marketplace boxes reviewed | 286 |
-| Boxes mapped to published official products | 285 |
-| Collected official component products | 297 |
-| Products matching the official stated member total | 297 |
-| Official card/artwork member rows | 19,172 |
-| Explicit official rarity/artwork variants | 27,968 |
-| Unique CIDs with official printing detail tables collected | 250 |
-| Variant rows with exact source-verified printed numbers | 1,071 |
-| Products with codes verified by official printed numbers | 281 |
-| Additional products with official manufacturer page identifiers | 3 |
+## Number states
 
-`validation_report.json` records these checks: expected product count, unique
-product and printing IDs, every product's declared member total, provenance for
-all verified numbers, Japanese OCG language/kind, native official image URLs,
-and reviewed marketplace assignment. No collection errors remained.
+| numberStatus | Meaning | numberVerified |
+| --- | --- | --- |
+| verified | Explicit official printed number | true |
+| not-listed-by-manufacturer | Matching official detail row with a blank number | false |
+| unavailable | Genuine unresolved detail or rarity gap | false |
 
-## Data meanings and limits
+numberCompleteness means every printing has a resolved official number state,
+including confirmed manufacturer blanks. allPrintingsNumbered is the stricter
+nonblank-number check. Unknowns never become blanks. Blank rows remain distinct
+when another printing with the same card/artwork/rarity has a number.
+Each native row keeps its detail URL, HTML SHA256, fetched time, actual IID,
+official image URL, and source indexes. membershipArtworkId is only the list's
+representative image. Product provenance remains the membership page.
 
-The official product page's total is a count of card/artwork member rows. The
-collector requires exactly that many parsed rows before `complete=true` and
-`membershipComplete=true`. It expands only the rarity icons actually published
-on each row. Thus the expanded printing count can exceed the stated member
-count. `expectedMemberCount`/`officialCardCount` preserve the official total;
-`expectedCardCount` and `cardCount` describe the expanded variant rows.
+## Validation and coverage
 
-Rarity abbreviations are not unique variant identifiers. In particular, normal
-SE and SPECIAL RED SE can have the same abbreviation but different official
-rarity IDs. The printing identity includes official product ID, CID, artwork ID,
-and rarity ID. Keep these distinctions when merging.
+validation_report.json checks totals, IDs, all target CIDs, exact source tuples,
+image CID/IID, rarity coverage, language/kind, reviewed market assignments, and
+number states. It reports artwork corrections, duplicates, gaps and code sources.
+297 published products map to 285 of 286 reviewed marketplace boxes. Future
+RV02 (BOX:924418) stays pending while its Japanese contents are absent from the
+official product index. No membership or number is fabricated for it.
 
-The membership pages do not expose printed card numbers. A printed number is
-filled only by matching product ID + CID + artwork ID + rarity ID against the
-official per-card printing table. Unresolved numbers remain null, with
-`printedNumberSource="unavailable"`. Seventeen collected variant rows have a
-matching official detail-table entry whose number is blank; those carry
-`numberStatus="not-listed-by-manufacturer"`. Membership completeness does not
-mean printed-number completeness.
+## Efficient official paths investigated
 
-Thirteen products have no verified product code in this bounded snapshot.
-These include Vol.1–7, the theatrical STARTER BOX, and five remaining product
-code gaps. No old navigation set association supplies a code. Every populated
-code has `codeSource`; manufacturer page identifiers additionally have source
-URLs. Current navigation set codes were known to contain a Fire Kings → DBVS
-misassociation, so they were excluded. The corrected Fire Kings components are
-official IDs 1000000891000 and 1000000892000, both verified SR14; Valiant Smashers
-is the separate DBVS product 1000007418000.
+Official product/detail HTML, forms, common JavaScript and official-domain
+searches exposed no card-data bulk download or documented multiple-CID printing
+request. Download references were images or deck registration sheets.
+Manufacturer pages IMPH, LOCR, QCAC, SD48 and 26PP expose promotional images,
+sprites, product-list links and ordinary JavaScript, with no explicit CID plus
+printed-number JSON/CSV map. Numeric filenames alone were not used.
+manufacturer_research/observations.json records the four additional pages.
 
-The reviewed crosswalk distinguishes 2011 BEGINNER'S EDITION remakes from the
-2004 products, anime character editions, six explicitly included +1 packs,
-and separate deck/bonus components. The sole unmapped box is future RV02
-(marketplace BOX:924418), absent from the currently published official index.
-`navigationCoverageComplete=false` records this. Official printing inventory
-completeness does not assert the contents of every random pre-existing booster
-pack that may have been physically bundled inside a promotional box.
+## Public endpoints
 
-Main and bonus components can share a printing prefix. A verified prefix plus
-the reviewed mapping can support retaining a supplemental marketplace row at
-the **box union** level. Prefix alone cannot establish ownership of one
-component or assert an exact official printing/rarity match.
+- Index: https://www.db.yugioh-card.com/yugiohdb/card_list.action?request_locale=ja
+- Members: https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=1&sess=1&pid=PRODUCT_ID&rp=99999&request_locale=ja
+- Printings: https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=CARD_ID&request_locale=ja
+- Manufacturer: https://www.yugioh-card.com/japan/products/
 
-Images are the native `get_image.action` URLs, including the `enc` value
-published by the official page. No credentials or cookies are collected.
-A direct request without cookies returned HTTP 200 and a valid PNG signature;
-all 27,968 rows have native official image URLs. This probe establishes current
-public accessibility, not a promise that a signed URL never expires or that
-all external embedding policies are permanent. Keep each card's official page
-URL as its durable source reference.
-
-## Public source endpoints
-
-- Product index: `https://www.db.yugioh-card.com/yugiohdb/card_list.action?request_locale=ja`
-- Product members: `https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=1&sess=1&pid=PRODUCT_ID&rp=99999&request_locale=ja`
-- Card printing details: `https://www.db.yugioh-card.com/yugiohdb/card_search.action?ope=2&cid=CARD_ID&request_locale=ja`
-- Official manufacturer products: `https://www.yugioh-card.com/japan/products/`
-
-The same Japanese product PID in the English locale returned no memberships;
-this snapshot therefore makes no unsupported CID-to-English-name mapping.
-Source HTML hashes and fetch times are retained per product/detail record.
+This is Japanese OCG only, without English TCG/Rush Duel memberships, unsupported
+English name mappings, or marketplace prices.

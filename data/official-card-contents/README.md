@@ -1,66 +1,67 @@
-# Official contained-card reconstruction — 2026-10-31
+# Verified manufacturer catalogue — 2026-10-31
 
-This replaces the unavailable `f937c66c` work with newly collected, independently
-checked public manufacturer data. The old report of 805 products / 102,577 rows
-is not treated as a verified result of this reconstruction.
+These public manufacturer facts replace the unavailable f937c66c work. The old
+805-product / 102,577-row report is not used as a validation baseline.
 
-The JSON/gzip snapshots are build inputs, not browser assets. They contain
-exact source URLs, capture times, native printing identities and response hashes.
-`scripts/build_tcg_card_info.py` reads them offline on every normal deployment;
-the public bundle omits the collector inputs and retains the generated set URLs.
+| Source | Native products | Native printing rows | Number state resolved | Rarity state resolved |
+| --- | ---: | ---: | ---: | ---: |
+| Weiss Schwarz | 566 | 66,462 | 66,462 | 66,462 |
+| Union Arena | 119 | 11,169 | 11,169 | 11,169 |
+| Digimon | 78 | 7,502 | 7,502 | 7,502 |
+| Fusion World | 27 | 3,230 | 3,230 | 3,230 |
+| Yu-Gi-Oh OCG | 297 | 28,372 | 28,372 | 28,372 |
 
-| Source | Captured inventory | Membership rows |
-| --- | ---: | ---: |
-| Union Arena | 119 official selector categories | 11,169 native printings |
-| Digimon | 78 official selector categories | 7,502 native printings |
-| Fusion World | 27 official selector categories | 3,230 native printings |
-| Yu-Gi-Oh OCG | 297 reviewed component products | 19,172 card/artwork rows; 27,968 rarity variants |
-| Weiss Schwarz | 11 indexed product specifications | No complete membership lists recovered |
+Counts describe manufacturer categories and native printing rows, not unique
+cards, physical copies, or sealed boxes. Nikke is a view of the WS/UA originals.
+All 116,735 native rows have a resolved number and rarity state. Yu-Gi-Oh's
+421 officially blank number rows are unprinted, rather than unresolved. Rarity
+is not applicable to 979 UA action points, 296 Fusion World energy markers and
+six Digimon tokens. Three missing Digimon HTML rarities were transcribed from
+the exact official card images. Existing native identifiers are preserved.
 
-Selector counts include broad promotional categories and repeated printings.
-They are not counts of unique cards or sealed boxes. Promotional aggregates are
-never assigned to one box. Exact acquisition-caption partitions are retained as
-source evidence, with derived IDs distinguished from manufacturer product IDs.
+WS acquisition recovered all 554 API pages and 566 expansion references. Exact
+PR/PR+ associations are retained as related promos, apart from box cards;
+PRR remains a real pack rarity. Documented included bonuses can remain with
+the product. Manufacturer artwork variants are retained even when the printed
+product specification counts fewer concepts (e.g. anime Summer Pockets).
 
-Product membership and metadata completeness are separate. Yu-Gi-Oh has 1,071
-source-verified printed-number variant rows; other numbers remain unknown. No
-number is inferred from list order. UA official rarity filters do not prove a
-parallel star tier; missing metadata stays unknown. Official image URLs may
-later expire or change independently of this snapshot.
+Reviewed derived editions have distinct IDs: three UA second editions subtract
+only explicitly identified serial APs; NIKKE reprint subtracts its first-print
+AGR. Hololive Re:Mix projects the publisher's explicitly imaged 274-number
+roster onto unchanged original native printings: 648 exact rows, 274 normal /
+374 parallel, all ten advertised rarity counts agreeing. Two independent
+transcriptions agree. The image's statement preserves original numbers,
+illustrations and finishes. Its recorded PNG hash is a rendered screenshot,
+not a hash of the original JPEG response. The separate hololive card-game bonus
+is not imported into Weiss Schwarz.
 
-Manufacturer product identity controls box membership. Normal/parallel image
-IDs and explicit rarity IDs stay separate. Reviewed box unions may contain a
-main product and its included bonus component. Known market printings that
-cannot yet be bound to one exact official variant are labelled separately;
-their existing price identities remain available. Number-only or cheapest-price
-joins are forbidden. Ordinary price snapshot updates remain authoritative,
-including explicit no-listing results.
+Known source limits remain explicit: future products without published card
+inventories, two WS reprints without sufficient edition-specific membership
+proof, and older WS products whose API has no distinct row for every advertised
+foil finish. Complete API collection does not imply every physical finish has
+a distinct manufacturer identifier. No rows, IDs, numbers or prices are invented
+to make a product's advertised count fit.
 
-Weiss Summer Pockets SMP/W60 and SMP/W137 are separated despite their identical
-titles. The Hololive Re:Mix advertised 648 types, NIKKE first/reprint differences
-and other product specifications are cross-check evidence, not invented card
-memberships. Unavailable official lists remain explicitly partial.
+Yu-Gi-Oh was checked against all 12,469 relevant CID detail pages and all 297
+product originals, using independent SHA/XPath audits. The detail table supplies
+actual product/CID/artwork/rarity/number tuples; the product-list image can be
+representative. 565 artwork assignments are corrected. 27,759 unambiguous v1 IDs
+remain aliases; ambiguous IDs are not rebound to a guessed printing.
 
-Collectors and reproduction notes: `scripts/official_sources/bandai/` and
-`scripts/official_sources/yugioh/`. Raw HTML caches and downloaded dependencies
-are deliberately excluded. Refresh into a temporary directory, run the source
-validator, then replace the corresponding snapshot using deterministic gzip
-(`gzip.compress(body, compresslevel=9, mtime=0)`).
+`metadata-validation.json` records resolved states. Public proof records and
+reproduction scripts are in `scripts/official_sources/{weiss,bandai,yugioh,other_metadata}`.
+Raw HTML, downloaded dependencies and unrelated files are excluded. The
+prepare_verified_snapshot.py whitelist retains public catalogue facts and
+provenance, omitting rules text and local caches. The build reads these inputs
+offline; deployment removes them from the browser bundle.
 
-Validation:
+Box membership never comes from market price availability. Existing market
+printings and source prices remain intact. Only unique, exact product/number/
+rarity/artwork matches bind a price. A reprinted unchanged native card may share
+its original price identity. Uncertain market artwork qualifiers remain labelled
+supplements; no cheapest-price or number-only joins are used.
 
-```sh
-python scripts/build_tcg_card_info.py
-python scripts/build_tcg_card_info.py --validate-only
-python -m unittest discover -s tests -p test_build_tcg_card_info.py
-python -m unittest discover -s tests -p test_official_card_contents.py
-node scripts/test_card_info_quote_coverage.cjs
-node --test scripts/test_tcg_card_info.cjs scripts/test_card_price_fallback.cjs
-python -m unittest discover -s scripts -p test_prepare_public_bundle.py
-```
-
-The source build is atomic with respect to input failures: invalid official
-identities/counts stop before any output replaces the last good manifest.
-Existing source set IDs remain available for shared links and price regression
-checks. A manifest-wide `officialComplete` remains false while any source is
-partial.
+Validation: build_tcg_card_info.py (build and --validate-only), the official and
+navigation Python tests, test_card_info_quote_coverage.cjs, the Card Info / price
+fallback / pricing integration JavaScript tests, and both public bundle checks.
+Input failures stop the build before replacing the last good manifest.

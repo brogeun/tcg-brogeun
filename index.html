@@ -6742,7 +6742,7 @@ let CI_ONEPIECE_CATEGORY = '';
 function renderCardInfo() {
   const allList = (CARDINFO[CI_TAB] || []).filter(set => CI_TAB!=='onepiece' || !CI_ONEPIECE_CATEGORY || set.category===CI_ONEPIECE_CATEGORY);
   let categoryBar=document.getElementById('onepieceCategoryFilters');
-  if(!categoryBar){categoryBar=document.createElement('div');categoryBar.id='onepieceCategoryFilters';categoryBar.className='op-category-filters';const list=document.getElementById('cardInfoList');list?.parentNode?.insertBefore(categoryBar,list);}
+  if(!categoryBar){categoryBar=document.createElement('div');categoryBar.id='onepieceCategoryFilters';categoryBar.className='op-category-filters';const list=document.getElementById('cardInfoList');list?.parentNode.insertBefore(categoryBar,list);}
   categoryBar.hidden=CI_TAB!=='onepiece';
   if(CI_TAB==='onepiece'){
     const choices=[['','전체'],...Object.entries(window.OnePieceCatalog?.labels||{})];
@@ -10942,7 +10942,7 @@ window.addEventListener('appinstalled', () => {
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261030-rarity1"></script>
-<script src="/assets/english-catalog.js?v=20261031-official1"></script>
+<script src="/assets/english-catalog.js?v=20261030-price-audit2"></script>
 <link rel="stylesheet" href="/assets/riftbound-catalog.css?v=20260909-rb1">
 <script src="/assets/riftbound-catalog.js?v=20261030-rarity1"></script>
 
@@ -10953,7 +10953,7 @@ window.addEventListener('appinstalled', () => {
 <link rel="stylesheet" href="/assets/tcg-card-info.css?v=20261031-official1">
 <script src="/assets/card-price-fallback.js?v=20261031-official1"></script>
 <script src="/assets/contained-card-prices.js?v=20261031-official1"></script>
-<script src="/assets/tcg-card-info.js?v=20261031-official-contents1" defer></script>
+<script src="/assets/tcg-card-info.js?v=20261031-official-contents2" defer></script>
 <!-- Collections stay within Card info; private records are never cached by this module. -->
 <link rel="stylesheet" href="/assets/collections.css?v=20261030-collections1">
 <script src="/assets/collection-catalog-codec.js?v=20261030-collections1" defer></script>

@@ -55,6 +55,31 @@ class OfficialContentsTests(unittest.TestCase):
             self.assertEqual(len(rows), 2)
             self.assertEqual(builder.validate(root)[0], [])
 
+    def test_union_market_separator_alias_retains_each_exact_variant_and_quote(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            market = [card('11', 'union_arena', 'Helm U [UA18BT-NIK-1-002](Booster Pack "NIKKE")', code='UATCG-UA18BT-NIK-1-002'),
+                      card('12', 'union_arena', 'Helm U* [UA18BT-NIK-1-002](Booster Pack "NIKKE")', code='UATCG-UA18BT-NIK-1-002')]
+            box = {'id': '20', 'name': 'UNION ARENA Booster Pack "NIKKE" Box', 'code': 'UATCG-UA18BT', 'kind': 'box'}
+            source_files(root, {'union_arena': market}, {'union_arena': [box]})
+            native = [{'id': 'native' + str(i), 'number': 'UA18BT/NIK-1-002', 'name': 'ヘルム', 'rarity': 'U',
+                       'variant': variant, 'url': 'https://www.unionarena-tcg.com/jp/cardlist/?card_no=UA18BT/NIK-1-002'}
+                      for i, variant in enumerate(('base', '_p1'))]
+            source = {'game': 'union_arena', 'source': 'official', 'sourceUrl': 'https://www.unionarena-tcg.com/jp/cardlist/',
+                      'fetchedAt': '2026-10-31', 'complete': True, 'expectedProducts': 1,
+                      'products': [{'id': '570118', 'code': 'UA18BT', 'name': 'NIKKE', 'complete': True,
+                                    'url': 'https://www.unionarena-tcg.com/jp/cardlist/?series=570118',
+                                    'expectedCardCount': 2, 'cards': native}]}
+            builder.atomic_write(root / 'data/official-card-contents/union_arena.json', source)
+            manifest = builder.build(root)
+            game = next(g for g in manifest['games'] if g['id'] == 'union_arena')
+            entry = next(s for s in game['sets'] if s['officialComplete'])
+            rows = builder.read_json(root / entry['file'].lstrip('/'))['cards']
+            self.assertEqual({r['snkrdunkId'] for r in rows}, {'11', '12'})
+            self.assertTrue(all(r['fullCardNumber'] == 'UA18BT/NIK-1-002' for r in rows))
+            self.assertTrue(all(r['snkrProduct']['fullCardNumber'] == 'UA18BT-NIK-1-002' for r in rows))
+            self.assertEqual(builder.validate(root)[0], [])
+
     def test_ambiguous_same_number_artwork_is_kept_without_guessing_a_price(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); path, data = self.fixture(root)

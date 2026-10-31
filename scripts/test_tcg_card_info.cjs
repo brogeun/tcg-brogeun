@@ -89,11 +89,12 @@ test('unsafe files and mismatched card/source identity are rejected',()=>{
 });
 test('official cards without market prices remain visible and verified bindings retain the market ID',async()=>{
   const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='union_arena'),set=game.sets[0],body=files.get(set.file),old=body.cards[0];
-  const official={...old,id:'official:union_arena:native1',catalogSource:'OFFICIAL',officialProductId:'570118',officialCardId:'native1',snkrdunkId:old.id,snkrProduct:{...old.snkrProduct,fullCardNumber:old.fullCardNumber},marketBinding:{verified:true,method:'exact-product-number-rarity-unique-variant',game:'union_arena',fullCardNumber:old.fullCardNumber,officialProductId:'570118',officialCardId:'native1',snkrdunkId:old.id}};
+  old.snkrProduct.fullCardNumber=old.fullCardNumber.replace('/','-');
+  const official={...old,id:'official:union_arena:native1',catalogSource:'OFFICIAL',officialProductId:'570118',officialCardId:'native1',snkrdunkId:old.id,snkrProduct:{...old.snkrProduct},marketBinding:{verified:true,method:'exact-product-number-rarity-unique-variant',game:'union_arena',fullCardNumber:old.fullCardNumber,officialProductId:'570118',officialCardId:'native1',snkrdunkId:old.id}};
   const unpriced={...official,id:'official:union_arena:native2',officialCardId:'native2',name:'가격 없는 공식 카드',snkrProduct:undefined,snkrdunkId:undefined,marketBinding:undefined};body.cards=[official,unpriced];
   Object.assign(game.boxes[0],{officialMembershipComplete:true,officialCardCount:2,cardCount:2});const r=runtime(files);
   await r.api.open(game.id,game.boxes[0].id);assert.match(r.get('tciCardGrid').innerHTML,/가격 없는 공식 카드/);assert.match(r.get('anyModal').innerHTML,/공식 상품 목록 2종/);assert.equal(r.quoteTargets.length,0);
-  r.api.detail(old.id);await tick();assert.equal(r.quoteTargets[0].snkrdunkId,old.id);
+  r.api.detail(old.id);await tick();assert.equal(r.quoteTargets[0].snkrdunkId,old.id);assert.equal(r.quoteTargets[0].fullNumber,old.snkrProduct.fullCardNumber);assert.equal(official.fullCardNumber,old.fullCardNumber);r.context.CardPriceFallback.resolve=()=>({status:'none'});assert.equal(r.api.target(official).fullNumber,official.fullCardNumber);
   const bad=structuredClone(body);bad.cards[0].marketBinding.officialCardId='wrong';assert.throws(()=>r.api.prepareSet(bad,game.id,set),/identity/);
 });
 test('official box adds only explicit unmatched market printings and preserves their price identity',async()=>{

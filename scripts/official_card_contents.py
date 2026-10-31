@@ -32,6 +32,13 @@ def norm(value):
     return unicodedata.normalize('NFKC', str(value or '')).strip().upper()
 
 
+def printed_number(value, game):
+    number = norm(value)
+    if game == 'union_arena':
+        number = re.sub(r'^((?:UA[0-9]+(?:BT|ST|DC)|EX[0-9]+BT|PC[0-9]+BT))-', r'\1/', number)
+    return number
+
+
 def code_key(value, game=None):
     code = re.sub(r'[^A-Z0-9]', '', norm(value))
     if game == 'digimon':
@@ -105,7 +112,7 @@ def market_bindings(rows, official_rows):
     """
     market, native = defaultdict(list), defaultdict(list)
     for row in rows:
-        number, rarity = norm(row.get('fullCardNumber')), norm(row.get('rarity'))
+        number, rarity = printed_number(row.get('fullCardNumber'), row['game']), norm(row.get('rarity'))
         marker = str(row.get('name') or '').split('[', 1)[0]
         parallel = bool(re.search(r'[★☆*]|\b(?:SP-|parallel|alternate|manga)\b', marker, re.I) or row.get('variant'))
         if row['game'] == 'yugioh':
@@ -114,7 +121,7 @@ def market_bindings(rows, official_rows):
         if number and core:
             market[(number, core, parallel)].append(row)
     for row in official_rows:
-        number, rarity = norm(row.get('fullCardNumber')), norm(row.get('rarity'))
+        number, rarity = printed_number(row.get('fullCardNumber'), row['game']), norm(row.get('rarity'))
         if number and rarity:
             parallel = row['game'] != 'yugioh' and row.get('variant') not in ('', 'base', None)
             native[(number, rarity, parallel)].append(row)
@@ -156,7 +163,7 @@ def validate_official_card(card, entry):
             or receipt.get('fullCardNumber') != card.get('fullCardNumber')
             or str(receipt.get('snkrdunkId')) != str(card.get('snkrdunkId'))
             or str(product.get('id')) != str(card.get('snkrdunkId'))
-            or norm(product.get('fullCardNumber')) != norm(card.get('fullCardNumber'))
+            or printed_number(product.get('fullCardNumber'), card['game']) != printed_number(card.get('fullCardNumber'), card['game'])
             or product.get('brand') != card['game']):
         raise ValueError('Official market binding identity mismatch')
 
@@ -250,7 +257,7 @@ def augment(root, manifest, outputs):
                     path = entry['file'] if index == 0 else parts[index - 1]
                     outputs.append((root / path.lstrip('/'), {**base, 'cards': chunk, **({'shards': parts} if index == 0 and parts else {})}))
                 game['sets'].append(entry)
-                official_numbers = {norm(row['fullCardNumber']) for row in rows if row['fullCardNumber']}
+                official_numbers = {printed_number(row['fullCardNumber'], source_game) for row in rows if row['fullCardNumber']}
                 for box in boxes:
                     box_entries[box['id']].append(entry)
                     box_numbers[box['id']].update(official_numbers)
@@ -265,7 +272,7 @@ def augment(root, manifest, outputs):
                 old_ids, bid = legacy_ids[box['id']], box['id']
                 extras = sorted({row['id'] for sid in old_ids for row in payloads[sid]
                                  if row['id'] not in box_bound[bid]
-                                 and (norm(row['fullCardNumber']) in box_numbers[bid]
+                                 and (printed_number(row['fullCardNumber'], source_game) in box_numbers[bid]
                                       or any(norm(row['fullCardNumber']).startswith(code + '-JP') for code in box_codes[bid]))})
                 total = sum(s['cardCount'] for s in selected)
                 box.update({'setIds': [s['id'] for s in selected], 'marketSetIds': old_ids if extras else [], 'marketCardIds': extras,

@@ -464,7 +464,7 @@ def augment(root, manifest, outputs):
             ambiguous = {identity for identity, rows in owners.items() if len({same_print(r) for r in rows}) > 1}
             for identity in ambiguous:
                 for row in owners[identity]:
-                    for field in ('snkrdunkId', 'snkrProduct', 'marketBinding'):
+                    for field in ('snkrdunkId', 'snkrProduct', 'marketBinding', 'fallbackImage'):
                         row.pop(field, None)
             for bound in box_bound.values():
                 bound.difference_update(ambiguous)

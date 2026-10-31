@@ -142,6 +142,7 @@ class OfficialContentsTests(unittest.TestCase):
             rows = [r for s in game['sets'] if s['officialComplete']
                     for r in builder.read_json(root / s['file'].lstrip('/'))['cards']]
             self.assertTrue(all('snkrdunkId' not in r for r in rows))
+            self.assertTrue(all('fallbackImage' not in r for r in rows))
             self.assertEqual(game['boxes'][0]['marketCardIds'], ['10'])
             self.assertEqual(builder.validate(root)[0], [])
 

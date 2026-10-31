@@ -146,3 +146,59 @@ test('late box fetch cannot replace another game',async()=>{
 test('box deep links retain the exact box, card and price identity',async()=>{
   const {files}=fixture(),r=runtime(files,{search:'?brand=union_arena&set=BOX%3Aunion_arena-0&card=201'});await tick();await tick();assert.equal(r.api.state().selected,'201');assert.match(r.get('tciDetailPrice').innerHTML,/JPY/);const address=new URL(r.api.href('union_arena','BOX:union_arena-0','201'),'https://tcghub.kr');assert.equal(address.searchParams.get('set'),'BOX:union_arena-0');
 });
+
+test('manufacturer-unprinted metadata is shown explicitly and old official links still open',async()=>{
+  const {files}=fixture(),body=files.get('/data/tcg-card-info/union_arena/a.json');
+  body.cards[0]={...body.cards[0],id:'official:union_arena:token',aliases:['official:union_arena:old-token'],fullCardNumber:'',numberStatus:'unprinted',rarity:'',rarityStatus:'not_applicable',snkrProduct:undefined};
+  const r=runtime(files,{lookup:async()=>({status:'none'})});await r.api.open('union_arena','union_arena-a');
+  assert.match(r.get('tciCardGrid').innerHTML,/번호 표기 없음/);assert.match(r.get('tciCardGrid').innerHTML,/희귀도 표기 없음/);assert.match(r.get('anyModal').innerHTML,/>표기 없음<\/option>/);
+  r.get('tciRarity').value='__not_applicable';r.dispatch('change',r.get('tciRarity'));assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="202"/);
+  r.api.detail('official:union_arena:old-token');await tick();assert.equal(r.api.state().selected,'official:union_arena:token');assert.match(r.get('anyModal').innerHTML,/번호 표기 없음/);
+});
+test('a failed official image falls back once to its matched market image',async()=>{
+  const {files}=fixture();files.get('/data/tcg-card-info/union_arena/a.json').cards[0].fallbackImage='https://cdn.snkrdunk.com/exact.webp';
+  const r=runtime(files);await r.api.open('union_arena','union_arena-a');assert.match(r.get('tciCardGrid').innerHTML,/data-tci-fallback="https:\/\/cdn.snkrdunk.com\/exact.webp"/);
+  const img=r.get('failingImage');img.dataset.tciFallback='https://cdn.snkrdunk.com/exact.webp';r.dispatch('error',img);assert.equal(img.src,'https://cdn.snkrdunk.com/exact.webp');assert.equal(img.dataset.tciFallback,undefined);
+  r.dispatch('error',img);assert.equal(img.src,'https://cdn.snkrdunk.com/exact.webp');img.dataset.tciFallback='javascript:alert(1)';r.dispatch('error',img);assert.equal(img.src,'https://cdn.snkrdunk.com/exact.webp');
+});
+test('native Japanese cards retain the matched English source name as a search alias',async()=>{
+  const {files}=fixture();files.get('/data/tcg-card-info/union_arena/a.json').cards[0].name='ネオン';files.get('/data/tcg-card-info/union_arena/a.json').cards[0].snkrProduct.name='Neon SR';
+  const r=runtime(files);await r.api.open('union_arena','union_arena-a');r.get('tciCardSearch').value='Neon';r.dispatch('input',r.get('tciCardSearch'));assert.match(r.get('tciCardGrid').innerHTML,/ネオン/);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="202"/);assert.equal(r.quoteTargets.length,0);
+});
+
+test('related manufacturer promos require their own view and remain shareable',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='weiss_schwarz'),box=game.boxes[0],a=game.sets[0],b=game.sets[1];
+  Object.assign(box,{setIds:[a.id],relatedSetIds:[b.id],officialCatalogueComplete:true,officialMembershipComplete:false,officialCardCount:2,relatedCardCount:2});
+  const r=runtime(files);await r.api.open(game.id,box.id);
+  assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="101"/);
+  assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="111"/);
+  assert.match(r.get('anyModal').innerHTML,/관련 프로모 2/);
+  assert.match(r.get('anyModal').innerHTML,/봉입 규격 대조 중/);
+  r.action('data-tci-inclusion','related');
+  assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="111"/);
+  assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="101"/);
+  assert.match(r.get('anyModal').innerHTML,/박스 봉입 여부/);
+  r.api.detail('111');await tick();assert.equal(r.api.state().selected,'111');
+  await r.api.open(game.id,box.id,'111');assert.equal(r.api.state().selected,'111');
+  r.action('data-tci-back');assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="111"/);
+  assert.equal(r.quoteTargets.length,2);
+});
+
+test('a box deep link leaves the background catalogue ready after closing its modal',async()=>{
+  const {files}=fixture(),r=runtime(files,{search:'?brand=weiss_schwarz&set=BOX%3Aweiss_schwarz-0'});
+  for(let n=0;n<4;n++)await tick();
+  assert.equal(r.api.state().set,'BOX:weiss_schwarz-0');
+  r.action('data-tci-close');
+  assert.equal(r.closed(),1);
+  assert.doesNotMatch(r.get('cardInfoList').innerHTML,/불러오는 중/);
+  assert.match(r.get('cardInfoList').innerHTML,/data-tci-set="BOX:weiss_schwarz-0"/);
+});
+
+test('Japanese release midnight is rendered on its local date rather than the UTC previous day',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='weiss_schwarz');
+  game.boxes[0].releasedAt='2026-11-26T15:00:00Z';game.boxes[1].releasedAt='2026-11-13';
+  const r=runtime(files);r.tab(game.id);await tick();
+  assert.match(r.get('cardInfoList').innerHTML,/2026-11-27/);
+  assert.match(r.get('cardInfoList').innerHTML,/2026-11-13/);
+  assert.doesNotMatch(r.get('cardInfoList').innerHTML,/2026-11-26/);
+});

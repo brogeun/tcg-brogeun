@@ -443,6 +443,13 @@ def build(root):
     except ModuleNotFoundError:
         from scripts.official_card_contents import augment
     augment(root, manifest, outputs)
+    # Full per-set payloads retain source metadata. The navigation manifest
+    # needs only one copy of a title and can omit empty optional values.
+    for game in manifest['games']:
+        game['sets'] = [{key: value for key, value in entry.items()
+                         if value not in (None, '')
+                         and not (key == 'sourcePackTitle' and value == entry.get('name'))}
+                        for entry in game['sets']]
     if len(json_bytes(manifest)) >= 4_000_000:
         raise ValueError("Card-info manifest exceeds 4MB")
     # Keep obsolete files: publication preserves concurrent/last-good assets.
@@ -537,6 +544,12 @@ def validate(root):
                     if (len(market_ids) != len(set(market_ids)) or any(sid not in members or members[sid]['sourceGame'] != box['sourceGame'] for sid in market_sets)
                             or any(str(identity) not in seen_ids for identity in market_ids)):
                         raise ValueError('Invalid market supplement membership')
+                    related = box.get('relatedSetIds', [])
+                    if (len(related) != len(set(related)) or set(related) & set(ids)
+                            or any(sid not in members or members[sid]['sourceGame'] != box['sourceGame']
+                                   or members[sid].get('inclusionScope') != 'related-promo' for sid in related)
+                            or box.get('relatedCardCount', 0) != sum(members[sid]['cardCount'] for sid in related)):
+                        raise ValueError('Invalid related promo membership')
                     if box.get('cardCount') != sum(members[identity]['cardCount'] for identity in ids) + len(market_ids):
                         raise ValueError('Box card count mismatch')
         if seen_games != set(VIEWS):

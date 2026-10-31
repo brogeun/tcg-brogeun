@@ -5,9 +5,18 @@
     "collectedProducts": 297,
     "completeProducts": 297,
     "officialMemberRows": 19172,
-    "printingRows": 27968,
-    "verifiedPrintedNumbers": 1071,
-    "detailCardsCollected": 250
+    "membershipRarityRows": 27968,
+    "printingRows": 28372,
+    "verifiedPrintedNumbers": 27951,
+    "knownUnnumberedPrintings": 421,
+    "unresolvedPrintedNumbers": 0,
+    "detailCardsCollected": 12469,
+    "uniqueTargetCids": 12469,
+    "printingInventoryCompleteProducts": 297,
+    "numberCompleteProducts": 297,
+    "nativeArtworkRows": 19460,
+    "legacyIdAliases": 27759,
+    "ambiguousLegacyIds": 21
   },
   "checks": {
     "expected_products_match": true,
@@ -15,36 +24,40 @@
     "unique_product_ids": true,
     "unique_printing_ids": true,
     "verified_numbers_have_source": true,
+    "known_unnumbered_have_detail_source": true,
     "all_images_native_official": true,
+    "all_verified_images_match_card_and_artwork": true,
+    "every_native_printing_has_exact_detail_tuple": true,
     "no_unmapped_market_assignment": true,
-    "all_ids_japanese_ocg": true
+    "all_ids_japanese_ocg": true,
+    "all_target_details_collected": true,
+    "no_unresolved_printing_numbers": true,
+    "all_product_rarities_resolved": true,
+    "all_raw_sources_independently_audited": true,
+    "legacy_aliases_are_unique": true
   },
   "codes": {
-    "official per-card printing number": 281,
-    "official manufacturer product page identifier": 3,
-    "unavailable": 13
+    "official per-card printing number": 289,
+    "unavailable": 8
   },
   "numberStatus": {
-    "verified": 1071,
-    "unavailable": 26880,
-    "not-listed-by-manufacturer": 17
+    "verified": 27951,
+    "not-listed-by-manufacturer": 421
   },
+  "printingGaps": [],
+  "rarityMismatches": [],
+  "deduplicatedSourceRows": [],
+  "printingRowsWhoseActualArtworkDiffersFromMembershipRepresentative": 565,
   "futureUnmapped": [
     {
       "id": "BOX:924418",
       "name": "Yu-Gi-Oh OCG Duel Monsters Concept Pack \"REVOLUTION BOOSTER －Cubic・Marincess・Ghostrick－\" JP Edition Box"
     }
   ],
-  "sourceImageProbe": {
-    "httpStatus": 200,
-    "pngSignatureVerified": true,
-    "cookiesRequired": false
-  },
   "outputs": {
     "integration": "yugioh.json",
-    "mappings": "reviewed_box_mappings.json",
     "details": "official_printings.json",
-    "collector": "collect_konami.py",
-    "crosswalkExporter": "expand_and_export.py"
+    "collector": "collect_all_details.py",
+    "nativeExporter": "export_complete.py"
   }
 }

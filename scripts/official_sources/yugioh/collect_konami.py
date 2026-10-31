@@ -6,33 +6,94 @@ The product list's row order is never interpreted as a printed number.
 """
 from __future__ import annotations
 import argparse, concurrent.futures, datetime, gzip, hashlib, html, json
-import re, sys, threading, time, unicodedata, urllib.error, urllib.parse, urllib.request
+import re, sys, threading, time, unicodedata, urllib.error, urllib.parse, urllib.request, http.client, io
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent/'deps'))
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, SoupStrainer
 
 ROOT=Path(__file__).resolve().parent
 ORIGIN='https://www.db.yugioh-card.com'
 INDEX=ORIGIN+'/yugiohdb/card_list.action?request_locale=ja'
 UA='TCGHUB catalogue integrity audit (+https://tcghub.kr)'
 LOCK=threading.Lock(); NEXT=0.0
+STOP=threading.Event()
+CONNECTIONS=threading.local()
+MIN_INTERVAL=.34
+NETWORK_LOCK=threading.Lock();REQUEST_TIMINGS=[];LATENCY_BASELINE=None;RATE_BACKOFF_REASON=None
+
+def request_public(url):
+    """Reuse a normal public HTTPS connection per worker; retain no cookies."""
+    parts=urllib.parse.urlsplit(url)
+    if parts.scheme!='https':raise ValueError('Public collector requires HTTPS')
+    key=(parts.hostname,parts.port or 443)
+    connection=getattr(CONNECTIONS,'connection',None)
+    if connection is None or getattr(CONNECTIONS,'key',None)!=key:
+        proxy=urllib.request.getproxies().get('https')
+        proxy_parts=urllib.parse.urlsplit(proxy) if proxy and not urllib.request.proxy_bypass(parts.hostname) else None
+        if proxy_parts and (proxy_parts.scheme!='http' or proxy_parts.username or proxy_parts.password):
+            req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept-Encoding':'gzip'})
+            with urllib.request.urlopen(req,timeout=45) as response:
+                return response.status,dict(response.headers),response.read()
+        if proxy_parts:
+            connection=http.client.HTTPSConnection(proxy_parts.hostname,proxy_parts.port or 80,timeout=45)
+            connection.set_tunnel(parts.hostname,parts.port or 443)
+        else:connection=http.client.HTTPSConnection(parts.hostname,parts.port or 443,timeout=45)
+        CONNECTIONS.connection=connection;CONNECTIONS.key=key
+    try:
+        path=urllib.parse.urlunsplit(('','',parts.path,parts.query,''))
+        connection.request('GET',path,headers={'User-Agent':UA,'Accept-Encoding':'gzip'})
+        response=connection.getresponse();data=response.read()
+        return response.status,dict(response.headers),data
+    except Exception:
+        connection.close();CONNECTIONS.connection=None;raise
+
+class SourceBlocked(RuntimeError): pass
+
+def preserve_failure(cache,data,status):
+    destination=cache.parent/'failures'/f'{cache.name}.{time.time_ns()}.HTTP{status}.gz'
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    destination.write_bytes(gzip.compress(data))
+    return destination
 
 def now(): return datetime.datetime.now(datetime.timezone.utc).isoformat()
 def norm(s): return re.sub(r'[^0-9a-z\u3040-\u30ff\u3400-\u9fff]','',unicodedata.normalize('NFKC',s).lower())
 def clean(s): return ' '.join(s.split())
-def fetch(url, cache, delay=.55):
-    global NEXT
+def fetch(url, cache, delay=None):
+    global NEXT,MIN_INTERVAL,LATENCY_BASELINE,RATE_BACKOFF_REASON
     if cache.exists(): return gzip.decompress(cache.read_bytes()).decode('utf-8'),True
+    if STOP.is_set(): raise SourceBlocked('Collection stopped after source access block')
     with LOCK:
-        at=max(time.monotonic(),NEXT);NEXT=at+delay
-    time.sleep(max(0,at-time.monotonic()))
-    req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept-Encoding':'gzip'})
-    with urllib.request.urlopen(req,timeout=45) as r:
-        data=r.read(); data=gzip.decompress(data) if r.headers.get('Content-Encoding')=='gzip' else data
-        if r.status!=200: raise ValueError('HTTP '+str(r.status))
+        time.sleep(max(0,NEXT-time.monotonic()))
+        NEXT=time.monotonic()+max(MIN_INTERVAL,delay or 0)
+    if STOP.is_set(): raise SourceBlocked('Collection stopped after source access block')
+    started=time.monotonic()
+    try:
+        status,headers,data=request_public(url)
+        duration=time.monotonic()-started
+        with NETWORK_LOCK:
+            REQUEST_TIMINGS.append(duration)
+            if len(REQUEST_TIMINGS)==100:LATENCY_BASELINE=sum(REQUEST_TIMINGS[20:100])/80
+            if len(REQUEST_TIMINGS)>=200:
+                recent=sum(REQUEST_TIMINGS[-100:])/100
+                if LATENCY_BASELINE and recent>max(2.5,LATENCY_BASELINE*2):
+                    MIN_INTERVAL=.55;RATE_BACKOFF_REASON='Mean request latency increased beyond baseline'
+        retry_after=next((value for key,value in headers.items() if key.lower()=='retry-after'),None)
+        if retry_after:
+            MIN_INTERVAL=.55;RATE_BACKOFF_REASON='Server returned Retry-After: '+retry_after
+        data=gzip.decompress(data) if any(k.lower()=='content-encoding' and v=='gzip' for k,v in headers.items()) else data
+        if status!=200:raise urllib.error.HTTPError(url,status,'Official public source error',headers,io.BytesIO(data))
+    except urllib.error.HTTPError as ex:
+        MIN_INTERVAL=.55;RATE_BACKOFF_REASON='HTTP failure '+str(ex.code)
+        data=ex.read(); preserve_failure(cache,data,ex.code)
+        if ex.code in (401,403,429):
+            STOP.set(); raise SourceBlocked(f'HTTP {ex.code}; raw response preserved; collection stopped') from ex
+        raise
     text=data.decode('utf-8')
-    if 'incapsula' in text.lower() and 'card_list' not in text: raise ValueError('Unexpected source challenge')
-    cache.parent.mkdir(parents=True,exist_ok=True);cache.write_bytes(gzip.compress(data))
+    lower=text.lower()
+    if ('incapsula' in lower and 'card_list' not in lower) or any(x in lower for x in ('<title>access denied','<title>request unsuccessful','verify you are human','captcha-container')):
+        preserve_failure(cache,data,200);STOP.set();raise SourceBlocked('Source access challenge; raw response preserved; collection stopped')
+    cache.parent.mkdir(parents=True,exist_ok=True)
+    temporary=cache.with_name(cache.name+'.tmp');temporary.write_bytes(gzip.compress(data));temporary.replace(cache)
     return text,False
 
 def images(text):
@@ -99,7 +160,9 @@ def parse_product(meta,text):
     return result
 
 def parse_detail(cid,text):
-    soup=BeautifulSoup(text,'html.parser'); image_map=images(text);out=[]
+    # Only the published printing table is needed. lxml avoids parsing page
+    # navigation and related-card panels for each of the 12,469 target CIDs.
+    soup=BeautifulSoup(text,'lxml',parse_only=SoupStrainer(id='update_list')); image_map=images(text);out=[]
     for row in soup.select('#update_list .t_row'):
         number=row.select_one('.card_number');link=row.select_one('input.link_value');pack=row.select_one('.pack_name')
         if not number or not link or not pack: continue
@@ -160,43 +223,17 @@ def collect_one_detail(cid):
         except json.JSONDecodeError:pass
     url=ORIGIN+f'/yugiohdb/card_search.action?ope=2&cid={cid}&request_locale=ja'
     text,cached=fetch(url,ROOT/'cache_details'/f'{cid}.html.gz')
+    canonical=re.search(r'<meta\s+property="og:url"\s+content="([^"]+)"',text)
+    if not canonical or urllib.parse.parse_qs(urllib.parse.urlsplit(html.unescape(canonical.group(1))).query).get('cid')!=[str(cid)]:
+        raise ValueError('Official response canonical CID differs from requested CID')
     d=parse_detail(cid,text);d['fetchedAt']=now();fn.parent.mkdir(exist_ok=True)
     temporary=fn.with_suffix('.json.tmp');temporary.write_text(json.dumps(d,ensure_ascii=False));temporary.replace(fn);return d
 
 def build_output(products,mappings,errors):
-    parsed=[json.loads(p.read_text()) for p in sorted((ROOT/'parsed_products').glob('*.json'))] if (ROOT/'parsed_products').exists() else []
-    details=[json.loads(p.read_text()) for p in sorted((ROOT/'parsed_details').glob('*.json'))] if (ROOT/'parsed_details').exists() else []
-    lookup={};codes={}
-    for d in details:
-        for p in d['printings']:
-            lookup[(p['productId'],p['cardId'],p['artworkId'],p['rarityId'] or p['rarity'])]=p
-            if re.match(r'^[A-Z0-9]+-[A-Z]*\d+$',p['number']): codes.setdefault(p['productId'],set()).add(p['number'].split('-')[0])
-    for p in parsed:
-        for c in p['cards']:
-            v=lookup.get((p['id'],c['cardId'],c['artworkId'],c['rarityId'] or c['rarity']))
-            if v:
-                c['number']=v['number'] or None;c['numberVerified']=bool(v['number']);c['printingSourceUrl']=v['sourceUrl']
-                c['numberStatus']='verified' if v['number'] else 'not-listed-by-manufacturer'
-            else:c['numberStatus']='unavailable'
-        p['numberCompleteness']=all(c['numberVerified'] for c in p['cards'])
-        p['numberLookupComplete']=all(c.get('printingSourceUrl') for c in p['cards'])
-        pc=codes.get(p['id'],set());p['codes']=sorted(pc)
-        if len(pc)==1:p['code']=next(iter(pc))
-    result={'schemaVersion':1,'game':'yugioh','source':'KONAMI OCG Japanese card database','sourceUrl':INDEX,
-            'fetchedAt':now(),'complete':not errors and all(m['productIds'] for m in mappings) and all(p['complete'] for p in parsed),
-            'indexProductCount':len(products),'products':parsed,'boxMappings':mappings,
-            'coverage':{'navigationBoxes':len(mappings),'mappedNavigationBoxes':sum(bool(x['productIds']) for x in mappings),
-                        'collectedProducts':len(parsed),'completeProducts':sum(p['complete'] for p in parsed),
-                        'officialMemberRows':sum(p['memberCount'] for p in parsed),'printingRows':sum(len(p['cards']) for p in parsed),
-                        'verifiedPrintedNumbers':sum(bool(c['numberVerified']) for p in parsed for c in p['cards']),
-                        'detailCardsCollected':len(details)},'errors':errors,
-            'limits':['Official membership completeness is distinct from printed-number completeness.',
-                      'Rarity variants are expanded only from manufacturer supplied rarity lists.',
-                      'No number is inferred from product row order. No marketplace price is claimed by this source.']}
-    (ROOT/'yugioh_official.json').write_text(json.dumps(result,ensure_ascii=False,separators=(',',':')))
-    (ROOT/'official_printings.json').write_text(json.dumps({'source':result['source'],'cards':details},ensure_ascii=False,separators=(',',':')))
-    (ROOT/'verified_product_codes.json').write_text(json.dumps({k:sorted(v) for k,v in codes.items()},ensure_ascii=False,indent=2))
-    return result
+    # Keep the legacy library entry point on the corrected, explicit native
+    # printing exporter. Never fall back to one number per representative IID.
+    import export_complete
+    return export_complete.export_snapshot(products,mappings,errors)
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--repo',type=Path,default=ROOT.parent/'tcghub-official-rebuild')

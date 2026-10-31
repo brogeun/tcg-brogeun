@@ -33,6 +33,9 @@ PRODUCT += ('printedSetCodes', 'membershipSemantics', 'productPageUrl', 'product
             'printingInventoryComplete', 'numberLookupComplete', 'membershipRarityRowCount', 'codes',
             'rosterBaseNumbers', 'rosterProvenance', 'unchangedPrintingsNotice', 'expectedPackTypes',
             'officialNoticeImageSha256Representation', 'otherGameBoxBonus')
+PRODUCT += ('finishIdentityVerified', 'allowInheritedMarketBindings', 'verificationStatus',
+            'verificationEvidence', 'inventoryAuditState', 'sourceStatusReason', 'sourceStatusDetail',
+            'finishAvailabilityEvidence')
 CARD = ('id', 'number', 'name', 'rarity', 'rarityId', 'rarityLabel', 'image', 'url', 'variant',
         'cardId', 'artworkId', 'sourceCardNo', 'sourceNativeProductId', 'numberStatus',
         'numberOrigin', 'numberProvenance', 'numberVerified', 'printedNumberSource',
@@ -43,6 +46,7 @@ CARD = ('id', 'number', 'name', 'rarity', 'rarityId', 'rarityLabel', 'image', 'u
 CARD += ('variation', 'parallelParam', 'isParallel', 'picture', 'sourceRarity',
          'artworkVerified', 'membershipArtworkId', 'membershipRarityIds', 'printedNumber',
          'printingFetchedAt', 'sourcePrintingIndexes')
+CARD += ('distributionEdition', 'distributionEvidence', 'availableFinishes', 'foilNativeCardIds')
 
 
 def select(data, fields):

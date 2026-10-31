@@ -443,6 +443,11 @@ def build(root):
     except ModuleNotFoundError:
         from scripts.official_card_contents import augment
     augment(root, manifest, outputs)
+    try:
+        from retailer_card_printings import augment_retailer
+    except ModuleNotFoundError:
+        from scripts.retailer_card_printings import augment_retailer
+    augment_retailer(root, manifest, outputs)
     # Full per-set payloads retain source metadata. The navigation manifest
     # needs only one copy of a title and can omit empty optional values.
     for game in manifest['games']:
@@ -460,6 +465,10 @@ def build(root):
 
 
 def validate(root):
+    try:
+        from retailer_card_printings import validate_retailer_card
+    except ModuleNotFoundError:
+        from scripts.retailer_card_printings import validate_retailer_card
     try:
         from official_card_contents import validate_official_card
     except ModuleNotFoundError:
@@ -512,6 +521,8 @@ def validate(root):
                             raise ValueError("Foreign card in Japanese view")
                         if official:
                             validate_official_card(card, entry)
+                        elif entry.get('coverage') == 'verified-retailer-printings':
+                            validate_retailer_card(card, entry)
                         else:
                             if card.get("catalogSource") != "SNKRDUNK" or str(card.get("snkrdunkId")) != identity or str(card.get("snkrProduct", {}).get("id")) != identity:
                                 raise ValueError("Source product identity mismatch")
@@ -547,7 +558,7 @@ def validate(root):
                     related = box.get('relatedSetIds', [])
                     if (len(related) != len(set(related)) or set(related) & set(ids)
                             or any(sid not in members or members[sid]['sourceGame'] != box['sourceGame']
-                                   or members[sid].get('inclusionScope') != 'related-promo' for sid in related)
+                                   or members[sid].get('inclusionScope') not in ('related-promo', 'related-edition', 'related-printing') for sid in related)
                             or box.get('relatedCardCount', 0) != sum(members[sid]['cardCount'] for sid in related)):
                         raise ValueError('Invalid related promo membership')
                     if box.get('cardCount') != sum(members[identity]['cardCount'] for identity in ids) + len(market_ids):

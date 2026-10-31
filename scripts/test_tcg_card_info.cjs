@@ -168,16 +168,16 @@ test('native Japanese cards retain the matched English source name as a search a
 
 test('related manufacturer promos require their own view and remain shareable',async()=>{
   const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='weiss_schwarz'),box=game.boxes[0],a=game.sets[0],b=game.sets[1];
-  Object.assign(box,{setIds:[a.id],relatedSetIds:[b.id],officialCatalogueComplete:true,officialMembershipComplete:false,officialCardCount:2,relatedCardCount:2});
+  Object.assign(box,{setIds:[a.id],relatedSetIds:[b.id],officialCatalogueComplete:true,officialMembershipComplete:false,officialCardCount:2,relatedCardCount:2,inventoryAuditStates:['explicit_unrepresented_foil']});
   const r=runtime(files);await r.api.open(game.id,box.id);
   assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="101"/);
   assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="111"/);
   assert.match(r.get('anyModal').innerHTML,/관련 프로모 2/);
-  assert.match(r.get('anyModal').innerHTML,/봉입 규격 대조 중/);
+  assert.match(r.get('anyModal').innerHTML,/일반·포일 판본을 별도 항목으로 구분하지 않는/);
   r.action('data-tci-inclusion','related');
   assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="111"/);
   assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="101"/);
-  assert.match(r.get('anyModal').innerHTML,/박스 봉입 여부/);
+  assert.match(r.get('anyModal').innerHTML,/별도 유통판/);
   r.api.detail('111');await tick();assert.equal(r.api.state().selected,'111');
   await r.api.open(game.id,box.id,'111');assert.equal(r.api.state().selected,'111');
   r.action('data-tci-back');assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="111"/);
@@ -211,4 +211,44 @@ test('a publisher-verified unchanged reprint retains the parent quote and reject
   r.api.prepareSet(body,game.id,set);await r.api.open(game.id,set.id,card.id);await tick();
   assert.equal(r.quoteTargets[0].snkrProduct.id,source.id);assert.equal(r.quoteTargets[0].fullNumber,source.snkrProduct.fullCardNumber);
   const bad=structuredClone(body);bad.cards[0].marketBinding.sourceNativeProductId='other-family';assert.throws(()=>r.api.prepareSet(bad,game.id,set),/identity/);
+});
+
+test('unpublished products show official preview assets with paging and zoom without invented price identities',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='weiss_schwarz'),box=game.boxes[0];
+  Object.assign(box,{setIds:[],cardCount:0,coverage:'official-not-published',officialReleaseDate:'2026-11-13',officialSourceUrl:'https://ws-tcg.com/products/bdy_bp/',previews:{images:Array.from({length:20},(_,i)=>({image:`https://ws-tcg.com/preview${i}.png`,url:'https://ws-tcg.com/products/bdy_bp/',alt:`공개 이미지 ${i}`,group:'선행 공개'})),cardNames:[]}});
+  const r=runtime(files);await r.api.open(game.id,box.id);
+  assert.match(r.get('anyModal').innerHTML,/2026-11-13 출시 예정/);
+  assert.match(r.get('anyModal').innerHTML,/공식 공개 이미지 20개/);
+  assert.doesNotMatch(r.get('anyModal').innerHTML,/등록 준비|확인 중|tci-price-host/);
+  assert.match(r.get('anyModal').innerHTML,/data-tci-preview="17"/);
+  assert.doesNotMatch(r.get('anyModal').innerHTML,/data-tci-preview="18"/);
+  r.action('data-tci-page','2');assert.match(r.get('anyModal').innerHTML,/data-tci-preview="18"/);
+  r.action('data-tci-preview','18');assert.match(r.get('anyModal').innerHTML,/preview18.png/);
+  assert.match(r.get('anyModal').innerHTML,/공식 공개 원문/);assert.equal(r.quoteTargets.length,0);
+  r.action('data-tci-back');assert.match(r.get('anyModal').innerHTML,/data-tci-preview="18"/);
+});
+
+test('unpublished product names distinguish 48 literal names from 63 announced base kinds',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='yugioh'),box=game.boxes[0];
+  Object.assign(box,{setIds:[],cardCount:0,coverage:'official-not-published',officialReleaseDate:'2026-11-21',previews:{images:[],cardNames:Array.from({length:48},(_,i)=>({name:'公開カード'+i,theme:'方界'})),declaredBaseCount:69,announcedBasePreviewCount:63,unpublishedBaseCount:6}});
+  const r=runtime(files);await r.api.open(game.id,box.id);const html=r.get('anyModal').innerHTML;
+  assert.match(html,/기본 69종 중 63종 선행 공개 · 6종 미공개/);
+  assert.match(html,/문자로 공개된 카드명 48종/);assert.equal(r.quoteTargets.length,0);
+});
+
+test('a normal-to-foil navigation opens the existing foil identity and requests its own quote',async()=>{
+  const {files,manifest}=fixture(),game=manifest.games.find(g=>g.id==='weiss_schwarz'),set=game.sets[0],body=files.get(set.file);
+  body.cards[0].finishVariants=[{id:body.cards[1].id,number:body.cards[1].fullCardNumber,rarity:body.cards[1].rarity}];
+  const r=runtime(files);await r.api.open(game.id,set.id,body.cards[0].id);await tick();
+  assert.match(r.get('anyModal').innerHTML,/같은 카드의 포일 판본/);
+  r.action('data-tci-card',body.cards[1].id);await tick();
+  assert.equal(r.api.state().selected,body.cards[1].id);assert.equal(r.quoteTargets[1].snkrProduct.id,body.cards[1].id);
+});
+
+test('retailer foil evidence opens separately without borrowing a same-number normal quote',async()=>{
+  const {files,manifest}=fixture(),g=manifest.games.find(g=>g.id==='weiss_schwarz'),box=g.boxes[0],base=files.get(g.sets[0].file).cards[0];
+  const set={id:'retailer-foil',sourceGame:'weiss_schwarz',file:'/data/tcg-card-info/weiss_schwarz/retailer.json',cardCount:1,coverage:'verified-retailer-printings',inclusionScope:'related-printing'};
+  const foil={id:'retailer:c-labo:123',catalogSource:'VERIFIED_RETAILER',game:'weiss_schwarz',language:'ja',name:base.name,fullCardNumber:base.fullCardNumber,rarity:base.rarity,finish:'foil',priceLookupPolicy:'exact-finish-required',sourceUrl:'https://www.c-labo-online.jp/product/123'};
+  g.sets.push(set);files.set(set.file,{schemaVersion:1,game:g.id,set,cards:[foil]});box.relatedSetIds=[set.id];box.retailerPrintingCount=1;box.relatedLabel='실물 포일 판본';base.finishVariants=[{id:foil.id,number:foil.fullCardNumber,rarity:foil.rarity,source:'retailer'}];
+  const r=runtime(files);await r.api.open(g.id,box.id);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/판매점 확인 포일/);r.api.detail(base.id);await tick();assert.equal(r.quoteTargets.length,1);r.action('data-tci-card',foil.id);await tick();assert.match(r.get('anyModal').innerHTML,/판매점 확인 포일/);assert.match(r.get('anyModal').innerHTML,/포일 별도 시세 미수집/);assert.equal(r.quoteTargets.length,1);assert.match(r.get('tciDetailPrice').innerHTML,/가격 정보 없음/);
 });

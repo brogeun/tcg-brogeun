@@ -8,7 +8,7 @@
 
   if(window.TCGCardInfo||typeof renderCardInfo!=='function'||typeof openSetGrid!=='function')return;
   const GAMES={nikke:'니케',weiss_schwarz:'바이스슈발츠',union_arena:'유니온아레나',dragon_ball_fusion_world:'드래곤볼 퓨전월드',yugioh:'유희왕',digimon:'디지몬'};
-  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261031-official-contents5',files=new Map(),pages=new Map(),seriesState=new Map(),languageState=new Map();
+  const PAGE_SIZE=18,SET_SIZE=24,VERSION='20261031-official-contents6',files=new Map(),pages=new Map(),seriesState=new Map(),languageState=new Map();
   let manifest=null,pendingManifest=null,listToken=0,session=0,priceToken=0,active=null,selected=null,cardQuery='',rarity='',cardPage=1,gridScroll=0,opener=null,entered=false,lastListQuery='';
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const compact=value=>String(value??'').normalize('NFKC').toLowerCase().replace(/[\s/_\-.]+/g,'');

@@ -37,7 +37,9 @@ GAMES = {
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 SET_RE = re.compile(r"^[a-z0-9][a-z0-9.-]{0,60}$")
 INDEX_COLUMNS = ["sourceSetCode", "sourceProductId", "setCode", "cardNumber", "rarity", "name",
-                 "price", "stock", "stockState", "sourceAsOf", "purchasable"]
+                 "price", "stock", "stockState", "sourceAsOf", "purchasable",
+                 "notObservedInLatestSnapshot", "stale", "fetchStatus"]
+REQUIRED_INDEX_COLUMNS = INDEX_COLUMNS[:11]
 
 
 class SourceDeferred(Exception):
@@ -332,20 +334,39 @@ def merge_records(old_records, fresh_records, history_days=90, complete_snapshot
     return sorted(result.values(), key=lambda row: row["id"])
 
 
-def choose_sets(discovered, highlights, previous, maximum):
+def choose_sets(discovered, highlights, previous, maximum, resume_hours=0):
     if maximum == 0:
         return discovered
     lookup = {row["sourceSetCode"]: row for row in discovered}
     previous_sets = {row["sourceSetCode"]: row for row in previous.get("sets", [])}
-    # Refresh at most a third as hot sets, then rotate the least recently fetched.
+    if resume_hours:
+        def recently_succeeded(row):
+            old = previous_sets.get(row["sourceSetCode"], {})
+            try:
+                stamp = dt.datetime.fromisoformat(old["lastSuccessAt"].replace("Z", "+00:00"))
+                return old.get("collectionScope", "set_listing") == "set_listing" and (dt.datetime.now(dt.timezone.utc) - stamp).total_seconds() < resume_hours * 3600
+            except (KeyError, ValueError, TypeError):
+                return False
+        discovered = [row for row in discovered if not recently_succeeded(row)]
+        lookup = {row["sourceSetCode"]: row for row in discovered}
+        highlights = [code for code in highlights if code in lookup]
+    # Preserve a majority of the bounded budget for sets never collected in full.
+    # Product-only samples must not repeatedly lose their first listing to hot sets.
+    def pending(row):
+        old = previous_sets.get(row["sourceSetCode"], {})
+        return not old.get("lastSuccessAt") or old.get("collectionScope") == "product_observations"
+    oldest = lambda row: (previous_sets.get(row["sourceSetCode"], {}).get("lastAttemptAt", ""), list(lookup).index(row["sourceSetCode"]))
+    uncollected = sorted((row for row in discovered if pending(row)), key=oldest)
     hot = [row["sourceSetCode"] for row in discovered if "NIKKE" in row.get("name", "").upper()]
     hot += [code for code in highlights if code not in hot]
-    hot = list(dict.fromkeys(hot))[:max(1, maximum // 3)]
+    hot = list(dict.fromkeys(hot))[:max(1, maximum // 6)]
     remaining = sorted((row for row in discovered if row["sourceSetCode"] not in hot),
                        key=lambda row: (previous_sets.get(row["sourceSetCode"], {}).get("lastAttemptAt", ""),
                                         0 if row["sourceSetCode"] in highlights else 1,
                                         list(lookup).index(row["sourceSetCode"])))
-    selected = [lookup[code] for code in hot] + remaining
+    first = uncollected[:max(1, (maximum * 3 + 4) // 5)]
+    selected = first + [lookup[code] for code in hot] + remaining
+    selected = list({row["sourceSetCode"]: row for row in selected}.values())
     return selected[:maximum]
 
 
@@ -360,7 +381,7 @@ def read_json(path, default):
 def atomic_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    temporary.write_bytes((json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8"))
     os.replace(temporary, path)
 
 
@@ -396,8 +417,17 @@ def fetch_html(url, timeout, retries=1, limiter=None):
     raise RuntimeError("Source request failed")
 
 
-def index_row(record):
-    return [record.get(column) for column in INDEX_COLUMNS]
+def index_row(record, columns=None):
+    return [record.get(column) for column in (columns or INDEX_COLUMNS)]
+
+
+def compact_rows(data):
+    """Migrate legacy columns by name without discarding any last-good quotes."""
+    columns = data.get("columns", [])
+    if not isinstance(columns, list) or len(columns) != len(set(columns)) or not set(REQUIRED_INDEX_COLUMNS).issubset(columns):
+        return []
+    return [index_row(dict(zip(columns, row))) for row in data.get("rows", [])
+            if isinstance(row, list) and len(row) == len(columns)]
 
 
 def recently_collected(shard, hours):
@@ -444,10 +474,8 @@ def collect_game(game, args):
     previous = read_json(path, {})
     previous_columns = previous.get("columns", [])
     rows_by_set = {}
-    if previous_columns == INDEX_COLUMNS:
-        for row in previous.get("rows", []):
-            if isinstance(row, list) and len(row) == len(INDEX_COLUMNS):
-                rows_by_set.setdefault(row[0], []).append(row)
+    for row in compact_rows(previous):
+        rows_by_set.setdefault(row[0], []).append(row)
     prior_sets = {row["sourceSetCode"]: row for row in previous.get("sets", [])}
     discovery_url = f"{BASE}/top/{source_game}"
     discovery_error = None
@@ -469,7 +497,7 @@ def collect_game(game, args):
         discovered = [{"sourceSetCode": row["sourceSetCode"], "name": row.get("name", row["sourceSetCode"]),
                        "url": safe_set_url(source_game, row["sourceSetCode"])} for row in prior_sets.values()]
         highlights = []
-    selected = choose_sets(discovered, highlights, previous, args.max_sets_per_game)
+    selected = choose_sets(discovered, highlights, previous, args.max_sets_per_game, args.resume_hours)
     observed_at = utc_now()
 
     def collect_set(source_set):
@@ -641,9 +669,8 @@ def seed_original_observations(folder, args):
         sets = {row["sourceSetCode"]: row for row in discovery[game]}
         sets.update({row["sourceSetCode"]: row for row in previous.get("sets", [])})
         by_set = {}
-        if previous.get("columns") == INDEX_COLUMNS:
-            for row in previous.get("rows", []):
-                by_set.setdefault(row[0], []).append(row)
+        for row in compact_rows(previous):
+            by_set.setdefault(row[0], []).append(row)
         for (record_game, code), records in grouped.items():
             if record_game != game:
                 continue
@@ -697,7 +724,8 @@ def validate_output(output_dir):
         source_game = GAMES[game][0]
         index_path = output_dir / "yuyutei-market" / f"{game}.json"
         index = read_json(index_path, {})
-        if index.get("columns") != INDEX_COLUMNS or index.get("game") != game:
+        columns = index.get("columns", [])
+        if not isinstance(columns, list) or not set(REQUIRED_INDEX_COLUMNS).issubset(columns) or len(columns) != len(set(columns)) or index.get("game") != game:
             errors.append(f"Invalid compact index {game}")
             continue
         rows = index.get("rows", [])
@@ -705,10 +733,10 @@ def validate_output(output_dir):
             errors.append(f"Manifest count mismatch {game}")
         by_set, ids = {}, set()
         for row in rows:
-            if not isinstance(row, list) or len(row) != len(INDEX_COLUMNS):
+            if not isinstance(row, list) or len(row) != len(columns):
                 errors.append(f"Invalid compact row {game}")
                 continue
-            record = dict(zip(INDEX_COLUMNS, row))
+            record = dict(zip(columns, row))
             identity = (record["sourceSetCode"], record["sourceProductId"])
             if identity in ids:
                 errors.append(f"Duplicate original product {game}:{identity}")
@@ -721,7 +749,7 @@ def validate_output(output_dir):
             detail_path = output_dir / "yuyutei-market" / game / f"{code}.json"
             detail = read_json(detail_path, {})
             records = detail.get("records", [])
-            if len(records) != len(compact_rows) or sorted((index_row(row) for row in records), key=lambda row: row[1]) != sorted(compact_rows, key=lambda row: row[1]):
+            if len(records) != len(compact_rows) or sorted((index_row(row, columns) for row in records), key=lambda row: row[1]) != sorted(compact_rows, key=lambda row: row[1]):
                 errors.append(f"Index/detail mismatch {game}:{code}")
             for record in records:
                 expected_id = f"yuyutei:{source_game}:{code}:{record.get('sourceProductId')}"

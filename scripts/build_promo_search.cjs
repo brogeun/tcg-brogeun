@@ -14,7 +14,7 @@ function eligibility(card, excluded = new Set()) {
   if (!name || foreign.test(name) || /(?:^|-)(?:EN|ENG|CN|CHN|ZH|KR|KO|KOR|SC|TC|VI)(?:-|$)/i.test(number)) return false;
   const title = name.split('(')[0];
   if (/complete set|\b\d+[- ](?:card|piece)s?\s+set\b|\b\d+\s+cards?\s*(?:set|bundle)\b|\b\d+\s*[-/]\s*language\s+set\b/i.test(title) || /(?:^|-)SET(?:-|$)/i.test(number)) return false;
-  return /\bpromo(?:tion(?:al)?)?\b|プロモ/i.test(name) || (card.brand === 'pokemon' && family.test(name)) || (card.brand === 'onepiece' && /\[P-\d{3}(?:\s|\])/i.test(name));
+  return /\bpromo(?:tion(?:al)?)?\b|プロモ/i.test(name) || (card.brand === 'pokemon' && family.test(name)) || (card.brand === 'onepiece' && (/\[P-\d{3}(?:\s|\])/i.test(name)||/Flagship|Championship|Tournament|Winner\s*(?:Prize|Award)|Premium Card Collection|Anniversary Set|Standard Battle|8 Pack Battle|フラッグシップ|優勝|参加記念|大会/i.test(name)));
 }
 
 function build(sources, exclusions) {
@@ -52,7 +52,15 @@ if (require.main === module) {
     const feeds = ['pokemon','onepiece'].map(brand => ({brand, name: 'data/price-' + brand + '-card.json'})).filter(feed => fs.existsSync(path.join(root, feed.name))).map(feed => ({...feed, data:read(feed.name)}));
     const existing = read('data/promo-search.json');
     output = retainAndSupplement(existing, feeds, guards);
-    if (output === existing) {console.log(JSON.stringify({cards:existing.cards.length,preserved:true,newPromoCards:0,fullCatalogueAvailable:false}));process.exit(0);}
+    // The full market snapshot below may contain event printings absent from
+    // the small featured feeds; do not finish before inspecting that source.
+  }
+  const completeMarket = path.join(root, 'data/all-cards.json');
+  if (fs.existsSync(completeMarket)) {
+    const market = read('data/all-cards.json');
+    const feeds = ['pokemon','onepiece'].map(brand => ({brand,name:'data/all-cards.json#'+brand,
+      data:{fetchedAt:market.fetchedAt||market.updatedAt||null,products:(market.details||[]).filter(card=>card.brand===brand&&card.kind==='card')}}));
+    output = retainAndSupplement(output,feeds,guards);
   }
   if (output.cards.length < 1000) throw new Error('Incomplete promo catalogue; preserve the existing file.');
   fs.writeFileSync(path.join(root, 'data/promo-search.json'), JSON.stringify(output));

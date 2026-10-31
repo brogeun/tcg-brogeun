@@ -94,7 +94,10 @@
   const asset=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='cdn.snkrdunk.com'?u.origin+u.pathname:'';}catch{return '';}};
   async function defaultArtworkBindings(){
     if(!root.document)return {schemaVersion:1,links:[]};
-    if(!artworkPromise)artworkPromise=fetch('/data/contained-card-market-links.json?v=20261030-audit1',{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error('Artwork links unavailable');return r.json();}).catch(e=>{artworkPromise=null;throw e;});
+    if(!artworkPromise)artworkPromise=Promise.all([
+      fetch('/data/contained-card-market-links.json?v=20261030-audit1',{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error('Artwork links unavailable');return r.json();}),
+      fetch('/data/onepiece-reviewed-promo-links.json?v=20261031-promo1',{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>r.ok?r.json():{links:[]}).catch(()=>({links:[]}))
+    ]).then(([base,promo])=>({schemaVersion:1,links:[...(base.links||[]),...(promo.schemaVersion===1?promo.links||[]:[])]})).catch(e=>{artworkPromise=null;throw e;});
     return artworkPromise;
   }
   function reviewedArtworkLinks(targets,products,document,match){
@@ -144,6 +147,7 @@
     for(const target of targets){
       if(!['pokemon','onepiece'].includes(target.brand)||target.language!=='ja'||target.bundle===true||target.quantity>1||target.kind==='box'){target.snkrdunkStatus='unlinked';continue;}
       const result=resolve(target);target.snkrdunkStatus=result.status;
+      if(result.status==='unlinked'&&typeof resolve.candidates==='function'&&resolve.candidates(target).length)target.snkrdunkStatus='artwork-pending';
       if(result.status==='unlinked'&&resolve.candidates?.(target)?.length)target.snkrdunkStatus='artwork-pending';
       if(result.status==='matched'){
         const product=products.find(row=>String(row.id)===String(result.id));

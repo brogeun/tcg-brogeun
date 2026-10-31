@@ -110,7 +110,7 @@ def prepare(data_dir, max_files=20000, bundle_bytes=TARGET_BYTES):
                 leaf = url[len(prefix):]
                 if not re.fullmatch(identity + r"(?:-part[0-9]{2,6})?\.json", leaf):
                     raise ValueError("Packed asset belongs to another set")
-                path = packed / game / (leaf[:2] + ".json")
+                path = packed / game / (leaf[:1] + ".json")
                 if path not in cache:
                     cache[path] = read(path)
                 pack = cache[path]

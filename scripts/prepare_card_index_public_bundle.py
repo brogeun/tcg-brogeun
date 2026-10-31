@@ -49,7 +49,7 @@ def pack_card_info(target):
             data = json.loads(body)
             if data.get('schemaVersion') != 1 or data.get('game') != game.name or data.get('set', {}).get('id') != file.name[:16]:
                 raise ValueError('Card-info set identity mismatch')
-            packs.setdefault((game.name, file.name[:2]), {})[file.name] = body
+            packs.setdefault((game.name, file.name[:1]), {})[file.name] = body
             count += 1
     destination = target / 'tcg-card-info-packs'
     if destination.exists():

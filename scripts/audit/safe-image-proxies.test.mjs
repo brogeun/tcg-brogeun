@@ -15,6 +15,15 @@ const webp=new TextEncoder().encode('RIFF0000WEBPdata');
 const avif=Uint8Array.from([0,0,0,24,...new TextEncoder().encode('ftypavif'),0,0,0,0,...new TextEncoder().encode('avifmif1')]);
 const good=(bytes=png,mime='image/png')=>new Response(bytes,{headers:{'Content-Type':mime}});
 
+test('official One Piece artworks require the exact raster path and use their official referrer',async()=>{
+ const config=configurations.find(c=>c.name==='img.js');
+ const accepted=await invoke(config,{target:'https://www.onepiece-cardgame.com/images/cardlist/card/OP06-093_p2.png?261016'});
+ assert.equal(accepted.response.status,200);assert.equal(accepted.calls[0].options.headers.Referer,'https://www.onepiece-cardgame.com/');
+ for(const target of ['https://www.onepiece-cardgame.com/cardlist/','https://www.onepiece-cardgame.com/images/cardlist/card/x.svg','https://www.onepiece-cardgame.com/images/cardlist/card/../private.png','https://onepiece-cardgame.com/images/cardlist/card/x.png']){
+  const rejected=await invoke(config,{target});assert.equal(rejected.response.status,403);assert.equal(rejected.calls.length,0);
+ }
+});
+
 async function invoke(config,{target='https://snkrdunk.com/image.png',fetcher=async()=>good(),method='GET',fastTimer=false}={}){
  const oldFetch=globalThis.fetch, oldTimeout=globalThis.setTimeout;
  const calls=[];

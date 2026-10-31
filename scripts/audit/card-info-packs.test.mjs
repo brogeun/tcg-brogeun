@@ -18,7 +18,7 @@ async function request(path,{method='GET',asset,game='nikke'}={}) {
 test('original card URLs return the exact packed bytes and ignore cache-busting queries',async()=>{
   const {result,calls,next}=await request('/data/tcg-card-info/nikke/'+file+'?v=123');
   assert.equal(result.status,200);assert.equal(await result.text(),body);assert.match(result.headers.get('Content-Type'),/application\/json/);
-  assert.deepEqual(calls,['https://tcghub.kr/data/tcg-card-info-packs/nikke/01.json']);assert.equal(next,0);
+  assert.deepEqual(calls,['https://tcghub.kr/data/tcg-card-info-packs/nikke/0.json']);assert.equal(next,0);
 });
 test('HEAD preserves JSON headers without returning a body',async()=>{
   const {result}=await request('/data/tcg-card-info/nikke/'+file,{method:'HEAD'});

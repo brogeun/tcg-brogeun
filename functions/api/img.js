@@ -1,5 +1,5 @@
 // Standalone raster-only proxy: no deploy-whitelist dependency changes.
-const ALLOWED_HOSTS = new Set(['snkrdunk.com', 'www.snkrdunk.com', 'static.snkrdunk.com', 'img.snkrdunk.com', 'image.snkrdunk.com', 'media.snkrdunk.com', 'cdn.snkrdunk.com', 'snkr-dunk.imgix.net']);
+const ALLOWED_HOSTS = new Set(['snkrdunk.com', 'www.snkrdunk.com', 'static.snkrdunk.com', 'img.snkrdunk.com', 'image.snkrdunk.com', 'media.snkrdunk.com', 'cdn.snkrdunk.com', 'snkr-dunk.imgix.net', 'www.onepiece-cardgame.com']);
 const REFERER = 'https://snkrdunk.com/';
 const CACHE_CONTROL = 'public, max-age=2592000, s-maxage=2592000, immutable';
 
@@ -18,7 +18,8 @@ function failure(status) {
 
 function allowed(url) {
   return url.protocol === 'https:' && !url.username && !url.password &&
-    (!url.port || url.port === '443') && ALLOWED_HOSTS.has(url.hostname.toLowerCase());
+    (!url.port || url.port === '443') && ALLOWED_HOSTS.has(url.hostname.toLowerCase()) &&
+    (url.hostname !== 'www.onepiece-cardgame.com' || /^\/images\/cardlist\/card\/[A-Za-z0-9_-]{1,100}\.png$/.test(url.pathname));
 }
 
 function ascii(bytes, start, end) {
@@ -81,7 +82,7 @@ async function proxyImage(request, parameter) {
         redirect: 'manual', signal: controller.signal,
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; tcghub/1.0)',
           'Accept': 'image/avif,image/webp,image/png,image/jpeg,image/gif',
-          'Accept-Language': 'ja,en;q=0.8', 'Referer': REFERER },
+          'Accept-Language': 'ja,en;q=0.8', 'Referer': current.hostname==='www.onepiece-cardgame.com'?'https://www.onepiece-cardgame.com/':REFERER },
       });
       if (REDIRECTS.has(upstream.status)) {
         const location = upstream.headers.get('Location');

@@ -191,6 +191,7 @@ def augment(root, manifest, outputs):
                 if not product.get('isAggregate') and re.fullmatch(CODE_PATTERNS.get(source_game, r'(?!)'), code):
                     by_code[code].append(product)
             matched = defaultdict(list)
+            official_rows = []
             legacy_ids = {box['id']: list(box['setIds']) for box in game['boxes']}
             box_entries, box_numbers, box_codes, box_bound = defaultdict(list), defaultdict(set), defaultdict(set), defaultdict(set)
             for box in game['boxes']:
@@ -230,6 +231,7 @@ def augment(root, manifest, outputs):
                     rows.append(row)
                 legacy = {row['id']: row for box in boxes for sid in legacy_ids[box['id']] for row in payloads[sid]}
                 bound = market_bindings(list(legacy.values()), rows)
+                official_rows.extend(rows)
                 key = key_for('official', view, source_game, pid)
                 entry = {'id': key, 'name': product['name'], 'code': product.get('code') or '',
                          'sourceGame': source_game, 'sourcePackTitle': product['name'], 'language': 'ja',
@@ -265,6 +267,19 @@ def augment(root, manifest, outputs):
                     if source_game == 'yugioh' and (product.get('codeVerified') or product.get('codeSource') in (
                             'official per-card printing number', 'official manufacturer product page identifier')) and product.get('code'):
                         box_codes[box['id']].add(norm(product['code']))
+            # A base pack and its bonus component can share a printed code and
+            # rarity. One marketplace SKU cannot prove both physical printings.
+            owners = defaultdict(list)
+            for row in official_rows:
+                if row.get('snkrdunkId'):
+                    owners[row['snkrdunkId']].append(row)
+            ambiguous = {identity for identity, rows in owners.items() if len(rows) > 1}
+            for identity in ambiguous:
+                for row in owners[identity]:
+                    for field in ('snkrdunkId', 'snkrProduct', 'marketBinding'):
+                        row.pop(field, None)
+            for bound in box_bound.values():
+                bound.difference_update(ambiguous)
             for box in game['boxes']:
                 selected = box_entries.get(box['id'])
                 if not selected:

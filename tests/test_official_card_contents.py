@@ -129,6 +129,22 @@ class OfficialContentsTests(unittest.TestCase):
             self.assertTrue(all(not s['officialComplete'] for s in game['sets']))
             self.assertFalse(game['boxes'][0]['officialComplete'])
 
+    def test_same_market_sku_cannot_price_both_base_and_bonus_printings(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); path, data = self.fixture(root)
+            first = data['products'][0]; first['marketBoxIds'] = ['BOX:20']
+            bonus = copy.deepcopy(first); bonus.update({'id': 'bonus', 'code': 'BONUS', 'name': 'Included bonus pack'})
+            bonus['cards'] = [bonus['cards'][0]]; bonus['expectedCardCount'] = 1
+            data['products'].append(bonus); data['expectedProducts'] = 2
+            builder.atomic_write(path, data)
+            manifest = builder.build(root)
+            game = next(g for g in manifest['games'] if g['id'] == 'digimon')
+            rows = [r for s in game['sets'] if s['officialComplete']
+                    for r in builder.read_json(root / s['file'].lstrip('/'))['cards']]
+            self.assertTrue(all('snkrdunkId' not in r for r in rows))
+            self.assertEqual(game['boxes'][0]['marketCardIds'], ['10'])
+            self.assertEqual(builder.validate(root)[0], [])
+
     def test_receipt_cannot_rebind_another_market_product(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); self.fixture(root); manifest = builder.build(root)

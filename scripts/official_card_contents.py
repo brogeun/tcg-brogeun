@@ -342,7 +342,13 @@ def validate_official_card(card, entry):
             raise ValueError('Official price binding without market product')
         return
     receipt = card.get('marketBinding') or {}
-    if (receipt.get('verified') is not True or receipt.get('method') != 'exact-product-number-rarity-unique-variant'
+    method = receipt.get('method')
+    inherited = receipt.get('derivationMethod') == 'verified-unchanged-native-reprint'
+    if (receipt.get('verified') is not True or method != 'exact-product-number-rarity-unique-variant'
+            or receipt.get('derivationMethod') not in (None, 'verified-unchanged-native-reprint')
+            or (inherited and (receipt.get('sourceNativeProductId') != card.get('printingFamilyId')
+                               or receipt.get('sourceNativeProductId') == card['officialProductId']
+                               or receipt.get('sourceOfficialCardId') != card['officialCardId']))
             or receipt.get('game') != card['game'] or receipt.get('officialProductId') != card['officialProductId']
             or receipt.get('officialCardId') != card['officialCardId']
             or receipt.get('fullCardNumber') != card.get('fullCardNumber')
@@ -468,6 +474,30 @@ def augment(root, manifest, outputs):
                         row.pop(field, None)
             for bound in box_bound.values():
                 bound.difference_update(ambiguous)
+            # The publisher has explicitly verified these reprints retain the
+            # identical native artwork/finish. Reuse only an unambiguous native
+            # parent's existing SKU; never search another product by number.
+            native_quotes = defaultdict(list)
+            for row in official_rows:
+                if row.get('snkrdunkId') and row['officialProductId'] == row['printingFamilyId']:
+                    native_quotes[same_print(row)].append(row)
+            for row in official_rows:
+                if row.get('snkrdunkId') or not products[row['officialProductId']].get('isDerivedProduct'):
+                    continue
+                donors = native_quotes.get(same_print(row), [])
+                if len(donors) != 1:
+                    continue
+                donor = donors[0]
+                for field in ('snkrdunkId', 'snkrProduct', 'fallbackImage'):
+                    if field in donor:
+                        row[field] = donor[field]
+                row['marketBinding'] = {**donor['marketBinding'],
+                    'derivationMethod': 'verified-unchanged-native-reprint',
+                    'officialProductId': row['officialProductId'],
+                    'sourceNativeProductId': donor['officialProductId'],
+                    'sourceOfficialCardId': donor['officialCardId']}
+                for box in matched[row['officialProductId']]:
+                    box_bound[box['id']].add(row['snkrdunkId'])
             for box in game['boxes']:
                 selected = box_entries.get(box['id'])
                 if not selected:

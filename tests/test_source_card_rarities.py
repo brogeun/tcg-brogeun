@@ -12,6 +12,20 @@ def resolver(game, cards):
 
 
 class SourceRarityTests(unittest.TestCase):
+    def test_documented_unprinted_rarity_needs_exact_market_and_native_identity(self):
+        r = resolver('weiss_schwarz', [{'number': 'LL/W36-S01', 'rarity': '-'}])
+        p = {'id': '366204', 'name': 'Cafe Maid [LL/W36-S01]'}
+        entry = {'name': p['name'], 'fullCardNumber': 'LL/W36-S01', 'manufacturerCardIds': ['0'],
+                 'status': 'verified-unprinted-rarity', 'manufacturerLiteral': '-',
+                 'references': [{'provider': 'wiki', 'url': 'https://w.atwiki.jp/ws_wiki/pages/10897.html', 'literal': 'unprinted'}]}
+        r.disclosures = {'weiss_schwarz': {'366204': entry}}
+        result = r.resolve(p, 'weiss_schwarz', 'LL/W36-S01', '')
+        self.assertEqual(result['rarityDisclosureStatus'], 'verified-unprinted-rarity')
+        self.assertEqual(result['rarity'], '')
+        self.assertNotEqual(result['rarityStatus'], 'not_applicable')
+        self.assertNotIn('rarityDisclosureStatus', r.resolve(dict(p, name='another product'), 'weiss_schwarz', 'LL/W36-S01', ''))
+        self.assertNotIn('rarityDisclosureStatus', r.resolve(p, 'weiss_schwarz', 'LL/W36-S01', 'PR'))
+
     def test_exact_suffix_and_code_retains_serial_autograph_grade(self):
         r = resolver('weiss_schwarz', [{'number': 'NIK/S135-053A', 'rarity': 'AGR'}])
         product = {'id': '898468', 'name': 'OLD TALES AGR :Autographed & Serial Numbered [NIK/S135-053A]',

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "rarity-crossdb-20261101",
+  "scope": 3381,
+  "previousManufacturerVerifiedPreserved": 82,
+  "counts": {
+    "referenceGrade": 851,
+    "explicitExternalNone": 1369,
+    "documentedUnprintedRarity": 9,
+    "referenceConflict": 14,
+    "noAdoptableClassification": 1138
+  },
+  "languages": {
+    "ja": {
+      "scope": 1281,
+      "referenceGrade": 11,
+      "explicitExternalNone": 1054,
+      "conflict": 4,
+      "candidate": 1,
+      "noAdoptableGrade": 211
+    },
+    "en": {
+      "scope": 2053,
+      "referenceGrade": 840,
+      "explicitExternalNone": 315,
+      "conflict": 10,
+      "noAdoptableGrade": 888
+    },
+    "cn": {
+      "scope": 38,
+      "noAdoptableGrade": 38
+    },
+    "weiss_schwarz": {
+      "scope": 9,
+      "documentedUnprintedRarity": 9
+    }
+  },
+  "policy": "External classification is reference only. Exact physical printing is unconfirmed. Raw missing fields remain missing; explicit None is not a manufacturer no-grade conclusion. Recovery re-fetched frozen source versions and original URLs; source HTML bytes are newly hashed, not claimed identical. Earlier Dogam null per-row source records lost in workspace interruption are not reconstructed.",
+  "externalPreference": "Exact TCGplayer product explicit rarity is preferred as a reference; all differing source values remain visible. Without this preference, incompatible non-alias labels remain conflicts. Rare Secret→Secret Rare, Holo Rare→Rare Holo and NFKC width normalization are wording-only aliases.",
+  "dogam": {
+    "setPagesChecked": 183,
+    "targetRowsInMatchedSets": 2954,
+    "exactCardNullRarity": 2441,
+    "explicitRarityValues": 2,
+    "insufficientIdentity": 511,
+    "noUniqueSetMatch": 380,
+    "mfSetUrl": "https://www.dogam.app/sets/01KVYYMGPTX15JAETXF3P210J8",
+    "values": "MF043/040 and044/040 Full Art; not converted into Japanese SAR",
+    "recoveryLimit": "Aggregates survive in log; lost individual null records are not presented as reproduced evidence."
+  },
+  "joocasa": {
+    "urls": [
+      "https://joocasa.com/set/pokemon/s4a",
+      "https://joocasa.com/set/pokemon/m2a"
+    ],
+    "visibleRows": [
+      36,
+      57
+    ],
+    "result": "Published SSR/SR secret-card rows do not overlap the missing ordinary-card cohort; no grade inferred from absence."
+  },
+  "frozenSources": {
+    "tcgdex": "2414b087bffd93c0ab7481a78dca925eab64cc57",
+    "pokemonTCGData": "39a26a144c8b6ef6c2fb17b2c29d0bb7121e3a11",
+    "tcgcsvProductMetadataGroups": 47
+  },
+  "reconstruction": {
+    "note": "Semantic reconstruction revalidated exact current card identities, fixed-source grades and all cohort totals. Byte-identical recovery is not claimed.",
+    "enDistribution": "Actual recovered source values: Common593/Uncommon67; prior summary594/66 differed by one. Raw recovered values are used without guessed correction."
+  },
+  "archives": [
+    {
+      "path": "data/collections/sources/rarity-crossdb-20261101-ja-0000.json.gz",
+      "rowCount": 584,
+      "sha256": "5c2699cadd002bacfe8cb14f95f30d94682a86ecb4d68bdac061019a245ec0b9",
+      "bytes": 75938
+    },
+    {
+      "path": "data/collections/sources/rarity-crossdb-20261101-ja-0001.json.gz",
+      "rowCount": 518,
+      "sha256": "eb0b1252c8a9e42ef77aef1bdd7d171149c7a52edc4a30026e02884108052912",
+      "bytes": 75979
+    },
+    {
+      "path": "data/collections/sources/rarity-crossdb-20261101-ja-0002.json.gz",
+      "rowCount": 179,
+      "sha256": "4bc7741990123a54aeee422eb135adc08dd06e83d90844af3138200e15d3b452",
+      "bytes": 28242
+    },
+    {
+      "path": "data/collections/sources/rarity-crossdb-20261101-en-0000.json.gz",
+      "rowCount": 893,
+      "sha256": "0aa217c71cf75b1238574b3737879bebd3e1f15dddf867a2b458dd8a0bfb85bf",
+      "bytes": 75956
+    },
+    {
+      "path": "data/collections/sources/rarity-crossdb-20261101-en-0001.json.gz",
+      "rowCount": 1160,
+      "sha256": "8b6421511d2168f7aee55f3c5f78d4274aa3de743fdbe037df3d5048811d74b4",
+      "bytes": 58457
+    },
+    {
+      "path": "data/collections/sources/rarity-crossdb-20261101-cn-ws-0000.json.gz",
+      "rowCount": 1,
+      "sha256": "66d4a2c885401f1efa98baad8c61ec7f26f7c4017991355b9516d71f46abc7a7",
+      "bytes": 9939
+    }
+  ]
+}

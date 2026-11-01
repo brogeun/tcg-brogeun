@@ -350,7 +350,11 @@ def build(root):
     except ModuleNotFoundError:
         from scripts.official_card_contents import load_sources
         from scripts.source_card_rarities import RarityResolver
-    rarity_resolver = RarityResolver(load_sources(root))
+    disclosure_path = root / 'data/collections/sources/rarity-disclosures.json'
+    disclosures = json.loads(disclosure_path.read_text()) if disclosure_path.exists() else {'schemaVersion': 1, 'cards': {}}
+    if disclosures.get('schemaVersion') != 1 or not isinstance(disclosures.get('cards'), dict):
+        raise ValueError('Invalid reviewed rarity disclosures')
+    rarity_resolver = RarityResolver(load_sources(root), disclosures['cards'])
     views = {game: defaultdict(list) for game in VIEWS}
     descriptors, metadata, coverage = {}, {}, {}
     # Verify every input before writing anything, preserving last-good on source failures.

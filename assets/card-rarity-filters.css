@@ -23,6 +23,9 @@
 .ci-rarity-picker .ci-rarity-chip span{margin-left:auto;flex:none}
 .ci-rarity-done{display:block;position:sticky;bottom:0;width:100%;min-height:36px;margin-top:10px;border:1px solid #087d7d;border-radius:6px;background:#087d7d;color:#fff;font:inherit;cursor:pointer}
 .ci-rarity-note{margin:10px 0 0;color:#687572;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.ci-rarity-evidence,.ci-rarity-sources{font-size:11px;line-height:1.7;color:#687572;overflow-wrap:anywhere}
+.ci-rarity-evidence a,.ci-rarity-sources a{color:#087d7d;text-decoration:underline}
+.ci-rarity-sources{margin-top:10px}.ci-rarity-sources>summary{cursor:pointer}.ci-rarity-sources ul{padding-left:17px;margin:7px 0}
 .ci-rarity-picker summary:focus-visible,.ci-rarity-done:focus-visible{outline:2px solid #087d7d;outline-offset:2px}
 .tci-rarity-panel .ci-rarity-menu{left:0;right:auto}
 @media(max-width:560px){.ci-rarity-summary{flex-wrap:wrap;gap:8px}.ci-rarity-summary>[id$="RarityFilters"]{flex:1 1 100%}.ci-rarity-filters{justify-content:flex-start}.ci-rarity-chip{min-height:34px;padding:5px 10px}}

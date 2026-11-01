@@ -10,18 +10,24 @@ function shardPayload(file,code){
 }
 const report={schemaVersion:1,observedAt:new Date().toISOString(),scope:'Panel rows, including separate printings and commercial aggregates. Counts are not deduplicated physical cards across boxes.',catalogues:{}};
 function count(cards){
-  const states={known:0,unknown:0,notApplicable:0,'source-unlisted':0};
+  const states={known:0,unknown:0,notApplicable:0,'source-unlisted':0,'reference-grade':0,'reference-unlisted':0,'reference-conflict':0,'documented-unprinted':0};
   for(const c of cards){const s=R.metadata(c).state;states[s==='not-applicable'?'notApplicable':s]++;}
   return {total:cards.length,...states};
 }
 function record(name,sets){
-  const totals={total:0,known:0,unknown:0,notApplicable:0,'source-unlisted':0};
+  const totals={total:0,known:0,unknown:0,notApplicable:0,'source-unlisted':0,'reference-grade':0,'reference-unlisted':0,'reference-conflict':0,'documented-unprinted':0};
   for(const s of sets)for(const k of Object.keys(totals))totals[k]+=s[k];
   report.catalogues[name]={...totals,sets:sets.length,unresolvedSets:sets.filter(s=>s.unknown).sort((a,b)=>b.unknown-a.unknown)};
 }
 const jp=read('data/japanese-catalog.json');
 const pokemon=read('data/collections/sources/pokemon-jp-rarity-metadata.json');
 const sets=[];
+function crossReference(cards,brand,code){
+  const file='data/collections/sources/pokemon-'+(brand==='pokemon-en'?'en':'jp')+'-rarity-crossdb.json';
+  if(!exists(file))return cards;
+  const index=read(file),shard=index.setShards?.[code.toUpperCase()];
+  return shard ? R.merge(cards,shardPayload(shard,code),{brand,setCode:code}) : cards;
+}
 for(const s of jp.sets.filter(s=>s.brand==='pokemon')){
   const file='data/cards-by-set/'+(s.fileCode||s.code)+'.json';if(!exists(file))continue;
   const bySource=new Map();
@@ -33,6 +39,7 @@ for(const s of jp.sets.filter(s=>s.brand==='pokemon')){
   cards=R.merge(cards,pokemon,{brand:'pokemon',setCode:s.code});
   const shard=pokemon.setShards?.[s.code.toUpperCase()];
   if(shard)cards=R.merge(cards,shardPayload(shard,s.code),{brand:'pokemon',setCode:s.code});
+  cards=crossReference(cards,'pokemon',s.code);
   sets.push({code:s.code,...count(cards)});
 }
 record('pokemon-ja',sets);
@@ -48,6 +55,7 @@ for(const kind of ['english','chinese','chiikawa','riftbound']){
     let cards=s.cards||(exists(file)?read(file).cards:null);
     if(cards&&supplement){cards=R.merge(cards,supplement,{brand:'pokemon-en',setCode:s.code});const shard=supplement.setShards?.[s.code.toUpperCase()];
       if(shard)cards=R.merge(cards,shardPayload(shard,s.code),{brand:'pokemon-en',setCode:s.code});}
+    if(cards&&kind==='english')cards=crossReference(cards,'pokemon-en',s.code);
     return cards?[{code:s.code,...count(cards)}]:[];
   }));
 }

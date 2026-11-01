@@ -36,10 +36,11 @@ BASE_LABELS = set('C U UC R RR RRR SR SP SSP SEC SCR PR TD UR SE OR L N LRR QCSE
 
 
 class RarityResolver:
-    def __init__(self, sources):
+    def __init__(self, sources, disclosures=None):
         self.by_number = {}
         self.labels = {}
         self.audit = []
+        self.disclosures = disclosures or {}
         for game, source in sources.items():
             by_number = defaultdict(list)
             labels = BASE_LABELS | SOURCE_LABELS.get(game, set())
@@ -96,6 +97,15 @@ class RarityResolver:
         result = {'rarity': value, 'rarityStatus': status, 'rarityOrigin': method}
         if native and values == {''} and status == 'unavailable' and not literal:
             result['raritySourceUnlisted'] = True
+            entry = self.disclosures.get(game, {}).get(str(product['id']))
+            if (entry and entry.get('name') == product.get('name')
+                    and entry.get('fullCardNumber') == number
+                    and entry.get('manufacturerCardIds') == sorted({str(c['id']) for c in native})
+                    and entry.get('status') == 'verified-unprinted-rarity'
+                    and entry.get('manufacturerLiteral') == '-'
+                    and all(c.get('rarity') == '-' for c in native)):
+                result['rarityDisclosureStatus'] = entry['status']
+                result['rarityDisclosureEvidence'] = {'references': entry['references']}
         if status != 'unavailable':
             result['raritySourceUrl'] = (product.get('url') if literal else native[0].get('url')) or ''
         self.audit.append({'game': game, 'sourceId': str(product['id']), 'fullCardNumber': number,

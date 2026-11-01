@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "reviewId": "rarity-deep-20261101",
+  "createdAt": "2026-11-01T12:36:35.462795+00:00",
+  "baseCommit": "a72aa177962aaaf23444d538c4e17054aad114a6",
+  "scope": "The 3,463 effective source-unlisted catalogue rows from the prior release. Rows include product-list duplicates; these are not 3,463 unique physical cards.",
+  "inputRows": 3463,
+  "restoredRarityRows": 82,
+  "restoredUniqueSourceCards": 57,
+  "remainingSourceUnlistedRows": 3381,
+  "confirmedNoRarityRows": 0,
+  "allPhysicalFrontsIndividuallyVerified": false,
+  "restored": {
+    "englishClassicCollectionRows": 50,
+    "englishClassicUniqueSourceCards": 25,
+    "englishDragonVaultRareHoloRows": 2,
+    "chinesePikachuRareRows": 30
+  },
+  "pending": {
+    "pokemon-ja": 1281,
+    "pokemon-en": 2053,
+    "pokemon-zh-CN": 38,
+    "weiss-schwarz-ja": 9
+  },
+  "separateEvidence": {
+    "chineseManufacturerCategoryOnlyRows": 38,
+    "englishPlaceholderFrontUnavailableRows": 175,
+    "englishReferenceCommonOnlyRowsNotApplied": 6
+  },
+  "policy": [
+    "An upstream blank is not evidence of no rarity.",
+    "A missing printed symbol is not evidence of no publisher classification.",
+    "No blanket Common default or cross-edition grade inheritance.",
+    "Publisher product categories that are not rarity remain separate from rarity.",
+    "Crobat supplemental photo is a different printing; no grade applied."
+  ],
+  "limitations": [
+    "English manufacturer database requires an Imperva security check in this environment. No additional DB paths or regions requested after the block. Two exact cached official literals were retained; other Dragon Vault grades were not extrapolated.",
+    "Many Japanese images are low resolution and lack individual official-edition links. Product-wide official lists do not prove an individual grade.",
+    "Common reference labels conflict for KSS. Front placeholders and language-mismatched scans cannot certify a physical grade."
+  ],
+  "validation": {
+    "eligibleSnkrQuotes": 7146,
+    "selectedSnkrQuotes": 7146,
+    "originalSourceQuotes": 4504,
+    "preservedOriginalSourceQuotes": 4504,
+    "validatedAdditionalRowsIncludingNikkeView": 217379,
+    "errors": 0,
+    "chineseNonRarityFieldsUnchanged": true,
+    "englishRawSetFilesUnchanged": true,
+    "filterAndAdapterTestsPassed": 23,
+    "pricingAndCardInfoTestsPassed": 75
+  },
+  "rowEvidenceFiles": [
+    {
+      "file": "rarity-deep-review-20261101-ja-0000.json.gz",
+      "inputRows": 641,
+      "sha256": "51f274c1b6e1df130cd0f9c8b255c47ea16a149717fc144aa62cd9523a7c92af",
+      "uncompressedSha256": "fa811fd64540283e688fc9cf54913a1f40902c29fe23320a6d18888677346eb9",
+      "bytes": 93253
+    },
+    {
+      "file": "rarity-deep-review-20261101-ja-0001.json.gz",
+      "inputRows": 640,
+      "sha256": "b13395ef907ddfbdfa401f3990f1f5c4567a91ebf4647eb0ba35f89368396425",
+      "uncompressedSha256": "36ec02e81d9402d40715324d4322f73f627abbdf3d637fe3534050ea6cdc6bb9",
+      "bytes": 74630
+    },
+    {
+      "file": "rarity-deep-review-20261101-en-0000.json.gz",
+      "inputRows": 1053,
+      "sha256": "b9d95114a22ffbbe5177293e0e4180e986967c489ffbfe5c76173c5188cbbb67",
+      "uncompressedSha256": "36a32ca84c2c3f16b1de7258b4dcb5a5b5d75f7139f36583a7ccaeb52301e388",
+      "bytes": 83283
+    },
+    {
+      "file": "rarity-deep-review-20261101-en-0001.json.gz",
+      "inputRows": 1052,
+      "sha256": "643439fa169e9580aece1ce20c38b74bb6d70055bc3860c580c2a2ed048a0c01",
+      "uncompressedSha256": "30ee9882b7976267e203fb8465b5c5c9043a7153194a9d884367db0ce9728042",
+      "bytes": 87742
+    },
+    {
+      "file": "rarity-deep-review-20261101-cn-ws.json.gz",
+      "inputRows": 77,
+      "sha256": "dc0c1a19c50a86adb3462cf504d050b7c9239299cf9cc1db2f6f6c853064b877",
+      "uncompressedSha256": "bd32ed2a2ca1f261b316621bf3c941cdb8cff5bb457f2cea5af7d59dfa1580e1",
+      "bytes": 19141
+    }
+  ],
+  "japaneseResearchSummary": {
+    "status": "final-bounded-review-with-incomplete-individual-coverage",
+    "observedAt": "2026-11-01T12:32:58.541961+00:00",
+    "totalTargets": 1281,
+    "sets": 20,
+    "exactOfficialProductPublicListsReviewed": 13,
+    "officialPublicApiPagesReviewed": 68,
+    "officialPublicCardIDsReviewed": 2346,
+    "exactOfficialCardIdLinksForTargets": 2,
+    "fullResolutionExactOfficialImagesIndividuallyViewed": 2,
+    "edgeTargetsReviewedWithinLimits": 14,
+    "currentSourceImagesIndividuallyViewed": 6,
+    "auxiliaryRetailFrontDepictionsIndividuallyViewed": 10,
+    "uniqueTargetRowsWithAnyImageReview": 15,
+    "uniqueTargetRowsWithCurrentOrExactOfficialPrintingReview": 6,
+    "individualCurrentPrintingReviewNotCompletedRows": 1275,
+    "nativeImagesDownloaded": 847,
+    "nativeImage404": 9,
+    "nativeImagesNotFetchedAtPause": 425,
+    "recoveredGradeProposals": 0,
+    "withheldCrobatCandidate": 1,
+    "rarityNotApplicableConfirmed": 0,
+    "networkAccessBlocksObserved": 0,
+    "allRowRarityValuesUnchanged": true,
+    "limits": [
+      "Group-level manufacturer API coverage is not an individual source-row-to-official-cardID match.",
+      "The official API card-list fields omit rarity; absence from18 filter memberships does not establish no rarity.",
+      "Native320px footers can fail to resolve the precise printed glyph.",
+      "Separate retailer photos can show a star but cannot determine the existing source row's exact edition/printing.",
+      "Nine original image URLs returned404; no absent-grade inference was made.",
+      "Generic holder/representative-front photos are marked and do not certify the photographed specimen.",
+      "Only2 rows have exact official ID, full number/name linkage and full-resolution official-image inspection.",
+      "Remaining rows retain explicit incomplete review status."
+    ]
+  }
+}

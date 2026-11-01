@@ -10,7 +10,7 @@
   const metadataRequests = new Map();
   const metadataURLs = {
     pokemon:'/data/collections/sources/pokemon-jp-rarity-metadata.json?v=20261101-rarity-recheck1',
-    'pokemon-en':'/data/collections/sources/pokemon-en-rarity-recheck.json?v=20261101-rarity-recheck1',
+    'pokemon-en':'/data/collections/sources/pokemon-en-rarity-recheck.json?v=20261101-rarity-deep1',
     onepiece:'/data/collections/sources/onepiece-printing-metadata.json?v=20261029-source-rarity-1'
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
@@ -58,8 +58,10 @@
     const input = Array.isArray(cards) ? cards : [];
     if (!payload || !payload.cards || typeof payload.cards !== 'object' || Array.isArray(payload.cards)) return input.slice();
     return input.map(card => {
-      // Existing explicit source metadata always wins; this cannot rewrite it.
-      if (metadata(card).state !== 'unknown') return card;
+      // A verified publisher classification may fill a reviewed blank, never an
+      // existing grade. A missing printed symbol alone is not such evidence.
+      const state = metadata(card).state;
+      if (state !== 'unknown' && state !== SOURCE_UNLISTED) return card;
       if (brand === 'pokemon' || brand === 'pokemon-en') {
         const source = String(card.url || card.sourceUrl || '');
         const entry = Object.prototype.hasOwnProperty.call(payload.cards,source) ? payload.cards[source] : null;
@@ -67,14 +69,22 @@
             !entry || entry.sourceUrl !== source ||
             String(entry.setCode).toUpperCase() !== String(setCode).toUpperCase() ||
             entry.number !== card.number || entry.name !== card.name) return card;
+        const proof = entry.rarityEvidence;
+        const publisherVerified = entry.rarityStatus === 'manufacturer-verified' &&
+          proof?.schemaVersion === 1 && proof.value === entry.rarity && proof.exactEdition === true &&
+          ['manufacturer-exact-product-checklist','manufacturer-indexed-cache-literal'].includes(proof.kind) &&
+          /^https:\/\/(?:assets\.pokemon\.com|www\.pokemon\.com)\//.test(proof.url || '');
+        if (state === SOURCE_UNLISTED && !publisherVerified) return card;
         if (entry.rarityStatus === 'source-unlisted' && !entry.rarity && entry.rarityOriginal === '—') {
           return {...card, raritySourceUnlisted:true, raritySourceUrl:source};
         }
-        if (entry.rarityStatus !== 'source-explicit' || typeof entry.rarity !== 'string' || !entry.rarity.trim()) return card;
-        return {...card, rarity:entry.rarity, rarityOriginal:entry.rarityOriginal, raritySourceUrl:entry.sourceUrl,
+        if ((!publisherVerified && entry.rarityStatus !== 'source-explicit') || typeof entry.rarity !== 'string' || !entry.rarity.trim()) return card;
+        return {...card, rarity:entry.rarity, rarityOriginal:entry.rarityOriginal, raritySourceUrl:publisherVerified ? proof.url : entry.sourceUrl,
+          ...(publisherVerified ? {raritySourceUnlisted:false, rarityEvidence:{...proof}} : {}),
           ...(entry.rarityDisplayLabel ? {rarityDisplayLabel:entry.rarityDisplayLabel} : {})};
       }
       if (brand === 'onepiece') {
+        if (state !== 'unknown') return card;
         // Exact fullId only. A base card never supplies a _p1/_p2 rarity.
         const id = String(card.fullId || '');
         const entry = id && Object.prototype.hasOwnProperty.call(payload.cards,id) ? payload.cards[id] : null;
@@ -132,7 +142,7 @@
   }
 
   async function enrich(cards, {brand, setCode, fetchImpl} = {}) {
-    if (Array.isArray(cards) && !cards.some(card=>metadata(card).state==='unknown')) return cards.slice();
+    if (Array.isArray(cards) && !cards.some(card=>['unknown',SOURCE_UNLISTED].includes(metadata(card).state))) return cards.slice();
     const payload = await ensureMetadata(brand,{fetchImpl});
     const enriched=merge(cards,payload,{brand,setCode});
     if (brand!=='pokemon' && brand!=='pokemon-en') return enriched;
@@ -155,7 +165,8 @@
     return '<details class="ci-rarity-picker"'+(open ? ' open' : '')+'><summary>희귀도 필터 <span>'+(all ? '전체' : keys.length+'개 선택')+'</span></summary>'+
       '<div class="ci-rarity-menu"><div class="ci-rarity-filters" role="group" aria-label="희귀도 복수 선택">'+
       button('', '전체', cards.length, all)+entries.map(item => button(item.key, item.label, item.count, keys.includes(item.key))).join('')+
-      '</div><button type="button" class="ci-rarity-done" data-card-rarity-close>선택 완료</button></div></details>';
+      '</div>'+(entries.some(item=>item.state===SOURCE_UNLISTED) ? '<p class="ci-rarity-note">원문 등급 미표기는 무등급 확정이 아닙니다. 공식 등급이 확인되면 반영합니다.</p>' : '')+
+      '<button type="button" class="ci-rarity-done" data-card-rarity-close>선택 완료</button></div></details>';
   }
 
   function mount(container, {cards, selected = [], onChange} = {}) {

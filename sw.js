@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-rarity-recheck-korean-promos-20261101-v3';
+const CACHE_VERSION = 'tcghub-rarity-deep-korean-promos-20261101-v4';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -108,7 +108,7 @@ self.addEventListener('fetch', event => {
 
   // /data/*.json — stale-while-revalidate
   // Search labels and printing identities form one current catalogue release.
-  if (url.origin === location.origin && (['/data/contained-card-market-links.json', '/data/onepiece-card-overrides.json', '/data/card-catalog-repairs.json', '/data/japanese-catalog.json', '/data/japanese-card-names-ko.json'].includes(url.pathname) || url.pathname.startsWith('/data/cards-by-set/'))) {
+  if (url.origin === location.origin && (['/data/contained-card-market-links.json', '/data/onepiece-card-overrides.json', '/data/card-catalog-repairs.json', '/data/japanese-catalog.json', '/data/japanese-card-names-ko.json', '/data/chinese-sets/CN-30TH.json'].includes(url.pathname) || url.pathname.startsWith('/data/cards-by-set/'))) {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }
@@ -164,7 +164,7 @@ async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     // The shared picker also loads the versioned manufacturer rarity index.
-    const freshRarity = ['/assets/card-rarity-filters.js','/assets/english-catalog.js'].includes(new URL(req.url).pathname);
+    const freshRarity = ['/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/data/chinese-sets/CN-30TH.json'].includes(new URL(req.url).pathname);
     const res = await fetch(req, freshRarity ? {cache:'no-cache'} : undefined);
     if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
     return res;

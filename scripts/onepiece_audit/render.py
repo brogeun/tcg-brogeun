@@ -7,7 +7,7 @@ def read(p):return json.loads(Path(p).read_text(encoding='utf-8'))
 def original(url):
  u=urllib.parse.urlparse(url);return urllib.parse.urlunparse(u._replace(query='',fragment=''))
 def run():
- report=read(ROOT/'data/onepiece-market-link-audit-20261101.json');proofs=[p for p in read(ROOT/'data/onepiece-reviewed-promo-links.json')['links']if p.get('auditRun')=='20261101-recovery'];byid={r['officialId']:r for r in report['cards']};sources={s['officialId']:s for s in read(CACHE/'input.json')['sources']};local=read(ROOT/'config/onepiece-local-artworks.json');out=ROOT/'docs/onepiece-market-links-20261101';out.mkdir(parents=True,exist_ok=True)
+ report=read(ROOT/'data/onepiece-market-link-audit-20261101.json');proofs=[p for p in read(ROOT/'data/onepiece-reviewed-promo-links.json')['links']if p.get('auditRun')=='20261101-recovery'and p.get('method')=='registered-original-image-and-acquisition'];byid={r['officialId']:r for r in report['cards']};sources={s['officialId']:s for s in read(CACHE/'input.json')['sources']};local=read(ROOT/'config/onepiece-local-artworks.json');out=ROOT/'docs/onepiece-market-links-20261101';out.mkdir(parents=True,exist_ok=True)
  def body(url):
   path=CACHE/'images'/(hashlib.sha256(url.encode()).hexdigest()+'.bin')
   if not path.exists():
@@ -36,7 +36,7 @@ def run():
    for j,(label,pics)in enumerate(rows[start:start+per]):
     x=(j%2)*(width//2);y=(j//2)*376;draw.text((x+6,y+6),label,font=font,fill='black')
     for k,pic in enumerate(pics):
-     im=Image.open(io.BytesIO(pic)).convert('RGB');im=ImageOps.contain(im,(230,330));page.paste(im,(x+6+k*240+(230-im.width)//2,y+32+(330-im.height)//2))
+     im=Image.open(io.BytesIO(pic)).convert('RGBA');bbox=im.getchannel('A').point(lambda a:255 if a>192 else 0).getbbox();im=im.crop(bbox)if bbox else im;white=Image.new('RGBA',im.size,'white');white.alpha_composite(im);im=ImageOps.contain(white.convert('RGB'),(230,330));page.paste(im,(x+6+k*240+(230-im.width)//2,y+32+(330-im.height)//2))
    path=out/(prefix+'-%02d.jpg'%(start//per+1));page.save(path,quality=88);paths.append(str(path.relative_to(ROOT)))
   return paths
  rows=[]
@@ -59,6 +59,6 @@ def run():
   product=next(p for p in sources[correct]['candidates']if p['id']==pid);photo=body(original(product['thumbnailUrl']))
   collision.append((b['officialId']+' | '+correct+' | '+pid,[source(b['officialId']),source(correct),photo]))
  collisionpages=sheets(collision,'collision-review',True)
- report['humanReviewSheets']={'snkrArtworks':len(sample),'shopArtworks':len(shop),'blockedOldArtworks':len(collision),'manualCandidateArtworks':len(proposals),'paths':snkrpages+shoppages+collisionpages+manualpages,'status':'awaiting-explicit-visual-review'};(ROOT/'data/onepiece-market-link-audit-20261101.json').write_text(json.dumps(report,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
+ report['humanReviewSheets']={'snkrArtworks':len(sample),'shopArtworks':len(shop),'blockedOldArtworks':len(collision),'manualCandidateArtworks':len(proposals),'paths':snkrpages+shoppages+collisionpages+manualpages,'status':'completed-assistant-visual-review','reviewedBy':'assistant-vision'};(ROOT/'data/onepiece-market-link-audit-20261101.json').write_text(json.dumps(report,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
  print(json.dumps(report['humanReviewSheets']))
 if __name__=='__main__':run()

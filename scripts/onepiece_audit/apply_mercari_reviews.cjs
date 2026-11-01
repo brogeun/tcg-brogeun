@@ -9,7 +9,7 @@ const doc=JSON.parse(fs.readFileSync(proofpath,'utf8'));let saved=0;
 for(const r of read('config/onepiece-mercari-artwork-reviews-20261101.json').reviews){
  const c=source.get(r.officialId),row=rows.find(x=>x.itemId===r.itemId);if(!c||!row)throw Error('Reviewed source/listing missing: '+r.officialId);
  const t=bridge.targetFor(c),key=fallback.targetKey(t);
- if(r.verification!=='human-original-image-review'||r.reviewStatus!=='verified-same-japanese-artwork-and-printed-number'||r.marketName!==row.title||r.marketImage!==row.imageUrl||r.sourceUrl!==row.sourceUrl||
+ if(r.verification!=='visual-original-image-review'||r.reviewStatus!=='verified-same-japanese-artwork-and-printed-number'||r.marketName!==row.title||r.marketImage!==row.imageUrl||r.sourceUrl!==row.sourceUrl||
    ![r.officialImage,r.canonicalOfficialImage].includes(c.image)||r.cardNumber!==t.fullNumber)throw Error('Reviewed metadata changed: '+r.officialId);
  const own=doc.bindings[key]||{};own.mercariItems=[...(own.mercariItems||[]).filter(x=>x.itemId!==r.itemId),r];doc.bindings[key]=own;
  const result=fallback.resolve({...t,snkrdunkStatus:'unlinked'},{mercariReferences:[row],bindings:doc.bindings});

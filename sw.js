@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-onepiece-reviewed-artwork-20261101-v5';
+const CACHE_VERSION = 'tcghub-rarity-crossdb-reviewed-artwork-20261101-v6';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -164,7 +164,7 @@ async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     // The shared picker also loads the versioned manufacturer rarity index.
-    const freshRarity = ['/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/data/chinese-sets/CN-30TH.json'].includes(new URL(req.url).pathname);
+    const freshRarity = ['/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/assets/tcg-card-info.js','/data/chinese-sets/CN-30TH.json','/data/tcg-card-info/weiss_schwarz/32641ea2ce38d16d.json'].includes(new URL(req.url).pathname);
     const res = await fetch(req, freshRarity ? {cache:'no-cache'} : undefined);
     if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
     return res;

@@ -13,16 +13,33 @@
     'pokemon-en':'/data/collections/sources/pokemon-en-rarity-recheck.json?v=20261101-rarity-deep1',
     onepiece:'/data/collections/sources/onepiece-printing-metadata.json?v=20261029-source-rarity-1'
   };
+  const referenceURLs = {
+    pokemon:'/data/collections/sources/pokemon-jp-rarity-crossdb.json?v=20261101-crossdb1',
+    'pokemon-en':'/data/collections/sources/pokemon-en-rarity-crossdb.json?v=20261101-crossdb1'
+  };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
   const empty = /^(?:[-—?]|unknown|unconfirmed|미확인|확인\s*중)$/i;
+  const referenceValue = ref => {
+    const literal=ref.literal.normalize('NFKC').trim().replace(/\s+/g,' ');
+    return ({'Rare Secret':'Secret Rare','Holo Rare':'Rare Holo'})[literal] || literal;
+  };
 
   function metadata(card) {
     if (card?.rarityNotApplicable === true) return {key:NOT_APPLICABLE, label:'해당 없음', state:'not-applicable'};
     // Never read a title, price, card number, parallel suffix or grading grade.
     const original = typeof card?.rarity === 'string' ? card.rarity.normalize('NFKC').trim().replace(/\s+/g, ' ') : '';
-    if (!original || empty.test(original)) return card?.raritySourceUnlisted === true ?
-      {key:SOURCE_UNLISTED, label:'원문 등급 미표기', state:'source-unlisted'} :
-      {key:UNKNOWN, label:'미확인', state:'unknown'};
+    if (!original || empty.test(original)) {
+      if (typeof card?.rarityReferenceValue==='string' && card.rarityReferenceValue.trim()) {
+        const value=card.rarityReferenceValue.normalize('NFKC').trim();
+        return {key:'reference:'+value.toUpperCase(),label:value+' · 참고',state:'reference-grade'};
+      }
+      if (card?.rarityReferenceConflict === true) return {key:'reference-conflict',label:'자료 간 등급 차이',state:'reference-conflict'};
+      if (card?.rarityDisclosureStatus === 'verified-unprinted-rarity') return {key:'documented-unprinted',label:'희귀도 표기 없음',state:'documented-unprinted'};
+      if (card?.rarityReferenceUnlisted === true) return {key:'reference-unlisted',label:'미표기 분류 · 외부 DB',state:'reference-unlisted'};
+      return card?.raritySourceUnlisted === true ?
+        {key:SOURCE_UNLISTED, label:'원문 등급 미표기', state:'source-unlisted'} :
+        {key:UNKNOWN, label:'미확인', state:'unknown'};
+    }
     // These are literal manufacturer catalogue categories, not invented grades.
     const label = (typeof card.rarityDisplayLabel === 'string' && card.rarityDisplayLabel.trim()) ||
       (original==='NATSU' ? '복각 카드 (NATSU)' : original==='ENE' ? '기본 에너지 (ENE)' : original);
@@ -37,7 +54,7 @@
       else grouped.set(item.key, {...item, count:1});
     }
     return [...grouped.values()].sort((a,b) => {
-      const order = item => ({known:0,'source-unlisted':1,unknown:2,'not-applicable':3})[item.state];
+      const order = item => ({known:0,'reference-grade':1,'documented-unprinted':2,'reference-unlisted':3,'reference-conflict':4,'source-unlisted':5,unknown:6,'not-applicable':7})[item.state];
       return order(a)-order(b) || a.label.localeCompare(b.label, 'en', {numeric:true});
     });
   }
@@ -74,6 +91,25 @@
           proof?.schemaVersion === 1 && proof.value === entry.rarity && proof.exactEdition === true &&
           ['manufacturer-exact-product-checklist','manufacturer-indexed-cache-literal'].includes(proof.kind) &&
           /^https:\/\/(?:assets\.pokemon\.com|www\.pokemon\.com)\//.test(proof.url || '');
+        const references = Array.isArray(proof?.references) ? proof.references : [];
+        const external = proof?.schemaVersion === 1 && ['external-explicit','external-candidate'].includes(proof.kind) && proof.exactCardIdentity === true &&
+          references.length > 0 && references.every(ref=>typeof ref.provider==='string' && typeof ref.literal==='string' &&
+            ref.literal.trim() && /^https:\/\//.test(ref.url || ''));
+        if (external && proof.kind==='external-candidate' && entry.rarityStatus==='reference-candidate' && !entry.rarity) {
+          return {...card,rarityEvidence:proof};
+        }
+        if (external && entry.rarityStatus === 'reference-unlisted' && !entry.rarity && proof.value === 'None' &&
+            references.every(ref=>ref.literal==='None')) {
+          return {...card,rarityOriginal:entry.rarityOriginal,raritySourceUnlisted:true,rarityReferenceUnlisted:true,
+            rarityReferenceDisagreement:Array.isArray(proof.otherReferences)&&proof.otherReferences.length>0,rarityEvidence:proof};
+        }
+        if (external && entry.rarityStatus === 'reference-conflict' && !entry.rarity && new Set(references.map(referenceValue)).size > 1) {
+          return {...card,rarityOriginal:entry.rarityOriginal,raritySourceUnlisted:true,rarityReferenceConflict:true,rarityEvidence:proof};
+        }
+        const referenceGrade = external && entry.rarityStatus === 'reference-explicit' && proof.value === entry.rarity &&
+          proof.value !== 'None' && references.every(ref=>referenceValue(ref)===entry.rarity);
+        if (referenceGrade) return {...card,rarityOriginal:entry.rarityOriginal,rarityReferenceValue:entry.rarity,
+          rarityReferenceDisagreement:Array.isArray(proof.otherReferences)&&proof.otherReferences.length>0,rarityEvidence:proof};
         if (state === SOURCE_UNLISTED && !publisherVerified) return card;
         if (entry.rarityStatus === 'source-unlisted' && !entry.rarity && entry.rarityOriginal === '—') {
           return {...card, raritySourceUnlisted:true, raritySourceUrl:source};
@@ -147,7 +183,33 @@
     const enriched=merge(cards,payload,{brand,setCode});
     if (brand!=='pokemon' && brand!=='pokemon-en') return enriched;
     const setPayload=await ensureSetMetadata(payload,setCode,{fetchImpl});
-    return merge(enriched,setPayload,{brand,setCode});
+    const primary=merge(enriched,setPayload,{brand,setCode});
+    if (!primary.some(card=>['unknown',SOURCE_UNLISTED].includes(metadata(card).state))) return primary;
+    const referenceURL=referenceURLs[brand];
+    const index=referenceURL && await requestMetadata(referenceURL,'crossdb:'+brand,{fetchImpl});
+    const reviewed=await ensureSetMetadata(index,setCode,{fetchImpl});
+    return merge(primary,reviewed,{brand,setCode});
+  }
+
+  function evidenceHtml(card) {
+    const proof=card?.rarityEvidence,refs=proof?.kind?.startsWith('external-') ? proof.references : card?.rarityDisclosureEvidence?.references;
+    if (!Array.isArray(refs) || !refs.length) return '';
+    const links=[...refs,...(proof?.otherReferences||[])].filter(ref=>/^https:\/\//.test(ref.url || '')).map(ref=>'<a href="'+esc(ref.url)+'" target="_blank" rel="noopener noreferrer">'+esc(ref.provider)+': '+esc(ref.literal)+'</a>');
+    if (!links.length) return '';
+    return '<p class="ci-rarity-evidence">'+(card.rarityDisclosureStatus==='verified-unprinted-rarity' ? '해당 상품의 희귀도 미표기 근거' : proof?.kind==='external-candidate' ? '외부 DB의 단일 후보 · 등급 적용 보류' : '외부 DB 분류 · 제조사 확정과 구분')+'<br>'+links.join(' · ')+
+      (proof?.kind==='external-explicit' ? proof.identityMethod==='named-world-championship-deck' ? '<br>같은 연도·선수·덱에서 이름이 유일하게 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호로 취급하지 않습니다. 실물 판본은 별도 확인이 필요합니다.' : '<br>동일 언어·세트·카드 번호 기준의 분류입니다. 세부 인쇄 판본 확인 여부는 별도입니다.' : '')+
+      (card.rarityReferenceDisagreement ? '<br>자료별 값이 달라 동일 상품 TCGplayer 분류를 참고값으로 우선 표시합니다.' : '')+'</p>';
+  }
+
+  function referenceLinksHtml(cards, selected) {
+    const links=[];
+    for (const card of filter(cards,selected)) {
+      const refs=card.rarityEvidence?.kind?.startsWith('external-') ? card.rarityEvidence.references : card.rarityDisclosureEvidence?.references;
+      for (const ref of [...(Array.isArray(refs) ? refs : []),...(card.rarityEvidence?.otherReferences||[])]) if (/^https:\/\//.test(ref.url || '')) {
+        links.push('<li><a href="'+esc(ref.url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(card.name)+'">'+esc(card.number || card.fullCardNumber)+' · '+esc(ref.provider)+' · '+esc(ref.literal)+'</a></li>');
+      }
+    }
+    return links.length ? '<details class="ci-rarity-sources"><summary>카드 번호별 대조 출처</summary><ul>'+links.join('')+'</ul></details>' : '';
   }
 
   function page(cards, {selected = [], predicate = () => true, page = 1, pageSize = 18} = {}) {
@@ -166,6 +228,9 @@
       '<div class="ci-rarity-menu"><div class="ci-rarity-filters" role="group" aria-label="희귀도 복수 선택">'+
       button('', '전체', cards.length, all)+entries.map(item => button(item.key, item.label, item.count, keys.includes(item.key))).join('')+
       '</div>'+(entries.some(item=>item.state===SOURCE_UNLISTED) ? '<p class="ci-rarity-note">원문 등급 미표기는 무등급 확정이 아닙니다. 공식 등급이 확인되면 반영합니다.</p>' : '')+
+      (cards.some(card=>card.rarityEvidence?.kind==='external-explicit') ? '<p class="ci-rarity-note">외부 DB 분류를 포함합니다. ‘미표기 분류’는 DB의 명시값 None이며 제조사 무등급 확정과 다릅니다.</p>' : '')+
+      (cards.some(card=>card.rarityReferenceDisagreement) ? '<p class="ci-rarity-note">자료에 등급 차이가 있습니다. ‘참고’ 항목은 동일 상품 TCGplayer 분류를 우선 표시하며, 다른 자료의 값도 출처 목록에 보존합니다.</p>' : '')+
+      referenceLinksHtml(cards,keys)+
       '<button type="button" class="ci-rarity-done" data-card-rarity-close>선택 완료</button></div></details>';
   }
 
@@ -196,5 +261,5 @@
     };
   }
 
-  return Object.freeze({metadata, options, selection, filter, merge, ensureMetadata, ensureSetMetadata, enrich, page, controlsHtml, mount});
+  return Object.freeze({metadata, options, selection, filter, merge, ensureMetadata, ensureSetMetadata, enrich, evidenceHtml, page, controlsHtml, mount});
 });

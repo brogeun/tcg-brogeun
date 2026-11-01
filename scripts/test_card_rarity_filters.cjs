@@ -157,6 +157,57 @@ test('publisher evidence fills a reviewed blank only for its exact edition and c
   assert.match(R.controlsHtml([card],[]),/무등급 확정이 아닙니다/);
 });
 
+test('external explicit grades, explicit None and conflicting references remain distinct and preserve quote identities',()=>{
+  const card={url:'https://www.tcgcollector.com/cards/2/external',name:'Test',number:'1/39',image:'original.jpg',raritySourceUnlisted:true,psa10:{sourcePriceCents:1234}};
+  const ref=literal=>({provider:'TCGdex',url:'https://github.com/tcgdex/cards-database/blob/review/card.ts',literal});
+  const entry=(status,value,refs)=>({sourceUrl:card.url,setCode:'KSS',name:card.name,number:card.number,rarity:value,rarityOriginal:'—',rarityStatus:status,
+    rarityEvidence:{schemaVersion:1,kind:'external-explicit',exactCardIdentity:true,value:value||'None',references:refs}});
+  const payload=e=>({schemaVersion:1,brand:'pokemon',language:'en',cards:{[card.url]:e}});
+  const merge=e=>R.merge([card],payload(e),{brand:'pokemon-en',setCode:'KSS'})[0];
+  const common=merge(entry('reference-explicit','Common',[ref('Common')]));assert.equal(common.rarity,undefined);assert.equal(common.rarityReferenceValue,'Common');assert.equal(R.metadata(common).state,'reference-grade');assert.equal(common.image,card.image);assert.equal(common.psa10,card.psa10);assert.equal(common.rarityOriginal,'—');
+  const none=merge(entry('reference-unlisted','',[ref('None')]));assert.equal(none.rarity,undefined);assert.equal(R.metadata(none).state,'reference-unlisted');assert(!none.rarityNotApplicable);
+  const conflict=merge(entry('reference-conflict','',[ref('None'),{...ref('Common'),provider:'TCGplayer'}]));assert.equal(conflict.rarity,undefined);assert.equal(R.metadata(conflict).state,'reference-conflict');
+  const invalid=entry('reference-unlisted','',[ref('')]);assert.equal(R.metadata(merge(invalid)).state,'source-unlisted','a missing value is never an explicit None');
+  const other=entry('reference-explicit','Common',[ref('Common')]);other.number='2/39';assert.equal(merge(other).rarity,undefined);
+  assert.equal(R.merge([{...card,rarity:'Rare'}],payload(entry('reference-explicit','Common',[ref('Common')])),{brand:'pokemon-en',setCode:'KSS'})[0].rarity,'Rare');
+  const html=R.controlsHtml([none,conflict,common],[]);assert.match(html,/미표기 분류/);assert.match(html,/자료 간 등급 차이/);assert.match(html,/카드 번호별 대조 출처/);
+  assert.match(R.evidenceHtml(common),/외부 DB 분류/);assert.match(R.evidenceHtml(common),/Common/);
+});
+
+test('documented no-printed-rarity is different from source blanks and a manufacturer no-grade conclusion',()=>{
+  const card={rarity:'',raritySourceUnlisted:true,rarityDisclosureStatus:'verified-unprinted-rarity',rarityDisclosureEvidence:{references:[{provider:'wiki',url:'https://w.atwiki.jp/ws_wiki/pages/10897.html',literal:'no printed rarity'}]}};
+  assert.equal(R.metadata(card).state,'documented-unprinted');assert(!card.rarityNotApplicable);assert.match(R.evidenceHtml(card),/희귀도 미표기 근거/);
+  assert.equal(R.metadata({...card,rarity:'PR'}).state,'known','an explicit grade takes precedence');
+});
+
+test('every published external reference matches the current card and preserves its original rarity, image and price fields',()=>{
+  const fs=require('node:fs'),path=require('node:path'),base=path.join(__dirname,'..');
+  const read=f=>JSON.parse(fs.readFileSync(path.join(base,f)));
+  const jpSets=new Map(read('data/japanese-catalog.json').sets.filter(s=>s.brand==='pokemon').map(s=>[s.code.toUpperCase(),s]));
+  let checked=0,grades=0;
+  for(const [locale,brand,folder] of [['jp','pokemon','cards-by-set'],['en','pokemon-en','english-sets']]){
+    const index=read('data/collections/sources/pokemon-'+locale+'-rarity-crossdb.json');
+    for(const [code,url] of Object.entries(index.setShards)){
+      const member=read(url.slice(1).split('?')[0]).sets[code];
+      const sourceCode=locale==='jp' ? jpSets.get(code).fileCode||jpSets.get(code).code : code;
+      const sourceFile='data/'+folder+'/'+sourceCode+'.json';
+      const cards=read(sourceFile).cards;
+      for(const [source,entry] of Object.entries(member.cards)){
+        const matches=cards.filter(c=>(c.url||c.sourceUrl)===source);assert.equal(matches.length,1,source);const card=matches[0],before=JSON.stringify(card);
+        assert.equal(entry.name,card.name);assert.equal(entry.number,card.number);
+        const payload={...member,cards:{[source]:{...entry,sourceUrl:source,setCode:code}}};
+        const result=R.merge([{...card,raritySourceUnlisted:true}],payload,{brand,setCode:code})[0];
+        assert.equal(result.rarity,card.rarity,'reference grades never rewrite the original field');assert.equal(JSON.stringify(card),before);
+        for(const key of Object.keys(card).filter(k=>!['rarityOriginal','rarityEvidence','raritySourceUnlisted'].includes(k)))assert.deepEqual(result[key],card[key],key);
+        const expected={'reference-explicit':'reference-grade','reference-unlisted':'reference-unlisted','reference-conflict':'reference-conflict','reference-candidate':'source-unlisted'}[entry.rarityStatus];
+        assert.equal(R.metadata(result).state,expected,source);
+        checked++;if(expected==='reference-grade')grades++;
+      }
+    }
+  }
+  assert(checked>2000);assert(grades>700);
+});
+
 test('deep review keeps upstream blanks and exact identities while restoring only supported publisher classifications',()=>{
   const fs=require('node:fs'),path=require('node:path'),base=path.join(__dirname,'..');
   const read=f=>JSON.parse(fs.readFileSync(path.join(base,f)));

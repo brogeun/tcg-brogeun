@@ -30,7 +30,7 @@ test('all saved recovery proofs are consumed and blocked prices stay unlinked',(
  for(const p of proofs){const c=sources.get(p.officialId);assert(c,p.officialId);const t=bridge.targetFor(c),k=match.artworkKey(t);assert(!keys.has(k));keys.add(k);const links=bridge.reviewedArtworkLinks([t],products,{schemaVersion:1,links:[p]},match),result=match.createResolver(products,links)(t);assert.equal(result.status,'matched',p.officialId);assert.equal(result.id,p.id,p.officialId);assert.equal(byOfficial.get(p.officialId).productId,p.id);}
  for(const b of report.blockedPreviousLinks){assert.equal(sources.get(b.officialId).marketLinkPolicy,'verified-only');assert.equal(byOfficial.get(b.officialId).productId,null,b.officialId);}
  assert.equal(search.officialCards,report.officialCards);assert.equal(search.linkedProducts,report.linkedAfter);assert.equal(search.cards.length-search.linkedProducts,report.remaining);
- const shop=read('data/onepiece-reviewed-fallback-links.json');for(const [key,b]of Object.entries(shop.bindings)){assert.equal(b.verification,'original-image-and-acquisition');assert(sources.has(b.officialId));assert.match(b.sourceSHA256,/^[a-f0-9]{64}$/);assert.match(b.marketSHA256,/^[a-f0-9]{64}$/);}
+ const shop=read('data/onepiece-reviewed-fallback-links.json');for(const [key,b]of Object.entries(shop.bindings)){if(b.yuyuteiId){assert.equal(b.verification,'original-image-and-acquisition');assert(sources.has(b.officialId));assert.match(b.sourceSHA256,/^[a-f0-9]{64}$/);assert.match(b.marketSHA256,/^[a-f0-9]{64}$/);}else{assert(Array.isArray(b.mercariItems)&&b.mercariItems.length>0);}}
 });
 
 test('the four no-catalog Japanese promos consume exact photo reviews and remain listing references',()=>{

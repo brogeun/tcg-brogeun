@@ -28,7 +28,7 @@ def merge_references(previous,fresh):
  result['references']=list(rows.values());result['updatedAt']=fresh['updatedAt'];coverage={**previous.get('coverage',{}),**fresh.get('coverage',{})}
  coverage.update({'mode':'bounded_public_discovery','discovery':'public_search_html_and_retained_urls','trackedCount':len(rows),'fetchedThisRun':fresh.get('coverage',{}).get('fetchedCount',0),'verifiedQuoteCount':len(result.get('verifiedQuotes',[])),'notes':['Original public URLs only; full-game coverage and exact printing identity are not inferred.','Untouched prior observations retain their original observation and attempt times.']})
  result['coverage']=coverage;return result
-def prepare(root=ROOT,fetch=None,renderer=None):
+def prepare(root=ROOT,fetch=None):
  reportpath=root/'data/onepiece-mercari-discovery.json';previous=read(reportpath)if reportpath.exists()else{}
  watch=read(root/'data/mercari-reference-watchlist.json');prior_doc=read(root/'data/mercari-references.json');prior=prior_doc.get('references',[])
  saved=prior_doc.get('coverage',{}).get('onepieceDiscovery',{})
@@ -61,7 +61,6 @@ def prepare(root=ROOT,fetch=None,renderer=None):
    capture='public-html'
    if not ids:
     ids=list(dict.fromkeys(re.findall(r'(?<![a-zA-Z0-9])(m\d{11})(?![a-zA-Z0-9])',decoded)))[:3]
-   if not ids and renderer:ids=renderer(url);capture='visible-rendered-dom'
    checks.append({'officialId':c['officialId'],'printedNumber':n,'query':query,'sourceUrl':url,'checkedAt':stamp(),'publicItemIds':ids,'status':'observed-public-source','captureKind':capture,'visibleItemsFound':bool(ids),'htmlBytes':len(text.encode('utf-8'))})
    for item in ids:
     if item not in known and all(r['itemId']!=item for r in new):new.append({'itemId':item,'sourceUrl':'https://jp.mercari.com/item/'+item,'game':'onepiece','enabled':True})
@@ -79,10 +78,6 @@ def merge(root=ROOT):
  discovery=read(root/'data/onepiece-mercari-discovery.json');result['coverage']['onepieceDiscovery']={k:discovery[k]for k in ['generatedAt','nextOffset','queryCount','newPublicItems','status','blocked']}
  write(root/'data/mercari-references.json',result);print(json.dumps({'trackedCount':len(result['references']),'fetchedThisRun':result['coverage']['fetchedThisRun']}))
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--merge',action='store_true');p.add_argument('--render',action='store_true');args=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--merge',action='store_true');args=p.parse_args()
  if args.merge:merge()
- elif args.render:
-  from browser_discovery import PublicSearchBrowser
-  with PublicSearchBrowser()as browser:
-   if prepare(renderer=browser.links).get('blocked'):raise SystemExit(3)
  elif prepare().get('blocked'):raise SystemExit(3)

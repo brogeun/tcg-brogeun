@@ -220,16 +220,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install standard public search browser
-        run: |
-          python -m pip install "playwright==1.64.1"
-          python -m playwright install --with-deps chromium
       - name: Refresh the bounded Mercari watchlist
         id: collect
         continue-on-error: true
         timeout-minutes: 10
         run: |
-          python scripts/onepiece_audit/discover_mercari.py --render
+          python scripts/onepiece_audit/discover_mercari.py
           python scripts/collect_mercari_references.py --watchlist .cache/onepiece-mercari-watchlist.json --output .cache/onepiece-mercari-fresh.json --max-items 20 --timeout 20
           python scripts/onepiece_audit/discover_mercari.py --merge
       - name: Record true Mercari refresh outcome

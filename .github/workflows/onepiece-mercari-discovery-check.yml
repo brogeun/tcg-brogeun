@@ -44,14 +44,10 @@ jobs:
             git commit -m "Record original Mercari promo observations for artwork review"
             git push origin HEAD:refs/heads/onepiece/mercari-discovery-20261101
           fi
-      - name: Install standard public browser
-        run: |
-          python -m pip install "playwright==1.64.1"
-          python -m playwright install --with-deps chromium
       - name: Discover only original public listing links
         id: discovery
         continue-on-error: true
-        run: python scripts/onepiece_audit/discover_mercari.py --render
+        run: python scripts/onepiece_audit/discover_mercari.py
       - name: Observe discovered listing metadata without assigning canonical prices
         if: steps.discovery.outcome == 'success'
         run: |

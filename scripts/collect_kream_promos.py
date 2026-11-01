@@ -1,0 +1,212 @@
+"""Collect the public rendered KREAM trade drawer without private APIs or sessions.
+
+Every product must reach its bottom and retain all previous trade multiplicities.
+Any access, login, parsing or completeness failure preserves all successful data.
+"""
+from __future__ import annotations
+import argparse
+from collections import Counter
+from datetime import datetime, timedelta
+import hashlib
+import json
+from pathlib import Path
+import re
+import sys
+from zoneinfo import ZoneInfo
+
+IDS = ('1096144', '893073', '998016', '998022', '937106', '934334', '508949')
+KST = ZoneInfo('Asia/Seoul')
+
+def encoded(data):
+    return (json.dumps(data, ensure_ascii=False, separators=(',', ':')) + '\n').encode()
+
+def signature(row):
+    return (row['date'], row['option'], row['price_krw'], bool(row['express_shipping']))
+
+def unpack_history(data):
+    if data.get('rowEncoding') != 'indexed-v1':
+        return data
+    result={k:v for k,v in data.items() if k not in ('rowEncoding','dates','options','dateLabels')}
+    result['rows']=[{'date':data['dates'][r[0]],'option':data['options'][r[1]],'price_krw':r[2],
+        'express_shipping':bool(r[3]),'date_raw':data['dateLabels'][r[4]],'date_from_relative_label':bool(r[5]),
+        'date_precision':'day','source_rank':i,'product_id':data['id'],'source_url':data['source_url']}
+        for i,r in enumerate(data['rows'])]
+    return result
+
+def pack_history(data):
+    data=unpack_history(data)
+    dates=list(dict.fromkeys(r['date'] for r in data['rows']))
+    options=list(dict.fromkeys(r['option'] for r in data['rows']))
+    labels=list(dict.fromkeys(r['date_raw'] for r in data['rows']))
+    di={v:i for i,v in enumerate(dates)};oi={v:i for i,v in enumerate(options)};li={v:i for i,v in enumerate(labels)}
+    result=dict(data)
+    result.update(rowEncoding='indexed-v1',dates=dates,options=options,dateLabels=labels,
+        rows=[[di[r['date']],oi[r['option']],r['price_krw'],int(r['express_shipping']),li[r['date_raw']],int(r.get('date_from_relative_label',False))] for r in data['rows']])
+    return result
+
+def parse_row(raw, anchor):
+    date_raw = raw['date_raw']
+    match = re.search(r'(\d{2})/(\d{2})/(\d{2})', date_raw)
+    relative = not bool(match)
+    if match:
+        day = datetime.strptime(match.group(), '%y/%m/%d').date()
+    elif '어제' in date_raw:
+        day = (anchor - timedelta(days=1)).date()
+    elif '오늘' in date_raw or '방금' in date_raw:
+        day = anchor.date()
+    else:
+        match = re.search(r'(\d+)\s*(초|분|시간|일)\s*전', date_raw)
+        if not match:
+            raise ValueError('Unknown source date label')
+        number, unit = int(match[1]), match[2]
+        delta = timedelta(**{{'초':'seconds', '분':'minutes', '시간':'hours', '일':'days'}[unit]: number})
+        day = (anchor-delta).date()
+    price = int(re.sub(r'[^\d]', '', raw['price']))
+    if price <= 0 or not raw['option'] or day > anchor.date():
+        raise ValueError('Invalid source row')
+    return {'date': day.isoformat(), 'date_raw': date_raw,
+            'date_precision':'day', 'date_from_relative_label':relative,
+            'option':raw['option'].strip(), 'price_krw':price,
+            'express_shipping':bool(raw['express_shipping'])}
+
+def validate_history(data, ident):
+    data=unpack_history(data)
+    if data.get('schemaVersion') != 1 or data.get('id') != ident or data.get('complete') is not True:
+        raise ValueError('Wrong product or incomplete history')
+    rows = data['rows']
+    if not rows or len(rows) != data['collected_count']:
+        raise ValueError('Trade count mismatch')
+    previous = '9999'
+    for row in rows:
+        datetime.strptime(row['date'], '%Y-%m-%d')
+        if row['date'] > previous or type(row['price_krw']) is not int or row['price_krw'] <= 0 or not row['option']:
+            raise ValueError('Unsorted or invalid trade')
+        previous = row['date']
+    if dict(Counter(r['option'] for r in rows)) != data['counts_by_exact_option']:
+        raise ValueError('Option counts mismatch')
+    return data
+
+def validate_bundle(root):
+    manifest = json.loads((root/'data/korean-promos.json').read_bytes())
+    if manifest.get('schemaVersion') != 1 or tuple(c['id'] for c in manifest['cards']) != IDS:
+        raise ValueError('Wrong Korean promo selection or order')
+    total = 0
+    for card in manifest['cards']:
+        ident = card['id']
+        if card['file'] != '/data/korean-promos/'+ident+'.json':
+            raise ValueError('Unsafe trade path')
+        raw = (root/card['file'].lstrip('/')).read_bytes()
+        data = validate_history(json.loads(raw), ident)
+        if hashlib.sha256(raw).hexdigest()[:16] != card['version'] or card['collected_count'] != len(data['rows']) or card['counts_by_exact_option'] != data['counts_by_exact_option']:
+            raise ValueError('Catalogue and history generation differ')
+        total += len(data['rows'])
+    if total != manifest['collected_trade_count']:
+        raise ValueError('Combined count mismatch')
+    return manifest
+
+def validate_new_rows(old, rows):
+    # Repeated identical-looking transactions are a multiset, never a set.
+    # A truncated drawer or filtered option must never replace a full snapshot.
+    missing = Counter(signature(r) for r in old['rows']) - Counter(signature(r) for r in rows)
+    if missing:
+        raise ValueError('Source snapshot is incomplete or historical trades changed; preserved prior data')
+    if any(a['date'] < b['date'] for a,b in zip(rows, rows[1:])):
+        raise ValueError('Source trade order is not newest first')
+
+def collect(page, card, old):
+    anchor = datetime.now(KST)
+    response = page.goto(card['source_url'], wait_until='domcontentloaded', timeout=45000)
+    if response and response.status >= 400:
+        raise RuntimeError('KREAM page HTTP '+str(response.status))
+    if not re.search(r'/products/'+card['id']+r'(?:[/?#]|$)', page.url):
+        raise RuntimeError('KREAM redirected away from product')
+    more = page.get_by_text(re.compile(r'(?:체결|거래)\s*내역\s*더보기')).first
+    more.wait_for(state='visible', timeout=20000)
+    more.click()
+    rows_locator = page.locator('.drawer .tab_content.show .price_body .body_list')
+    rows_locator.first.wait_for(state='visible', timeout=15000)
+    count_before, stable = 0, 0
+    for _ in range(650):
+        count = rows_locator.count()
+        if count == count_before:
+            stable += 1
+        else:
+            stable = 0
+        count_before = count
+        bottom = rows_locator.last.evaluate('''el => {
+          for(let p=el.parentElement;p;p=p.parentElement){
+            if(p.scrollHeight>p.clientHeight+20 && ['auto','scroll'].includes(getComputedStyle(p).overflowY)){
+              p.scrollTop=p.scrollHeight;return {atBottom:p.scrollTop+p.clientHeight>=p.scrollHeight-2};
+            }
+          } return {atBottom:false};
+        }''')
+        if stable >= 4 and bottom['atBottom']:
+            break
+        page.wait_for_timeout(1000 if stable == 0 else 1800)
+    else:
+        raise ValueError('Drawer did not reach its end')
+    raw = rows_locator.evaluate_all('''nodes => nodes.map(r=>({
+      option:r.children[0]?.textContent.trim()||'',
+      price:r.children[1]?.textContent.trim()||'',
+      date_raw:r.children[2]?.textContent.trim()||'',
+      express_shipping:r.textContent.includes('빠른배송')
+    }))''')
+    rows = [parse_row(r, anchor) for r in raw]
+    validate_new_rows(old, rows)
+    for i,row in enumerate(rows):
+        row.update(source_rank=i, product_id=card['id'], source_url=card['source_url'])
+    data = dict(old)
+    data.update(rows=rows, collected_count=len(rows), counts_by_exact_option=dict(Counter(r['option'] for r in rows)),
+                earliest_date=rows[-1]['date'], latest_date=rows[0]['date'],
+                snapshot_started_at=anchor.isoformat(), last_observed_at=datetime.now(KST).isoformat(),
+                target_count=len(rows), complete=True)
+    return validate_history(data, card['id'])
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--root',type=Path,default=Path(__file__).resolve().parents[1])
+    parser.add_argument('--validate-only',action='store_true')
+    args=parser.parse_args();root=args.root.resolve()
+    manifest=validate_bundle(root)
+    if args.validate_only:
+        print(json.dumps({'cards':7,'trades':manifest['collected_trade_count'],'valid':True}));return 0
+    attempted=datetime.now(KST).isoformat()
+    health={'schemaVersion':1,'status':'failed','last_attempt_at':attempted,'last_success_at':manifest['last_success_at']}
+    staged={}
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as pw:
+            browser=pw.chromium.launch(headless=True)
+            context=browser.new_context(locale='ko-KR',timezone_id='Asia/Seoul',viewport={'width':1440,'height':1080})
+            page=context.new_page()
+            for card in manifest['cards']:
+                old=unpack_history(json.loads((root/card['file'].lstrip('/')).read_bytes()))
+                data=collect(page,card,old);staged[card['id']]=data
+                print(json.dumps({'product_id':card['id'],'rows':len(data['rows']),'complete':True}),flush=True)
+            browser.close()
+        # Only commit a generation after all seven source crawls passed.
+        for card in manifest['cards']:
+            data=staged[card['id']];raw=encoded(pack_history(data))
+            (root/card['file'].lstrip('/')).write_bytes(raw)
+            for key in ('collected_count','counts_by_exact_option','last_observed_at','snapshot_started_at','earliest_date','latest_date'):
+                card[key]=data[key]
+            card['version']=hashlib.sha256(raw).hexdigest()[:16]
+            card['latest_price_by_option']={}
+            for row in data['rows']:
+                card['latest_price_by_option'].setdefault(row['option'],{'date':row['date'],'price_krw':row['price_krw']})
+        success=datetime.now(KST).isoformat()
+        manifest.update(last_success_at=success,collected_trade_count=sum(c['collected_count'] for c in manifest['cards']))
+        manifest['refresh'].update(status='success',last_attempt_at=attempted)
+        (root/'data/korean-promos.json').write_bytes(encoded(manifest))
+        validate_bundle(root)
+        health.update(status='success',last_success_at=success,trades=manifest['collected_trade_count'])
+        return 0
+    except Exception as error:
+        health['reason']=str(error).splitlines()[0][:350]
+        print('::warning::KREAM refresh failed; preserved all previous trades: '+health['reason'],file=sys.stderr)
+        return 2
+    finally:
+        (root/'data/korean-promos-health.json').write_bytes(encoded(health))
+
+if __name__=='__main__':
+    raise SystemExit(main())

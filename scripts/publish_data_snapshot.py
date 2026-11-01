@@ -31,6 +31,10 @@ DAILY_NEW_FILES = {'data/update-health.json', 'data/all-cards.json', 'data/cards
     'data/cards-by-set/M6a.json', 'data/cards-by-set/MF.json'}
 REFERENCE_SEARCH_FILES = {'data/all-cards.json', 'data/cards-meta.json', 'data/cards-prices.json'}
 CARD_INFO_MANIFEST = 'data/tcg-card-info.json'
+KOREAN_PROMO_MANIFEST = 'data/korean-promos.json'
+KOREAN_PROMO_FILES = {KOREAN_PROMO_MANIFEST, 'data/korean-promos-health.json'} | {
+    f'data/korean-promos/{ident}.json' for ident in
+    ('1096144', '893073', '998016', '998022', '937106', '934334', '508949')}
 CARD_INFO_GAMES = ('nikke', 'weiss_schwarz', 'union_arena', 'dragon_ball_fusion_world', 'yugioh', 'digimon')
 REFERENCE_FILES = {'data/us-market.json', 'data/yuyutei-market.json',
                    'data/mercari-references.json', 'data/snkrdunk-games.json',
@@ -157,6 +161,8 @@ def reject_non_json_constant(value):
 
 
 def daily_path(name):
+    if name in KOREAN_PROMO_FILES:
+        return False  # Published as one validated KREAM generation.
     if card_info_path(name):
         return False  # The dedicated catalog publisher protects the complete group.
     if name in ALLOWED or name in ('data/secrets.json', 'data/credentials.json'):
@@ -243,6 +249,14 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
     if sum(bool(value) for value in (daily, references, official)) > 1:
         raise PublicationError('Choose exactly one publication mode')
     catalog_only = not daily and not references and not official and list(files) == [CARD_INFO_MANIFEST]
+    korean_only = not daily and not references and not official and list(files) == [KOREAN_PROMO_MANIFEST]
+    if korean_only:
+        try:
+            from scripts.collect_kream_promos import validate_bundle
+        except ModuleNotFoundError:
+            from collect_kream_promos import validate_bundle
+        validate_bundle(root)
+        files = sorted(KOREAN_PROMO_FILES)
     if catalog_only:
         files = sorted(card_info_files(root))
     if daily and set(files) != set(daily_files(root, base)):
@@ -251,7 +265,7 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         raise PublicationError('Reference output selection changed before publication')
     if official and set(files) != set(official_release_files(root, base)):
         raise PublicationError('Official output selection changed before publication')
-    if not daily and not references and not official and not catalog_only and (len(files) != len(set(files))
+    if not daily and not references and not official and not catalog_only and not korean_only and (len(files) != len(set(files))
             or set(files) not in (ALLOWED - {'data/chinese-market.json'}, {'data/chinese-market.json'})):
         raise PublicationError('Publish the complete four-file verified index set or the single Chinese market snapshot')
     if (daily or references or official) and not files:

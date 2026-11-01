@@ -1,0 +1,53 @@
+name: KREAM Korean Promos Daily
+
+on:
+  schedule:
+    - cron: '10 21 * * *' # 06:10 Asia/Seoul
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/collect_kream_promos.py'
+      - '.github/workflows/kream-promos-daily.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kream-korean-promos
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Record collection source
+        run: echo "KREAM_BASE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Validate original full histories and duplicate preservation
+        run: |
+          python -m unittest scripts.test_kream_promos
+          python scripts/collect_kream_promos.py --validate-only
+      - name: Install rendered-page collector
+        run: |
+          python -m pip install 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Collect all seven KREAM trade histories
+        id: collect
+        continue-on-error: true
+        run: python scripts/collect_kream_promos.py
+      - name: Publish validated generation or failure health while retaining prior trades
+        run: python scripts/publish_data_snapshot.py --files data/korean-promos.json --base "$KREAM_BASE" --message 'Refresh Korean promo KREAM trade histories'
+      - name: Report source access failure
+        if: steps.collect.outcome == 'failure'
+        run: |
+          echo 'KREAM collection did not succeed. Prior prices and charts are preserved; inspect data/korean-promos-health.json.'
+          exit 1

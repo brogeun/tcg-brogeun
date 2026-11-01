@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-pagination-rarity-20261101-v1';
+const CACHE_VERSION = 'tcghub-pagination-rarity-korean-promos-20261101-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -50,6 +50,12 @@ self.addEventListener('fetch', event => {
   // Game modules must come from the same release, not stale-while-revalidate mixtures.
   if (url.origin === location.origin && (url.pathname.startsWith('/games/volleyball/') || url.pathname.startsWith('/games/kanto151/'))) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
+    return;
+  }
+
+  // Korean promo quotes and full histories revalidate together after daily publication.
+  if (url.origin === location.origin && (url.pathname.startsWith('/data/korean-promos') || ['/assets/korean-promos.js', '/assets/korean-promos.css'].includes(url.pathname))) {
+    event.respondWith(networkFirst(req, url.pathname.startsWith('/data/') ? DATA_CACHE : STATIC_CACHE));
     return;
   }
 

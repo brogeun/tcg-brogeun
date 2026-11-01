@@ -110,12 +110,14 @@
     return {filtered, count:filtered.length, page:current, pages, items:filtered.slice((current-1)*size, current*size)};
   }
 
-  function controlsHtml(cards, selected) {
+  function controlsHtml(cards, selected, {open = false} = {}) {
     const entries = options(cards), keys = selection(cards, selected), all = !keys.length;
     if (!entries.length) return '';
     const button = (key, label, count, on) => '<button type="button" class="ci-rarity-chip" data-card-rarity="'+esc(key)+'" aria-pressed="'+String(on)+'">'+esc(label)+'<span>'+count+'</span></button>';
-    return '<div class="ci-rarity-filters" role="group" aria-label="레어도 복수 선택">'+
-      button('', '전체', cards.length, all)+entries.map(item => button(item.key, item.label, item.count, keys.includes(item.key))).join('')+'</div>';
+    return '<details class="ci-rarity-picker"'+(open ? ' open' : '')+'><summary>희귀도 필터 <span>'+(all ? '전체' : keys.length+'개 선택')+'</span></summary>'+
+      '<div class="ci-rarity-menu"><div class="ci-rarity-filters" role="group" aria-label="희귀도 복수 선택">'+
+      button('', '전체', cards.length, all)+entries.map(item => button(item.key, item.label, item.count, keys.includes(item.key))).join('')+
+      '</div><button type="button" class="ci-rarity-done" data-card-rarity-close>선택 완료</button></div></details>';
   }
 
   function mount(container, {cards, selected = [], onChange} = {}) {
@@ -123,6 +125,12 @@
     const input = Array.isArray(cards) ? cards : [];
     container.innerHTML = controlsHtml(input, selected);
     container.onclick = event => {
+      const close = event.target?.closest?.('button[data-card-rarity-close]');
+      if (close?.dataset && Object.prototype.hasOwnProperty.call(close.dataset,'cardRarityClose') && container.contains(close)) {
+        event.preventDefault(); event.stopPropagation();
+        const picker = container.querySelector?.('details'); if (picker) picker.open = false;
+        picker?.querySelector('summary')?.focus({preventScroll:true}); return;
+      }
       const button = event.target?.closest?.('button[data-card-rarity]');
       if (!button || !container.contains(button) || button.disabled) return;
       const key = button.dataset.cardRarity;
@@ -130,9 +138,11 @@
       event.preventDefault(); event.stopPropagation();
       const current = selection(input, selected);
       const next = !key ? [] : current.includes(key) ? current.filter(item => item !== key) : [...current, key];
+      const wasOpen = container.querySelector?.('details')?.open === true;
       if (typeof onChange === 'function') onChange(next);
       // Provider redraws keep the active filter focus, without scrolling the panel.
       const live = container.id ? container.ownerDocument?.getElementById(container.id) || container : container;
+      const picker = live.querySelector?.('details'); if (picker) picker.open = wasOpen;
       [...live.querySelectorAll('button[data-card-rarity]')].find(item => item.dataset.cardRarity === key)?.focus({preventScroll:true});
     };
   }

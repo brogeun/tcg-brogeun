@@ -538,6 +538,8 @@ def augment(root, manifest, outputs):
                            'game': source_game, 'language': 'ja', 'image': native.get('image') or '',
                            'sourceUrl': native['url'], 'sourcePackTitle': product['name'],
                            'setCode': product.get('code') or '', 'releasedAt': product.get('releasedAt')}
+                    if native.get('rarity') == '-':
+                        row['raritySourceUnlisted'] = True
                     if native.get('distributionEdition'):
                         row['distributionEdition'] = native['distributionEdition']
                         if native['distributionEdition'] == 'overseas':

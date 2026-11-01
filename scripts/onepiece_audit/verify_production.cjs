@@ -13,6 +13,8 @@ async function main(){
  for(const r of report.blockedPreviousLinks)assert.equal(byId.get(r.officialId)?.productId,null,'Deployed disproved printing remains blocked '+r.officialId);
  const response=await fetch(base+'/assets/card-price-fallback.js?artworkAudit='+bust,{cache:'no-store',signal:AbortSignal.timeout(25000)});assert(response.ok);const deployed=await response.text(),expected=fs.readFileSync(path.join(root,'assets/card-price-fallback.js'),'utf8');
  assert.equal(crypto.createHash('sha256').update(deployed).digest('hex'),crypto.createHash('sha256').update(expected).digest('hex'),'Deployed runtime is the verified runtime');
+ const html=await (await fetch(base+'/?artworkAudit='+bust,{cache:'no-store'})).text();assert(html.includes('/assets/card-price-fallback.js?v=20261101-artwork-review1'),'Updated runtime version is referenced by the page');
+ const deployedSw=await (await fetch(base+'/sw.js?artworkAudit='+bust,{cache:'no-store'})).text();assert.equal(deployedSw,fs.readFileSync(path.join(root,'sw.js'),'utf8'),'Current release cache routing deployed');
  const outcomes=[];
  for(const r of read('config/onepiece-mercari-artwork-reviews-20261101.json').reviews){
   const c=byId.get(r.officialId);assert(c);const t={...bridge.targetFor(c),snkrdunkStatus:c.matchStatus};

@@ -3,30 +3,22 @@ on:
   push:
     branches: ['onepiece/restore-artwork-20261101']
     paths:
-      - 'scripts/onepiece_audit/run.py'
-      - 'scripts/onepiece_audit/geometry.py'
-      - 'scripts/onepiece_audit/export.cjs'
-      - 'scripts/onepiece_audit/test.cjs'
-      - 'scripts/onepiece_audit/render.py'
-      - 'scripts/onepiece_audit/apply_mercari_reviews.cjs'
-      - 'scripts/onepiece_audit/apply_artwork_reviews.cjs'
+      - 'scripts/onepiece_audit/**'
       - 'config/onepiece-artwork-visual-reviews-20261101.json'
       - '.github/workflows/onepiece-artwork-recovery.yml'
   workflow_dispatch:
 permissions:
-  contents: write
-  actions: read
+  contents: read
 concurrency:
   group: onepiece-artwork-recovery
   cancel-in-progress: false
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: onepiece/restore-artwork-20261101
           fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
@@ -34,58 +26,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install reproducible audit dependencies
-        run: python -m pip install -r scripts/onepiece_audit/requirements.txt
-      - uses: actions/cache/restore@v4
-        with:
-          path: .cache/onepiece-audit/images
-          key: onepiece-reviewed-images-v2-${{ github.run_id }}
-          restore-keys: onepiece-reviewed-images-v2-
-      - name: Export current identities without replacing latest source data
-        run: |
-          echo "AUDIT_BASE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          python scripts/build_onepiece_official.py --validate-only
-          node scripts/build_onepiece_search.cjs
-          node scripts/onepiece_audit/export.cjs
-      - name: Reuse recorded comparisons and verify newly recognized acquisitions
-        run: |
-          node scripts/onepiece_audit/apply_artwork_reviews.cjs
-          node scripts/onepiece_audit/apply_mercari_reviews.cjs
-          python scripts/onepiece_audit/render.py
-      - name: Retain compared public images even when a later check fails
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: .cache/onepiece-audit/images
-          key: onepiece-reviewed-images-v2-${{ github.run_id }}
-      - name: Rebuild and verify identities, laziness, current-price priority and references
+      - name: Verify generated search, official completeness, runtime and release cache syntax
         run: |
           node scripts/build_onepiece_search.cjs
+          git diff --exit-code -- data/onepiece-official-search.json
           python scripts/build_onepiece_official.py --validate-only
+          node --check sw.js
+          node --check scripts/onepiece_audit/verify_production.cjs
           node --test scripts/test_onepiece_official.cjs scripts/test_op16_contained_prices.cjs scripts/test_op17_contained_prices.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_card_prices.cjs scripts/test_card_price_fallback.cjs scripts/onepiece_audit/test.cjs
           git diff --check
-      - name: Save only reviewed release files to isolated branch
-        run: |
-          test "$(git branch --show-current)" = "onepiece/restore-artwork-20261101"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/onepiece-reviewed-promo-links.json data/onepiece-reviewed-fallback-links.json data/onepiece-market-link-audit-20261101.json data/onepiece-artwork-review-candidates-20261101.json data/onepiece-official-search.json data/cards-by-set/ docs/onepiece-market-links-20261101/
-          if ! git diff --cached --quiet; then
-            git commit -m "Save image-verified One Piece links and explicit review evidence"
-            git push origin HEAD:refs/heads/onepiece/restore-artwork-20261101
-          fi
-      - name: Preserve completed evidence and generated proofs
+      - name: Preserve final release evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: onepiece-original-image-evidence-reused
+          name: onepiece-final-release-evidence
           path: |
-            .cache/onepiece-audit/input.json
-            .cache/onepiece-audit/snkr-pairs.json
-            .cache/onepiece-audit/shop-pairs.json
-            .cache/onepiece-audit/image-evidence.json
             data/onepiece-market-link-audit-20261101.json
-            data/onepiece-reviewed-promo-links.json
-            data/onepiece-reviewed-fallback-links.json
-            data/onepiece-artwork-review-candidates-20261101.json
-          if-no-files-found: warn
+            config/onepiece-artwork-visual-reviews-20261101.json
+            config/onepiece-mercari-artwork-reviews-20261101.json

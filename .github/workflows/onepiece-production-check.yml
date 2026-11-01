@@ -10,6 +10,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /assets/
+            /scripts/onepiece_audit/verify_production.cjs
+            /data/onepiece-market-link-audit-20261101.json
+            /data/onepiece-reviewed-promo-links.json
+            /config/onepiece-mercari-artwork-reviews-20261101.json
+            /sw.js
       - uses: actions/setup-node@v4
         with:
           node-version: '24'

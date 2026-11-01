@@ -3,6 +3,14 @@ const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p
 const context={window:{addEventListener(){}},document:{getElementById(){return null},addEventListener(){}},renderCardInfo(){},location:{search:'',hash:''},URLSearchParams,Date,Map,Set,console};
 vm.createContext(context);vm.runInContext(read('assets/korean-promos.js'),context);
 const api=context.window.KoreanPromos,manifest=api.prepare(JSON.parse(read('data/korean-promos.json')));
+assert.equal(api.gradeKey('BRG 10 영문'),'BRG 10');
+assert.equal(api.gradeKey('BRG 10 한글'),'BRG 10');
+assert.equal(api.gradeKey('BRG 8 영문'),'BRG 8');
+assert.equal(api.variantLabel('BRG 10'),'라벨 미표기');
+assert.equal(api.variantLabel('BRG 10 영문'),'영문 라벨');
+assert.equal(api.variantLabel('BRG 10 한글'),'한글 라벨');
+assert.equal(api.variantLabel('Ungraded A (Pack Ver.)'),'팩');
+assert.deepEqual(Array.from(api.gradeOptions(['BRG 9 영문','BRG 10 한글','BRG 10 영문','BRG 8 영문','PSA 10','Ungraded A'])) ,['Ungraded A','PSA 10','BRG 10','BRG 9','BRG 8']);
 let total=0;
 for(const card of manifest.cards){
  const h=api.prepareHistory(JSON.parse(read(card.file.slice(1))),card.id);total+=h.rows.length;

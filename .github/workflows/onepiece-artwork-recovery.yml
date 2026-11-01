@@ -1,0 +1,71 @@
+name: Verify One Piece artwork recovery
+on:
+  push:
+    branches: ['onepiece/restore-artwork-20261101']
+    paths:
+      - 'scripts/onepiece_audit/**'
+      - '.github/workflows/onepiece-artwork-recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: onepiece-artwork-recovery
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: onepiece/restore-artwork-20261101
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install reproducible image audit dependencies
+        run: python -m pip install -r scripts/onepiece_audit/requirements.txt
+      - name: Record collection base and validate existing inventories
+        run: |
+          echo "AUDIT_BASE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          python scripts/build_onepiece_official.py --validate-only
+          node scripts/build_onepiece_search.cjs
+          node scripts/onepiece_audit/export.cjs
+      - uses: actions/cache@v4
+        with:
+          path: .cache/onepiece-audit/images
+          key: onepiece-original-images-v1-${{ github.run_id }}
+          restore-keys: onepiece-original-images-v1-
+      - name: Compare original images, acquisition, competing printings and existing IDs
+        run: python -u scripts/onepiece_audit/run.py
+      - name: Rebuild and verify exact identities and price priority
+        run: |
+          node scripts/build_onepiece_search.cjs
+          python scripts/build_onepiece_official.py --validate-only
+          node --test scripts/test_onepiece_official.cjs scripts/test_op16_contained_prices.cjs scripts/test_op17_contained_prices.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_card_prices.cjs scripts/test_card_price_fallback.cjs
+          git diff --check
+      - name: Save verified recovery to isolated branch only
+        run: |
+          test "$(git branch --show-current)" = "onepiece/restore-artwork-20261101"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/onepiece-reviewed-promo-links.json data/onepiece-reviewed-fallback-links.json data/onepiece-market-link-audit-20261101.json data/onepiece-official-search.json data/cards-by-set/
+          if ! git diff --cached --quiet; then
+            git commit -m "Save independently verified One Piece artwork recovery"
+            git push origin HEAD:refs/heads/onepiece/restore-artwork-20261101
+          fi
+      - name: Upload reproducible evidence without source credentials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onepiece-original-image-evidence
+          path: |
+            .cache/onepiece-audit/input.json
+            .cache/onepiece-audit/snkr-pairs.json
+            .cache/onepiece-audit/shop-pairs.json
+            .cache/onepiece-audit/image-evidence.json
+            data/onepiece-market-link-audit-20261101.json
+          if-no-files-found: warn

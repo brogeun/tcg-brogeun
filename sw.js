@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-filter-picker-search-korean-promos-20261101-v2';
+const CACHE_VERSION = 'tcghub-rarity-recheck-korean-promos-20261101-v3';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -163,7 +163,9 @@ async function staleWhileRevalidate(req, cacheName) {
 async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
-    const res = await fetch(req);
+    // The shared picker also loads the versioned manufacturer rarity index.
+    const freshRarity = ['/assets/card-rarity-filters.js','/assets/english-catalog.js'].includes(new URL(req.url).pathname);
+    const res = await fetch(req, freshRarity ? {cache:'no-cache'} : undefined);
     if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
     return res;
   } catch {

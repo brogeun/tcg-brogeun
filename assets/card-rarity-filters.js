@@ -6,10 +6,11 @@
   else root.CardRarityFilters = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
-  const UNKNOWN = 'unknown', NOT_APPLICABLE = 'not-applicable';
+  const UNKNOWN = 'unknown', NOT_APPLICABLE = 'not-applicable', SOURCE_UNLISTED = 'source-unlisted';
   const metadataRequests = new Map();
   const metadataURLs = {
-    pokemon:'/data/collections/sources/pokemon-jp-rarity-metadata.json?v=20261029-source-rarity-1',
+    pokemon:'/data/collections/sources/pokemon-jp-rarity-metadata.json?v=20261101-rarity-recheck1',
+    'pokemon-en':'/data/collections/sources/pokemon-en-rarity-recheck.json?v=20261101-rarity-recheck1',
     onepiece:'/data/collections/sources/onepiece-printing-metadata.json?v=20261029-source-rarity-1'
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
@@ -19,8 +20,13 @@
     if (card?.rarityNotApplicable === true) return {key:NOT_APPLICABLE, label:'해당 없음', state:'not-applicable'};
     // Never read a title, price, card number, parallel suffix or grading grade.
     const original = typeof card?.rarity === 'string' ? card.rarity.normalize('NFKC').trim().replace(/\s+/g, ' ') : '';
-    if (!original || empty.test(original)) return {key:UNKNOWN, label:'미확인', state:'unknown'};
-    return {key:'known:' + original.toUpperCase(), label:original, state:'known'};
+    if (!original || empty.test(original)) return card?.raritySourceUnlisted === true ?
+      {key:SOURCE_UNLISTED, label:'원문 등급 미표기', state:'source-unlisted'} :
+      {key:UNKNOWN, label:'미확인', state:'unknown'};
+    // These are literal manufacturer catalogue categories, not invented grades.
+    const label = (typeof card.rarityDisplayLabel === 'string' && card.rarityDisplayLabel.trim()) ||
+      (original==='NATSU' ? '복각 카드 (NATSU)' : original==='ENE' ? '기본 에너지 (ENE)' : original);
+    return {key:'known:' + original.toUpperCase(), label, state:'known'};
   }
 
   function options(cards) {
@@ -31,7 +37,7 @@
       else grouped.set(item.key, {...item, count:1});
     }
     return [...grouped.values()].sort((a,b) => {
-      const order = item => item.state === 'known' ? 0 : item.state === 'unknown' ? 1 : 2;
+      const order = item => ({known:0,'source-unlisted':1,unknown:2,'not-applicable':3})[item.state];
       return order(a)-order(b) || a.label.localeCompare(b.label, 'en', {numeric:true});
     });
   }
@@ -54,15 +60,19 @@
     return input.map(card => {
       // Existing explicit source metadata always wins; this cannot rewrite it.
       if (metadata(card).state !== 'unknown') return card;
-      if (brand === 'pokemon') {
+      if (brand === 'pokemon' || brand === 'pokemon-en') {
         const source = String(card.url || card.sourceUrl || '');
         const entry = Object.prototype.hasOwnProperty.call(payload.cards,source) ? payload.cards[source] : null;
-        if (payload.schemaVersion !== 1 || payload.brand !== 'pokemon' || payload.language !== 'ja' ||
-            !entry || entry.rarityStatus !== 'source-explicit' || entry.sourceUrl !== source ||
+        if (payload.schemaVersion !== 1 || payload.brand !== 'pokemon' || payload.language !== (brand==='pokemon-en'?'en':'ja') ||
+            !entry || entry.sourceUrl !== source ||
             String(entry.setCode).toUpperCase() !== String(setCode).toUpperCase() ||
-            entry.number !== card.number || entry.name !== card.name ||
-            typeof entry.rarity !== 'string' || !entry.rarity.trim()) return card;
-        return {...card, rarity:entry.rarity, rarityOriginal:entry.rarityOriginal, raritySourceUrl:entry.sourceUrl};
+            entry.number !== card.number || entry.name !== card.name) return card;
+        if (entry.rarityStatus === 'source-unlisted' && !entry.rarity && entry.rarityOriginal === '—') {
+          return {...card, raritySourceUnlisted:true, raritySourceUrl:source};
+        }
+        if (entry.rarityStatus !== 'source-explicit' || typeof entry.rarity !== 'string' || !entry.rarity.trim()) return card;
+        return {...card, rarity:entry.rarity, rarityOriginal:entry.rarityOriginal, raritySourceUrl:entry.sourceUrl,
+          ...(entry.rarityDisplayLabel ? {rarityDisplayLabel:entry.rarityDisplayLabel} : {})};
       }
       if (brand === 'onepiece') {
         // Exact fullId only. A base card never supplies a _p1/_p2 rarity.
@@ -76,9 +86,8 @@
     });
   }
 
-  function ensureMetadata(brand, {fetchImpl, timeoutMs = 2500} = {}) {
-    if (!Object.prototype.hasOwnProperty.call(metadataURLs,brand)) return Promise.resolve(null);
-    if (metadataRequests.has(brand)) return metadataRequests.get(brand);
+  function requestMetadata(url, key, {fetchImpl, timeoutMs = 2500} = {}) {
+    if (metadataRequests.has(key)) return metadataRequests.get(key);
     const request = fetchImpl || (typeof fetch === 'function' ? fetch : null);
     if (!request) return Promise.resolve(null);
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
@@ -86,20 +95,49 @@
     const deadline = new Promise((resolve,reject) => {
       timer = setTimeout(() => { controller?.abort(); reject(new Error('Rarity metadata timed out')); }, Math.max(1,Math.min(2500,Number(timeoutMs) || 2500)));
     });
-    const work = Promise.resolve().then(() => request(metadataURLs[brand], {
+    const work = Promise.resolve().then(() => request(url, {
       cache:'no-cache', credentials:'omit', ...(controller ? {signal:controller.signal} : {})
     })).then(response => response.ok ? response.json() : null).then(payload => {
       if (!payload || !payload.cards || typeof payload.cards !== 'object' || Array.isArray(payload.cards)) throw Error('Invalid rarity metadata');
       return payload;
     });
-    const pending = Promise.race([work,deadline]).catch(() => { metadataRequests.delete(brand); return null; }).finally(() => clearTimeout(timer));
-    metadataRequests.set(brand,pending);
+    const pending = Promise.race([work,deadline]).catch(() => { metadataRequests.delete(key); return null; }).finally(() => clearTimeout(timer));
+    metadataRequests.set(key,pending);
     return pending;
   }
 
+  function ensureMetadata(brand, options = {}) {
+    if (!Object.prototype.hasOwnProperty.call(metadataURLs,brand)) return Promise.resolve(null);
+    return requestMetadata(metadataURLs[brand],brand,options);
+  }
+
+  function ensureSetMetadata(payload, setCode, options = {}) {
+    const code=String(setCode || '').toUpperCase();
+    if (!payload?.setShards || !Object.prototype.hasOwnProperty.call(payload.setShards,code)) return Promise.resolve(null);
+    const url=payload.setShards[code];
+    const match=typeof url==='string' && /^\/data\/collections\/sources\/pokemon-rarity-recheck\/([A-Za-z0-9_+-]+)\.json\?v=[A-Za-z0-9_-]+$/.exec(url);
+    if (!match || (match[1].toUpperCase()!==code && !/^part-[0-9]{4}$/.test(match[1]))) return Promise.resolve(null);
+    return requestMetadata(url,url,options).then(data=>{
+      if (!data || data.bundleVersion!==1) return match[1].toUpperCase()===code ? data : null;
+      const entry=Object.prototype.hasOwnProperty.call(data.sets || {},code) ? data.sets[code] : null;
+      if (entry?.schemaVersion!==1 || entry.brand!=='pokemon' || entry.language!==(payload.language || 'ja') ||
+          String(entry.setCode || '').toUpperCase()!==code) return null;
+      // The source URL key and set header are stored once in public bundles.
+      if (entry.compactIdentity===true && entry.cards && !Array.isArray(entry.cards)) {
+        return {...entry,cards:Object.fromEntries(Object.entries(entry.cards).map(([sourceUrl,card])=>
+          [sourceUrl,{...card,sourceUrl,setCode:entry.setCode}]))};
+      }
+      return entry;
+    });
+  }
+
   async function enrich(cards, {brand, setCode, fetchImpl} = {}) {
+    if (Array.isArray(cards) && !cards.some(card=>metadata(card).state==='unknown')) return cards.slice();
     const payload = await ensureMetadata(brand,{fetchImpl});
-    return merge(cards,payload,{brand,setCode});
+    const enriched=merge(cards,payload,{brand,setCode});
+    if (brand!=='pokemon' && brand!=='pokemon-en') return enriched;
+    const setPayload=await ensureSetMetadata(payload,setCode,{fetchImpl});
+    return merge(enriched,setPayload,{brand,setCode});
   }
 
   function page(cards, {selected = [], predicate = () => true, page = 1, pageSize = 18} = {}) {
@@ -147,5 +185,5 @@
     };
   }
 
-  return Object.freeze({metadata, options, selection, filter, merge, ensureMetadata, enrich, page, controlsHtml, mount});
+  return Object.freeze({metadata, options, selection, filter, merge, ensureMetadata, ensureSetMetadata, enrich, page, controlsHtml, mount});
 });

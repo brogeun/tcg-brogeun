@@ -62,7 +62,9 @@
       panel(`${header()}<h3 class="enc-loading-title" id="encPanelTitle">${esc(set.name)} · 영판</h3><div class="ci-panel-scroll">카드 불러오는 중…</div>`,'encPanelTitle');let data=cache.get(code);
       if(!data){const r=await fetch(`/data/english-sets/${encodeURIComponent(code)}.json?v=${VERSION}`);if(!r.ok)throw Error();data=await r.json();if(data.language!=='en'||data.code!==code||data.cards?.length!==set.cardCount)throw Error();cache.set(code,data);if(cache.size>8)cache.delete(cache.keys().next().value);}
       if(token!==request||!document.getElementById('anyModal')?.classList.contains('open')||!document.getElementById('encPanelTitle'))return;
-      const reset=!keep||active?.code!==code;active=data;if(reset){cardPage=1;cardQuery='';cardRarities=[];cardScroll=0;}setModal();if(cardId)detail(cardId);
+      const rarityCards=await window.CardRarityFilters?.enrich(data.cards,{brand:'pokemon-en',setCode:code})||data.cards;
+      if(token!==request||!document.getElementById('anyModal')?.classList.contains('open')||!document.getElementById('encPanelTitle'))return;
+      const reset=!keep||active?.code!==code;active={...data,cards:rarityCards};if(reset){cardPage=1;cardQuery='';cardRarities=[];cardScroll=0;}setModal();if(cardId)detail(cardId);
     }catch{if(token===request&&document.getElementById('anyModal')?.classList.contains('open')&&document.getElementById('encPanelTitle'))panel(`${header()}<h3 class="enc-loading-title" id="encPanelTitle">영문판 카드</h3><div class="ci-panel-scroll">카드를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</div>`,'encPanelTitle');}
   }
   function dailySales(sales){const days=new Map();for(const s of sales){const d=days.get(s.date)||{date:s.date,total:0,count:0};d.total+=s.priceCents;d.count++;days.set(s.date,d);}return [...days.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({...d,price:Math.round(d.total/d.count)}));}

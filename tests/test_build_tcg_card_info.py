@@ -40,6 +40,11 @@ class PrintedIdentityTests(unittest.TestCase):
         self.assertEqual(builder.full_number(value, "weiss_schwarz"), "Dds/S104-100OR E5")
         self.assertEqual(builder.printed_set("weiss_schwarz", builder.full_number(value, "weiss_schwarz")), "Dds/S104")
 
+    def test_weiss_at_sign_and_trailing_underscore_are_printed_identity(self):
+        for number in ('IMC/WE51-001M@P', 'SMP/W137-070A_'):
+            value = card(name=f'Name M@P [{number}]', code='WS-TCG-WRONG-001')
+            self.assertEqual(builder.full_number(value, 'weiss_schwarz'), number)
+
     def test_union_action_point_full_number_preserved(self):
         value = card(game="union_arena", name='Action Point [UAPR-JJK-1-AP01](Premium Card Set)', code="UATCG-UAPR-JJK-1-AP01")
         self.assertEqual(builder.full_number(value, "union_arena"), "UAPR-JJK-1-AP01")

@@ -98,7 +98,7 @@ def full_number(product, game):
     # The actual name bracket is authoritative for source identity. Raw WS code
     # can collapse T01/T01R and cannot replace the printed bracket.
     patterns = {
-        "weiss_schwarz": r"[A-Za-z0-9+_.]+/[A-Za-z0-9+_.]+-[A-Za-z0-9]+(?:\s+[A-Za-z0-9]+)*",
+        "weiss_schwarz": r"[A-Za-z0-9+_.]+/[A-Za-z0-9+_.]+-[A-Za-z0-9@_]+(?:\s+[A-Za-z0-9]+)*",
         "union_arena": r"(?:UA|EX|PC)[A-Za-z0-9]*[/-][A-Za-z0-9][A-Za-z0-9/_-]*",
         "dragon_ball_fusion_world": r"(?:FB|FS|FP|SB|ST|E|FBP)[0-9]{0,3}-[A-Za-z0-9]+",
         "yugioh": r"[A-Za-z0-9]+-[A-Za-z0-9]+",
@@ -344,6 +344,13 @@ def navigation_boxes(sets, products, game):
 
 def build(root):
     root = Path(root)
+    try:
+        from official_card_contents import load_sources
+        from source_card_rarities import RarityResolver
+    except ModuleNotFoundError:
+        from scripts.official_card_contents import load_sources
+        from scripts.source_card_rarities import RarityResolver
+    rarity_resolver = RarityResolver(load_sources(root))
     views = {game: defaultdict(list) for game in VIEWS}
     descriptors, metadata, coverage = {}, {}, {}
     # Verify every input before writing anything, preserving last-good on source failures.
@@ -364,7 +371,8 @@ def build(root):
             identity = str(product["id"])
             row = {"id": identity, "snkrdunkId": identity, "catalogSource": "SNKRDUNK",
                    "name": product.get("name", ""), "image": product.get("image") or product.get("thumbnailUrl") or "",
-                   "fullCardNumber": number, "rarity": rarity(product), "game": game, "language": lang,
+                   "fullCardNumber": number, **rarity_resolver.resolve(product, game, number, rarity(product)),
+                   "game": game, "language": lang,
                    "variant": product.get("variant") or "", "sourcePackTitle": context,
                    "releasedAt": product.get("releasedAt"),
                    "snkrProduct": {**{key: product[key] for key in PRODUCT_KEYS if key in product},
@@ -382,6 +390,13 @@ def build(root):
                           "sourceListingComplete": bool(source.get("collection", {}).get("complete")),
                           "unknownNumberProducts": unknown_numbers, "unknownLanguageProducts": unknown_languages,
                           "officialComplete": False, "sourceAsOf": source.get("fetchedAt") or source.get("updatedAt")}
+        reviewed = [item for item in rarity_resolver.audit if item['game'] == game]
+        coverage[game]['rarityRecheck'] = {
+            'previouslyUnparsedRows': len(reviewed),
+            'resolved': sum(item['rarityStatus'] == 'verified' for item in reviewed),
+            'notApplicable': sum(item['rarityStatus'] == 'not_applicable' for item in reviewed),
+            'sourceUnlisted': sum(item['sourceUnlisted'] for item in reviewed),
+            'unresolved': sum(item['rarityStatus'] == 'unavailable' for item in reviewed)}
     generated = datetime.now(timezone.utc).isoformat()
     manifest = {"schemaVersion": 1, "generatedAt": generated, "source": "SNKRDUNK catalog",
                 "coverage": coverage, "officialComplete": False, "games": [],

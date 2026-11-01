@@ -38,6 +38,7 @@ function runtime(files,options={}){
     CardPriceFallback:{lookup:async(target,opts)=>{quoteTargets.push(target);return options.lookup?options.lookup(target,opts):{status:'priced',amount:101,currency:'JPY',source:'snkrdunk',sourceUrl:target.snkrProduct?.url};},render(result){return result.status==='priced'?`<strong>JPY ${result.amount}</strong><small>SNKRDUNK · 상품 호가</small>`:'가격 정보 없음';}}
   };
   context.window=context;
+  context.CardRarityFilters=require('../assets/card-rarity-filters.js');
   document.addEventListener('click',event=>{const tab=event.target.closest('#ciTabs [data-ci]');if(tab){context.CI_TAB=tab.dataset.ci;context.renderCardInfo();}},false);
   vm.runInNewContext(SOURCE,context);
   function dispatch(type,target,extra={}){const event={target,preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){this.stopped=true;},...extra};for(const {fn}of [...listeners.get(type)||[]].sort((a,b)=>Number(b.capture)-Number(a.capture))){fn(event);if(event.stopped)break;}return event;}
@@ -151,8 +152,8 @@ test('manufacturer-unprinted metadata is shown explicitly and old official links
   const {files}=fixture(),body=files.get('/data/tcg-card-info/union_arena/a.json');
   body.cards[0]={...body.cards[0],id:'official:union_arena:token',aliases:['official:union_arena:old-token'],fullCardNumber:'',numberStatus:'unprinted',rarity:'',rarityStatus:'not_applicable',snkrProduct:undefined};
   const r=runtime(files,{lookup:async()=>({status:'none'})});await r.api.open('union_arena','union_arena-a');
-  assert.match(r.get('tciCardGrid').innerHTML,/번호 표기 없음/);assert.match(r.get('tciCardGrid').innerHTML,/희귀도 표기 없음/);assert.match(r.get('anyModal').innerHTML,/>표기 없음<\/option>/);
-  r.get('tciRarity').value='__not_applicable';r.dispatch('change',r.get('tciRarity'));assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="202"/);
+  assert.match(r.get('tciCardGrid').innerHTML,/번호 표기 없음/);assert.match(r.get('tciCardGrid').innerHTML,/희귀도 표기 없음/);assert.match(r.get('tciRarityFilters').innerHTML,/해당 없음/);
+  r.action('data-tci-rarity','not-applicable');assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="202"/);
   r.api.detail('official:union_arena:old-token');await tick();assert.equal(r.api.state().selected,'official:union_arena:token');assert.match(r.get('anyModal').innerHTML,/번호 표기 없음/);
 });
 test('a failed official image falls back once to its matched market image',async()=>{
@@ -251,4 +252,25 @@ test('retailer foil evidence opens separately without borrowing a same-number no
   const foil={id:'retailer:c-labo:123',catalogSource:'VERIFIED_RETAILER',game:'weiss_schwarz',language:'ja',name:base.name,fullCardNumber:base.fullCardNumber,rarity:base.rarity,finish:'foil',priceLookupPolicy:'exact-finish-required',sourceUrl:'https://www.c-labo-online.jp/product/123'};
   g.sets.push(set);files.set(set.file,{schemaVersion:1,game:g.id,set,cards:[foil]});box.relatedSetIds=[set.id];box.retailerPrintingCount=1;box.relatedLabel='실물 포일 판본';base.finishVariants=[{id:foil.id,number:foil.fullCardNumber,rarity:foil.rarity,source:'retailer'}];
   const r=runtime(files);await r.api.open(g.id,box.id);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/판매점 확인 포일/);r.api.detail(base.id);await tick();assert.equal(r.quoteTargets.length,1);r.action('data-tci-card',foil.id);await tick();assert.match(r.get('anyModal').innerHTML,/판매점 확인 포일/);assert.match(r.get('anyModal').innerHTML,/포일 별도 시세 미수집/);assert.equal(r.quoteTargets.length,1);assert.match(r.get('tciDetailPrice').innerHTML,/가격 정보 없음/);
+});
+
+test('rarity chips support multiple grades, search, detail back and reset without price requests',async()=>{
+  const {files}=fixture(),body=files.get('/data/tcg-card-info/digimon/a.json'),base=body.cards[0];
+  body.cards=[['SR','Alpha'],['SP','Beta'],['R','Gamma'],['','Delta']].map(([rarity,name],i)=>({...base,id:String(800+i),name,rarity,snkrProduct:{...base.snkrProduct,id:String(800+i)}}));
+  const r=runtime(files);await r.api.open('digimon','digimon-a');assert.doesNotMatch(r.get('anyModal').innerHTML,/<select id="tciRarity"/);
+  r.action('data-tci-rarity','known:SR');assert.match(r.get('tciCardGrid').innerHTML,/Alpha/);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/Beta|Gamma/);
+  r.action('data-tci-rarity','known:SP');assert.match(r.get('tciCardGrid').innerHTML,/Alpha/);assert.match(r.get('tciCardGrid').innerHTML,/Beta/);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/Gamma/);
+  assert.match(r.get('tciRarityFilters').innerHTML,/data-tci-rarity="known:SR" aria-pressed="true"/);assert.equal(r.quoteTargets.length,0);
+  r.get('tciCardSearch').value='Beta';r.dispatch('input',r.get('tciCardSearch'));assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/Alpha/);
+  r.api.detail('801');await tick();r.action('data-tci-back');assert.match(r.get('tciCardGrid').innerHTML,/Beta/);assert.match(r.get('tciRarityFilters').innerHTML,/data-tci-rarity="known:SP" aria-pressed="true"/);
+  r.get('tciCardSearch').value='';r.dispatch('input',r.get('tciCardSearch'));r.action('data-tci-rarity','unknown');r.action('data-tci-rarity','known:SR');r.action('data-tci-rarity','known:SP');assert.match(r.get('tciCardGrid').innerHTML,/Delta/);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/Alpha|Beta|Gamma/);
+  r.action('data-tci-rarity','');assert.match(r.get('tciCardGrid').innerHTML,/Gamma/);assert.equal(r.quoteTargets.length,1);
+});
+
+test('numbered footer uses five-page window and first/last navigation, then resets after filtering',async()=>{
+  const {files}=fixture(),body=files.get('/data/tcg-card-info/digimon/a.json'),base=body.cards[0];body.cards=Array.from({length:180},(_,i)=>({...base,id:String(9000+i),rarity:i<2?'SP':'SR',snkrProduct:{...base.snkrProduct,id:String(9000+i)}}));
+  const r=runtime(files);await r.api.open('digimon','digimon-a');let nav=r.get('tciCardPages');assert.match(nav.innerHTML,/aria-label="맨 처음 페이지" disabled/);assert.match(nav.innerHTML,/aria-label="1페이지" aria-current="page"/);assert.match(nav.innerHTML,/aria-label="5페이지"/);assert.doesNotMatch(nav.innerHTML,/aria-label="6페이지"/);
+  r.action('data-tci-page','10');assert.equal(r.api.state().page,10);assert.match(nav.innerHTML,/aria-label="6페이지"/);assert.match(nav.innerHTML,/aria-label="맨 마지막 페이지" disabled/);
+  r.action('data-tci-rarity','known:SP');assert.equal(r.api.state().page,1);assert.equal(nav.hidden,true);assert.equal(r.quoteTargets.length,0);
+  r.action('data-tci-rarity','');assert.equal(nav.hidden,false);r.action('data-tci-page','5');assert.match(nav.innerHTML,/aria-label="3페이지"/);assert.match(nav.innerHTML,/aria-label="7페이지"/);
 });

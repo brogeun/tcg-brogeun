@@ -7,6 +7,8 @@ on:
       - 'scripts/onepiece_audit/test_discovery.py'
       - '.github/workflows/onepiece-mercari-discovery-check.yml'
       - '.github/workflows/market-references-daily.yml'
+      - 'scripts/onepiece_audit/browser_discovery.py'
+      - 'data/onepiece-mercari-discovery-seeds.json'
 permissions:
   contents: write
 concurrency:
@@ -29,10 +31,14 @@ jobs:
           python scripts/onepiece_audit/test_discovery.py
           python scripts/test_collect_mercari_references.py
           python scripts/test_market_references_workflow.py
+      - name: Install standard public browser
+        run: |
+          python -m pip install "playwright==1.64.1"
+          python -m playwright install --with-deps chromium
       - name: Discover only original public listing links
         id: discovery
         continue-on-error: true
-        run: python scripts/onepiece_audit/discover_mercari.py
+        run: python scripts/onepiece_audit/discover_mercari.py --render
       - name: Observe discovered listing metadata without assigning canonical prices
         if: steps.discovery.outcome == 'success'
         run: |

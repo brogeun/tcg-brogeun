@@ -139,3 +139,50 @@ test('rarities start behind one picker and keep the picker open during multiple 
   R.mount(container,{cards:[{rarity:'AR'},{rarity:'SAR'}],onChange:keys=>next=keys});container.onclick({target:clicked,preventDefault(){},stopPropagation(){}});assert.deepEqual(next,['known:AR']);assert.equal(livePicker.open,true);
   const close={dataset:{cardRarityClose:''},closest(){return this;}};container.onclick({target:close,preventDefault(){},stopPropagation(){}});assert.equal(oldPicker.open,false);
 });
+
+test('publisher evidence fills a reviewed blank only for its exact edition and cannot replace a known grade',()=>{
+  const card={url:'https://www.tcgcollector.com/cards/1/example',name:'Charizard',number:'4/102',raritySourceUnlisted:true};
+  const proof={schemaVersion:1,kind:'manufacturer-exact-product-checklist',url:'https://assets.pokemon.com/checklist.pdf',value:'Classic Collection',exactEdition:true};
+  const entry={sourceUrl:card.url,setCode:'CELEBRATIONS',name:card.name,number:card.number,rarity:'Classic Collection',rarityOriginal:'—',rarityStatus:'manufacturer-verified',rarityEvidence:proof};
+  const payload={schemaVersion:1,brand:'pokemon',language:'en',cards:{[card.url]:entry}};
+  const merge=(c=card,p=payload)=>R.merge([c],p,{brand:'pokemon-en',setCode:'CELEBRATIONS'})[0];
+  assert.equal(merge().rarity,'Classic Collection');assert.equal(merge().raritySourceUrl,proof.url);
+  assert.equal(merge().rarityOriginal,'—','the upstream blank is preserved');
+  assert.equal(merge({...card,rarity:'Rare'}).rarity,'Rare','a printed legacy grade is never replaced automatically');
+  for(const changed of [{exactEdition:false},{value:'Rare'},{url:'https://other.test/grade'},{kind:'symbol-absent'}]){
+    const invalid={...payload,cards:{[card.url]:{...entry,rarityEvidence:{...proof,...changed}}}};
+    assert.equal(R.metadata(merge(card,invalid)).state,'source-unlisted');
+  }
+  assert.equal(merge({...card,number:'4/100'}).rarity,undefined);
+  assert.match(R.controlsHtml([card],[]),/무등급 확정이 아닙니다/);
+});
+
+test('deep review keeps upstream blanks and exact identities while restoring only supported publisher classifications',()=>{
+  const fs=require('node:fs'),path=require('node:path'),base=path.join(__dirname,'..');
+  const read=f=>JSON.parse(fs.readFileSync(path.join(base,f)));
+  let verified=0;
+  for(const file of ['part-2000.json','part-2001.json'])for(const [code,set] of Object.entries(read('data/collections/sources/pokemon-rarity-recheck/'+file).sets)){
+    const payload={...set,cards:Object.fromEntries(Object.entries(set.cards).map(([url,c])=>[url,{...c,sourceUrl:url,setCode:set.setCode}]))};
+    const rows=read('data/english-sets/'+code+'.json').cards;
+    for(const card of rows){
+      const entry=set.cards[card.url||card.sourceUrl];if(entry?.rarityStatus!=='manufacturer-verified')continue;
+      verified++;assert.equal(entry.rarityOriginal,'—');assert(!card.rarity,'raw source grade remains blank');
+      const result=R.merge([card],payload,{brand:'pokemon-en',setCode:code})[0];
+      assert.equal(result.rarity,entry.rarity);assert.equal(result.raritySourceUnlisted,false);
+      assert.equal(result.name,card.name);assert.equal(result.number,card.number);
+      assert.deepEqual(result.grades,card.grades,'grade quotes are not changed by rarity enrichment');
+    }
+  }
+  assert.equal(verified,52);
+  const cn=read('data/chinese-sets/CN-30TH.json').cards,reviewed=cn.filter(c=>c.manufacturerCategory);
+  assert.equal(reviewed.length,68);
+  assert.equal(reviewed.filter(c=>c.rarity==='Pikachu Rare').length,30);
+  for(const c of reviewed){
+    assert.equal(c.manufacturerCategory.fieldIsRarity,false);
+    if(c.rarity==='Pikachu Rare'){
+      assert(intBetween(c.number,17,46));assert.equal(c.rarityOriginal,'');assert.equal(c.rarityEvidence.symbolDefinitionInterpretation,true);
+      assert.match(c.rarityEvidence.imageSha256,/^[a-f0-9]{64}$/);
+    }else{assert.equal(c.rarity,'');assert.equal(R.metadata(c).state,'source-unlisted');assert(!c.rarityNotApplicable);}
+  }
+  function intBetween(n,a,b){return Number(n)>=a&&Number(n)<=b;}
+});

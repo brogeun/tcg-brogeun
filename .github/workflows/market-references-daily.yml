@@ -49,6 +49,7 @@ jobs:
           python -m unittest scripts.test_collect_us_market
           python -m unittest discover -s tests -p test_yuyutei_market.py
           python scripts/test_collect_mercari_references.py
+          python scripts/onepiece_audit/test_discovery.py
           python -m unittest discover -s scripts -p test_snkrdunk_games.py
           python -m unittest scripts.test_metadata_index
           python -m unittest discover -s tests -p test_build_tcg_card_info.py
@@ -223,7 +224,10 @@ jobs:
         id: collect
         continue-on-error: true
         timeout-minutes: 10
-        run: python scripts/collect_mercari_references.py --watchlist data/mercari-reference-watchlist.json --output data/mercari-references.json --max-items 20 --timeout 20
+        run: |
+          python scripts/onepiece_audit/discover_mercari.py
+          python scripts/collect_mercari_references.py --watchlist .cache/onepiece-mercari-watchlist.json --output .cache/onepiece-mercari-fresh.json --max-items 20 --timeout 20
+          python scripts/onepiece_audit/discover_mercari.py --merge
       - name: Record true Mercari refresh outcome
         id: assess
         if: always()

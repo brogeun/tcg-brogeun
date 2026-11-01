@@ -56,6 +56,7 @@
   const previous=renderCardInfo;
   renderCardInfo=function(...args){if(CI_TAB===BRAND){window.EnglishCatalog?.cancelPending?.();window.ChineseCatalog?.cancelPending?.();window.TCGCardInfo?.cancelPending?.();previous.apply(this,args);return render();}listRequest++;document.getElementById('cardInfoList')?.classList.remove('kp-list');if(owns())close();return previous.apply(this,args);};
   document.addEventListener('click',e=>{const b=e.target.closest('[data-kp-card],[data-kp-close],[data-kp-expand],[data-kp-days],[data-kp-page],[data-kp-retry]');if(!b||b.disabled)return;e.preventDefault();if(b.dataset.kpCard)open(b.dataset.kpCard);else if(b.hasAttribute('data-kp-close'))close();else if(b.hasAttribute('data-kp-expand'))modal().classList.toggle('ci-expanded');else if(b.hasAttribute('data-kp-days')){days=Number(b.dataset.kpDays);page=1;update();}else if(b.dataset.kpPage){page=Number(b.dataset.kpPage);table();}else render();});
+  window.addEventListener('click',e=>{const tab=e.target?.closest?.('#ciTabs [data-ci]');if(tab&&tab.dataset.ci!==BRAND){listRequest++;document.getElementById('cardInfoList')?.classList.remove('kp-list');close();}},true);
   document.addEventListener('change',e=>{if(e.target.id==='kpOption'){option=e.target.value;page=1;update();}});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&owns()){e.preventDefault();close();}});
   window.addEventListener('hashchange',()=>{if(location.hash!=='#cardinfo')close();});

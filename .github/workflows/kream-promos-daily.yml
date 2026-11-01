@@ -20,13 +20,13 @@ concurrency:
 jobs:
   collect:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
+          fetch-depth: 1
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -37,17 +37,32 @@ jobs:
           python -m unittest scripts.test_kream_promos
           python scripts/collect_kream_promos.py --validate-only
       - name: Install rendered-page collector
+        id: browser-install
+        continue-on-error: true
         run: |
           python -m pip install 'playwright==1.56.0'
           python -m playwright install --with-deps chromium
       - name: Collect all seven KREAM trade histories
         id: collect
+        if: steps.browser-install.outcome == 'success'
         continue-on-error: true
         run: python scripts/collect_kream_promos.py
+      - name: Record browser setup failure without changing trade data
+        if: steps.browser-install.outcome == 'failure'
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          m=json.loads(Path('data/korean-promos.json').read_bytes())
+          health={'schemaVersion':1,'status':'failed','reason':'browser_setup_failed','last_attempt_at':datetime.now(ZoneInfo('Asia/Seoul')).isoformat(),'last_success_at':m['last_success_at']}
+          Path('data/korean-promos-health.json').write_text(json.dumps(health,separators=(',',':'))+'\n')
+          PY
       - name: Publish validated generation or failure health while retaining prior trades
         run: python scripts/publish_data_snapshot.py --files data/korean-promos.json --base "$KREAM_BASE" --message 'Refresh Korean promo KREAM trade histories'
       - name: Report source access failure
-        if: steps.collect.outcome == 'failure'
+        if: steps.collect.outcome == 'failure' || steps.browser-install.outcome == 'failure'
         run: |
           echo 'KREAM collection did not succeed. Prior prices and charts are preserved; inspect data/korean-promos-health.json.'
           exit 1

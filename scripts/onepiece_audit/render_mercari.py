@@ -29,7 +29,7 @@ def run():
   draw.text((x+10,y+8),c['officialId']+' | '+r['itemId'],font=font,fill='black')
   for j,body in enumerate([raw,photo]):
    im=Image.open(io.BytesIO(body)).convert('RGB');im=ImageOps.contain(im,(255,380));page.paste(im,(x+10+j*270+(255-im.width)//2,y+40+(380-im.height)//2))
-  rows.append({'officialId':c['officialId'],'itemId':r['itemId'],'marketName':r['title'],'marketImage':r['imageUrl'],'marketSHA256':hashlib.sha256(photo).hexdigest(),'sourceSHA256':hashlib.sha256(raw).hexdigest(),'officialImage':c['image'],'canonicalOfficialImage':c.get('officialImage')or c['image'],'sourceUrl':r['sourceUrl'],'sourceAsOf':r.get('observedAt'),'saleStatus':r.get('saleStatus'),'price':r.get('price'),'target':{**c,'game':'onepiece','brand':'onepiece','boxCode':'PROMO','fullNumber':c['officialId'].split('_')[0],'language':'ja','grade':'raw'},'reviewStatus':'pending-human-original-image-review'})
+  rows.append({'officialId':c['officialId'],'itemId':r['itemId'],'marketName':r['title'],'marketImage':r['imageUrl'],'marketSHA256':hashlib.sha256(photo).hexdigest(),'sourceSHA256':hashlib.sha256(raw).hexdigest(),'officialImage':c['image'],'canonicalOfficialImage':c.get('officialImage')or c['image'],'sourceUrl':r['sourceUrl'],'sourceAsOf':r.get('observedAt'),'saleStatus':r.get('saleStatus'),'price':r.get('price'),'target':{**c,'game':'onepiece','brand':'onepiece','boxCode':'PROMO','fullNumber':c['officialId'].split('_')[0],'language':'ja','grade':'raw'},'reviewStatus':'pending-visual-original-image-review'})
  out=ROOT/'docs/onepiece-market-links-20261101';out.mkdir(parents=True,exist_ok=True);page.save(out/'mercari-promo-review.jpg',quality=90)
  (ROOT/'data/onepiece-mercari-artwork-evidence.json').write_text(json.dumps({'schemaVersion':1,'reviews':rows},ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
  approvedpath=ROOT/'config/onepiece-mercari-artwork-reviews-20261101.json'
@@ -37,7 +37,7 @@ def run():
   approved={r['itemId']:r for r in read(approvedpath)['reviews']}
   for row in rows:
    a=approved.get(row['itemId'],{})
-   if all(a.get(k)==row.get(k)for k in['officialId','marketImage','marketSHA256','sourceSHA256'])and a.get('verification')=='human-original-image-review':row['reviewStatus']=a['reviewStatus'];row['reviewedAt']=a['reviewedAt']
+   if all(a.get(k)==row.get(k)for k in['officialId','marketImage','marketSHA256','sourceSHA256'])and a.get('verification')=='visual-original-image-review':row['reviewStatus']=a['reviewStatus'];row['reviewedAt']=a['reviewedAt']
   (ROOT/'data/onepiece-mercari-artwork-evidence.json').write_text(json.dumps({'schemaVersion':1,'reviews':rows},ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
  print(json.dumps({'reviewPairs':len(rows),'items':[{'id':r['itemId'],'officialId':r['officialId'],'status':r['saleStatus']}for r in rows]}))
 if __name__=='__main__':run()

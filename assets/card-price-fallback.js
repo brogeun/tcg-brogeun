@@ -93,11 +93,21 @@
     if(positive(row.minPrice)&&currency(row.currency)&&!['unverified','invalid','error'].includes(row.priceStatus))return finish(quote('snkrdunk',row.minPrice,row.currency,row,{priceKind:'lowest_listing_ask',condition:'unspecified',verification:'same_product',fxBasis:row.priceSource||null}));
     return null;
   }
+  function verifiedYuyuBinding(target,row,binding){
+    if(binding?.verification!=='original-image-and-acquisition'||binding.language!=='ja')return false;
+    const artwork=norm(target.officialId||target.fullId),sourceImages=[target.sourceImage,target.officialImage,target.image].filter(Boolean);
+    return !!artwork&&norm(binding.officialId)===artwork&&String(binding.yuyuteiId)===String(row.id)&&
+      [binding.officialImage,binding.canonicalOfficialImage].filter(Boolean).some(image=>sourceImages.includes(image))&&
+      norm(binding.cardNumber)===fullNumber(target)&&norm(binding.cardNumber)===norm(row.cardNumber)&&
+      norm(binding.sourceSetCode)===norm(row.sourceSetCode)&&binding.marketName===row.name&&rarity(binding.rarity)===rarity(row.rarity)&&
+      /^[a-f0-9]{64}$/.test(binding.sourceSHA256||'')&&/^[a-f0-9]{64}$/.test(binding.marketSHA256||'');
+  }
   function yuyuMatch(target,row,bindings){
     if(!sameGame(target,row)||language(row.language)!=='ja'||foreign(row)||norm(row.grade||'raw')!=='RAW'||row.currency!=='JPY'||row.priceKind!=='asking'||!positive(row.price))return false;
     if(!fullNumber(target)||fullNumber(target)!==norm(row.cardNumber)||!japanese(target))return false;
-    if(!sameSet(target,row))return false;
     const binding=bindingFor(target,bindings);
+    if(binding?.verification==='original-image-and-acquisition')return verifiedYuyuBinding(target,row,binding);
+    if(!sameSet(target,row))return false;
     if(binding?.yuyuteiId){return binding.language==='ja'&&String(binding.yuyuteiId)===String(row.id)&&(!binding.rarity||rarity(binding.rarity)===rarity(row.rarity))&&(!target.rarity||rarity(target.rarity)===rarity(row.rarity));}
     if(numberedArtwork(target)||!rarity(target.rarity)||['-','UNKNOWN'].includes(rarity(target.rarity))||rarity(target.rarity)!==rarity(row.rarity))return false;
     if(target.sourceSetCode&&norm(target.sourceSetCode)!==norm(row.sourceSetCode))return false;
@@ -105,16 +115,32 @@
     const other=variantSignature([row.variant,row.rarity,row.name].filter(Boolean).join(' '));
     return own===other;
   }
-  function mercariCandidates(target,rows){
+  function reviewedMercariIdentity(target,row,bindings){
+    const proof=bindingFor(target,bindings)?.mercariItems?.find(p=>p.itemId===row.itemId);
+    const own=row.identity||{},sourceImages=[target.sourceImage,target.officialImage,target.image].filter(Boolean);
+    if(!proof||proof.verification!=='visual-original-image-review'||proof.language!=='ja'||
+      norm(proof.officialId)!==norm(target.officialId||target.fullId)||proof.cardNumber!==fullNumber(target)||
+      proof.marketName!==row.title||proof.marketImage!==row.imageUrl||proof.sourceUrl!==row.sourceUrl||
+      ![proof.officialImage,proof.canonicalOfficialImage].filter(Boolean).some(image=>sourceImages.includes(image))||
+      !/^[a-f0-9]{64}$/.test(proof.sourceSHA256||'')||!/^[a-f0-9]{64}$/.test(proof.marketSHA256||'')||
+      foreign({...own,name:row.title})||own.bundle===true||own.quantity>1||
+      (own.grade&&!['RAW','UNGRADED'].includes(norm(own.grade)))||
+      (own.game&&game(own.game)!==game(target.game||target.brand)))return null;
+    const declared=[...(own.cardNumbers||[]),own.cardNumber].filter(Boolean);
+    if(declared.length&&!declared.some(n=>norm(n)===fullNumber(target)))return null;
+    return {...own,game:game(target.game||target.brand),language:'ja',grade:'raw',quantity:1,bundle:false,
+      officialId:proof.officialId,cardNumber:proof.cardNumber,cardNumbers:[proof.cardNumber],setCode:target.setCode,rarity:target.rarity};
+  }
+  function mercariCandidates(target,rows,bindings={}){
     if(!fullNumber(target)||!japanese(target))return [];
     return rows.filter(row=>{
-      const identity=row.identity||{},hint=row.matchHints||{},rowGame=game(identity.game||hint.game);
+      const reviewed=reviewedMercariIdentity(target,row,bindings),identity=reviewed||row.identity||{},hint=row.matchHints||{},rowGame=game(identity.game||hint.game);
       if(rowGame!==game(target.game||target.brand)||foreign({...identity,name:row.title})||norm(identity.grade||'raw')!=='RAW'||identity.bundle===true||identity.quantity>1)return false;
       // A stamped, prize or parallel artwork may share its printed number with
       // a cheap base card. Number-only reference candidates cannot identify it.
       const artwork=norm(target.officialId||target.fullId);
-      if(numberedArtwork(target)||['promotion','limited_product'].includes(target.sourceCategory)||variantSignature([target.variant,target.name].join(' '))){
-        if(!artwork||norm(identity.officialId||identity.artworkId)!==artwork||row.verification!=='exact_printing'||language(identity.language)!=='ja')return false;
+      if(numberedArtwork(target)||['PROMO','LIMITED'].includes(norm(target.boxCode))||/^P-\d+$/.test(fullNumber(target))||['promotion','limited_product'].includes(target.sourceCategory)||variantSignature([target.variant,target.name].join(' '))){
+        if(!artwork||norm(identity.officialId||identity.artworkId)!==artwork||(!reviewed&&!['exact_printing','verified_exact'].includes(row.verification))||language(identity.language)!=='ja')return false;
       }
       if(identity.rarity&&target.rarity&&rarity(identity.rarity)!==rarity(target.rarity))return false;
       if(identity.setCode&&setCode(target)&&norm(identity.setCode)!==setCode(target))return false;
@@ -122,7 +148,7 @@
       if(![...(identity.cardNumbers||[]),identity.cardNumber,...(hint.cardNumbers||[])].some(value=>norm(value)===fullNumber(target)))return false;
       if(/(?:\d+\s*(?:枚|点)|まとめ売り|セット売り|\bLOT\b|\bBUNDLE\b)/i.test(row.title||''))return false;
       return positive(row.price?.amount)&&currency(row.price?.currency)&&!!safeSource(row.sourceUrl,'mercari');
-    }).map(row=>quote('mercari',row.price.amount,row.price.currency,row,{status:'candidate',title:row.title||'',priceKind:'displayed_listing_price',condition:'unverified',saleStatus:['active','sold'].includes(row.saleStatus)?row.saleStatus:'unknown',verification:row.verification||'unverified',valuationEligible:false,stale:!!row.stale||row.fetchStatus==='error',notes:['동일 판본 확인 필요','자동 평가액 제외']})).slice(0,3);
+    }).map(row=>quote('mercari',row.price.amount,row.price.currency,row,{status:'candidate',title:row.title||'',priceKind:'displayed_listing_price',condition:'unverified',saleStatus:['active','sold'].includes(row.saleStatus)?row.saleStatus:'unknown',verification:reviewedMercariIdentity(target,row,bindings)?'exact_printing':row.verification||'unverified',valuationEligible:false,stale:!!row.stale||row.fetchStatus==='error',notes:['동일 판본 확인 필요','자동 평가액 제외']})).slice(0,3);
   }
   function resolve(target,{snkrProducts=[],yuyuRows=[],mercariReferences=[],bindings={}}={}){
     const g=game(target?.game||target?.brand);
@@ -135,7 +161,7 @@
     if(linked&&['error','invalid','unverified'].includes(linked.priceStatus))return {...empty(),status:'unknown',source:'snkrdunk'};
     const matched=[...new Map(yuyuRows.filter(row=>yuyuMatch(target,row,bindings)).map(row=>[row.id,row])).values()];
     if(matched.length===1){const row=matched[0],stamp=Date.parse(row.sourceAsOf||row.observedAt||'');return quote('yuyutei',row.price,'JPY',row,{priceKind:'shop_asking',condition:'raw',stockState:row.stockState||'unknown',stale:!!row.stale||row.notObservedInLatestSnapshot===true||row.fetchStatus==='error'||(Number.isFinite(stamp)&&Date.now()-stamp>36*3600000),verification:'exact_printing',notes:row.stockState==='out_of_stock'?['품절 상품의 표시가']:[]});}
-    const candidates=mercariCandidates(target,mercariReferences);
+    const candidates=mercariCandidates(target,mercariReferences,bindings);
     if(candidates.length)return {...candidates[0],candidates};
     if(target.snkrdunkStatus==='unlinked'&&!own)return {...empty(),status:'unknown',source:'snkrdunk',reason:'catalog-unlinked'};
     return empty(matched.length>1?['같은 번호의 판본을 확정할 수 없음']:['확인된 가격 없음']);
@@ -177,7 +203,7 @@
     throw Error('SNKR raw availability unconfirmed');
   }
   async function lookup(target,options={}){
-    const snkrProducts=options.snkrProducts||[],bindings=options.bindings||{};let provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
+    const snkrProducts=options.snkrProducts||[];let bindings=options.bindings||{},provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
     let result=resolve(provided,{snkrProducts,bindings});
     if(result.status==='priced'||(result.status==='unknown'&&result.reason!=='catalog-unlinked')||(!japanese(provided,provided.snkrProduct)&&!exactSnkrTarget(provided))||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
     const current=options.isCurrent||(()=>true),load=options.fetchJson||json,g=game(provided.game||provided.brand);
@@ -189,6 +215,14 @@
     if(!japanese(provided,provided.snkrProduct)||provided.bundle||provided.quantity>1||provided.unprintedNumber||!fullNumber(provided))return result;
     let rows=options.yuyuRows||[];
     if(options.yuyuRows===undefined&&yuyuGames.has(g)){try{const data=await load(`/data/yuyutei-market/${g}.json`);if(!current())return empty(['조회 취소']);if(game(data.game)!==g)throw Error('Wrong source game');rows=decodeYuyu(data);}catch{rows=[];}}
+    result=resolve(provided,{snkrProducts,yuyuRows:rows,bindings});if(result.status==='priced'||!current())return result;
+    if(g==='onepiece'&&options.bindings===undefined){
+      try{
+        const proof=await load('/data/onepiece-reviewed-fallback-links.json');
+        if(!current())return empty(['조회 취소']);
+        if(proof?.schemaVersion===1&&proof.source==='onepiece-original-image-audit')bindings=proof.bindings||{};
+      }catch{}
+    }
     result=resolve(provided,{snkrProducts,yuyuRows:rows,bindings});if(result.status==='priced'||!current())return result;
     let references=options.mercariReferences||[];
     if(options.mercariReferences===undefined){try{const data=await load('/data/mercari-references.json');if(!current())return empty(['조회 취소']);if(data.source!=='mercari')throw Error('Wrong source');references=data.references||[];}catch{references=[];}}
@@ -209,7 +243,7 @@
   function render(result,{compact=false,convert=root.TCGFX?.convert}={}){
     if(!result||result.status==='none')return '<span class="card-price-fallback cpf-none">확인된 가격 없음</span>';
     if(result.status==='unknown')return '<span class="card-price-fallback cpf-none">'+(['unlinked-artwork','catalog-unlinked'].includes(result.reason)?'카드별 가격 연결 확인 필요':'SNKRDUNK 가격 확인 불가')+'</span>';
-    const labels={snkrdunk:'SNKRDUNK',yuyutei:'유유테이',mercari:'메루카리'},label=result.status==='candidate'?'참고 매물 · 판본 확인 필요':result.source==='snkrdunk'&&result.condition==='unspecified'?'상태 미지정 상품 호가':result.source==='yuyutei'&&result.stockState==='out_of_stock'?'품절 표시가':result.source==='yuyutei'?'판매가':'미감정 최저 호가';
+    const labels={snkrdunk:'SNKRDUNK',yuyutei:'유유테이',mercari:'메루카리'},label=result.status==='candidate'?(result.verification==='exact_printing'?'참고 매물 · 실물 상태 확인 필요':'참고 매물 · 판본 확인 필요'):result.source==='snkrdunk'&&result.condition==='unspecified'?'상태 미지정 상품 호가':result.source==='yuyutei'&&result.stockState==='out_of_stock'?'품절 표시가':result.source==='yuyutei'?'판매가':'미감정 최저 호가';
     const price=wonPrice(result,convert),renderId=String(++renderSequence);renderedQuotes.set(renderId,{amount:result.amount,currency:result.currency});if(renderedQuotes.size>256)renderedQuotes.delete(renderedQuotes.keys().next().value);
     const url=safeSource(result.sourceUrl,result.source),source=url?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(labels[result.source])}</a>`:esc(labels[result.source]);
     const time=result.observedAt&&!Number.isNaN(Date.parse(result.observedAt))?new Date(result.observedAt).toISOString().slice(0,10):'확인일 미상';

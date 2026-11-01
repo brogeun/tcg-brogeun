@@ -1,0 +1,46 @@
+name: Verify One Piece artwork recovery
+on:
+  push:
+    branches: ['onepiece/restore-artwork-20261101']
+    paths:
+      - 'scripts/onepiece_audit/**'
+      - 'config/onepiece-artwork-visual-reviews-20261101.json'
+      - '.github/workflows/onepiece-artwork-recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: onepiece-artwork-recovery
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify generated search, official completeness, runtime and release cache syntax
+        run: |
+          node scripts/build_onepiece_search.cjs
+          git diff --exit-code -- data/onepiece-official-search.json
+          python scripts/build_onepiece_official.py --validate-only
+          node --check sw.js
+          node --check scripts/onepiece_audit/verify_production.cjs
+          node --test scripts/test_onepiece_official.cjs scripts/test_op16_contained_prices.cjs scripts/test_op17_contained_prices.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_card_prices.cjs scripts/test_card_price_fallback.cjs scripts/onepiece_audit/test.cjs
+          git diff --check
+      - name: Preserve final release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onepiece-final-release-evidence
+          path: |
+            data/onepiece-market-link-audit-20261101.json
+            config/onepiece-artwork-visual-reviews-20261101.json
+            config/onepiece-mercari-artwork-reviews-20261101.json

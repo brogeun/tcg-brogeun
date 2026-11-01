@@ -16,14 +16,14 @@ class DiscoveryTests(unittest.TestCase):
   def row(i):return {'itemId':'m'+str(i).zfill(11),'sourceUrl':'https://jp.mercari.com/item/m'+str(i).zfill(11),'game':'onepiece'}
   x=m.combine_watchlist([row(1)], [row(i)for i in range(2,110)]+[{'itemId':'m99999999999','sourceUrl':'https://evil.test/item/m99999999999'}], [row(111)], maximum=100)
   self.assertEqual(len(x['items']),100);self.assertEqual(x['items'][0],{**row(1),'enabled':True});self.assertEqual(x['items'][1]['itemId'],row(111)['itemId']);self.assertEqual(len({r['itemId']for r in x['items']}),100)
- def test_source_403_stops_searches_and_leaves_price_references_unchanged(self):
+ def test_source_401_stops_searches_and_leaves_price_references_unchanged(self):
   with tempfile.TemporaryDirectory()as tmp:
    root=Path(tmp);(root/'data').mkdir()
    m.write(root/'data/mercari-reference-watchlist.json',{'items':[{'itemId':'m11111111111','sourceUrl':'https://jp.mercari.com/item/m11111111111','game':'onepiece'}]})
    prior={'schemaVersion':1,'source':'mercari','references':[]};m.write(root/'data/mercari-references.json',prior)
    m.write(root/'data/onepiece-official-search.json',{'cards':[{'officialId':'OP01-001_p1','name':'ルフィ','productId':None},{'officialId':'OP01-002_p1','name':'ゾロ','productId':None}]})
    calls=[]
-   def blocked(url):calls.append(url);raise urllib.error.HTTPError(url,403,'blocked',{},None)
+   def blocked(url):calls.append(url);raise urllib.error.HTTPError(url,401,'authentication-required',{},None)
    result=m.prepare(root,blocked)
    self.assertEqual(len(calls),1);self.assertEqual(result['status'],'deferred');self.assertEqual(result['newVerifiedQuotes'],0);self.assertEqual(m.read(root/'data/mercari-references.json'),prior)
 if __name__=='__main__':unittest.main()

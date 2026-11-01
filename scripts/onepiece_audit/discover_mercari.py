@@ -66,7 +66,7 @@ def prepare(root=ROOT,fetch=None):
     if item not in known and all(r['itemId']!=item for r in new):new.append({'itemId':item,'sourceUrl':'https://jp.mercari.com/item/'+item,'game':'onepiece','enabled':True})
   except urllib.error.HTTPError as e:
    checks.append({'officialId':c['officialId'],'sourceUrl':url,'checkedAt':stamp(),'status':'http-error','httpStatus':e.code})
-   if e.code in (403,429):blocked={'httpStatus':e.code,'observedAt':stamp(),'sourceUrl':url};break
+   if e.code in (401,403,429):blocked={'httpStatus':e.code,'observedAt':stamp(),'sourceUrl':url};break
   except (OSError,ValueError,UnicodeError,TimeoutError)as e:checks.append({'officialId':c['officialId'],'sourceUrl':url,'checkedAt':stamp(),'status':'failed','error':str(e)[:180]})
  outcome={'schemaVersion':1,'source':'mercari','generatedAt':stamp(),'scope':'Original public search HTML only. No undocumented API, proxy, login, settlement inference, or automatic valuation.','queries':checks,'queryCount':len(checks),'newPublicItems':len(new),'seedCandidatesAdded':seed_count,'newPublicItemsFromSearch':len(new)-seed_count,'blocked':blocked,'nextOffset':(offset+len(checks))%max(1,len(targets)),'status':'deferred'if blocked else'partial','searchTargets':len(targets),'newVerifiedQuotes':0}
  write(root/'.cache/onepiece-mercari-watchlist.json',combine_watchlist(watch['items'],prior,new));write(reportpath,outcome)

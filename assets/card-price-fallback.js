@@ -117,7 +117,7 @@
   }
   function reviewedMercariIdentity(target,row,bindings){
     const proof=bindingFor(target,bindings)?.mercariItems?.find(p=>p.itemId===row.itemId);
-    const own=row.identity||{},sourceImage=target.sourceImage||target.officialImage||target.image;
+    const own=row.identity||{},sourceImages=[target.sourceImage,target.officialImage,target.image].filter(Boolean);
     if(!proof||proof.verification!=='human-original-image-review'||proof.language!=='ja'||
       norm(proof.officialId)!==norm(target.officialId||target.fullId)||proof.cardNumber!==fullNumber(target)||
       proof.marketName!==row.title||proof.marketImage!==row.imageUrl||proof.sourceUrl!==row.sourceUrl||

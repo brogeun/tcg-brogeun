@@ -32,3 +32,15 @@ test('all saved recovery proofs are consumed and blocked prices stay unlinked',(
  assert.equal(search.officialCards,report.officialCards);assert.equal(search.linkedProducts,report.linkedAfter);assert.equal(search.cards.length-search.linkedProducts,report.remaining);
  const shop=read('data/onepiece-reviewed-fallback-links.json');for(const [key,b]of Object.entries(shop.bindings)){assert.equal(b.verification,'original-image-and-acquisition');assert(sources.has(b.officialId));assert.match(b.sourceSHA256,/^[a-f0-9]{64}$/);assert.match(b.marketSHA256,/^[a-f0-9]{64}$/);}
 });
+
+test('the four no-catalog Japanese promos consume exact photo reviews and remain listing references',()=>{
+ const review=read('config/onepiece-mercari-artwork-reviews-20261101.json'),refs=read('data/mercari-references.json').references,bindings=read('data/onepiece-reviewed-fallback-links.json').bindings;
+ const manifest=read('data/onepiece-official-manifest.json'),source=new Map(),bridge=require('../../assets/contained-card-prices.js');
+ for(const set of manifest.sets)for(const c of read('data/cards-by-set/'+(set.fileCode||set.code)+'.json').cards)if(c.officialId)source.set(c.officialId,{...c,brand:'onepiece',language:'ja',boxCode:set.code});
+ for(const r of review.reviews){
+  const t={...bridge.targetFor(source.get(r.officialId)),snkrdunkStatus:'unlinked'},row=refs.find(x=>x.itemId===r.itemId);assert(row);
+  const result=fallback.resolve(t,{mercariReferences:[row],bindings});assert.equal(result.status,'candidate',r.officialId);assert.equal(result.source,'mercari');assert.equal(result.verification,'exact_printing');assert.equal(result.valuationEligible,false);assert.equal(result.priceKind,'displayed_listing_price');
+  for(const alter of [{imageUrl:'https://static.mercdn.net/different.jpg'},{title:'different title'},{identity:{...row.identity,language:'en'}},{identity:{...row.identity,quantity:4,bundle:true}}])assert.notEqual(fallback.resolve(t,{mercariReferences:[{...row,...alter}],bindings}).source,'mercari',r.officialId);
+  assert.equal(fallback.resolve({...t,sourceUnavailable:true},{mercariReferences:[row],bindings}).status,'unknown');
+ }
+});

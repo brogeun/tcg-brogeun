@@ -93,7 +93,7 @@ def acquisition(source,p,known,shop=False):
  for jp,en in [('プロモーションパックEX','promotionpackex'),('プロモーションパック','promotionpack'),('スタンダードバトルパック','standardbattlepack')]:
   if jp in s:
    vol=re.search(r'vol\.?\s*(\d+)',s,re.I)
-   return {'kind':'promotion-pack-volume','volume':vol[1]}if vol and en+'vol'+vol[1]in t else None
+   return {'kind':'promotion-pack-volume','volume':vol[1]}if vol and re.search(re.escape(en)+r'vol'+re.escape(vol[1])+r'(?!\d)',t) else None
  if 'フラッグシップ'in s and'flagship'in norm(title):
   if '優勝'in s and re.search(r'victory|winner|first place',title,re.I)and not re.search(r'top\s*8',title,re.I):return {'kind':'flagship-winner'}
   if re.search('ベスト8|ベスト８',s)and re.search(r'top\s*8',title,re.I)and not re.search(r'victory|winner',title,re.I):return {'kind':'flagship-top-eight'}
@@ -103,11 +103,26 @@ def acquisition(source,p,known,shop=False):
   if not year and re.fullmatch(r'promotioncardset[123]?',t):return {'kind':'promotion-card-set'}
  if 'プレミアムカードコレクション'in s:
   vol=re.search(r'vol\.?\s*(\d+)',s,re.I)
-  if 'ベストセレクション'in s and vol and'premiumcardcollectionbestselectionvol'+vol[1]in t:return {'kind':'best-selection-volume','volume':vol[1]}
+  if 'ベストセレクション'in s and vol and re.search(r'premiumcardcollectionbestselectionvol'+re.escape(vol[1])+r'(?!\d)',t):return {'kind':'best-selection-volume','volume':vol[1]}
   for jp,en in [('25周年','25thanniversaryedition'),('FILM RED','onepiecefilmred'),('ガールズエディション','girlsedition'),('ウタ','uta')]:
    if jp in s and t=='premiumcardcollection'+en:return {'kind':'premium-collection-edition','edition':en}
  for jp,en in [('始めようキャンペーン','letsgetstartedcampaignpromotionpack'),('フィナーレセット','onepiecefilmredfinaleset'),('アンコールパック','onepiececardgameencorepack'),('3周年！ワンピースカードトレジャー','3thonepiececardtreasurecampaign'),('BASE SHOPリミテッドカードコレクションvol.1','limitedcardcollectionbaseshopvol1'),('ONE PIECE カードゲーム China 2nd ANNIVERSARY SET','onepiececardgamechina2ndanniversarysetjapanesever'),('ONE PIECE カードゲーム English 2nd ANNIVERSARY SET','anniversarysetenglish2ndanniversarysetjapanesever')]:
   if jp in s and t==en:return {'kind':'explicit-acquisition-translation','officialAcquisition':s}
+ if 'プレミアムカードコレクション'in s and'Live Action Edition'in s:
+  vol=re.search(r'vol\.?\s*(\d+)',s,re.I)
+  if vol and vol[1]=='2':
+   for jp,names in [('麦わらの一味',['strawhatpirates','strawhatcrew']),('バロックワークス',['baroqueworks'])]:
+    if jp in s and any('premiumcardcollectionliveactioneditionvol2'+name in t for name in names):return {'kind':'live-action-volume-and-group','volume':2,'group':jp}
+  if not vol and t=='premiumcardcollectionliveactionedition':return {'kind':'live-action-first-edition'}
+ if s=='ジャンプGIGA 2023 SPRING 応募者全員サービス'and t=='premiumcardcollectiongirlsedition':return {'kind':'previously-image-reviewed-giga-girls-acquisition'}
+ months=['january','february','march','april','may','june','july','august','september','october','november','december']
+ magazine=next((en for jp,en in [('Vジャンプ','vjump'),('最強ジャンプ','saikyojump')]if jp in s),None)
+ issue=re.search(r'(?:ジャンプ)(?:(\d{4})年)?(\d{1,2})月',s);released=re.search(r'(\d{4})年(\d{1,2})月\d+日売',s)
+ if magazine and issue and released and magazine in norm(title):
+  month=int(issue[2]);year=int(issue[1]or released[1])+(1 if not issue[1]and month<=2 and int(released[2])>=11 else 0)
+  if 1<=month<=12 and str(year)in title and re.search(r'\b'+months[month-1]+r'\b',title,re.I):return {'kind':'explicit-magazine-issue-month-and-year','magazine':magazine,'month':month,'year':year}
+ weekly=re.search(r'週刊少年ジャンプ(\d+)号',s)
+ if weekly and released and'weeklyshonenjump'in norm(title)and released[1]in title and re.search(r'(?:issue|no|vol)'+weekly[1]+r'(?!\d)',norm(title)):return {'kind':'explicit-weekly-jump-issue-and-year','issue':int(weekly[1]),'year':int(released[1])}
  if 'ストレージボックスセット'in s and'storageboxset'in t and'onepiececardthebest'in t:return {'kind':'best-storage-box'}
  for ordinal in ['1st','2nd','3rd']:
   if ordinal+' ANNIVERSARY SET'in s and t in {ordinal+'anniversaryset','onepiececardgame'+ordinal+'anniversaryset'}and'China'not in s and'English'not in s:return {'kind':'japanese-anniversary-ordinal','ordinal':ordinal}
@@ -117,6 +132,7 @@ def original(p):
  if u.scheme!='https'or u.hostname!='cdn.snkrdunk.com':return None
  return urllib.parse.urlunparse(u._replace(query='',fragment=''))
 def run():
+ previous_report=read(OUT)if OUT.exists()else{}
  data=read(CACHE/'input.json');sources={s['officialId']:s for s in data['sources']};old={c['officialId']:c for c in data['catalogue']['cards']};pending=[s for s in data['sources']if not old[s['officialId']].get('productId')];known=learn_contexts(data)
  relevant={s['printedNumber']for s in pending}|{sources[k]['printedNumber']for k in BLOCKED if k in sources}
  siblings=collections.defaultdict(list)
@@ -180,12 +196,16 @@ def run():
   p=b['product'];sm=images.data['official:'+s['officialId']];mm=images.data['market:'+p['id']];target=s['target'];config=local.get(s['officialId'],{})
   links.append({'brand':'onepiece','language':'ja','boxCode':target['boxCode'],'setCode':target['setCode'],'number':target['number'],'fullId':target['fullId'],'officialId':s['officialId'],'image':target['image'],'id':p['id'],'marketName':p['name'],'marketProductNumber':p['productNumber'],'marketImage':p['thumbnailUrl'],'sourceSHA256':config.get('sourceSHA256',sm['sha256']),'marketSHA256':mm['sha256'],'comparedSourceSHA256':sm['sha256'],'comparedMarketImage':mm['url'],'acquisition':s['card']['acquisition'],'sourceUrl':s['card']['sourceUrl'],'method':'registered-original-image-and-acquisition','reviewStatus':'verified-same-japanese-artwork-and-acquisition','auditRun':'20261101-recovery','evidenceId':s['officialId']+'|'+p['id']})
  proofpath=ROOT/'data/onepiece-reviewed-promo-links.json';proof=read(proofpath);proof['links']=[r for r in proof['links']if r.get('officialId')not in {x['officialId']for x in links}]+links;write(proofpath,proof)
+ new_blocked=len(blocked)
+ cumulative_links=[r for r in proof['links']if r.get('auditRun')=='20261101-recovery']
+ blocked=list({r['officialId']:r for r in previous_report.get('blockedPreviousLinks',[])+blocked}.values())
  for b in blocked:
   s=sources[b['officialId']];p=ROOT/'data/cards-by-set'/(s['fileCode']+'.json');doc=read(p)
   for c in doc['cards']:
    if c.get('officialId')==b['officialId']:c.update({'marketLinkPolicy':'verified-only','marketLinkBlockedProductId':b['blockedProductId'],'marketLinkReviewReason':'Original market image has a different illustration. Independent artwork verification is required.','marketLinkAudit':'onepiece-market-link-audit-20261101'})
   write(p,doc)
- report={'schemaVersion':1,'baselineSHA256':data['baselineSHA256'],'officialCards':len(sources),'previouslyLinked':data['catalogue']['linkedProducts'],'audited':len(pending),'additionalConfirmed':len(links),'blockedPreviousLinks':blocked,'remaining':len(pending)-len(links)+len(blocked),'linkedAfter':data['catalogue']['linkedProducts']+len(links)-len(blocked),'snkrImagePairs':len(memo),'reasonCounts':dict(collections.Counter(r['reason']for r in rows)),'cards':rows,'marketProducts':data['marketProducts'],'shopCoverage':data['shopCoverage'],'imagesUsable':len(images.data),'imageErrors':images.errors,'sourceRequestCounts':dict(images.requests),'sourceCircuits':sorted(images.blocked),'originalPricesChanged':False}
+ historical={r['officialId']:r for r in previous_report.get('cards',[])};historical.update({r['officialId']:r for r in rows});rows=list(historical.values())
+ report={'schemaVersion':1,'baselineSHA256':previous_report.get('baselineSHA256',data['baselineSHA256']),'passBaselineSHA256':data['baselineSHA256'],'auditCodeCommit':os.environ.get('AUDIT_BASE'),'officialCards':len(sources),'previouslyLinked':previous_report.get('previouslyLinked',data['catalogue']['linkedProducts']),'audited':previous_report.get('audited',len(pending)),'auditedThisPass':len(pending),'newConfirmedThisPass':len(links),'additionalConfirmed':len(cumulative_links),'blockedPreviousLinks':blocked,'remaining':len(pending)-len(links)+new_blocked,'linkedAfter':data['catalogue']['linkedProducts']+len(links)-new_blocked,'snkrImagePairs':len(memo),'reasonCounts':dict(collections.Counter(r['reason']for r in rows)),'cards':rows,'marketProducts':data['marketProducts'],'shopCoverage':data['shopCoverage'],'imagesUsable':len(images.data),'imageErrors':images.errors,'sourceRequestCounts':dict(images.requests),'sourceCircuits':sorted(images.blocked),'originalPricesChanged':False}
  write(OUT,report);write(CACHE/'snkr-pairs.json',[{'officialId':oid,'productId':pid,**e}for(oid,pid),e in memo.items()])
  # Independently bind shop printings. Exact original product IDs survive source price refreshes.
  shop_by=collections.defaultdict(list)

@@ -114,7 +114,7 @@ def acquisition(source,p,known,shop=False):
  return None
 def original(p):
  u=urllib.parse.urlparse(p['thumbnailUrl'])
- if u.scheme!='https'or u.hostname!='cdn.snkrdunk.com':raise ValueError('Invalid market source')
+ if u.scheme!='https'or u.hostname!='cdn.snkrdunk.com':return None
  return urllib.parse.urlunparse(u._replace(query='',fragment=''))
 def run():
  data=read(CACHE/'input.json');sources={s['officialId']:s for s in data['sources']};old={c['officialId']:c for c in data['catalogue']['cards']};pending=[s for s in data['sources']if not old[s['officialId']].get('productId')];known=learn_contexts(data)
@@ -127,7 +127,9 @@ def run():
    c=s['card'];items.append(('official:'+s['officialId'],c.get('officialImage')or c['image'],local.get(s['officialId'],{}).get('image')))
  for s in pending:
   for p in s['candidates']:
-   items.append(('market:'+p['id'],original(p),None))
+   url=original(p)
+   if url:items.append(('market:'+p['id'],url,None))
+   else:images.errors['market:'+p['id']]='No original public CDN image; no automatic assignment'
  images.collect(items);memo={}
  def ev(oid,pid):
   key=(oid,pid)
@@ -177,7 +179,7 @@ def run():
  for s,b in safe:
   p=b['product'];sm=images.data['official:'+s['officialId']];mm=images.data['market:'+p['id']];target=s['target'];config=local.get(s['officialId'],{})
   links.append({'brand':'onepiece','language':'ja','boxCode':target['boxCode'],'setCode':target['setCode'],'number':target['number'],'fullId':target['fullId'],'officialId':s['officialId'],'image':target['image'],'id':p['id'],'marketName':p['name'],'marketProductNumber':p['productNumber'],'marketImage':p['thumbnailUrl'],'sourceSHA256':config.get('sourceSHA256',sm['sha256']),'marketSHA256':mm['sha256'],'comparedSourceSHA256':sm['sha256'],'comparedMarketImage':mm['url'],'acquisition':s['card']['acquisition'],'sourceUrl':s['card']['sourceUrl'],'method':'registered-original-image-and-acquisition','reviewStatus':'verified-same-japanese-artwork-and-acquisition','auditRun':'20261101-recovery','evidenceId':s['officialId']+'|'+p['id']})
- proofpath=ROOT/'data/onepiece-reviewed-promo-links.json';proof=read(proofpath);proof['links']=[r for r in proof['links']if r.get('auditRun')!='20261101-recovery']+links;write(proofpath,proof)
+ proofpath=ROOT/'data/onepiece-reviewed-promo-links.json';proof=read(proofpath);proof['links']=[r for r in proof['links']if r.get('officialId')not in {x['officialId']for x in links}]+links;write(proofpath,proof)
  for b in blocked:
   s=sources[b['officialId']];p=ROOT/'data/cards-by-set'/(s['fileCode']+'.json');doc=read(p)
   for c in doc['cards']:
@@ -206,7 +208,7 @@ def run():
   rival=max((sev(o['officialId'],p['id'])['quality']for o in siblings[s['printedNumber']]if o['officialId']!=s['officialId']and acquisition(o,p,known,True)),default=0)
   if passes(e,True)and e['quality']-runner>=.10 and e['quality']-rival>=.10:
    t=s['target'];key=':'.join(['onepiece',str(t.get('setCode')or t['boxCode']).upper(),t['fullNumber'].upper(),unicodedata.normalize('NFKC',str(t.get('rarity',''))).upper().replace(' ',''),str(t.get('fullId')or t.get('variant','')).upper()])
-   binding={'language':'ja','officialId':s['officialId'],'officialImage':t['image'],'yuyuteiId':p['id'],'cardNumber':p['cardNumber'],'sourceSetCode':p['sourceSetCode'],'rarity':p['rarity'],'marketName':p['name'],'marketImage':p['image'],'sourceSHA256':images.data['official:'+s['officialId']]['sha256'],'marketSHA256':images.data['shop:'+p['id']]['sha256'],'verification':'original-image-and-acquisition','evidence':e,'sourceUrl':p['sourceUrl']}
+   binding={'language':'ja','officialId':s['officialId'],'officialImage':t['image'],'canonicalOfficialImage':s['card'].get('officialImage')or s['card']['image'],'yuyuteiId':p['id'],'cardNumber':p['cardNumber'],'sourceSetCode':p['sourceSetCode'],'rarity':p['rarity'],'marketName':p['name'],'marketImage':p['image'],'sourceSHA256':images.data['official:'+s['officialId']]['sha256'],'marketSHA256':images.data['shop:'+p['id']]['sha256'],'verification':'original-image-and-acquisition','evidence':e,'sourceUrl':p['sourceUrl']}
    bindings[key]=binding;shop_rows.append({'officialId':s['officialId'],'productId':p['id'],'sourceAsOf':p.get('sourceAsOf'),'price':p.get('price'),'evidence':e})
   if i%300==0:print(json.dumps({'shopCompared':i,'total':len(shop_sources),'confirmedBindings':len(bindings),'shopImagePairs':len(shop_memo)}),flush=True)
  write(ROOT/'data/onepiece-reviewed-fallback-links.json',{'schemaVersion':1,'source':'onepiece-original-image-audit','bindings':bindings})

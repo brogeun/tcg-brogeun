@@ -45,7 +45,7 @@ jobs:
         run: |
           node scripts/build_onepiece_search.cjs
           python scripts/build_onepiece_official.py --validate-only
-          node --test scripts/test_onepiece_official.cjs scripts/test_op16_contained_prices.cjs scripts/test_op17_contained_prices.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_card_prices.cjs scripts/test_card_price_fallback.cjs
+          node --test scripts/test_onepiece_official.cjs scripts/test_op16_contained_prices.cjs scripts/test_op17_contained_prices.cjs scripts/test_contained_artwork_bindings.cjs scripts/test_contained_card_prices.cjs scripts/test_card_price_fallback.cjs scripts/onepiece_audit/test.cjs
           git diff --check
       - name: Save verified recovery to isolated branch only
         run: |

@@ -93,11 +93,21 @@
     if(positive(row.minPrice)&&currency(row.currency)&&!['unverified','invalid','error'].includes(row.priceStatus))return finish(quote('snkrdunk',row.minPrice,row.currency,row,{priceKind:'lowest_listing_ask',condition:'unspecified',verification:'same_product',fxBasis:row.priceSource||null}));
     return null;
   }
+  function verifiedYuyuBinding(target,row,binding){
+    if(binding?.verification!=='original-image-and-acquisition'||binding.language!=='ja')return false;
+    const artwork=norm(target.officialId||target.fullId),sourceImage=target.sourceImage||target.officialImage||target.image;
+    return !!artwork&&norm(binding.officialId)===artwork&&String(binding.yuyuteiId)===String(row.id)&&
+      [binding.officialImage,binding.canonicalOfficialImage].filter(Boolean).includes(sourceImage)&&
+      norm(binding.cardNumber)===fullNumber(target)&&norm(binding.cardNumber)===norm(row.cardNumber)&&
+      norm(binding.sourceSetCode)===norm(row.sourceSetCode)&&binding.marketName===row.name&&rarity(binding.rarity)===rarity(row.rarity)&&
+      /^[a-f0-9]{64}$/.test(binding.sourceSHA256||'')&&/^[a-f0-9]{64}$/.test(binding.marketSHA256||'');
+  }
   function yuyuMatch(target,row,bindings){
     if(!sameGame(target,row)||language(row.language)!=='ja'||foreign(row)||norm(row.grade||'raw')!=='RAW'||row.currency!=='JPY'||row.priceKind!=='asking'||!positive(row.price))return false;
     if(!fullNumber(target)||fullNumber(target)!==norm(row.cardNumber)||!japanese(target))return false;
-    if(!sameSet(target,row))return false;
     const binding=bindingFor(target,bindings);
+    if(binding?.verification==='original-image-and-acquisition')return verifiedYuyuBinding(target,row,binding);
+    if(!sameSet(target,row))return false;
     if(binding?.yuyuteiId){return binding.language==='ja'&&String(binding.yuyuteiId)===String(row.id)&&(!binding.rarity||rarity(binding.rarity)===rarity(row.rarity))&&(!target.rarity||rarity(target.rarity)===rarity(row.rarity));}
     if(numberedArtwork(target)||!rarity(target.rarity)||['-','UNKNOWN'].includes(rarity(target.rarity))||rarity(target.rarity)!==rarity(row.rarity))return false;
     if(target.sourceSetCode&&norm(target.sourceSetCode)!==norm(row.sourceSetCode))return false;
@@ -177,7 +187,7 @@
     throw Error('SNKR raw availability unconfirmed');
   }
   async function lookup(target,options={}){
-    const snkrProducts=options.snkrProducts||[],bindings=options.bindings||{};let provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
+    const snkrProducts=options.snkrProducts||[];let bindings=options.bindings||{},provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
     let result=resolve(provided,{snkrProducts,bindings});
     if(result.status==='priced'||(result.status==='unknown'&&result.reason!=='catalog-unlinked')||(!japanese(provided,provided.snkrProduct)&&!exactSnkrTarget(provided))||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
     const current=options.isCurrent||(()=>true),load=options.fetchJson||json,g=game(provided.game||provided.brand);
@@ -187,6 +197,13 @@
       result=resolve(provided,{snkrProducts,bindings});if(result.status==='priced'||result.status==='unknown')return result;
     }
     if(!japanese(provided,provided.snkrProduct)||provided.bundle||provided.quantity>1||provided.unprintedNumber||!fullNumber(provided))return result;
+    if(g==='onepiece'&&options.bindings===undefined){
+      try{
+        const proof=await load('/data/onepiece-reviewed-fallback-links.json');
+        if(!current())return empty(['조회 취소']);
+        if(proof?.schemaVersion===1&&proof.source==='onepiece-original-image-audit')bindings=proof.bindings||{};
+      }catch{}
+    }
     let rows=options.yuyuRows||[];
     if(options.yuyuRows===undefined&&yuyuGames.has(g)){try{const data=await load(`/data/yuyutei-market/${g}.json`);if(!current())return empty(['조회 취소']);if(game(data.game)!==g)throw Error('Wrong source game');rows=decodeYuyu(data);}catch{rows=[];}}
     result=resolve(provided,{snkrProducts,yuyuRows:rows,bindings});if(result.status==='priced'||!current())return result;

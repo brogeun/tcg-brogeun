@@ -95,9 +95,9 @@
   }
   function verifiedYuyuBinding(target,row,binding){
     if(binding?.verification!=='original-image-and-acquisition'||binding.language!=='ja')return false;
-    const artwork=norm(target.officialId||target.fullId),sourceImage=target.sourceImage||target.officialImage||target.image;
+    const artwork=norm(target.officialId||target.fullId),sourceImages=[target.sourceImage,target.officialImage,target.image].filter(Boolean);
     return !!artwork&&norm(binding.officialId)===artwork&&String(binding.yuyuteiId)===String(row.id)&&
-      [binding.officialImage,binding.canonicalOfficialImage].filter(Boolean).includes(sourceImage)&&
+      [binding.officialImage,binding.canonicalOfficialImage].filter(Boolean).some(image=>sourceImages.includes(image))&&
       norm(binding.cardNumber)===fullNumber(target)&&norm(binding.cardNumber)===norm(row.cardNumber)&&
       norm(binding.sourceSetCode)===norm(row.sourceSetCode)&&binding.marketName===row.name&&rarity(binding.rarity)===rarity(row.rarity)&&
       /^[a-f0-9]{64}$/.test(binding.sourceSHA256||'')&&/^[a-f0-9]{64}$/.test(binding.marketSHA256||'');
@@ -121,7 +121,7 @@
     if(!proof||proof.verification!=='human-original-image-review'||proof.language!=='ja'||
       norm(proof.officialId)!==norm(target.officialId||target.fullId)||proof.cardNumber!==fullNumber(target)||
       proof.marketName!==row.title||proof.marketImage!==row.imageUrl||proof.sourceUrl!==row.sourceUrl||
-      ![proof.officialImage,proof.canonicalOfficialImage].filter(Boolean).includes(sourceImage)||
+      ![proof.officialImage,proof.canonicalOfficialImage].filter(Boolean).some(image=>sourceImages.includes(image))||
       !/^[a-f0-9]{64}$/.test(proof.sourceSHA256||'')||!/^[a-f0-9]{64}$/.test(proof.marketSHA256||'')||
       foreign({...own,name:row.title})||own.bundle===true||own.quantity>1||
       (own.grade&&!['RAW','UNGRADED'].includes(norm(own.grade)))||

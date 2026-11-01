@@ -39,6 +39,7 @@ function runtime(files,options={}){
   };
   context.window=context;
   context.CardRarityFilters=require('../assets/card-rarity-filters.js');
+  context.TCGSearchAliases=require('../assets/tcg-search-aliases.js');
   document.addEventListener('click',event=>{const tab=event.target.closest('#ciTabs [data-ci]');if(tab){context.CI_TAB=tab.dataset.ci;context.renderCardInfo();}},false);
   vm.runInNewContext(SOURCE,context);
   function dispatch(type,target,extra={}){const event={target,preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){this.stopped=true;},...extra};for(const {fn}of [...listeners.get(type)||[]].sort((a,b)=>Number(b.capture)-Number(a.capture))){fn(event);if(event.stopped)break;}return event;}
@@ -273,4 +274,19 @@ test('numbered footer uses five-page window and first/last navigation, then rese
   r.action('data-tci-page','10');assert.equal(r.api.state().page,10);assert.match(nav.innerHTML,/aria-label="6페이지"/);assert.match(nav.innerHTML,/aria-label="맨 마지막 페이지" disabled/);
   r.action('data-tci-rarity','known:SP');assert.equal(r.api.state().page,1);assert.equal(nav.hidden,true);assert.equal(r.quoteTargets.length,0);
   r.action('data-tci-rarity','');assert.equal(nav.hidden,false);r.action('data-tci-page','5');assert.match(nav.innerHTML,/aria-label="3페이지"/);assert.match(nav.innerHTML,/aria-label="7페이지"/);
+});
+
+test('Korean character queries combine franchise, spelling and rarity without rewriting price targets',async()=>{
+  const {files}=fixture(),body=files.get('/data/tcg-card-info/weiss_schwarz/a.json'),original=body.cards[0];
+  body.cards=[{...original,id:'700',name:'未来へ一緒に 戌神ころね',fullCardNumber:'HOL/W91-002SSP',rarity:'SSP',snkrProduct:{...original.snkrProduct,id:'700',name:'Inugami Korone',fullCardNumber:'HOL/W91-002SSP'}},{...original,id:'701',name:'星街すいせい',fullCardNumber:'HOL/W91-100SP',rarity:'SP',snkrProduct:{...original.snkrProduct,id:'701',name:'Hoshimachi Suisei',fullCardNumber:'HOL/W91-100SP'}}];
+  const r=runtime(files);await r.api.open('weiss_schwarz','weiss_schwarz-a');r.get('tciCardSearch').value='홀로라이브 코로네';r.dispatch('input',r.get('tciCardSearch'));assert.match(r.get('tciCardGrid').innerHTML,/戌神ころね/);assert.doesNotMatch(r.get('tciCardGrid').innerHTML,/data-tci-card="701"/);
+  r.get('tciCardSearch').value='호시마치 스이세이';r.dispatch('input',r.get('tciCardSearch'));assert.match(r.get('tciCardGrid').innerHTML,/data-tci-card="701"/);assert.equal(r.quoteTargets.length,0);r.api.detail('701');await tick();assert.equal(r.quoteTargets[0].id,'701');assert.equal(r.quoteTargets[0].name,'星街すいせい');
+  const A=require('../assets/tcg-search-aliases.js');assert(!A.aliases({name:'シンデレラ',fullCardNumber:'NIK/S135-001'}).split(' ').includes('신'));assert.equal(A.scope({name:'Fate/hollow ataraxia',code:'FH/SE03'}),'');assert(!A.aliases({name:'ラプラス',fullCardNumber:'NIK/S135-001'}).includes('다크니스'));assert(A.aliases({name:'ラプラス・ダークネス',fullCardNumber:'HOL/W104-001'}).includes('다크니스'));
+  assert(r.api.textMatch(A.text({name:'ラピ：レッドフード',fullCardNumber:'NIK/S135-001'}),'니케 라피:레드 후드'));assert(r.api.textMatch(A.text({name:'紅蓮：ブラックシャドウ',fullCardNumber:'NIK/S135-002'}),'홍련 흑영'));
+});
+
+test('real manufacturer Nikke and Hololive names retain working Korean alias queries',()=>{
+  const zlib=require('node:zlib'),A=require('../assets/tcg-search-aliases.js'),rows=[];
+  for(const game of ['weiss_schwarz','union_arena']){const file=path.join(__dirname,'../data/official-card-contents/',game+(game==='weiss_schwarz'?'.json.gz':'.json')),raw=fs.readFileSync(file),d=JSON.parse(game==='weiss_schwarz'?zlib.gunzipSync(raw):raw);for(const p of d.products)for(const c of p.cards)rows.push({name:c.name,fullCardNumber:c.number});}
+  for(const kind of ['nikke','hololive']){const source=rows.filter(c=>A.scope(c)===kind),present=A.entries[kind].filter(e=>source.some(c=>A.normalize(c.name).includes(A.normalize(e.native))));assert(present.length>=(kind==='nikke'?140:58));for(const e of present){const candidates=source.filter(c=>A.normalize(c.name).includes(A.normalize(e.native)));assert(candidates.some(c=>A.normalize(A.text(c)).includes(A.normalize(e.korean.split(' ')[0]))),e.native+' -> '+e.korean);}}
 });

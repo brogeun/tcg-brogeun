@@ -71,3 +71,11 @@ test('optional metadata deadline covers body reads and a failure permits retry w
   let retries=0;const result=await R.ensureMetadata('pokemon',{fetchImpl:async()=>{retries++;return {ok:true,json:async()=>({cards:{}})};}});
   assert.deepEqual(result,{cards:{}});assert.equal(retries,1);
 });
+
+test('rarities start behind one picker and keep the picker open during multiple choices',()=>{
+  const html=R.controlsHtml([{rarity:'AR'},{rarity:'SAR'}],[]);assert.match(html,/<details class="ci-rarity-picker">/);assert.doesNotMatch(html,/<details[^>]* open/);assert.match(html,/<summary>희귀도 필터/);assert.match(html,/data-card-rarity-close/);
+  let next;const oldPicker={open:true,querySelector:()=>null},livePicker={open:false},clicked={dataset:{cardRarity:'known:AR'},closest(){return this;}};
+  const live={querySelector:()=>livePicker,querySelectorAll:()=>[]};const container={id:'ciRarityFilters',querySelector:()=>oldPicker,contains:()=>true,ownerDocument:{getElementById:()=>live}};
+  R.mount(container,{cards:[{rarity:'AR'},{rarity:'SAR'}],onChange:keys=>next=keys});container.onclick({target:clicked,preventDefault(){},stopPropagation(){}});assert.deepEqual(next,['known:AR']);assert.equal(livePicker.open,true);
+  const close={dataset:{cardRarityClose:''},closest(){return this;}};container.onclick({target:close,preventDefault(){},stopPropagation(){}});assert.equal(oldPicker.open,false);
+});

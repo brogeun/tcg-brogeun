@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-pagination-rarity-korean-promos-20261101-v1';
+const CACHE_VERSION = 'tcghub-filter-picker-search-korean-promos-20261101-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -79,7 +79,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }
-  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js'].includes(url.pathname)) {
+  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/tcg-search-aliases.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }

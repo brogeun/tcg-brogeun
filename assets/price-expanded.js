@@ -85,6 +85,7 @@
     const product=await window.CardCatalogRepairs?.quoteProduct?.({...original}) || {...original};
     const [histData,detail,,localizeNames]=await Promise.all([json(`/data/history/${encodeURIComponent(id)}.json`),loadCardsDetail(),enrichPriceProductMetadata([product],'box'),window.JapaneseCardNames?.ensureDisplayData?.()]);
     if (!current()) return;
+    product.image=window.CardArtwork?.source(product)||product.image||product.thumbnailUrl||'';
     const history=sortedHistory(histData?.history);
     const box=isBox(product,history);
     const brand=product._brand || product.brand || 'pokemon';

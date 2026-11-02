@@ -2525,8 +2525,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/japanese-catalog.js?v=20261030-reprint-prices1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
-<script src="/assets/card-artwork.js?v=20260916-artwork1"></script>
-<script src="/assets/price-expanded.js?v=20261030-price-audit2"></script>
+<script src="/assets/card-artwork.js?v=20261102-detail-artwork1"></script>
+<script src="/assets/price-expanded.js?v=20261102-detail-artwork1"></script>
 <script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -3701,7 +3701,7 @@ async function showPriceDetailPanel(productId) {
           ...found,
           id: found.id,
           name: found.name,
-          image: found.thumbnailUrl,
+          image: found.image || found.thumbnailUrl,
           lastPrice: found.minPrice,
           lowestAsk: found.minPrice,
           currency: found.currency || 'USD',
@@ -5294,13 +5294,14 @@ let CURRENT_SLIDE_ID = null;
 let SLIDE_RETURN_SET = null;
 let SLIDE_PANEL_REQUEST = 0;
 
-window.openSlidePanel = async function(productId) {
+window.openSlidePanel = async function(productId, cardArtwork = '') {
   const request = ++SLIDE_PANEL_REQUEST;
+  if(cardArtwork)window.CardArtwork?.remember(productId,cardArtwork);
   if (/^JP(?:SET)?:/.test(String(productId))) {
     await loadCardSearchData();
     if (request !== SLIDE_PANEL_REQUEST) return;
     const card=window.OnePieceCatalog?.find(String(productId)) || window.JapaneseCatalog?.find(String(productId));
-    if (card?.productId) return openSlidePanel(card.productId);
+    if (card?.productId) return openSlidePanel(card.productId, cardArtwork);
     if (card) return openJapaneseCatalogueCard(card);
     return;
   }
@@ -5323,7 +5324,7 @@ window.openSlidePanel = async function(productId) {
   document.getElementById('slideCardImg').innerHTML = '';
   // 데이터 fetch + 렌더
   try {
-    await renderSlidePanel(productId, request);
+    await renderSlidePanel(productId, request, cardArtwork);
   } catch (e) {
     if (request !== SLIDE_PANEL_REQUEST || String(CURRENT_SLIDE_ID) !== String(productId)) return;
     console.error('[slide] fetch fail:', e);
@@ -5348,7 +5349,7 @@ window.backFromSlidePanel = function() {
   if (previousSet) return reopenLastSet(previousSet);
 };
 
-async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
+async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST, cardArtwork = '') {
   const current = () => request === SLIDE_PANEL_REQUEST && String(CURRENT_SLIDE_ID) === String(productId);
   await FX_READY;
   await window.AnniversaryMarket?.load();
@@ -5395,7 +5396,7 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
       const found = window.ContainedCardPrices?.getPreparedProduct(productId) ||
         (await loadCardProductData()).find(c => String(c.id) === String(productId)) || window.JapaneseCatalog?.getProduct(productId);
       if (found) {
-        product = { ...found, id: found.id, name: found.name, image: found.thumbnailUrl, brand: found.brand || 'pokemon', _brand: found.brand || 'pokemon' };
+        product = { ...found, id: found.id, name: found.name, image: found.image || found.thumbnailUrl, brand: found.brand || 'pokemon', _brand: found.brand || 'pokemon' };
       }
     } catch (e) { console.warn('[slide] card index fallback fail:', e); }
   }
@@ -5421,7 +5422,8 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&');
-  const image = (product && product.image) || '';
+  // Reuse the selected printing's loaded local/proxy image, independently of market metadata.
+  const image = cardArtwork || window.CardArtwork?.source(product) || product?.image || product?.thumbnailUrl || '';
   const brand = (product && (product._brand || product.brand)) || 'pokemon';
   // 확장팩 — product 직접 필드 → 카드명에서 [코드 번호/총수](영문 박스명) 패턴 파싱
   let pack = (product && (product.set_name || product.pack || product.jp_name)) || '';
@@ -7174,7 +7176,8 @@ document.addEventListener('click', async e => {
   try { identity=JSON.parse(item.dataset.cardIdentity || '{}'); } catch { return; }
   if (!['pokemon','onepiece'].includes(identity.brand) || identity.language!=='ja') return;
   const cardName = item.dataset.cardName || identity.name || '';
-  const cardImage = item.querySelector('img')?.src || '';
+  const cardImageElement = item.querySelector('img');
+  const cardImage = cardImageElement?.currentSrc || cardImageElement?.src || '';
   let target, price, unavailable = false;
   try {
     target = await window.ContainedCardPrices.prepareTarget(identity,{isCurrent:current});
@@ -7191,7 +7194,7 @@ document.addEventListener('click', async e => {
   if (!current()) return;
   if (price?.source==='snkrdunk' && price.status==='priced' && target?.snkrdunkId) {
     closeAnyModal();
-    openSlidePanel(target.snkrdunkId);
+    openSlidePanel(target.snkrdunkId, cardImage);
     return;
   }
   const lastSet = _LAST_OPENED_SET;
@@ -10954,7 +10957,7 @@ window.addEventListener('appinstalled', () => {
 <script src="/assets/card-price-fallback.js?v=20261101-artwork-review1"></script>
 <script src="/assets/contained-card-prices.js?v=20261031-official1"></script>
 <script src="/assets/tcg-search-aliases.js?v=20261101-ko1" defer></script>
-<script src="/assets/tcg-card-info.js?v=20261101-filter-picker-ko1" defer></script>
+<script src="/assets/tcg-card-info.js?v=20261102-detail-artwork1" defer></script>
 <!-- Collections stay within Card info; private records are never cached by this module. -->
 <link rel="stylesheet" href="/assets/collections.css?v=20261030-collections1">
 <script src="/assets/collection-catalog-codec.js?v=20261030-collections1" defer></script>

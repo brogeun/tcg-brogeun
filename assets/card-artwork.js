@@ -3,6 +3,25 @@
   const selector='.set-card-img img, #slideCardImg img, .px-art img';
   const properties=['position','width','height','max-width','max-height','min-width','min-height','left','top','right','bottom','padding','margin','transform','object-fit'];
   let bounds={};
+  const selectedArtworks=new Map();
+  function imageURL(value) {
+    if(typeof value!=='string'||!value)return '';
+    try {
+      const base=typeof location==='object'?location.origin:'https://tcghub.kr';
+      const address=new URL(value,base);
+      if((address.protocol!=='https:'&&!(address.protocol==='http:'&&address.origin===base))||address.username||address.password)return '';
+      if(address.hostname==='www.onepiece-cardgame.com'&&address.pathname.startsWith('/images/cardlist/card/'))return '/api/img?u='+encodeURIComponent(address.href);
+      return value;
+    } catch {return '';}
+  }
+  function remember(id,image) {
+    const source=imageURL(image);if(!id||!source)return;
+    selectedArtworks.delete(String(id));selectedArtworks.set(String(id),source);
+    if(selectedArtworks.size>128)selectedArtworks.delete(selectedArtworks.keys().next().value);
+  }
+  function source(product) {
+    return selectedArtworks.get(String(product?.id))||imageURL(product?.localImage)||imageURL(product?.image)||imageURL(product?.thumbnailUrl)||'';
+  }
   const watched=new WeakSet(), saved=new WeakMap();
   function geometry(art,width,height) {
     const [left,top,right,bottom]=art.bounds;
@@ -62,6 +81,6 @@
       window.addEventListener('resize',()=>scan());
     }catch{ /* Keep the original image visible if the framing manifest is unavailable. */ }
   }
-  window.CardArtwork={geometry};
+  window.CardArtwork={geometry,imageURL,remember,source};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

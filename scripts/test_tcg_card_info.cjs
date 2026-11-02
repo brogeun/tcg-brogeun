@@ -62,6 +62,23 @@ test('opening one set keeps card information without prices or background price 
 test('card click opens inline detail in the same modal and back preserves the card filter',async()=>{
   const {files}=fixture(),r=runtime(files);await r.api.open('weiss_schwarz','weiss_schwarz-a');const input=r.get('tciCardSearch');input.value='NIK/S117-001SP';r.dispatch('input',input);r.api.detail('101');await tick();assert.equal(r.api.state().selected,'101');assert.match(r.get('anyModal').innerHTML,/NIK\/S117-001SP/);assert.match(r.get('anyModal').innerHTML,/바이스슈발츠/);assert.doesNotMatch(r.get('anyModal').innerHTML,/#price\//);assert.match(r.get('tciDetailPrice').innerHTML,/JPY/);r.action('data-tci-back');assert.equal(r.api.state().selected,null);assert.equal(r.api.state().query,'NIK/S117-001SP');assert.equal(r.oldOpens.length,0);
 });
+test('all six game detail renderers retain locally cached and selected fallback artwork',async()=>{
+ const {files,manifest}=fixture(),r=runtime(files);
+ r.context.document.readyState='loading';
+ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../assets/card-artwork.js'),'utf8'),r.context);
+ for(const game of manifest.games){
+  const set=game.sets[0],card=files.get(set.file).cards[0];
+  card.image='/images/cards/'+game.id+'.webp';
+  await r.api.open(game.id,set.id);
+  assert.ok(r.get('tciCardGrid').innerHTML.includes('src="'+card.image+'"'),game.id+' grid');
+  r.api.detail(card.id);await tick();
+  assert.ok(r.get('anyModal').innerHTML.includes('src="'+card.image+'"'),game.id+' local detail');
+  const loaded='https://cdn.snkrdunk.com/'+game.id+'-fallback.webp';
+  r.context.CardArtwork.remember(card.id,loaded);
+  r.api.detail(card.id);await tick();
+  assert.ok(r.get('anyModal').innerHTML.includes('src="'+loaded+'"'),game.id+' fallback detail');
+ }
+});
 test('Nikke keeps underlying game for pricing rather than inferring a new card identity',async()=>{
   const {files}=fixture(),r=runtime(files);await r.api.open('nikke','nikke-a');await tick();assert.equal(r.api.state().game,'nikke');r.api.detail('1');await tick();assert.equal(r.quoteTargets[0].game,'union_arena');assert.match(r.get('tciCardGrid').innerHTML,/유니온아레나/);
 });

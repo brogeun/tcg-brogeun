@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const manifest=JSON.parse(read('data/anniversary-artwork.json'));
-const ctx=vm.createContext({window:{},document:{readyState:'loading',addEventListener(){}}});
+const ctx=vm.createContext({window:{},URL,document:{readyState:'loading',addEventListener(){}}});
 vm.runInContext(read('assets/card-artwork.js'),ctx);
 const {geometry}=ctx.window.CardArtwork;
 const dimensions=[[110,160],[165,213],[225,285],[358,288],[632,320],[320,320]];
@@ -31,7 +31,14 @@ for(const number of ['128/103','129/103','131/103','R/RGB','G/RGB','B/RGB']){
   const fit=geometry(art,165,213);
   assert.ok((art.bounds[3]-art.bounds[1])*fit.height/art.height>200,'Reported cards fill the normal card area');
 }
-assert.ok(read('index.html').includes('/assets/card-artwork.js?v=20260916-artwork1'));
+assert.ok(read('index.html').includes('/assets/card-artwork.js?v=20261102-detail-artwork1'));
+const artwork=ctx.window.CardArtwork,official='https://www.onepiece-cardgame.com/images/cardlist/card/OP01-016_p9.png';
+assert.equal(artwork.source({image:official}),'/api/img?u='+encodeURIComponent(official));
+assert.equal(artwork.source({thumbnailUrl:'https://cdn.snkrdunk.com/card.webp'}),'https://cdn.snkrdunk.com/card.webp');
+artwork.remember('nami','/images/onepiece-official/OP01-016_p9.webp');
+assert.equal(artwork.source({id:'nami',image:official}),'/images/onepiece-official/OP01-016_p9.webp','Selected printing keeps the image already displayed in the grid');
+assert.equal(artwork.source({id:'another-nami',image:official}),'/api/img?u='+encodeURIComponent(official),'Different printings never inherit the selected artwork');
+for(const unsafe of ['javascript:alert(1)','data:text/html,hello','https://user:secret@example.com/image.png'])assert.equal(artwork.imageURL(unsafe),'');
 console.log(`PASS: ${Object.keys(manifest.images).length} source images, 6 desktop/mobile sizes, all catalogue/detail images covered, no clipping or stretching, reported 6 cards normalized`);
 
 // Verify actual DOM styling, resizing and fallback restoration, not only the math.

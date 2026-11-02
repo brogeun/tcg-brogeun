@@ -18,6 +18,16 @@ REPO = 'brogeun/tcg-brogeun'
 SECRET = 'KREAM_STORAGE_STATE'
 PRODUCT = {'id': '1096144', 'source_url': 'https://kream.co.kr/products/1096144'}
 
+def verify_full_history_access(page):
+    open_product(page, PRODUCT)
+    more = page.get_by_text(re.compile(r'(?:체결|거래)\s*내역\s*더보기')).first
+    more.wait_for(state='visible', timeout=20000)
+    more.click()
+    require_login_access(page)
+    # A public five-trade preview is not evidence of full-history access.
+    page.locator('.drawer .tab_content.show .price_body .body_list').nth(5).wait_for(state='visible', timeout=20000)
+    require_login_access(page)
+
 def upload_session(state):
     # Restrict the saved session to KREAM, excluding third-party sign-in state.
     payload = json.dumps(session_state(json.dumps(state)), separators=(',', ':')).encode()
@@ -43,15 +53,12 @@ def main():
             page = context.new_page()
             page.goto('https://kream.co.kr', wait_until='domcontentloaded', timeout=45000)
             input('열린 KREAM 창에서 직접 로그인한 뒤, 이 터미널에서 Enter를 누르세요. ')
-            open_product(page, PRODUCT)
-            more = page.get_by_text(re.compile(r'(?:체결|거래)\s*내역\s*더보기')).first
-            more.wait_for(state='visible', timeout=20000)
-            more.click()
-            require_login_access(page)
-            # A public five-trade preview is not evidence of full-history access.
-            page.locator('.drawer .tab_content.show .price_body .body_list').nth(5).wait_for(state='visible', timeout=20000)
-            require_login_access(page)
-            state = context.storage_state(indexed_db=True)
+            verify_full_history_access(page)
+            state = session_state(json.dumps(context.storage_state(indexed_db=True)))
+            # Prove the exported state works after restoring into a fresh context.
+            # In-memory-only login state must not be uploaded as a working session.
+            restored = browser.new_context(storage_state=state, locale='ko-KR', timezone_id='Asia/Seoul')
+            verify_full_history_access(restored.new_page())
             upload_session(state)
             browser.close()
         print('KREAM 세션을 GitHub Actions 비밀값에 등록했습니다. 세션은 화면이나 파일에 출력하지 않았습니다.')

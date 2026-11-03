@@ -5,6 +5,9 @@ on:
     paths:
       - 'games/kanto151/**'
       - 'scripts/test_kanto*.mjs'
+      - 'scripts/build_kanto_runtime.mjs'
+      - 'package.json'
+      - 'package-lock.json'
       - 'functions/**/kanto151-save.js'
       - '.github/workflows/kanto151-ci.yml'
   push:
@@ -12,6 +15,9 @@ on:
     paths:
       - 'games/kanto151/**'
       - 'scripts/test_kanto*.mjs'
+      - 'scripts/build_kanto_runtime.mjs'
+      - 'package.json'
+      - 'package-lock.json'
       - 'functions/**/kanto151-save.js'
       - '.github/workflows/kanto151-ci.yml'
 
@@ -27,5 +33,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install locked build dependencies
+        run: npm ci --include=dev --no-audit --no-fund
       - name: Verify gameplay, capture and save compatibility
         run: node --test scripts/test_kanto*.mjs games/kanto151/scripts/*.test.mjs

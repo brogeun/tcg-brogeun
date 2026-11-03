@@ -19,6 +19,10 @@ on:
       - 'scripts/test_retailer_printing_covers.py'
       - 'scripts/materialize_vintage_pokemon_release.py'
       - 'scripts/test_materialize_vintage_pokemon_release.py'
+      - 'scripts/test_vintage_resume.py'
+      - 'scripts/run_vintage_backfill.py'
+      - 'scripts/test_run_vintage_backfill.py'
+      - 'TCGHUB_Vintage_Backfill.cmd'
       - '.github/workflows/box-artwork-ci.yml'
 
 permissions:
@@ -38,6 +42,7 @@ jobs:
           filter: blob:none
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            /.github/
             /index.html
             /assets/
             /scripts/
@@ -59,3 +64,31 @@ jobs:
           node --test scripts/test_english_set_images.cjs scripts/test_japanese_set_artwork.cjs scripts/test_set_artwork_release.cjs
           python -B -m unittest discover -s scripts -p test_retailer_printing_covers.py
           python -B -m unittest discover -s scripts -p test_materialize_vintage_pokemon_release.py
+          python -B -m unittest discover -s scripts -p test_vintage_resume.py
+          python -B -m unittest discover -s scripts -p test_run_vintage_backfill.py
+
+  windows-backfill:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/
+            /.github/
+            /TCGHUB_Vintage_Backfill.cmd
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install the pinned image verifier
+        run: python -m pip install "Pillow==12.2.0"
+      - name: Verify resume, interruption and the real CMD launcher
+        env:
+          PYTHONUTF8: '1'
+        run: |
+          python -B -m unittest discover -s scripts -p test_vintage_resume.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -B -m unittest discover -s scripts -p test_run_vintage_backfill.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

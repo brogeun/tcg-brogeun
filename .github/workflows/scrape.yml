@@ -80,10 +80,11 @@ jobs:
           python -m pip install "Pillow==12.2.0"
           python scripts/materialize_onepiece_release.py --base "$COLLECTION_COMMIT"
 
-      - name: Materialize verified vintage Pokemon artwork without changing source identities
+      - name: Validate published vintage artwork without waiting for pending backfill
         run: |
-          python scripts/materialize_vintage_pokemon_release.py --base "$COLLECTION_COMMIT"
+          python scripts/materialize_vintage_pokemon_release.py --offline
           python -B -m unittest discover -s scripts -p test_materialize_vintage_pokemon_release.py
+          python -B -m unittest discover -s scripts -p test_vintage_resume.py
           python -B -m unittest discover -s scripts -p test_vintage_image_bundle.py
 
       - name: Validate certificate matching, retries and polling

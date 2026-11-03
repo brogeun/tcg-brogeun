@@ -137,6 +137,9 @@ try {
     }
     $kreamCompileFiles = @($kreamFiles | ForEach-Object { Join-Path $kreamStagingScripts $_ })
     Invoke-KreamPython -PythonArguments (@('-m', 'py_compile') + $kreamCompileFiles)
+    # Validate imports in the exact standalone layout before saving a release
+    # or asking the owner to sign in. --help never opens a browser or a profile.
+    Invoke-KreamPython -PythonArguments @((Join-Path $kreamStagingScripts 'run_kream_local.py'), '--help') | Out-Null
 
     if (Test-Path -LiteralPath $kreamRelease) {
         foreach ($kreamFile in $kreamFiles) {

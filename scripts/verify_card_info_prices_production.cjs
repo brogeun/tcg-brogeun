@@ -1,5 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto');
+const {assertPriceAssetReferences}=require('./deployed_price_assets.cjs');
 const bridge=require('../assets/contained-card-prices.js'),match=require('../assets/contained-card-match.js'),fallback=require('../assets/card-price-fallback.js'),repairs=require('../assets/card-catalog-repairs.js');
 const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
 const base=process.env.PRICE_VERIFY_ORIGIN||'https://tcghub.kr',version=process.env.DEPLOY_COMMIT||Date.now();
@@ -9,7 +10,7 @@ async function run(){
   const remote=await get('/'+path),local=fs.readFileSync(path,'utf8');
   assert.equal(crypto.createHash('sha256').update(remote).digest('hex'),crypto.createHash('sha256').update(local).digest('hex'),'Stale production asset: '+path);
  }
- const page=await get('/');assert(page.includes('20261030-price-audit2'),'Price audit scripts missing from deployed index');
+ const page=await get('/');assertPriceAssetReferences(page,fs.readFileSync('index.html','utf8'));
  const bindings=await get('/data/contained-card-market-links.json',true),overrides=await get('/data/onepiece-card-overrides.json',true);
  assert.deepEqual(bindings,read('data/contained-card-market-links.json'),'Deployed artwork bindings differ');
  assert.deepEqual(overrides,read('data/onepiece-card-overrides.json'),'Deployed OP17 bindings differ');

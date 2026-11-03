@@ -13,6 +13,9 @@ on:
       - 'scripts/test_prepare_public_bundle.py'
       - 'scripts/test_validate_reference_markets.py'
       - 'scripts/test_market_references_workflow.py'
+      - 'scripts/deployed_price_assets.cjs'
+      - 'scripts/test_deployed_price_assets.cjs'
+      - 'scripts/verify_card_info_prices_production.cjs'
       - 'scripts/audit/card-info-packs.test.mjs'
       - 'tests/test_yuyutei_market.py'
       - 'tests/test_prepare_tcg_card_info_bundle.py'
@@ -53,3 +56,4 @@ jobs:
           python -m unittest discover -s scripts -p test_prepare_public_bundle.py
           python -m unittest discover -s tests -p test_prepare_tcg_card_info_bundle.py
           node --test scripts/audit/card-info-packs.test.mjs
+          node --test scripts/test_deployed_price_assets.cjs

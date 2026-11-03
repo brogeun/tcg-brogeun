@@ -103,6 +103,7 @@ jobs:
 
       - name: Validate security, navigation and price regression boundaries
         run: |
+          node --test scripts/test_deployed_price_assets.cjs
           node --test scripts/audit/*.test.mjs scripts/audit/*.test.cjs
           node scripts/test_admin_auth.mjs
           node --test scripts/test_public_board_loading.cjs scripts/test_search_shard_cache.cjs scripts/test_home_startup.cjs scripts/test_market_chart_startup.cjs

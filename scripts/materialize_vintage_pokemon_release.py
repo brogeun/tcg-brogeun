@@ -402,6 +402,7 @@ def validate_published_references(root, allowed):
 
 def validate_seeded_artwork(root, review):
     """Recognize exact reviewed seed files without treating them as a release."""
+    root = Path(root).resolve()
     source = safe_path(root, 'images/pokemon-vintage')
     if not source.exists():
         return 0

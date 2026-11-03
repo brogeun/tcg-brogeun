@@ -26,7 +26,7 @@ class BackfillLauncherTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="backfill-launcher-test-")
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name).resolve()
         self.rows, self.bodies = [], {}
         for ident, color in (("29518", "#a5bac8"), ("29519", "#d8b4a0")):
             output = io.BytesIO()

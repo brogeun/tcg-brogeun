@@ -103,8 +103,13 @@
       ? upper(name).replace(/\s+/g, ' ').trim() === upper(card.name).replace(/\s+/g, ' ').trim()
       : false;
   }
+  const vintageNamespace=product=>product.brand==='pokemon'&&/(?:^|-)(?:ADV[1-4]|PCG[1-9]|DP[1-6]|PT[1-4]|E[1-5]|NEO[1-4]|PMCG[1-4]|PMCG-G[12])(?:-|$)/i.test(product.setCode||product.boxCode||product.productNumber||'');
+  const editionSpecific=product=>/\b(?:1ED|1ST(?:\s+EDITION)?|FIRST\s+EDITION|UNLIMITED|NO\s+RARITY)\b/i.test(String(product.name||'').replace(/\([^)]*\bExpansion Pack\b[^)]*\)/gi,''));
   function special(product) {
-    return /-(?:P|SP|SPC|RSP|TR|GSP|RP)(?=[\s[(])|Parallel|パラレル|Comic|コミパラ|Premium\s*Card|Promotion|プロモ|Anniversary|Champion|Flagship|Tournament|Prize|Winner|Reverse\s*Holo|Master\s*Ball|Monster\s*Ball|Mirror|ミラー|マスターボール/i.test(product.name || '');
+    // "Champion of the Sky" is the ADV3 set title. Only this old-set wrapper
+    // is ignored; Winner/Prize/Parallel on the actual product remain decisive.
+    const name=vintageNamespace(product)?String(product.name||'').replace(/\((?:Pokemon Card(?: Game)?(?:\s+(?:ADV|neo))?\s+)?Expansion Pack(?:\s+Vol\.?\s*\d+)?\s+["“][^"”]+["”]\)/gi,''):String(product.name||'');
+    return /-(?:P|SP|SPC|RSP|TR|GSP|RP)(?=[\s[(])|Parallel|パラレル|Comic|コミパラ|Premium\s*Card|Promotion|プロモ|Anniversary|Champion|Flagship|Tournament|Prize|Winner|Reverse\s*Holo|Master\s*Ball|Monster\s*Ball|Mirror|ミラー|マスターボール/i.test(name);
   }
   function resolve(card, products, verified = {}, candidateProofs = {}) {
     const fullId = upper(card.fullId || ''), key = [card.brand, upper(card.boxCode), fullId].join(':');
@@ -138,6 +143,9 @@
       if (artwork.length === 1) return {status: 'matched', id: String(artwork[0].id)};
       if (fullId.includes('_')) return {status: 'artwork-pending', id: null};
     }
+    // Removing a misleading set title cannot turn a lone 1ED product into the
+    // generic card's quote. An exact reviewed artwork proof still wins above.
+    if(vintageNamespace(card)&&candidates.some(editionSpecific))return {status:candidates.length>1?'ambiguous':'artwork-pending',id:null};
     const plain = candidates.filter(p => !special(p));
     return plain.length === 1 ? {status: 'matched', id: String(plain[0].id)} :
       {status: plain.length > 1 ? 'ambiguous' : 'unlinked', id: null};

@@ -242,14 +242,25 @@ def official_release_files(root, base):
     return sorted(allowed & changed)
 
 
-def publish(root, base, files, message, attempts=3, temp_parent=None, daily=False, references=False, official=False):
+def vintage_release_files(root, base):
+    """Protect exactly the complete hash-reviewed vintage artwork generation."""
+    if not re.fullmatch(r'[0-9a-fA-F]{40}', base or ''):
+        raise PublicationError('Vintage artwork publication requires the exact collection commit')
+    try:
+        from materialize_vintage_pokemon_release import release_files
+        return release_files(root)
+    except (OSError, ValueError) as error:
+        raise PublicationError('Invalid reviewed vintage artwork generation: ' + str(error)) from error
+
+
+def publish(root, base, files, message, attempts=3, temp_parent=None, daily=False, references=False, official=False, vintage=False):
     root = Path(root).resolve()
     if not re.fullmatch(r'[0-9a-fA-F]{40}', base or '') or not 1 <= attempts <= 3:
         raise PublicationError('Use an exact original commit and at most three push attempts')
-    if sum(bool(value) for value in (daily, references, official)) > 1:
+    if sum(bool(value) for value in (daily, references, official, vintage)) > 1:
         raise PublicationError('Choose exactly one publication mode')
-    catalog_only = not daily and not references and not official and list(files) == [CARD_INFO_MANIFEST]
-    korean_only = not daily and not references and not official and list(files) == [KOREAN_PROMO_MANIFEST]
+    catalog_only = not daily and not references and not official and not vintage and list(files) == [CARD_INFO_MANIFEST]
+    korean_only = not daily and not references and not official and not vintage and list(files) == [KOREAN_PROMO_MANIFEST]
     if korean_only:
         try:
             from scripts.collect_kream_promos import validate_bundle
@@ -265,10 +276,12 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         raise PublicationError('Reference output selection changed before publication')
     if official and set(files) != set(official_release_files(root, base)):
         raise PublicationError('Official output selection changed before publication')
-    if not daily and not references and not official and not catalog_only and not korean_only and (len(files) != len(set(files))
+    if vintage and (len(files) != len(set(files)) or set(files) != set(vintage_release_files(root, base))):
+        raise PublicationError('Vintage artwork output selection changed before publication')
+    if not daily and not references and not official and not vintage and not catalog_only and not korean_only and (len(files) != len(set(files))
             or set(files) not in (ALLOWED - {'data/chinese-market.json'}, {'data/chinese-market.json'})):
         raise PublicationError('Publish the complete four-file verified index set or the single Chinese market snapshot')
-    if (daily or references or official) and not files:
+    if (daily or references or official or vintage) and not files:
         return {'status': 'unchanged', 'collectionCommit': base, 'files': []}
     git(root, 'cat-file', '-e', base + '^{commit}')
     snapshots = {}
@@ -280,7 +293,7 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
         if path.is_symlink() or not path.resolve().is_relative_to(root) or not path.is_file():
             raise PublicationError('Unsafe or missing generated output: ' + name)
         raw = path.read_bytes()
-        if official and name.startswith('images/'):
+        if (official or vintage) and name.startswith('images/'):
             pass  # Exact bytes were checked against the committed review above.
         elif references or catalog_only or metadata_bucket_path(name):
             json.loads(raw, parse_constant=reject_non_json_constant)

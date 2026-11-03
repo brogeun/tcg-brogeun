@@ -37,7 +37,7 @@
   function configure(data) { catalog = decode(data); return setProducts(products); }
   function ensureData() {
     if (!ready) ready = Promise.all([
-      fetch('/data/japanese-catalog.json?v=20261014-3').then(response => {
+      fetch('/data/japanese-catalog.json?v=20261104-vintage1').then(response => {
         if (!response.ok) throw new Error('Japanese catalogue unavailable');
         return response.json();
       }),
@@ -77,7 +77,7 @@
       const set = sets.get(card.boxCode || card.setCode);
       const row = {...card, catalogueId:card.id, _catalogue:true, kind:'card', brand:'pokemon', language:'ja',
         setName:set?.name || card.setName || card.boxCode || card.setCode,
-        thumbnailUrl:card.thumbnailUrl || card.image || '',
+        thumbnailUrl:card.localImage || card.thumbnailUrl || card.image || '',
         minPrice:product?.minPrice, currency:product?.currency || 'JPY', listingCount:product?.listingCount || 0};
       row.displayName = title(row);
       row.nameLower = [row.name, row.displayName, row.number, row.boxCode, row.setCode, row.setName, set?.nameEn, row.boxCode+' '+row.number, row.setCode+' '+row.number, names()?.searchText(row)].filter(Boolean).join(' ').toLowerCase();

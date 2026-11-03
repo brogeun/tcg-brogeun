@@ -35,6 +35,23 @@ test('unknown unprinted/bundled targets never request fallback providers',async(
  const {container}=fixture([{...pokemon,unprintedNumber:true},{...op,bundle:true}]);let lookups=0;
  await bridge.hydrate(container,{services:services({fallback:{...fallback,lookup:async()=>{lookups++;}}})});assert.equal(lookups,0);
 });
+
+test('reviewed vintage artwork without a printed number can recover its exact live Japanese quote',async()=>{
+ const proof=require('../data/contained-card-market-links.json').links.find(row=>row.boxCode==='Neo1'&&row.id==='459364');
+ assert(proof,'Published Neo1 Spinarak artwork proof must remain available');
+ const vintage={brand:'pokemon',language:'ja',boxCode:'Neo1',setCode:'Neo1',number:'',fullId:'',
+  name:'Spinarak (Gold, Silver, to a New World... No. 004)',image:proof.image,unprintedNumber:true};
+ const market={id:proof.id,brand:'pokemon',kind:'card',language:'ja',name:proof.marketName,
+  productNumber:proof.marketProductNumber,thumbnailUrl:proof.marketImage,minPrice:null,currency:'USD',listingCount:0};
+ const {container}=fixture([vintage]);let requests=[];
+ const [quote]=await bridge.hydrate(container,{services:services({loadProducts:async()=>[market],
+  loadArtworkBindings:async()=>({schemaVersion:1,links:[proof]}),fallback:{...fallback,lookup:(target,options)=>fallback.lookup(target,{...options,loadSnkrQuote:async id=>{
+   requests.push(id);assert.equal(id,proof.id);
+   return {ok:true,id:proof.id,fetchedAt:new Date().toISOString(),grades:{raw:{lowest_ask:700,currency:'JPY',active_count:2}}};
+  },fetchJson:async()=>{throw Error('Numberless cards cannot query another shop by number');}})}})});
+ assert.equal(quote.status,'priced');assert.equal(quote.source,'snkrdunk');assert.equal(quote.amount,700);
+ assert.deepEqual(requests,[proof.id]);
+});
 test('foreign grids are not decorated',async()=>{const {hosts,container}=fixture([{...pokemon,language:'en'},{...op,brand:'chiikawa'}]);let loads=0;await bridge.hydrate(container,{services:services({loadProducts:async()=>{loads++;return [];}})});assert.equal(loads,0);assert.ok(hosts.every(h=>h.innerHTML===''));});
 test('closed/page-switched modal rejects late products result',async()=>{
  const {hosts,container}=fixture([op]);let finish,current=true;const wait=new Promise(r=>finish=r);

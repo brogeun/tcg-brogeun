@@ -43,7 +43,10 @@ function harness({fetchSummary,legacyHoldings=[],cachedMeta={}}={}){
   const invalidate=context.window.PortfolioSummaryClient.invalidate;
   context.window.PortfolioSummaryClient.invalidate=()=>{counts.invalidations++;invalidate();};
   vm.runInContext('let _HOME_ASSET_RUN=0;\n'+html.slice(homeStart,homeEnd)+'\n'+html.slice(ownerStart,ownerEnd),context);
-  return {ctx:context,elements,counts};
+  const renderHome=context.renderHomeAsset;
+  let homeWork;
+  context.renderHomeAsset=(...args)=>(homeWork=renderHome(...args));
+  return {ctx:context,elements,counts,homeSettled:()=>homeWork};
 }
 
 test('actual home summary hit renders totals/counts without loading full holdings, search or metadata',async()=>{
@@ -96,10 +99,18 @@ test('route departure or hidden app prevents late summary data from touching the
 
 test('successful mutation force-refresh invalidates the real client cache and home reads new server totals',async()=>{
   let current=500;
-  const h=harness({fetchSummary:async owner=>json(summary(owner,{totalValueJpy:current}))});
+  const h=harness({fetchSummary:async owner=>{
+    const body=JSON.stringify(summary(owner,{totalValueJpy:current}));
+    return new Response(new ReadableStream({start(controller){
+      setImmediate(()=>{controller.enqueue(new TextEncoder().encode(body));controller.close();});
+    }}),{headers:{'Content-Type':'application/json'}});
+  }});
   h.ctx.syncPortfolioOwner();await h.ctx.renderHomeAsset();assert.equal(h.elements.homeAssetValue.textContent,'₩5,000');
   assert.equal(h.counts.summary,1);h.counts.invalidations=0;current=700;
-  await h.ctx.refreshPortfolio({force:true});await flush();
+  await h.ctx.refreshPortfolio({force:true});
+  // Refresh starts the real home render without awaiting it. Wait for that
+  // exact task, including Response.json(), across Node/browser stream queues.
+  await h.homeSettled();
   assert(h.counts.invalidations>=1,'the real mutation refresh invalidates the private summary');
   assert.equal(h.counts.summary,2,'successful mutation must refetch instead of reusing the previous cached summary');
   assert.equal(h.elements.homeAssetValue.textContent,'₩7,000');

@@ -252,7 +252,7 @@ jobs:
 
       - name: Validate Kanto151 account saves and original Pokemon preservation
         working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: node --test scripts/test_kanto151_account_client.mjs scripts/test_kanto151_account_game.mjs scripts/test_kanto151_account_save.mjs
+        run: node --test scripts/test_kanto*.mjs games/kanto151/scripts/*.test.mjs
 
       - name: Prepare deploy bundle (정적 + admin function 만)
         working-directory: ${{ env.DEPLOY_SOURCE }}

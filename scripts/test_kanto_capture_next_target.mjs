@@ -8,6 +8,7 @@ import * as cooldowns from '../games/kanto151/src/cooldowns.mjs';
 import * as combatRules from '../games/kanto151/src/combat-rules.mjs';
 import * as statusRules from '../games/kanto151/src/status-rules.mjs';
 import * as escapeActions from '../games/kanto151/src/escape-action.mjs';
+import * as tactics from '../games/kanto151/src/combat-tactics.mjs';
 import * as targeting from '../games/kanto151/src/target-selection.mjs';
 import {createCaptureBall} from '../games/kanto151/src/ball-visuals.mjs';
 
@@ -29,7 +30,7 @@ const combatFeedback = runtimeModule('combat-feedback.mjs', ['feedbackProfile', 
 const {cancelFieldAction} = runtimeModule('field-actions.mjs', ['cancelFieldAction'], {THREE, statusRules, ...locale});
 const {Game} = runtimeModule('game.mjs', ['Game'], {
   THREE, ...core, ...locale, ...cooldowns, ...combatRules, ...combatFeedback,
-  ...targeting, statusRules, escapeActions, createCaptureBall, cancelFieldAction,
+  ...targeting, ...tactics, statusRules, escapeActions, createCaptureBall, cancelFieldAction,
   journey: {fieldRuns: {cancelRunSurvey: noop}},
 });
 

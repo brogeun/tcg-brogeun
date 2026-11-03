@@ -4,6 +4,7 @@
  * Coordinates and box UV semantics follow the documented Bedrock/Blockbench format.
  */
 import {createCombatProfile,selectCombatClip,sampleCombatMotion,sampleRecoilMotion,applyCombatBonePose} from './combat-motion.mjs';
+import {selectLocomotionClip} from './locomotion.mjs';
 
 const DEG = Math.PI / 180;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -179,6 +180,15 @@ function compileGeometry(THREE, input) {
   return {bones,description:source.description};
 }
 
+export function appearancePaths(info,shiny=false){
+  const paths=new Set([shiny?(info.shinyTexture||info.texture):info.texture]);
+  for(const layer of (shiny?info.shinyLayers:info.layers)||[]){
+    if(typeof layer.texture==='string')paths.add(layer.texture);
+    else for(const path of layer.texture?.frames||[])paths.add(path);
+  }
+  return [...paths].filter(Boolean);
+}
+
 /** Lazy species cache; active instances retain shared geometry/textures until released. */
 export class PokemonResources {
   constructor(THREE, manifest, baseUrl, {maxSpecies=24,onProgress}={}) {
@@ -194,13 +204,34 @@ export class PokemonResources {
     if(!response.ok)throw new Error(`${response.status} ${this.url(path)}`);
     return response.json();
   }
-  async load(id) {
+  async load(id,{shiny=false,lease=null}={}) {
     id=Number(id);
-    const old=this.cache.get(id);
-    if(old){old.used=performance.now();return old;}
-    if(this.requests.has(id))return this.requests.get(id);
-    const request=this._load(id).catch(error=>{this.errors.push({id,message:error.message});throw error;}).finally(()=>this.requests.delete(id));
-    this.requests.set(id,request);return request;
+    let record=this.cache.get(id);
+    if(!record){
+      let request=this.requests.get(id);
+      if(!request){
+        request=this._load(id).catch(error=>{this.errors.push({id,message:error.message});throw error;}).finally(()=>this.requests.delete(id));
+        this.requests.set(id,request);
+      }
+      record=await request;
+    }
+    if(lease){record.refs++;lease.retained=true;}
+    try{await this.loadAppearance(record,shiny);}
+    catch(error){if(lease?.retained){record.refs=Math.max(0,record.refs-1);lease.retained=false;}this.evict();throw error;}
+    record.used=performance.now();return record;
+  }
+  async loadAppearance(record,shiny=false){
+    const THREE=this.THREE,loader=new THREE.TextureLoader();record.textureRequests??=new Map();
+    await Promise.all(appearancePaths(record.info,shiny).map(path=>{
+      if(record.textures.has(path))return record.textures.get(path);
+      if(record.textureRequests.has(path))return record.textureRequests.get(path);
+      const request=loader.loadAsync(this.url(path)).then(texture=>{
+        texture.colorSpace=THREE.SRGBColorSpace;
+        texture.magFilter=THREE.NearestFilter;texture.minFilter=THREE.NearestMipmapNearestFilter;
+        texture.generateMipmaps=true;texture.anisotropy=2;record.textures.set(path,texture);return texture;
+      }).finally(()=>{record.textureRequests.delete(path);if(record.refs===0)this.evict();});
+      record.textureRequests.set(path,request);return request;
+    }));
   }
   async _load(id) {
     const info=this.manifest.get(id);
@@ -209,21 +240,9 @@ export class PokemonResources {
     const [model,animationData]=await Promise.all([this.json(info.model),Promise.all(info.animationFiles.map(path=>this.json(path)))]);
     // Some regional files reuse base clip names; preserve the primary definition.
     const data={};for(const a of animationData)for(const [name,clip] of Object.entries(a.animations))if(!(name in data))data[name]=clip;
-    const textures=new Map();
-    const paths=new Set([info.texture,info.shinyTexture]);
-    for(const layer of [...(info.layers||[]),...(info.shinyLayers||[])]) {
-      if(typeof layer.texture==='string')paths.add(layer.texture);
-      else for(const path of layer.texture?.frames||[])paths.add(path);
-    }
-    const textureLoader=new THREE.TextureLoader();
-    await Promise.all([...paths].filter(Boolean).map(async path=>{
-      const texture=await textureLoader.loadAsync(this.url(path));
-      texture.colorSpace=THREE.SRGBColorSpace;
-      texture.magFilter=THREE.NearestFilter;texture.minFilter=THREE.NearestMipmapNearestFilter;
-      texture.generateMipmaps=true; texture.anisotropy=2;
-      textures.set(path,texture);
-    }));
-    const record={id,info,geometry:compileGeometry(THREE,model),animations:compileAnimations(data),textures,refs:0,used:performance.now()};
+    // Geometry and animation are shared; appearance textures are requested only
+    // for the selected normal/shiny form, including its animated overlay frames.
+    const record={id,info,geometry:compileGeometry(THREE,model),animations:compileAnimations(data),textures:new Map(),textureRequests:new Map(),refs:0,used:performance.now()};
     this.cache.set(id,record);this.loaded++;this.onProgress?.({id,loaded:this.loaded});
     return record;
   }
@@ -233,7 +252,7 @@ export class PokemonResources {
     this.evict();
   }
   evict() {
-    const unused=[...this.cache.values()].filter(v=>v.refs===0).sort((a,b)=>a.used-b.used);
+    const unused=[...this.cache.values()].filter(v=>v.refs===0&&!(v.textureRequests?.size)).sort((a,b)=>a.used-b.used);
     while(this.cache.size>this.maxSpecies&&unused.length) {
       const item=unused.shift();
       for(const bone of item.geometry.bones)bone.geometry?.dispose();
@@ -242,13 +261,13 @@ export class PokemonResources {
     }
   }
   async create(id,{shiny=false,scale=1,maxDimension=5.5,grounded=true}={}) {
-    const record=await this.load(id);record.refs++;record.used=performance.now();
+    const lease={retained:false},record=await this.load(id,{shiny,lease});if(!lease.retained)record.refs++;record.used=performance.now();
     const THREE=this.THREE,info=record.info;
     const group=new THREE.Group(),visualRoot=new THREE.Group(),orientation=new THREE.Group(),rig=new THREE.Group();
     group.name=`pokemon-${id}`;visualRoot.name='combat-visual-root';group.add(visualRoot);visualRoot.add(orientation);orientation.add(rig);orientation.rotation.y=Math.PI;
     rig.scale.setScalar(1/16);
     const boneMap=new Map(),meshBones=[],materials=[],layers=[];
-    const baseMaterial=new THREE.MeshStandardMaterial({map:record.textures.get(shiny?info.shinyTexture:info.texture),roughness:0.92,metalness:0,alphaTest:0.25,side:THREE.DoubleSide});
+    const baseMaterial=new THREE.MeshStandardMaterial({map:record.textures.get(shiny?(info.shinyTexture||info.texture):info.texture),roughness:0.92,metalness:0,alphaTest:0.25,side:THREE.DoubleSide});
     materials.push(baseMaterial);
     for(const bone of record.geometry.bones) {
       const node=new THREE.Group();node.name=bone.name;node.rotation.order='ZYX';
@@ -279,7 +298,7 @@ export class PokemonResources {
     };
     changeLayers();
     const combatProfile=createCombatProfile(info,boneMap.keys());
-    let elapsed=0,actionElapsed=0,lastAction='',lastCastSerial=null,released=false;
+    let elapsed=0,actionElapsed=0,lastAction='',lastCastSerial=null,released=false,appearanceEpoch=0;
     let visualHeight=1,recoilTail=null;
     // Keep the base pose separate from attacks so a gait change cannot snap the
     // rig or carry recoil into the next walk. Cache once rather than per frame.
@@ -314,8 +333,7 @@ export class PokemonResources {
       if(action!==lastAction||castSerial!==lastCastSerial){actionElapsed=0;lastAction=action;}else actionElapsed+=Math.max(0,dt);
       lastCastSerial=castSerial;
       for(const bone of boneMap.values()){bone.position.copy(bone.userData.restPosition);bone.rotation.copy(bone.userData.restRotation);bone.scale.set(1,1,1);}
-      const semantic=state.moving?'walk':state.battle?'battle':'idle';
-      const clip=info.clips[semantic]||info.clips.idle;
+      const clip=selectLocomotionClip(info,record.animations,state);
       if(clip!==baseClip){baseBlendRemaining=baseClip===null?0:.16;baseClip=clip;}
       apply(clip,elapsed,state);
       const poseBlend=dt>0&&baseBlendRemaining>0?Math.min(1,dt/baseBlendRemaining):1;
@@ -371,12 +389,23 @@ export class PokemonResources {
     group.userData={
       id:Number(id),shiny,info,height:size.y,radius:Math.max(size.x,size.z)/2,bounds:bounds.clone(),dimensions:{x:size.x,y:size.y,z:size.z},groundOffset:orientation.position.y,
       animationNames:Object.keys(record.animations),bones:boneMap,materials,update,combatProfile,visualRoot,
-      setShiny:async value=>{shiny=Boolean(value);group.userData.shiny=shiny;baseMaterial.map=record.textures.get(shiny?info.shinyTexture:info.texture);baseMaterial.needsUpdate=true;changeLayers();},
-      release:()=>{if(released)return;released=true;group.removeFromParent();for(const material of materials)material.dispose();for(const layer of layers)layer.material.dispose();record.refs=Math.max(0,record.refs-1);record.used=performance.now();this.evict();},
+      setShiny:async value=>{
+        const next=Boolean(value),epoch=++appearanceEpoch;
+        try{
+          await this.loadAppearance(record,next);
+          // A closed preview or a newer toggle owns the result. Never mutate a
+          // released material or let a slower request replace the latest form.
+          if(released||epoch!==appearanceEpoch)return false;
+          shiny=next;group.userData.shiny=shiny;
+          baseMaterial.map=record.textures.get(shiny?(info.shinyTexture||info.texture):info.texture);
+          baseMaterial.needsUpdate=true;changeLayers();return true;
+        }finally{if(released)this.evict();}
+      },
+      release:()=>{if(released)return;released=true;appearanceEpoch++;group.removeFromParent();for(const material of materials)material.dispose();for(const layer of layers)layer.material.dispose();record.refs=Math.max(0,record.refs-1);record.used=performance.now();this.evict();},
     };
     this.evict();return group;
   }
-  stats() {return {species:this.cache.size,active:[...this.cache.values()].reduce((n,v)=>n+v.refs,0),pending:this.requests.size,errors:this.errors,expressionWarnings:[...diagnostics]};}
+  stats() {const records=[...this.cache.values()];return {species:this.cache.size,active:records.reduce((n,v)=>n+v.refs,0),pending:this.requests.size+records.reduce((n,v)=>n+(v.textureRequests?.size||0),0),textures:records.reduce((n,v)=>n+v.textures.size,0),errors:this.errors,expressionWarnings:[...diagnostics]};}
   dispose() {for(const item of this.cache.values())item.refs=0;this.maxSpecies=0;this.evict();}
 }
 

@@ -949,3 +949,11 @@ body:has(#title.startup:not(.hidden),#starter.startup:not(.hidden)):has(#modal-b
  #hud.hud-compact .navigation-dock #minimap{width:80px!important;height:80px!important}
  #hud.hud-compact .navigation-dock #region-name{display:none}
 }
+
+/* The chosen wild Pokémon keeps a readable label without adding touch controls. */
+.field-label.selected-target{max-width:min(230px,calc(100vw - 16px));padding:7px 10px;color:#f0f6df;background:#102b31f2;border-color:#e0efa4b8;box-shadow:0 2px 10px #071c2799;font-size:13px;line-height:1.35;white-space:normal;text-align:center;overflow-wrap:anywhere}
+.field-label.selected-target .target-label-kicker{display:block;color:#e0efa4;font-size:11px;letter-spacing:.3px;margin-bottom:3px}
+.field-label.selected-target .target-label-detail{display:block;font-size:11px;font-weight:400;color:#e2ede5;margin-top:4px;white-space:nowrap}
+.field-label.selected-target .target-label-tell{display:block;font-size:11px;font-weight:400;color:#ffdfb2;margin-top:4px;max-width:190px}
+.field-label.selected-target .tiny-hp{width:100%;min-width:76px;height:4px;margin-top:5px}
+@media(max-width:700px),(pointer:coarse){.field-label.selected-target{font-size:12px;padding:6px 8px;max-width:min(190px,calc(100vw - 16px))}.field-label.selected-target .target-label-kicker{font-size:11px}.field-label.selected-target .target-label-detail{font-size:11px}}

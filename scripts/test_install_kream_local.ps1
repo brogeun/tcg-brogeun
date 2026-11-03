@@ -36,7 +36,12 @@ foreach ($kreamInvalidRef in @('main', ('a' * 39), (('a' * 40) + "`n"))) {
     try {
         & $InstallerPath -SourceRef $kreamInvalidRef
         throw 'An unpinned source ref was accepted.'
-    } catch [Management.Automation.ParameterBindingValidationException] {
+    } catch {
+        # PowerShell 5.1 does not expose the internal validation exception type
+        # for typed catch clauses. Its public error identifier is stable.
+        if ($_.FullyQualifiedErrorId -notlike 'ParameterArgumentValidationError*') {
+            throw
+        }
         $kreamValidateErrors += $_
     }
 }

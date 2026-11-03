@@ -70,8 +70,9 @@
     const sets = new Map(catalog.sets.map(set => [set.code, set]));
     const printed = catalog.cards.map(original => {
       const card=root.CardCatalogRepairs?.printed(original) || original;
-      // Candidate IDs suppress duplicate market listings, never supply a price.
-      for (const id of [...(card.productIds || []), ...(card.candidateProductIds || []), card.productId].filter(Boolean)) covered.add(String(id));
+      // Only confirmed product links replace market duplicates. Number-based
+      // candidates may be distinct mirror or parallel printings and stay visible.
+      for (const id of [...(card.productIds || []), card.productId].filter(Boolean)) covered.add(String(id));
       const product = card.productId ? byId.get(String(card.productId)) : null;
       const set = sets.get(card.boxCode || card.setCode);
       const row = {...card, catalogueId:card.id, _catalogue:true, kind:'card', brand:'pokemon', language:'ja',

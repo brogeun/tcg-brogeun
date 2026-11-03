@@ -2522,7 +2522,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261101-picker1">
 <script src="/assets/card-rarity-filters.js?v=20261101-picker1"></script>
-<script src="/assets/japanese-catalog.js?v=20261030-reprint-prices1"></script>
+<script src="/assets/japanese-catalog.js?v=20261103-candidate-visibility1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20261102-detail-artwork1"></script>
@@ -6752,11 +6752,13 @@ function renderCardInfo() {
     categoryBar.onclick=e=>{const button=e.target.closest('[data-op-category]');if(button){CI_ONEPIECE_CATEGORY=button.dataset.opCategory;renderCardInfo();}};
   }
   const q = CI_QUERY.trim().toLowerCase();
+  const foldSetQuery = value => String(value || '').normalize('NFKC').toLowerCase().replace(/([가-힣])의(?=[\s가-힣])/g, '$1').replace(/[\s\p{P}\p{S}]+/gu, '');
+  const terms = q.split(/\s+/).map(foldSetQuery).filter(Boolean);
   const list = q
-    ? allList.filter(s =>
-        (s.code || '').toLowerCase().includes(q) ||
-        (s.name || '').toLowerCase().includes(q) ||
-        (s.release || '').toLowerCase().includes(q))
+    ? allList.filter(s => {
+        const text = foldSetQuery([s.code, s.name, s.nameEn, s.release].filter(Boolean).join(' '));
+        return terms.length > 0 && terms.every(term => text.includes(term));
+      })
     : allList;
   // 출처 표시 제거 — 자체 데이터로 호스팅
   const listEl = document.getElementById('cardInfoList');
@@ -6937,7 +6939,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
     let pageCount = Math.max(1, Math.ceil(cards.length / CI_CARD_PAGE_SIZE));
     const selectedKey=String(viewState.cardKey || '');
     const selectedIndex=selectedKey ? cards.findIndex(card=>{
-      if ([card.number,card.fullId,card.sourceId,String(card.url||'').match(/\/cards\/(\d+)\//)?.[1]].filter(Boolean).some(key=>String(key)===selectedKey)) return true;
+      if ([card.number,card.fullId,card.officialId,card.sourceId,String(card.url||'').match(/\/cards\/(\d+)\//)?.[1]].filter(Boolean).some(key=>String(key)===selectedKey)) return true;
       const inventoryKey=selectedKey.match(/^JP:[^:]+:source-no-(\d+)$/);
       const inventoryNumber=card.inventoryNumber || String(card.name||'').match(/\bNo\.\s*(\d+)/)?.[1];
       return !!inventoryKey && inventoryNumber!=null && Number(inventoryKey[1])===Number(inventoryNumber);
@@ -7154,12 +7156,28 @@ window.openSetGrid = function(setCode, setName, externalUrl, restore = {}) {
   _LAST_OPENED_SET = {setCode, setName, externalUrl, page:restore.page || 1, scrollTop:restore.scrollTop || 0, expanded:!!restore.expanded, cardKey:restore.cardKey || '', rarities:Array.isArray(restore.rarities) ? restore.rarities.slice() : []};
   return _origOpenSetGrid(setCode, setName, externalUrl, _LAST_OPENED_SET);
 };
-function openJapaneseCatalogueCard(card) {
-  const set=cardInfoSet(card.boxCode || card.setCode);
+async function openJapaneseCatalogueCard(card) {
+  const brand = card.brand;
+  if (!['pokemon','onepiece'].includes(brand)) return;
+  const code = String(card.boxCode || card.setCode || '').toUpperCase();
+  const request = SLIDE_PANEL_REQUEST;
+  let set = CARDINFO[brand].find(s => s.code.toUpperCase() === code);
+  if (!set && brand === 'onepiece' && window.OnePieceCatalog) {
+    await OnePieceCatalog.ensureManifest();
+    if (request !== SLIDE_PANEL_REQUEST) return;
+    CARDINFO.onepiece = OnePieceCatalog.registerSets(CARDINFO.onepiece);
+    set = CARDINFO.onepiece.find(s => s.code.toUpperCase() === code);
+  }
   if (!set) return;
   window.closeGlobalSearch?.();
+  CI_TAB = brand;
+  document.querySelectorAll('#ciTabs .tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.ci === brand);
+    t.setAttribute('aria-pressed', String(t.dataset.ci === brand));
+  });
   go('cardinfo');
-  return openSetGrid(set.code,set.name,set.url || '',{cardKey:card.kind==='card' ? card.fullId || card.number || card.sourceId : ''});
+  renderCardInfo();
+  return openSetGrid(set.code,set.name,set.url || '',{cardKey:card.kind==='card' ? card.fullId || card.officialId || card.number || card.sourceId : ''});
 }
 
 // Printed Japanese cards keep one current price source and their original artwork.
@@ -10941,7 +10959,7 @@ window.addEventListener('appinstalled', () => {
 // </script>
 <script src="/assets/english-search.js?v=20260908-search1"></script>
 <script src="/assets/promo-search.js?v=20261013-promo1"></script>
-<script src="/assets/search-modal.js?v=20261030-live-quotes1"></script>
+<script src="/assets/search-modal.js?v=20261103-box-search1"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261030-rarity1"></script>

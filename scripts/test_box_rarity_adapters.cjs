@@ -43,6 +43,7 @@ function setup(kind){
     code="let active=fixture,currentCard=null,cardPage=1,cardQuery='',cardRarities=[],cardScroll=0,linkNotice='';const cardsPerPage=18,CARDS_PER_PAGE=18;"+
       between(source,'  function setBody(){','  async function open(')+between(source,'  function detail(id){','  async function share(');
   }
+  if(kind.id==='enc')code="let setImageManifest=null;"+between(source,'  const SET_IMAGE_LABELS=','  function art(')+code;
   vm.runInContext(code,ctx,{filename:kind.file});
   const render=()=>vm.runInContext(kind.panel+'()',ctx);
   const update=()=>vm.runInContext(kind.body+'()',ctx);

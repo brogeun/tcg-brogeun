@@ -56,6 +56,10 @@ def require_login_access(page):
     if any(node.is_visible() for node in gate.all()):
         raise CollectionError('session_expired', 'KREAM requires login for full trade history; reconnect the saved session.')
 
+def full_history_button(page):
+    # Hidden responsive copies precede the visible desktop control on KREAM.
+    return page.get_by_role('button', name=re.compile(r'(?:체결|거래)\s*내역\s*더보기')).filter(visible=True).first
+
 def open_product(page, card):
     # Retry transient server errors only, in the same normal browser context.
     # Authentication, permission and rate-limit responses stop immediately.
@@ -238,7 +242,7 @@ def publish_generation(root, original_manifest, staged, attempted):
 def collect(page, card, old):
     anchor = datetime.now(KST)
     open_product(page, card)
-    more = page.get_by_text(re.compile(r'(?:체결|거래)\s*내역\s*더보기')).first
+    more = full_history_button(page)
     try:
         more.wait_for(state='visible', timeout=20000)
     except Exception:
@@ -353,3 +357,4 @@ def main():
 
 if __name__=='__main__':
     raise SystemExit(main())
+

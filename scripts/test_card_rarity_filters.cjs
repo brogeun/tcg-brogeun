@@ -315,5 +315,32 @@ test('actual runtime enrichment accounts for all 3381 original rows and preserve
   assert.equal(Object.values(counts).reduce((a,b)=>a+b,0),3381);assert.deepEqual(remaining,{ja:7,en:898,'zh-CN':1});
 });
 
+test('Chinese catalogue service-worker requests bypass both stale worker and HTTP caches online, retaining offline fallback',async()=>{
+  const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+  const source=fs.readFileSync(path.join(__dirname,'../sw.js'),'utf8');
+  async function requestThroughWorker(online){
+    const request=new Request('https://tcghub.kr/assets/chinese-catalog.js?v=20261030-rarity1');
+    let fetchHandler,responsePromise,stored=new Response('old-worker-cached-chinese-js'),cacheReads=0,cacheWrites=0;const calls=[];
+    const cache={async match(req){assert.equal(req.url,request.url);cacheReads++;return stored.clone();},async put(req,res){assert.equal(req.url,request.url);cacheWrites++;stored=res;}};
+    const runtime={URL,Response,location:{origin:'https://tcghub.kr'},
+      self:{addEventListener(type,handler){if(type==='fetch')fetchHandler=handler;}},
+      caches:{async open(name){assert.match(name,/-static$/);return cache;}},
+      async fetch(req,options){calls.push({req,options});if(!online)throw Error('offline');return new Response(options?.cache==='no-cache'?'fresh-chinese-js':'old-http-cached-chinese-js');},
+    };
+    vm.runInNewContext(source,runtime,{filename:'sw.js'});
+    fetchHandler({request,respondWith(promise){responsePromise=promise;}});
+    assert(responsePromise,'the real service-worker fetch handler must own the catalogue request');
+    const response=await responsePromise;
+    return {body:await response.text(),calls,cacheReads,cacheWrites,cachedBody:await stored.text(),request};
+  }
+  const online=await requestThroughWorker(true);
+  assert.equal(online.body,'fresh-chinese-js','a cached previous release cannot hide the current online catalogue');
+  assert.equal(online.calls.length,1);assert.equal(online.calls[0].req,online.request);assert.equal(online.calls[0].options?.cache,'no-cache','revalidate the HTTP cache as well as the service-worker cache');
+  assert.equal(online.cacheReads,0,'network-first must not read the stale response while online');assert.equal(online.cacheWrites,1);assert.equal(online.cachedBody,'fresh-chinese-js');
+  const offline=await requestThroughWorker(false);
+  assert.equal(offline.body,'old-worker-cached-chinese-js');assert.equal(offline.calls.length,1,'try the network before the offline fallback');assert.equal(offline.calls[0].options?.cache,'no-cache');
+  assert.equal(offline.cacheReads,1);assert.equal(offline.cacheWrites,0);
+});
+
 // Detail provenance uses the same release gate as its source-rarity contract.
 require('./test_contained_rarity_details.cjs');

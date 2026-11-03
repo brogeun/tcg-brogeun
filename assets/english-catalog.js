@@ -1,7 +1,8 @@
 /* English data uses the Japanese catalog panel and price-detail styles. */
 (() => {
   'use strict';
-  const VERSION='20260908-en4',cache=new Map(),size=24,cardsPerPage=18;
+  const VERSION='20261104-en5',cache=new Map(),size=24,cardsPerPage=18;
+  let setImageManifest=null;
   let catalog=null,names={},language=window.ChineseCatalog?.initialLanguage||'ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',cardRarities=[],cardScroll=0,request=0,opener=null;
   const routeRun=()=>typeof _FEATURE_ROUTE_RUN==='undefined'?null:_FEATURE_ROUTE_RUN;
   const initialRoute={hash:location.hash,search:location.search,intent:Number(window._CI_USER_INTENT)||0,tab:typeof CI_TAB==='undefined'?null:CI_TAB,run:routeRun()};
@@ -15,6 +16,40 @@
   const supportedSale=url=>/^https:\/\/www\.ebay\.(?:com|co\.uk|ca|com\.au|de|es|fr|it)\/itm\/\d+$/.test(url||'');
   const sourceURL=p=>validPrice(p)&&/^https:\/\/www\.pricecharting\.com\/game\/pokemon-[a-z0-9-]+\/[a-z0-9%'()-]+$/.test(p.sourceUrl||'')?p.sourceUrl:'';
   const icon=n=>`<svg class="px-icon" viewBox="0 0 24 24" aria-hidden="true">${({expand:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',back:'<path d="m12 5-7 7 7 7M5 12h14"/>',share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/>',external:'<path d="M14 3h7v7M21 3l-9 9M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/>'})[n]||''}</svg>`;
+  const SET_IMAGE_LABELS={'booster-box':'부스터 박스','elite-trainer-box':'엘리트 트레이너 박스','booster-bundle':'부스터 번들','booster-pack':'부스터 팩','theme-deck':'구성 덱','collection':'컬렉션 상품',logo:'세트 로고'};
+  function trustedSetImage(value,kind,productId){
+    if(typeof value!=='string')return false;
+    if(kind==='logo')return /^https:\/\/static\.tcgcollector\.com\/content\/images\/[a-f0-9]{2}\/[a-f0-9]{2}\/[a-f0-9]{2}\/[a-f0-9]{64}\.(?:png|webp|svg|jpe?g)$/.test(value)||/^https:\/\/images\.pokemontcg\.io\/[a-z0-9-]{1,32}\/logo\.png$/.test(value);
+    if(!/^\d+$/.test(String(productId||''))||!Object.hasOwn(SET_IMAGE_LABELS,kind)||kind==='logo')return false;
+    return new RegExp('^https://(?:product-images\\.tcgplayer\\.com/(?:fit-in/\\d+x\\d+/)?'+productId+'\\.(?:jpg|png|webp)|tcgplayer-cdn\\.tcgplayer\\.com/product/'+productId+'_(?:in_\\d+x\\d+|\\d+w)\\.(?:jpg|png|webp))$').test(value);
+  }
+  function imageSources(set){
+    const row=setImageManifest?.sets?.[set.code],sources=[];
+    if(row?.code===set.code&&Array.isArray(row.sources))for(const source of row.sources){
+      if(!trustedSetImage(source.image,source.kind,source.productId))continue;
+      if(source.kind!=='logo'&&(!source.name||!new RegExp('^https://www\\.tcgplayer\\.com/product/'+source.productId+'(?:/[A-Za-z0-9%._~-]+)?$').test(source.sourceUrl||'')))continue;
+      if(!sources.some(item=>item.image===source.image))sources.push({...source,label:SET_IMAGE_LABELS[source.kind]});
+    }
+    if(row?.originalImageStatus!=='broken'&&trustedSetImage(set.image,'logo')&&!sources.some(item=>item.image===set.image))sources.push({image:set.image,kind:'logo',label:SET_IMAGE_LABELS.logo});
+    return sources;
+  }
+  function setImage(set,detail=false){
+    const source=imageSources(set)[0],description=source?`${set.name} · ${source.label}${source.name?' · '+source.name:''}`:`${set.name} · 이미지 미확인`;
+    return `<span class="enc-set-image ${detail?'ci-panel-thumb enc-set-image-detail':''}" data-enc-image-code="${esc(set.code)}"><img ${source?`src="${esc(source.image)}"`:'hidden'} alt="${esc(description)}" loading="lazy" decoding="async" data-enc-source-index="0" onerror="window.EnglishCatalog?.advanceSetImage(this)"><span class="enc-set-image-empty" ${source?'hidden':''}><strong>${esc(set.displayCode||set.code.replace(/^EN-/,''))}</strong><span>이미지 미확인</span></span><span class="enc-set-image-label" ${source?'':'hidden'}>${esc(source?.label||'')}</span></span>`;
+  }
+  function applySetImage(wrapper,set,index=0){
+    const img=wrapper.querySelector('img'),empty=wrapper.querySelector('.enc-set-image-empty'),label=wrapper.querySelector('.enc-set-image-label');if(!img||!empty||!label)return;
+    const source=imageSources(set)[index];img.dataset.encSourceIndex=String(index);img.hidden=!source;empty.hidden=!!source;label.hidden=!source;
+    label.textContent=source?.label||'';img.alt=source?`${set.name} · ${source.label}${source.name?' · '+source.name:''}`:`${set.name} · 이미지 미확인`;
+    if(source)img.src=source.image;else img.removeAttribute('src');
+  }
+  function advanceSetImage(img){
+    const wrapper=img?.closest?.('[data-enc-image-code]'),set=catalog?.sets.find(row=>row.code===wrapper?.dataset.encImageCode);if(!set)return;
+    applySetImage(wrapper,set,Math.max(0,Number(img.dataset.encSourceIndex)||0)+1);
+  }
+  function refreshSetImages(){
+    for(const wrapper of document.querySelectorAll?.('[data-enc-image-code]')||[]){const set=catalog?.sets.find(row=>row.code===wrapper.dataset.encImageCode);if(set)applySetImage(wrapper,set);}
+  }
   function art(card,detail=false){
     const s=card.sprite;
     if(!/^images\/pokemon-en-sheets\/[A-Za-z0-9-]+\.webp$/.test(card.image||'')||!s||![s.col,s.row,s.cols,s.rows].every(Number.isInteger)||s.col<0||s.row<0||s.col>=s.cols||s.row>=s.rows)return '<span class="enc-no-art">이미지 없음</span>';
@@ -34,7 +69,7 @@
     if(!catalog){list.innerHTML='<p role="status">영문판 목록 불러오는 중…</p>';return;}
     const q=searchText(CI_QUERY),sets=catalog.sets.filter(s=>searchText([s.name,s.code,s.displayCode,s.release].join(' ')).includes(q));
     const total=Math.max(1,Math.ceil(sets.length/size));page=Math.min(page,total);
-    list.innerHTML=sets.slice((page-1)*size,page*size).map(s=>`<button type="button" class="set-tile enc-set" data-enc-set="${esc(s.code)}" aria-label="${esc(s.name)} 수록 카드"><span class="set-tile-img">${/^https:\/\/static\.tcgcollector\.com\//.test(s.image||'')?`<img src="${esc(s.image)}" alt="" loading="lazy" onerror="this.hidden=true">`:'<span>포켓몬</span>'}</span><span class="set-tile-body"><span class="set-tile-code">${esc(s.displayCode||s.code)}</span><span class="set-tile-name">${esc(s.name)}</span><span class="set-tile-meta">발매일: ${esc(s.release||'미정')}</span></span></button>`).join('')+(!sets.length?'<p>검색 결과가 없습니다.</p>':'')+`<nav class="ci-panel-pages enc-pages" aria-label="세트 페이지 이동">${pages(page,total,'data-enc-page')}</nav>`;
+    list.innerHTML=sets.slice((page-1)*size,page*size).map(s=>`<button type="button" class="set-tile enc-set" data-enc-set="${esc(s.code)}" aria-label="${esc(s.name)} 수록 카드"><span class="set-tile-img">${setImage(s)}</span><span class="set-tile-body"><span class="set-tile-code">${esc(s.displayCode||s.code)}</span><span class="set-tile-name">${esc(s.name)}</span><span class="set-tile-meta">발매일: ${esc(s.release||'미정')}</span></span></button>`).join('')+(!sets.length?'<p>검색 결과가 없습니다.</p>':'')+`<nav class="ci-panel-pages enc-pages" aria-label="세트 페이지 이동">${pages(page,total,'data-enc-page')}</nav>`;
   }
   function quote(card){const p=card.psa10;if(!validPrice(p))return 'PSA10 미수집';return money(p.sourcePriceCents)?`PSA10 ${p.status==='available'?'참고가':p.status==='unverified'?'참고가 · 확인 필요':'추정가'} ${money(p.sourcePriceCents)}`:p.status==='no-price'?'PSA10 가격 없음':'PSA10 미수집';}
   function header(back=false){return `<div class="ci-panel-head">${back?`<button type="button" data-enc-back aria-label="수록 카드로 돌아가기">${icon('back')}</button>`:''}<button type="button" data-enc-expand aria-label="패널 전체화면 전환" aria-pressed="false">${icon('expand')}</button><span class="enc-head-space"></span><button type="button" data-enc-share aria-label="${back?'카드':'세트'} 정보 공유">${icon('share')}</button><button type="button" data-enc-close aria-label="${back?'카드':'세트'} 정보 닫기">${icon('close')}</button></div>`;}
@@ -54,7 +89,7 @@
   }
   function setModal(restore=false){
     const previous=currentCard;currentCard=null;
-    panel(`${header()}<div class="ci-panel-info">${/^https:\/\/static\.tcgcollector\.com\//.test(active.image||'')?`<img class="ci-panel-thumb" src="${esc(active.image)}" alt="" onerror="this.style.visibility='hidden'">`:'<div class="ci-panel-thumb"></div>'}<div class="ci-panel-copy"><span class="ci-brand pokemon">포켓몬 · 영판</span><p>${esc(active.displayCode||active.code)}</p><h3 id="encPanelTitle">${esc(active.name)}</h3><p>발매일: ${esc(active.release||'미정')}</p></div></div><div class="ci-panel-scroll enc-scroll"><div class="ci-rarity-summary"><div class="ci-panel-summary" id="encCardCount"></div><div id="encRarityFilters"></div></div><section class="mr-embedded" id="encUSSetMarket" aria-label="미국 밀봉상품 참고가"></section><label class="enc-search">카드 검색<input id="encCardSearch" type="search" placeholder="한글·영문 이름 또는 번호" value="${esc(cardQuery)}"></label><div class="set-card-grid" id="encCardGrid"></div></div><nav id="encCardPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동"></nav>`,'encPanelTitle');setBody();
+    panel(`${header()}<div class="ci-panel-info">${setImage(active,true)}<div class="ci-panel-copy"><span class="ci-brand pokemon">포켓몬 · 영판</span><p>${esc(active.displayCode||active.code)}</p><h3 id="encPanelTitle">${esc(active.name)}</h3><p>발매일: ${esc(active.release||'미정')}</p></div></div><div class="ci-panel-scroll enc-scroll"><div class="ci-rarity-summary"><div class="ci-panel-summary" id="encCardCount"></div><div id="encRarityFilters"></div></div><section class="mr-embedded" id="encUSSetMarket" aria-label="미국 밀봉상품 참고가"></section><label class="enc-search">카드 검색<input id="encCardSearch" type="search" placeholder="한글·영문 이름 또는 번호" value="${esc(cardQuery)}"></label><div class="set-card-grid" id="encCardGrid"></div></div><nav id="encCardPages" class="ci-panel-pages" aria-label="수록 카드 페이지 이동"></nav>`,'encPanelTitle');setBody();
     window.MarketReferences?.mountEnglishSet(document.getElementById('encUSSetMarket'),{setCode:active.code});
     if(restore){const scroll=document.querySelector('#anyModal .enc-scroll');if(scroll)scroll.scrollTop=cardScroll;Array.from(document.querySelectorAll('[data-enc-card]')).find(b=>b.dataset.encCard===String(previous?.sourceId))?.focus({preventScroll:true});}
   }
@@ -112,5 +147,7 @@
   ensureLanguages();
   ready.then(()=>{renderCardInfo();const query=new URLSearchParams(initialRoute.search),code=query.get('set');if(code?.startsWith('EN-')&&initialCurrent()){language='en';CI_TAB='pokemon';renderCardInfo();open(code,false,query.get('card'));}}).catch(()=>{if(language==='en')document.getElementById('cardInfoList').innerHTML='<p>영문판 목록을 불러오지 못했습니다. 새로고침해 주세요.</p>';});
   window.addEventListener?.('tcg:fx-updated',()=>{const modal=document.getElementById('anyModal');if(typeof CI_TAB!=='undefined'&&CI_TAB==='pokemon'&&language==='en'&&modal?.classList.contains('open')&&modal.querySelector('.enc-scroll,.enc-detail-scroll')){if(currentCard)detail(currentCard.sourceId);else setBody();}});
-  window.EnglishCatalog={art,quote,open,name,dailySales,historyHTML,cancelPending(){request++;}};
+  window.EnglishCatalog={art,quote,open,name,dailySales,historyHTML,setImage,imageSources,trustedSetImage,advanceSetImage,cancelPending(){request++;}};
+  // Optional image metadata never blocks cards/prices or reopens a stale route.
+  Promise.resolve().then(()=>fetch('/data/english-set-images.json?v='+VERSION)).then(async response=>{if(!response.ok)return;const data=await response.json();if(data.schemaVersion!==1||data.language!=='en'||!data.sets||Array.isArray(data.sets))return;setImageManifest=data;refreshSetImages();}).catch(()=>{});
 })();

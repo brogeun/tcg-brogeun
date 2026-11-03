@@ -5,6 +5,7 @@
   else root.JapaneseCatalog = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
   'use strict';
+  const setArtwork = root.JapaneseSetArtwork || (typeof module === 'object' && module.exports && typeof require === 'function' ? require('./japanese-set-artwork.js') : null);
   let ready, catalog, rows = [], products = [];
   const names = () => root.JapaneseCardNames;
   const normalize = value => names()?.normalizeQuery(value) || String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
@@ -100,7 +101,7 @@
       ...set, id:'JPSET:'+set.code, setCode:set.code, boxCode:set.code, setName:set.name,
       name:set.name, displayName:set.name, nameLower:[set.name,set.code].join(' ').toLowerCase(),
       kind:'box', brand:'pokemon', language:'ja', _catalogue:true,
-      thumbnailUrl:set.image || '/images/sets/'+encodeURIComponent(set.code)+'.jpg', productNumber:set.code, listingCount:0
+      thumbnailUrl:setArtwork?.image(set) || set.image || '/images/sets/'+encodeURIComponent(set.code)+'.jpg', productNumber:set.code, listingCount:0
     }));
     const supplements=reprints.map(card=>({...card,_searchText:normalize(card.nameLower)}));
     rows = [...printed, ...marketOnly, ...catalogBoxes, ...supplements];

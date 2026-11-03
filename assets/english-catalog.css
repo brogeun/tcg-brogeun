@@ -3,6 +3,13 @@
 .enc-pages{grid-column:1/-1}
 .enc-set{text-align:left;font:inherit;padding:0;color:inherit}.enc-set .set-tile-img{display:flex;align-items:center;justify-content:center}
 .enc-set .set-tile-body,.enc-set .set-tile-code,.enc-set .set-tile-name,.enc-set .set-tile-meta{display:block}
+.enc-set-image{display:flex;position:relative;align-items:center;justify-content:center;flex-direction:column;width:100%;height:100%;min-width:0;overflow:hidden;gap:6px;padding:12px 12px 28px;box-sizing:border-box}
+.enc-set-image img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+.enc-set-image img[hidden],.enc-set-image [hidden]{display:none!important}
+.enc-set-image-label{position:absolute;bottom:5px;left:6px;right:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:10px;line-height:16px;color:#77766f}
+.enc-set-image-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#77766f;text-align:center;font-size:11px;line-height:1.4;width:100%;height:100%;min-height:48px}
+.enc-set-image-empty strong{max-width:100%;overflow-wrap:anywhere;font-size:14px;font-weight:600;color:#50504b}
+.ci-panel-info>.enc-set-image-detail{flex:0 0 74px;width:74px;height:98px;min-height:98px;padding:8px 8px 24px}.ci-panel-info>.enc-set-image-detail>img{max-width:100%;max-height:100%;object-fit:contain}
 .enc-head-space{flex:1}.enc-loading-title{padding:20px;margin:0}
 .enc-search{display:flex;gap:12px;align-items:center;margin:0 0 20px;font-size:14px;color:#666560}
 .enc-search input{min-width:0;flex:1;min-height:44px;padding:10px 12px;border:1px solid #D9D8D3;border-radius:10px;font:inherit}

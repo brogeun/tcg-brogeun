@@ -1,15 +1,62 @@
 'use strict';
-const assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto');
+const assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto'),vm=require('node:vm');
 const bridge=require('../assets/contained-card-prices.js'),match=require('../assets/contained-card-match.js'),fallback=require('../assets/card-price-fallback.js'),repairs=require('../assets/card-catalog-repairs.js');
 const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
 const base=process.env.PRICE_VERIFY_ORIGIN||'https://tcghub.kr',version=process.env.DEPLOY_COMMIT||Date.now();
 async function get(path,json=false){const r=await fetch(base+path+(path.includes('?')?'&':'?')+'audit='+version,{headers:{'Cache-Control':'no-cache'},signal:AbortSignal.timeout(30000)});assert(r.ok,path+' HTTP '+r.status);return json?r.json():r.text();}
-async function run(){
- for(const path of ['assets/contained-card-match.js','assets/contained-card-prices.js','assets/card-price-fallback.js','assets/english-catalog.js','assets/price-expanded.js','sw.js']){
-  const remote=await get('/'+path),local=fs.readFileSync(path,'utf8');
-  assert.equal(crypto.createHash('sha256').update(remote).digest('hex'),crypto.createHash('sha256').update(local).digest('hex'),'Stale production asset: '+path);
+async function verifyPriceAssets({get:fetchAsset=get,readSource=path=>fs.readFileSync(path,'utf8')}={}){
+ const page=(await fetchAsset('/')).replace(/<!--[\s\S]*?-->/g,''),origin=new URL(base).origin;
+ const tags=[...page.matchAll(/<script\b([^>]*)>/gi)].flatMap(tag=>{
+  const src=tag[1].match(/(?:^|\s)src\s*=\s*(["'])([^"']+)\1/i);
+  return src?[{src:src[2],attributes:tag[1],index:tag.index}]:[];
+ });
+ const pathname=src=>new URL(src,base).pathname;
+ const tagsFor=path=>tags.filter(tag=>pathname(tag.src)===path);
+ const core=['contained-card-match.js','contained-card-prices.js','card-price-fallback.js','price-expanded.js'];
+ const positions=new Map(),sources=new Map();
+ async function checkSource(src){
+  const url=new URL(src,base);assert.equal(url.origin,origin,'Price asset must use the deployed origin: '+src);
+  assert(!url.hash&&!url.username&&!url.password,'Invalid price asset URL: '+src);
+  const path=url.pathname;assert(/^\/assets\/[a-z0-9._-]+\.js$/i.test(path),'Invalid price script path: '+path);
+  const remote=await fetchAsset(path+url.search),local=readSource(path.slice(1));
+  assert.equal(crypto.createHash('sha256').update(remote).digest('hex'),crypto.createHash('sha256').update(local).digest('hex'),'Stale production asset: '+path.slice(1));
+  sources.set(path,remote);return remote;
  }
- const page=await get('/');assert(page.includes('20261030-price-audit2'),'Price audit scripts missing from deployed index');
+ for(const file of core){
+  const path='/assets/'+file,found=tagsFor(path);assert.equal(found.length,1,'Price script must be linked once: '+path);
+  positions.set(path,found[0].index);await checkSource(found[0].src);
+ }
+ const featureFiles=['english-catalog.js','tcg-card-info.js'],lazy=featureFiles.filter(file=>!tagsFor('/assets/'+file).length);
+ let profile=[];
+ if(lazy.length){
+  const found=tagsFor('/assets/app-route-loader.js');assert.equal(found.length,1,'Price audit feature loader must be linked once');
+  const tag=found[0],navigation=page.lastIndexOf('go(initialPage)');
+  assert(!/(?:^|\s)(?:async|defer)(?:\s|=|$)/i.test(tag.attributes),'Price audit feature loader must be ready before navigation');
+  assert(navigation>=0&&tag.index<navigation&&page.includes('AppRouteLoader.ensure('),'Price audit feature loader is not wired before route activation');
+  const source=await checkSource(tag.src),context={window:{},URL,location:{href:base+'/#home'},document:{
+   addEventListener(){throw Error('Manifest inspection must not install listeners');},
+   querySelectorAll(){throw Error('Manifest inspection must not load route assets');}
+  }};
+  vm.runInNewContext(source,context,{filename:tag.src,timeout:1000});
+  assert.equal(typeof context.window.AppRouteLoader?.ensure,'function','Invalid deployed feature loader');
+  profile=context.window.AppRouteLoader.manifest?.cardinfo?.scripts;
+  assert(Array.isArray(profile)&&profile.length,'Missing deployed cardinfo script profile');
+  profile=Array.from(profile);assert(profile.every(src=>typeof src==='string'),'Invalid deployed cardinfo script profile');
+ }
+ for(const file of featureFiles){
+  const path='/assets/'+file,eager=tagsFor(path),declared=profile.filter(src=>pathname(src)===path);
+  assert.equal(eager.length+declared.length,1,'Price feature must be linked once: '+path);
+  if(eager.length){positions.set(path,eager[0].index);await checkSource(eager[0].src);}
+  else{positions.set(path,page.length+profile.indexOf(declared[0]));await checkSource(declared[0]);}
+ }
+ for(const [before,after]of [['contained-card-match.js','contained-card-prices.js'],['card-price-fallback.js','tcg-card-info.js'],['contained-card-prices.js','tcg-card-info.js'],['english-catalog.js','tcg-card-info.js']])
+  assert(positions.get('/assets/'+before)<positions.get('/assets/'+after),'Price script dependency order: '+before+' before '+after);
+ const remote=await fetchAsset('/sw.js');
+ assert.equal(crypto.createHash('sha256').update(remote).digest('hex'),crypto.createHash('sha256').update(readSource('sw.js')).digest('hex'),'Stale production asset: sw.js');
+ return {lazy:lazy.length>0,scripts:[...sources.keys()]};
+}
+async function run(){
+ await verifyPriceAssets();
  const bindings=await get('/data/contained-card-market-links.json',true),overrides=await get('/data/onepiece-card-overrides.json',true);
  assert.deepEqual(bindings,read('data/contained-card-market-links.json'),'Deployed artwork bindings differ');
  assert.deepEqual(overrides,read('data/onepiece-card-overrides.json'),'Deployed OP17 bindings differ');
@@ -40,4 +87,5 @@ async function run(){
  }
  console.log(JSON.stringify({origin:base,artworkBindings:resolved,priced,completeSets:{OP16:149,OP17:158},liveRocks:live}));
 }
-(async()=>{let last;for(let attempt=0;attempt<4;attempt++){try{await run();return;}catch(error){last=error;console.error('Production price check attempt '+(attempt+1)+': '+error.message);if(attempt<3)await new Promise(r=>setTimeout(r,15000));}}throw last;})().catch(e=>{console.error(e);process.exitCode=1;});
+module.exports={verifyPriceAssets,run};
+if(require.main===module)(async()=>{let last;for(let attempt=0;attempt<4;attempt++){try{await run();return;}catch(error){last=error;console.error('Production price check attempt '+(attempt+1)+': '+error.message);if(attempt<3)await new Promise(r=>setTimeout(r,15000));}}throw last;})().catch(e=>{console.error(e);process.exitCode=1;});

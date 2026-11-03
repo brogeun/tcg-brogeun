@@ -12,11 +12,11 @@
     pokemon:'/data/collections/sources/pokemon-jp-rarity-metadata.json?v=20261101-rarity-recheck1',
     'pokemon-en':'/data/collections/sources/pokemon-en-rarity-recheck.json?v=20261101-rarity-deep1',
     onepiece:'/data/collections/sources/onepiece-printing-metadata.json?v=20261029-source-rarity-1',
-    'pokemon-cn':'/data/collections/sources/pokemon-cn-rarity-crossdb.json?v=20261104-resume1'
+    'pokemon-cn':'/data/collections/sources/pokemon-cn-rarity-crossdb.json?v=20261104-review906'
   };
   const referenceURLs = {
-    pokemon:'/data/collections/sources/pokemon-jp-rarity-crossdb.json?v=20261104-resume1',
-    'pokemon-en':'/data/collections/sources/pokemon-en-rarity-crossdb.json?v=20261101-crossdb1'
+    pokemon:'/data/collections/sources/pokemon-jp-rarity-crossdb.json?v=20261104-review906',
+    'pokemon-en':'/data/collections/sources/pokemon-en-rarity-crossdb.json?v=20261104-review906'
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
   const empty = /^(?:[-—?]|unknown|unconfirmed|미확인|확인\s*중)$/i;
@@ -25,7 +25,7 @@
     return ({'Rare Secret':'Secret Rare','Holo Rare':'Rare Holo','R(レア)':'R'})[literal] || literal;
   };
   // Explicit provider categories only; a blank field or dash is insufficient.
-  const unlistedReference = ref => ['None','表記無し(-)','表記無し','レアリティなし','レアリティ表記無し','无标记'].includes(ref.literal);
+  const unlistedReference = ref => ['None','No Rarity','表記無し(-)','表記無し','レアリティなし','レアリティ表記無し','无标记'].includes(ref.literal);
 
   function metadata(card) {
     if (card?.rarityNotApplicable === true) return {key:NOT_APPLICABLE, label:'해당 없음', state:'not-applicable'};
@@ -195,23 +195,61 @@
     return merge(primary,reviewed,{brand,setCode});
   }
 
+  const noteText = value => typeof value==='string' ? value.trim() : '';
+  const languageLabel = value => ({ja:'일본어',en:'영어',fr:'프랑스어','zh-CN':'중국어 간체',runic:'룬 문자'})[value] || noteText(value);
+  function languageMismatch(proof) {
+    const source=proof?.sourceCardLanguage || proof?.identityEvidence?.sourceCardLanguage;
+    const catalogue=proof?.catalogueLanguage || proof?.identityEvidence?.catalogueLanguage;
+    return !!source && !!catalogue && source!==catalogue;
+  }
+  function evidenceGroups(card) {
+    const proof=card?.rarityEvidence,external=typeof proof?.kind==='string' && proof.kind.startsWith('external-');
+    const valid=refs=>(Array.isArray(refs)?refs:[]).filter(ref=>ref && /^https:\/\//.test(ref.url || ''));
+    return {proof:external?proof:null,rarity:valid(external?proof.references:card?.rarityDisclosureEvidence?.references),
+      other:valid(external?proof.otherReferences:[]),identity:valid(external?[...(Array.isArray(proof.identityReferences)?proof.identityReferences:[]),...(Array.isArray(proof.supportingReferences)?proof.supportingReferences:[])]:[])};
+  }
+  function referenceLabel(ref, identity=false) {
+    const dimension=({'secret-numbered-family':'번호 기준 분류','Japanese-specific-rarity':'일본판 희귀도',
+      'prior-set-list-rarity-language-inconsistency':'기존 세트 목록','retailer-art-finish-taxonomy':'일러스트 분류',
+      'legacy-provider-rarity-label':'기존 등급 표기','illustration-treatment':'일러스트 표현'})[ref.dimension];
+    const literal=noteText(ref.literal),provider=noteText(ref.provider)||'출처';
+    return provider+(dimension?' ('+dimension+')':'')+(literal?': '+literal:identity?' · 카드 식별':'');
+  }
+  function referenceLink(ref, {identity=false,title='',prefix=''}={}) {
+    return '<a href="'+esc(ref.url)+'" target="_blank" rel="noopener noreferrer"'+(title?' title="'+esc(title)+'"':'')+'>'+esc(prefix+referenceLabel(ref,identity))+'</a>';
+  }
   function evidenceHtml(card) {
-    const proof=card?.rarityEvidence,refs=proof?.kind?.startsWith('external-') ? proof.references : card?.rarityDisclosureEvidence?.references;
-    if (!Array.isArray(refs) || !refs.length) return '';
-    const links=[...refs,...(proof?.otherReferences||[])].filter(ref=>/^https:\/\//.test(ref.url || '')).map(ref=>'<a href="'+esc(ref.url)+'" target="_blank" rel="noopener noreferrer">'+esc(ref.provider)+': '+esc(ref.literal)+'</a>');
-    if (!links.length) return '';
-    return '<p class="ci-rarity-evidence">'+(card.rarityDisclosureStatus==='verified-unprinted-rarity' ? '해당 상품의 희귀도 미표기 근거' : proof?.kind==='external-candidate' ? '외부 DB의 단일 후보 · 등급 적용 보류' : '외부 DB 분류 · 제조사 확정과 구분')+'<br>'+links.join(' · ')+
-      (proof?.kind==='external-explicit' ? proof.identityMethod==='named-world-championship-deck' ? '<br>같은 연도·선수·덱에서 이름이 유일하게 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호로 취급하지 않습니다. 실물 판본은 별도 확인이 필요합니다.' : proof.identityMethod==='named-fixed-set-energy' ? '<br>같은 고정 덱에서 에너지 이름이 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호가 아니며, 실물 판본은 별도 확인이 필요합니다.' : '<br>동일 언어·세트·카드 번호 기준의 분류입니다. 세부 인쇄 판본 확인 여부는 별도입니다.' : '')+
-      (card.rarityReferenceDisagreement ? '<br>자료별 값이 달라 동일 상품 TCGplayer 분류를 참고값으로 우선 표시합니다.' : '')+'</p>';
+    const groups=evidenceGroups(card),proof=groups.proof;
+    if (!groups.rarity.length) return '';
+    const lines=[card.rarityDisclosureStatus==='verified-unprinted-rarity' ? '해당 상품의 희귀도 미표기 근거' : proof?.kind==='external-candidate' ? '외부 DB의 단일 후보 · 등급 적용 보류' : '외부 DB 분류 · 제조사 확정과 구분',
+      groups.rarity.map(ref=>referenceLink(ref)).join(' · ')];
+    if(groups.other.length)lines.push('함께 확인한 분류 · '+groups.other.map(ref=>referenceLink(ref)).join(' · '));
+    if(groups.identity.length)lines.push('카드 식별 근거 · '+groups.identity.map(ref=>referenceLink(ref,{identity:true})).join(' · '));
+    const suppliedNotes=[...new Set([proof?.resolutionNoteKo||proof?.resolutionNote,proof?.sourceIdentityNote,proof?.identityNote,proof?.note].map(noteText).filter(Boolean))];
+    if(languageMismatch(proof)){
+      const source=proof.sourceCardLanguage||proof.identityEvidence?.sourceCardLanguage,catalogue=proof.catalogueLanguage||proof.identityEvidence?.catalogueLanguage;
+      lines.push(esc('목록 언어: '+languageLabel(catalogue)+' · 카드 표기: '+languageLabel(source)+'. 해당 언어의 카드 모델을 대조한 참고 분류입니다.'));
+    }
+    if(proof?.kind==='external-explicit'){
+      if(proof.identityMethod==='named-world-championship-deck')lines.push('같은 연도·선수·덱에서 이름이 유일하게 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호로 취급하지 않습니다. 실물 판본은 별도 확인이 필요합니다.');
+      else if(proof.identityMethod==='named-fixed-set-energy')lines.push('같은 고정 덱에서 에너지 이름이 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호가 아니며, 실물 판본은 별도 확인이 필요합니다.');
+      else if(proof.catalogueNumberIsOrdinal===true||proof.identityEvidence?.catalogueNumberIsOrdinal===true)lines.push('목록의 No. 번호는 DB 관리 번호이며 인쇄 번호로 취급하지 않습니다. 판본·도장·테두리 등 실물 변형은 별도 확인이 필요합니다.');
+      else if(!languageMismatch(proof)&&!suppliedNotes.length)lines.push('동일 언어·세트·카드 번호 기준의 분류입니다. 세부 인쇄 판본 확인 여부는 별도입니다.');
+    }
+    lines.push(...suppliedNotes.map(esc));
+    if(card.rarityReferenceDisagreement&&!noteText(proof?.resolutionNoteKo||proof?.resolutionNote)){
+      const legacyTCGplayer=groups.rarity.length>0&&groups.rarity.every(ref=>/^TCGplayer\b/.test(ref.provider||''))&&!languageMismatch(proof);
+      lines.push(proof?.preferencePolicy==='tcgplayer-exact-product'||legacyTCGplayer ? '자료별 값이 달라 동일 상품 TCGplayer 분류를 참고값으로 우선 표시합니다.' : '자료별 분류 차이와 카드별 적용 근거를 함께 보존합니다.');
+    }
+    return '<p class="ci-rarity-evidence">'+lines.join('<br>')+'</p>';
   }
 
   function referenceLinksHtml(cards, selected) {
     const links=[];
     for (const card of filter(cards,selected)) {
-      const refs=card.rarityEvidence?.kind?.startsWith('external-') ? card.rarityEvidence.references : card.rarityDisclosureEvidence?.references;
-      for (const ref of [...(Array.isArray(refs) ? refs : []),...(card.rarityEvidence?.otherReferences||[])]) if (/^https:\/\//.test(ref.url || '')) {
-        links.push('<li><a href="'+esc(ref.url)+'" target="_blank" rel="noopener noreferrer" title="'+esc(card.name)+'">'+esc(card.number || card.fullCardNumber)+' · '+esc(ref.provider)+' · '+esc(ref.literal)+'</a></li>');
-      }
+      const groups=evidenceGroups(card),prefix=(card.number||card.fullCardNumber||'')+' · ';
+      for(const ref of [...groups.rarity,...groups.other])links.push('<li>'+referenceLink(ref,{title:card.name,prefix})+'</li>');
+      for(const ref of groups.identity)links.push('<li>'+referenceLink(ref,{identity:true,title:card.name,prefix:prefix+'카드 식별 · '})+'</li>');
     }
     return links.length ? '<details class="ci-rarity-sources"><summary>카드 번호별 대조 출처</summary><ul>'+links.join('')+'</ul></details>' : '';
   }
@@ -233,7 +271,8 @@
       button('', '전체', cards.length, all)+entries.map(item => button(item.key, item.label, item.count, keys.includes(item.key))).join('')+
       '</div>'+(entries.some(item=>item.state===SOURCE_UNLISTED) ? '<p class="ci-rarity-note">원문 등급 미표기는 무등급 확정이 아닙니다. 공식 등급이 확인되면 반영합니다.</p>' : '')+
       (cards.some(card=>card.rarityEvidence?.kind==='external-explicit') ? '<p class="ci-rarity-note">외부 DB 분류를 포함합니다. ‘미표기 분류’는 외부 자료에 명시된 분류이며 제조사 무등급 확정과 다릅니다.</p>' : '')+
-      (cards.some(card=>card.rarityReferenceDisagreement) ? '<p class="ci-rarity-note">자료에 등급 차이가 있습니다. ‘참고’ 항목은 동일 상품 TCGplayer 분류를 우선 표시하며, 다른 자료의 값도 출처 목록에 보존합니다.</p>' : '')+
+      (cards.some(card=>card.rarityReferenceDisagreement) ? '<p class="ci-rarity-note">자료별 분류 차이와 카드별 적용 근거를 출처에 함께 표시합니다.</p>' : '')+
+      (cards.some(card=>languageMismatch(card.rarityEvidence)) ? '<p class="ci-rarity-note">일부 카드는 목록 언어와 실제 카드 표기가 다릅니다. 카드별 출처에서 확인할 수 있습니다.</p>' : '')+
       referenceLinksHtml(cards,keys)+
       '<button type="button" class="ci-rarity-done" data-card-rarity-close>선택 완료</button></div></details>';
   }

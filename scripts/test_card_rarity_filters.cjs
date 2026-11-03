@@ -260,9 +260,17 @@ test('native no-symbol references require the exact Chinese printing and never r
   const known={...card,rarity:'Pikachu Rare'};assert.deepEqual(merge(known),known);
 });
 
-test('resumed 246 classifications preserve real source cards while AR candidates, CN149 and mismatched English editions stay held',()=>{
+test('frozen first-resume evidence still proves its246 classifications and3 historical holds',()=>{
   const fs=require('node:fs'),path=require('node:path'),root=path.join(__dirname,'..'),read=f=>JSON.parse(fs.readFileSync(path.join(root,f)));
-  const review=read('data/collections/sources/rarity-resume-ja-cn-20261103.json'),bundle=read('data/collections/sources/pokemon-rarity-recheck/part-5000.json'),cn=read('data/collections/sources/pokemon-cn-rarity-crossdb.json');
+  const review=read('data/collections/sources/rarity-resume-ja-cn-20261103.json'),bundle=read('data/collections/sources/pokemon-rarity-recheck/part-5000.json');
+  // Reconstruct the historical37 Chinese decisions from the frozen evidence.
+  // The live overlay can now include CN149 after its exact-image review.
+  const cn={schemaVersion:1,brand:'pokemon',language:'zh-CN',cards:Object.fromEntries(review.rows
+    .filter(row=>row.language==='zh-CN'&&row.proposedState==='reference-unlisted')
+    .map(row=>[row.sourceUrl,{sourceUrl:row.sourceUrl,setCode:row.setCode,cardId:row.id,sourceId:row.sourceId,
+      variant:row.variant,name:row.name,number:row.number,rarity:'',rarityOriginal:'',rarityStatus:'reference-unlisted',
+      rarityEvidence:{schemaVersion:1,kind:'external-explicit',exactCardIdentity:true,value:'None',
+        physicalPrintingConfirmed:false,references:row.references}}]))};
   const jpSets=new Map(read('data/japanese-catalog.json').sets.map(s=>[s.code.toUpperCase(),s]));let adopted=0,grades=0,candidates=0,ordinal=0;
   for(const row of review.rows){
     const set=jpSets.get(row.setCode.toUpperCase()),file=row.language==='zh-CN'?'data/chinese-sets/'+row.setCode+'.json':'data/cards-by-set/'+(set.fileCode||set.code)+'.json';
@@ -295,12 +303,14 @@ test('actual runtime enrichment accounts for all 3381 original rows and preserve
   const others=archive('rarity-crossdb-20261101-cn-ws-0000.json.gz').rows[0].proposals;
   targets.push(...others.filter(row=>row.language==='zh-CN').map(row=>({...row,sourceUrl:row.sourceFields.sourceUrl})));
   const runtime={module:{exports:{}},AbortController,setTimeout,clearTimeout};vm.runInNewContext(fs.readFileSync(path.join(root,'assets/card-rarity-filters.js'),'utf8'),runtime);const actual=runtime.module.exports;
-  const jpSets=new Map(read('data/japanese-catalog.json').sets.map(s=>[s.code.toUpperCase(),s])),counts={},remaining={ja:0,en:0,'zh-CN':0};
+  const jpSets=new Map(read('data/japanese-catalog.json').sets.map(s=>[s.code.toUpperCase(),s])),counts={},remaining={ja:0,en:0,'zh-CN':0},observed=new Map();
+  const identity=row=>row.language+'|'+row.setCode.toUpperCase()+'|'+row.sourceUrl;
   const fetchImpl=async url=>{const f=url.split('?')[0].replace(/^\//,'');assert(f.startsWith(directory),'runtime metadata stays local and credential-free');return fs.existsSync(path.join(root,f))?{ok:true,json:async()=>read(f)}:{ok:false};};
   for(const row of targets){
     const set=jpSets.get(row.setCode.toUpperCase()),file=row.language==='ja'?'data/cards-by-set/'+(set.fileCode||set.code)+'.json':row.language==='en'?'data/english-sets/'+row.setCode+'.json':'data/chinese-sets/'+row.setCode+'.json';
     const matches=read(file).cards.filter(c=>(c.url||c.sourceUrl)===row.sourceUrl);assert.equal(matches.length,1,row.sourceUrl);const card=matches[0],before=JSON.stringify(card);assert.equal(card.number,row.number);
     const brand=row.language==='ja'?'pokemon':row.language==='en'?'pokemon-en':'pokemon-cn',result=(await actual.enrich([card],{brand,setCode:row.setCode,fetchImpl}))[0],state=actual.metadata(result).state;
+    observed.set(identity(row),{state,name:card.name,number:card.number,rarity:card.rarity});
     counts[state]=(counts[state]||0)+1;if(['source-unlisted','unknown','reference-conflict'].includes(state))remaining[row.language]++;
     assert.equal(JSON.stringify(card),before);
     for(const key of Object.keys(card).filter(k=>!['rarityOriginal','rarityEvidence','raritySourceUnlisted'].includes(k)))assert.deepEqual(result[key],card[key],row.sourceUrl+' '+key);
@@ -311,8 +321,38 @@ test('actual runtime enrichment accounts for all 3381 original rows and preserve
     assert.equal(actual.metadata(card).state,'documented-unprinted');assert.match(actual.evidenceHtml(card),/希|レアリティ|rarity/i);assert.equal(card.rarity,'');documented++;
   }
   assert.equal(documented,9);counts['documented-unprinted']=documented;
-  assert.deepEqual(counts,{'reference-grade':852,'reference-unlisted':1614,'reference-conflict':14,'source-unlisted':892,'documented-unprinted':9});
-  assert.equal(Object.values(counts).reduce((a,b)=>a+b,0),3381);assert.deepEqual(remaining,{ja:7,en:898,'zh-CN':1});
+  const review=read(directory+'rarity906-review-20261104.json'),totals=review;
+  const expected={'reference-grade':totals.referenceGrade,'reference-unlisted':totals.explicitExternalUnlisted,
+    'reference-conflict':totals.referenceConflict,'source-unlisted':totals.noAdoptableClassification,
+    'documented-unprinted':totals.documentedUnprintedRarity};
+  for(const [state,value]of Object.entries(expected))assert(Number.isInteger(value)&&value>=0,state+' must have an explicit review count');
+  assert.deepEqual(Object.fromEntries(Object.keys(expected).map(state=>[state,counts[state]||0])),expected);
+  assert.equal(counts.unknown||0,0,'every row in the frozen audited cohort has a reviewed state');
+  assert.equal(Object.values(counts).reduce((a,b)=>a+b,0),3381);
+  assert.equal(Object.values(expected).reduce((a,b)=>a+b,0),3381,'the latest report accounts for the complete original cohort');
+  assert.equal(Object.values(remaining).reduce((a,b)=>a+b,0),totals.remainingUnresolvedIncludingConflicts);
+  assert.deepEqual(remaining,review.languageRemaining);
+  const adopted=review.adoptedRows;
+  assert(Array.isArray(adopted));
+  assert.equal(new Set(adopted.map(identity)).size,adopted.length,'new decisions are unique panel rows');
+  assert.equal(review.previousRemaining,906);
+  assert.equal(906-adopted.length,totals.remainingUnresolvedIncludingConflicts,'each new accepted decision removes exactly one previously unresolved row');
+  assert.equal(totals.additionalReferenceGrades+totals.additionalExplicitNoSymbolReferences,adopted.length);
+  assert.equal(adopted.filter(row=>row.proposedState==='reference-grade').length,totals.additionalReferenceGrades);
+  assert.equal(adopted.filter(row=>row.proposedState==='reference-unlisted').length,totals.additionalExplicitNoSymbolReferences);
+  assert.equal(totals.referenceGrade,852+totals.additionalReferenceGrades);
+  assert.equal(totals.explicitExternalUnlisted,1614+totals.additionalExplicitNoSymbolReferences);
+  const crypto=require('node:crypto'),rawHashes=new Map();
+  for(const row of adopted){
+    const actualRow=observed.get(identity(row));assert(actualRow,'a new decision belongs to the original3381-row cohort: '+identity(row));
+    assert.equal(actualRow.name,row.name);assert.equal(actualRow.number,row.number);
+    assert.equal(actualRow.state,row.proposedState,identity(row)+' actual runtime agrees with the adopted report');
+    assert(!actualRow.rarity,'an accepted reference decision never replaces an original source grade');
+    assert(!['known','reference-grade','reference-unlisted','documented-unprinted'].includes(row.previousState),'an already resolved row cannot be counted as new progress');
+    assert.match(row.rawFileSha256,/^[a-f0-9]{64}$/);
+    if(!rawHashes.has(row.rawFile))rawHashes.set(row.rawFile,crypto.createHash('sha256').update(fs.readFileSync(path.resolve(root,row.rawFile))).digest('hex'));
+    assert.equal(rawHashes.get(row.rawFile),row.rawFileSha256,row.rawFile+' source bytes match the reviewed identity snapshot');
+  }
 });
 
 test('Chinese catalogue service-worker requests bypass both stale worker and HTTP caches online, retaining offline fallback',async()=>{
@@ -344,3 +384,6 @@ test('Chinese catalogue service-worker requests bypass both stale worker and HTT
 
 // Detail provenance uses the same release gate as its source-rarity contract.
 require('./test_contained_rarity_details.cjs');
+
+// The bounded remaining-rarity decisions share the existing release gate.
+require('./test_rarity906_review.cjs');

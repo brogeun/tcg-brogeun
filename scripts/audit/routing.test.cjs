@@ -8,7 +8,7 @@ function harness(){
  const names=['home','price','cardinfo','hub','portfolio','centering','admin','casing','apply','oripa','events','etc'];
  const pages=names.map(name=>{const classes=new Set();return{name,classes,classList:{add:v=>classes.add(v),remove:v=>classes.delete(v)}};});
  const location={hash:'#home',search:'?set=OP01&card=OP01-001'},input={value:''},search=[];
- const ctx={location,AUTH_READY:true,isAdminAccount:()=>false,URLSearchParams,Set,console,
+ const ctx={location,_HOME_ASSET_RUN:0,AUTH_READY:true,isAdminAccount:()=>false,URLSearchParams,Set,console,
   document:{body:{dataset:{page:'home'}},querySelectorAll:s=>s==='.page'?pages:[],querySelector:s=>{if(s==='.modal-overlay2.show')return null;const m=s.match(/^\.page\[data-page="([^"\\]*)"\]$/);assert(m,'selector must contain only a normalized route');return pages.find(p=>p.name===m[1]);},getElementById:id=>id==='cardSearchInput'?input:null},
   history:{pushState(a,b,hash){location.hash=hash;},replaceState(a,b,hash){location.hash=hash;}},
   initPrice:()=>Promise.resolve(),loadCardSearchData:async()=>{},searchCards:q=>[{id:q,listingCount:1}],renderPriceSearchAsGrid:(r,q)=>search.push({q,ids:r.map(x=>x.id)}),

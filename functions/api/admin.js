@@ -11,6 +11,7 @@
  */
 import { getCurrentUser } from '../_shared/auth.js';
 import { isAdminUser } from '../_shared/admin.js';
+import { boardDisplayItems } from '../_shared/board-media.js';
 
 const ALLOWED_TYPES = new Set(["events", "etc", "cardshow", "grading", "news"]);
 const KEY_PREFIX = "admin_";
@@ -42,7 +43,9 @@ export async function onRequestGet({ request, env }) {
   }
   try {
     const stored = await env.ADMIN_KV.get(KEY_PREFIX + type, "json");
-    return json({ ok: true, type, items: Array.isArray(stored) ? stored : [] });
+    const items = Array.isArray(stored) ? stored : [];
+    if (url.searchParams.get('view') !== 'display') return json({ ok: true, type, items });
+    return json({ ok: true, type, items: await boardDisplayItems(items, type), meta: {view: 'display'} });
   } catch (e) {
     return json({ ok: false, error: String(e) }, 500);
   }
@@ -76,6 +79,9 @@ export async function onRequestPost({ request, env }) {
   }
   if (!Array.isArray(items)) {
     return json({ ok: false, error: "items must be an array" }, 400);
+  }
+  if (items.some(item => item?._displayOnly === true)) {
+    return json({ ok: false, error: 'Display copies cannot be saved; reload the administrator originals.' }, 400);
   }
   // 안전 — 항목 500개, 게시판 전체 24MB (KV value 한계 25MiB)
   if (items.length > 500) {

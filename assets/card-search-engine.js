@@ -8,7 +8,7 @@
   const fold = value => String(value ?? '').normalize('NFKC').normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '').normalize('NFC').toLowerCase()
     .replace(/([가-힣])의(?=[\s가-힣])/g, '$1').replace(/[\s\p{P}\p{S}]+/gu, '');
-  const strings = values => [...new Set(values.filter(value => value !== undefined && value !== null && value !== '').map(fold).filter(Boolean))];
+  const strings = (values, normalize = fold) => [...new Set(values.filter(value => value !== undefined && value !== null && value !== '').map(normalize).filter(Boolean))];
   const series = '(?:PCG|ADV|DPt|SM|SV|XY|BW|neo|DP|M|S|L|e)-P';
   const referencePattern = /(?<![\p{L}\p{N}])((?:OP|ST|EB|PRB)\s*-?\s*\d{1,2})[\s-]+(\d{1,3})(?!\d)/giu;
   function references(value) {
@@ -57,15 +57,23 @@
     });
   }
   function prepare(row, index) {
-    const ids = strings([row.id, row.productId, ...(row.productIds || [])]);
-    const identifiers = strings([row.productNumber, row.number, row.fullId, row.setCode, row.boxCode, row.code]);
+    // Names and identifiers occur in several ranking fields for the same row.
+    // Reuse their exact normalization while preparing it, then release the cache.
+    const normalized = new Map();
+    const normalize = value => {
+      if (!normalized.has(value)) normalized.set(value, fold(value));
+      return normalized.get(value);
+    };
+    const rowStrings = values => strings(values, normalize);
+    const ids = rowStrings([row.id, row.productId, ...(row.productIds || [])]);
+    const identifiers = rowStrings([row.productNumber, row.number, row.fullId, row.setCode, row.boxCode, row.code]);
     // Exact collector-number searches also recognise the printed numerator.
     if (row.number && /^\d+[a-z]?\/\d+[a-z]?$/i.test(String(row.number).replace(/\s/g,''))) identifiers.push(fold(String(row.number).split('/')[0]));
     const titleNames = [row.displayName, row.name, row.nameKo];
-    const directNames = strings(titleNames);
-    const names = strings([...titleNames, ...titleNames.map(value => String(value || '').split(/\s*\[/)[0].replace(/\s+(?:SAR|SR|RRR?|AR|HR|UR|SSR|CHR|CSR|SA)\s*$/i,''))]);
+    const directNames = rowStrings(titleNames);
+    const names = rowStrings([...titleNames, ...titleNames.map(value => String(value || '').split(/\s*\[/)[0].replace(/\s+(?:SAR|SR|RRR?|AR|HR|UR|SSR|CHR|CSR|SA)\s*$/i,''))]);
     const promoNames = (row.promoKeys || []).flatMap(key => {const [family,number]=String(key).split(':');return [family+number,number+'/'+family];});
-    const text = strings([row.searchText, row._searchText, row._opSearch, row.nameLower, row.displayName, row.name, row.nameKo, row.setName, row.productNumber, row.number, row.fullId, row.setCode, row.boxCode, row.code, ...(row.aliases || []),...promoNames]).join('\0');
+    const text = rowStrings([row.searchText, row._searchText, row._opSearch, row.nameLower, row.displayName, row.name, row.nameKo, row.setName, row.productNumber, row.number, row.fullId, row.setCode, row.boxCode, row.code, ...(row.aliases || []),...promoNames]).join('\0');
     const refs=new Set([row.name,row.fullId,row.productNumber,row.number,((row.setCode||row.boxCode||row.code||'')+' '+String(row.number||'').split('/')[0])].flatMap(references));
     return {row, index, ids, identifiers, names, directNames, text, refs, don:isDon(row), promo:new Set(row.promoKeys || [])};
   }

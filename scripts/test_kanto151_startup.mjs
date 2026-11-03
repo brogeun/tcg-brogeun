@@ -1,9 +1,63 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {startRuntime,preloadScenery} from '../games/kanto151/src/startup.mjs';
+import vm from 'node:vm';
+import {startRuntime,preloadScenery,readStartupData} from '../games/kanto151/src/startup.mjs';
 
 const pending=()=>{let resolve;const promise=new Promise(done=>resolve=done);return {promise,resolve};};
+test('startup data retains every required dataset and its input ordering',async()=>{
+ const names=['species','moves','biomes','type-chart','pokemon-manifest','game-design','locale-entities','locale-messages','locale-literals','species-localized','regions-localized','region-compositions','moves-localized'];
+ const calls=[],signals=[];
+ const rows=await readStartupData('https://tcghub.kr/games/kanto151/src/main.mjs',names,{fetcher:async(url,{signal})=>{
+  calls.push(url.pathname);signals.push(signal);return {ok:true,json:async()=>({name:url.pathname.split('/').pop().replace('.json','')})};
+ }});
+ assert.deepEqual(rows.map(row=>row.name),names);
+ assert.equal(calls.length,13);assert(signals.every(signal=>signal===signals[0]));
+});
+test('a stalled startup fetch times out and aborts sibling requests',async()=>{
+ let signal;
+ await assert.rejects(readStartupData('https://example.test/src/main.mjs',['species','moves'],{
+  timeoutMs:15,fetcher:async(_,{signal:current})=>{signal=current;return new Promise(()=>{});}
+ }),/응답 시간이 초과/);
+ assert.equal(signal.aborted,true);
+});
+test('a stalled JSON response body has the same finite deadline',async()=>{
+ await assert.rejects(readStartupData('https://example.test/src/main.mjs',['species'],{
+  timeoutMs:15,fetcher:async()=>({ok:true,json:()=>new Promise(()=>{})})
+ }),/응답 시간이 초과/);
+});
+test('missing startup files fail explicitly without returning a partial dataset',async()=>{
+ await assert.rejects(readStartupData('https://example.test/src/main.mjs',['species'],{
+  fetcher:async()=>({ok:false,status:404})
+ }),/species: HTTP 404/);
+});
+const bootSource=await readFile(new URL('../games/kanto151/boot.js',import.meta.url),'utf8');
+function bootFixture(){
+ const events={},timers=[],nodes=new Map();let reloads=0;
+ const parent={append(node){nodes.set(node.id,node);}};
+ const message={textContent:'준비 중',parentElement:parent};nodes.set('load-message',message);
+ const context=vm.createContext({window:{addEventListener(name,handler){events[name]=handler;}},
+  document:{getElementById:id=>nodes.get(id),createElement:tag=>({tagName:tag.toUpperCase(),children:[],append(...children){this.children.push(...children);},remove(){nodes.delete(this.id);}})},
+  location:{reload(){reloads++;}},setTimeout(handler){const timer={handler,active:true};timers.push(timer);return timer;},clearTimeout(timer){if(timer)timer.active=false;}
+ });
+ vm.runInContext(bootSource,context);
+ return {events,timers,nodes,context,reloads:()=>reloads};
+}
+test('a stalled module graph offers reload and home without touching a save',()=>{
+ const fixture=bootFixture();fixture.timers[0].handler();
+ const actions=fixture.nodes.get('startup-recovery');assert(actions);
+ assert.equal(actions.children[1].href,'/');actions.children[0].onclick();assert.equal(fixture.reloads(),1);
+});
+test('a late successful startup clears fallback and never shows timeout after ready',()=>{
+ const fixture=bootFixture();fixture.timers[0].handler();assert(fixture.nodes.has('startup-recovery'));
+ fixture.context.window.__kantoStartupState='ready';fixture.events['kanto151-ready']();
+ assert.equal(fixture.timers[0].active,false);assert.equal(fixture.nodes.has('startup-recovery'),false);
+ fixture.timers[0].handler();assert.equal(fixture.nodes.has('startup-recovery'),false);
+});
+test('module load failure exposes an immediate retry instead of an endless loading screen',()=>{
+ const fixture=bootFixture();fixture.events.error({target:{tagName:'SCRIPT',type:'module'}});
+ assert(fixture.nodes.has('startup-recovery'));
+});
 test('HTML preloads JSON without speculatively linking import-map modules',async()=>{
  const html=await readFile(new URL('../games/kanto151/index.html',import.meta.url),'utf8');
  assert.doesNotMatch(html,/<link\b[^>]*rel=["']modulepreload["']/i);

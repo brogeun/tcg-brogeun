@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const elements={};
 for(const id of ['homeAssetValue','homeAssetChange','homeAssetHoldCount','homeAssetWatchCount']) elements[id]={style:{},textContent:''};
-const ctx=vm.createContext({document:{getElementById:id=>elements[id]},syncHomeAuthView(){},CURRENT_USER:{id:'unit-test'},HOLDINGS:[],WATCHLIST:[],_PF_PRICE_CACHE:{},BOX_ID_SET:new Set(),JPY_KRW:10});
+const ctx=vm.createContext({document:{hidden:false,body:{dataset:{page:'home'}},addEventListener(){},getElementById:id=>elements[id]},window:{addEventListener(){}},syncHomeAuthView(){},CURRENT_USER:{id:'unit-test'},HOLDINGS:[],WATCHLIST:[],_PF_PRICE_CACHE:{},BOX_ID_SET:new Set(),FX_READY:Promise.resolve(),JPY_KRW:10});
 vm.runInContext(html.slice(html.indexOf('let _HOME_ASSET_RUN ='),html.indexOf('window.openPortfolioOrLogin =')),ctx);
 await vm.runInContext('renderHomeAsset()',ctx);
 assert.equal(elements.homeAssetValue.textContent,'₩0');

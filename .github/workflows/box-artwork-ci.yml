@@ -20,10 +20,12 @@ on:
       - 'scripts/materialize_vintage_pokemon_release.py'
       - 'scripts/test_materialize_vintage_pokemon_release.py'
       - 'scripts/collect_vintage_rarity.py'
+      - 'scripts/collect_vintage_rarity_additional.py'
+      - 'scripts/test_collect_vintage_rarity_additional.py'
       - 'scripts/test_collect_vintage_rarity.py'
       - 'scripts/test_vintage_rarity_overlay.cjs'
       - 'data/collections/sources/pokemon-jp-rarity-metadata.json'
-      - 'data/collections/sources/pokemon-rarity-recheck/part-7100.json'
+      - 'data/collections/sources/pokemon-rarity-recheck/part-71*.json'
       - 'scripts/test_vintage_resume.py'
       - 'scripts/run_vintage_backfill.py'
       - 'scripts/test_run_vintage_backfill.py'
@@ -55,12 +57,27 @@ jobs:
             /data/english-catalog.json
             /data/english-set-images.json
             /data/us-market/
+            /data/cards-by-set/CL1.json
+            /data/cards-by-set/CL2.json
+            /data/cards-by-set/CL3.json
+            /data/cards-by-set/CL4.json
+            /data/cards-by-set/Gym1.json
+            /data/cards-by-set/Gym2.json
+            /data/cards-by-set/DP2.json
+            /data/cards-by-set/DP3.json
+            /data/cards-by-set/DP4-Bd.json
+            /data/cards-by-set/DP5.json
+            /data/cards-by-set/DP6.json
+            /data/cards-by-set/Pt1.json
+            /data/cards-by-set/Pt2.json
+            /data/cards-by-set/Pt3.json
+            /data/cards-by-set/Pt4.json
             /data/cards-by-set/Neo1.json
             /data/cards-by-set/Neo2.json
             /data/cards-by-set/Neo3.json
             /data/cards-by-set/Neo4.json
             /data/collections/sources/pokemon-jp-rarity-metadata.json
-            /data/collections/sources/pokemon-rarity-recheck/part-7100.json
+            /data/collections/sources/pokemon-rarity-recheck/part-710[0-4].json
             /images/box/
             /images/box2/
       - uses: actions/setup-node@v4
@@ -77,6 +94,7 @@ jobs:
           python -B -m unittest discover -s scripts -p test_retailer_printing_covers.py
           python -B -m unittest discover -s scripts -p test_materialize_vintage_pokemon_release.py
           python -B -m unittest discover -s scripts -p test_collect_vintage_rarity.py
+          python -B -m unittest discover -s scripts -p test_collect_vintage_rarity_additional.py
           node --test scripts/test_vintage_rarity_overlay.cjs
           python -B -m unittest discover -s scripts -p test_vintage_resume.py
           python -B -m unittest discover -s scripts -p test_run_vintage_backfill.py

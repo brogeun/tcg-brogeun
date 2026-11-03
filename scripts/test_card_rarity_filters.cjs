@@ -350,8 +350,34 @@ test('actual runtime enrichment accounts for all 3381 original rows and preserve
     assert(!actualRow.rarity,'an accepted reference decision never replaces an original source grade');
     assert(!['known','reference-grade','reference-unlisted','documented-unprinted'].includes(row.previousState),'an already resolved row cannot be counted as new progress');
     assert.match(row.rawFileSha256,/^[a-f0-9]{64}$/);
-    if(!rawHashes.has(row.rawFile))rawHashes.set(row.rawFile,crypto.createHash('sha256').update(fs.readFileSync(path.resolve(root,row.rawFile))).digest('hex'));
-    assert.equal(rawHashes.get(row.rawFile),row.rawFileSha256,row.rawFile+' source bytes match the reviewed identity snapshot');
+    if(!rawHashes.has(row.rawFile)){
+      const digest=body=>crypto.createHash('sha256').update(body).digest('hex');
+      const bytes=fs.readFileSync(path.resolve(root,row.rawFile)),current=digest(bytes);
+      let identityHash=current;
+      if(current!==row.rawFileSha256){
+        assert.match(row.rawFile,/^data\/cards-by-set\/[A-Za-z0-9+_-]+\.json$/,'Only the separately reviewed vintage display migration may change snapshot bytes');
+        const source=JSON.parse(bytes),review=read('data/pokemon-vintage-image-repairs.json');
+        const identities=new Map(review.images.filter(proof=>proof.setCode===source.code).map(proof=>[proof.sourceUrl,proof]));
+        assert.equal(identities.size,source.cards.length,'Display migration proves the complete original inventory');
+        const projected={...source,cards:source.cards.map(card=>{
+          const proof=identities.get(card.url||card.sourceUrl);assert(proof,'Exact original source URL remains reviewed');
+          assert.equal(card.image,proof.originalImage);
+          assert.equal(card.localImage,proof.localImage);assert.equal(card.imageSourceUrl,proof.imageSourceUrl);
+          assert.equal(card.currentSourceUrl,proof.canonicalSourceUrl||proof.sourceUrl);
+          const original={...card};delete original.localImage;delete original.imageSourceUrl;delete original.currentSourceUrl;return original;
+        })};
+        const canonical=JSON.stringify(projected,null,2)+'\n';
+        const windows=canonical.replace(/\n/g,'\r\n');
+        // Historical Windows snapshots retained CRLF except the rewritten
+        // cardCount header and final newline. Preserve that exact digest too.
+        const legacyWindows=windows.replace(/(\"cardCount\": \d+,)\r\n/,'$1\n').replace(/}\r\n$/,'}\n');
+        const hashes=[digest(canonical),digest(windows),digest(legacyWindows)];
+        assert(hashes.includes(row.rawFileSha256),row.rawFile+' changed fields beyond reviewed display paths or line endings');
+        identityHash=row.rawFileSha256;
+      }
+      rawHashes.set(row.rawFile,identityHash);
+    }
+    assert.equal(rawHashes.get(row.rawFile),row.rawFileSha256,row.rawFile+' original identity snapshot remains exact');
   }
 });
 

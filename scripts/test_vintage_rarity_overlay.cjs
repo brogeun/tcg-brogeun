@@ -35,3 +35,28 @@ test('all 322 Neo cards receive exact-source rarities while blank printed number
   }
   assert.equal(count,322);
 });
+
+test('15 additional old sets preserve all 1302 identities while only 1281 explicit source grades are adopted',async()=>{
+  const index=read('data/collections/sources/pokemon-jp-rarity-metadata.json');
+  const codes=['CL1','CL2','CL3','CL4','Gym1','Gym2','DP2','DP3','DP4-Bd','DP5','DP6','Pt1','Pt2','Pt3','Pt4'];
+  const fetched=new Set();let known=0,unknown=0,total=0;
+  for(const code of codes){
+    const cards=read('data/cards-by-set/'+code+'.json').cards,before=JSON.stringify(cards);
+    const payload=await R.ensureSetMetadata(index,code,{fetchImpl:async url=>{
+      const file=url.split('?')[0].replace(/^\//,'');
+      assert.match(file,/^data\/collections\/sources\/pokemon-rarity-recheck\/part-710[1-4]\.json$/);
+      const bytes=fs.readFileSync(path.join(root,file));assert(bytes.length<350000,'Load only the bounded requested rarity shard');
+      fetched.add(file);return {ok:true,json:async()=>JSON.parse(bytes)};
+    }});
+    const enriched=R.merge(cards,payload,{brand:'pokemon',setCode:code});
+    assert.equal(JSON.stringify(cards),before);assert.equal(enriched.length,cards.length);
+    for(let n=0;n<cards.length;n++){
+      const card=cards[n],result=enriched[n],state=R.metadata(result).state;
+      if(state==='unknown')unknown++;else{known++;assert(payload.cards[card.url].rarityOriginal);}
+      for(const key of ['name','number','image','localImage','url','currentSourceUrl','marketProductId','productId'])assert.equal(result[key],card[key]);
+      if(card.rarity)assert.equal(result.rarity,card.rarity);
+    }
+    total+=cards.length;
+  }
+  assert.equal(fetched.size,4);assert.equal(total,1302);assert.equal(known,1281);assert.equal(unknown,21);
+});

@@ -19,7 +19,7 @@
       if(don){target.marketProductId=don[1];target.productNumber='OPC-TCG-EB-05-DON';}
     }
     // Official source IDs and market product IDs are separate namespaces.
-    delete target.snkrdunkId;delete target.snkrProduct;return target;
+    delete target.snkrdunkId;delete target.snkrProduct;delete target.marketCandidates;return target;
   }
   async function defaultProducts(){
     if(typeof loadCardProductData==='function')return await loadCardProductData();
@@ -91,7 +91,7 @@
     }
     return links;
   }
-  const asset=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='cdn.snkrdunk.com'?u.origin+u.pathname:'';}catch{return '';}};
+  const asset=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='cdn.snkrdunk.com'&&!u.username&&!u.password&&(!u.port||u.port==='443')?u.origin+u.pathname:'';}catch{return '';}};
   async function defaultArtworkBindings(){
     if(!root.document)return {schemaVersion:1,links:[]};
     if(!artworkPromise)artworkPromise=Promise.all([
@@ -147,8 +147,16 @@
     for(const target of targets){
       if(!['pokemon','onepiece'].includes(target.brand)||target.language!=='ja'||target.bundle===true||target.quantity>1||target.kind==='box'){target.snkrdunkStatus='unlinked';continue;}
       const result=resolve(target);target.snkrdunkStatus=result.status;
-      if(result.status==='unlinked'&&typeof resolve.candidates==='function'&&resolve.candidates(target).length)target.snkrdunkStatus='artwork-pending';
-      if(result.status==='unlinked'&&resolve.candidates?.(target)?.length)target.snkrdunkStatus='artwork-pending';
+      if(['unlinked','ambiguous','artwork-pending'].includes(result.status)){
+        const candidates=typeof resolve.candidates==='function'?resolve.candidates(target):[];
+        target.marketCandidates=[...new Map(candidates.filter(product=>{
+          if(!/^\d+$/.test(String(product?.id))||product.brand!==target.brand||product.kind!=='card'||match.foreign?.(product))return false;
+          return typeof match.sameIdentity!=='function'||match.sameIdentity(target,product,services.candidateProofs||{});
+        }).map(product=>[String(product.id),{id:String(product.id),name:String(product.name||''),
+          thumbnailUrl:asset(product.thumbnailUrl||product.image)?String(product.thumbnailUrl||product.image):'',
+          productNumber:String(product.productNumber||'')}])).values()].slice(0,12);
+        if(result.status==='unlinked'&&target.marketCandidates.length)target.snkrdunkStatus='artwork-pending';
+      }
       if(result.status==='matched'){
         const product=products.find(row=>String(row.id)===String(result.id));
         if(product){target.snkrdunkId=String(result.id);target.snkrProduct=product;}
@@ -196,8 +204,10 @@
         if(target.sourceUnavailable){results[index]=delayed(entry);continue;}
         let result;
         if(target.detailsStatus==='unavailable'&&target.snkrProduct){result=fallback.resolve(target);if(result.status!=='priced'){results[index]=delayed(entry);continue;}}
-        if(target.bundle===true||target.quantity>1||target.kind==='box'||target.unprintedNumber||!target.fullNumber){
-          result=target.snkrProduct&&!target.bundle&&!(target.quantity>1)&&target.kind!=='box'?fallback.resolve(target):fallback.resolve({...target,language:'unavailable'});
+        if(target.bundle===true||target.quantity>1||target.kind==='box'){
+          result=fallback.resolve({...target,language:'unavailable'});
+        }else if((target.unprintedNumber||!target.fullNumber)&&!target.snkrProduct){
+          result=fallback.resolve({...target,language:'unavailable'});
         }else result=await fallback.lookup(target,{isCurrent:entry.current});
         if(entry.current()){
           const html=fallback.render(result,{compact:true});

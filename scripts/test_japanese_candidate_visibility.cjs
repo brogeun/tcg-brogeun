@@ -80,3 +80,18 @@ test('unconfirmed candidates retain their own price without supplying a canonica
   assert.equal(fixture.find(market.id).minPrice, 987654321);
   assert.equal(fixture.href(fixture.find(market.id)), '#price/123');
 });
+
+test('vintage search uses the repaired local artwork while preserving source identity and price links', () => {
+  const sourceImage='https://static.tcgcollector.com/content/images/old-source.jpg';
+  const localImage='/images/pokemon-vintage/Neo1/29521.webp';
+  const card={id:'JP:Neo1:source-no-004',brand:'pokemon',kind:'card',language:'ja',boxCode:'Neo1',setCode:'Neo1',
+    number:'',name:'Spinarak (Gold, Silver, to a New World... No. 004)',image:sourceImage,thumbnailUrl:sourceImage,
+    localImage,productId:null,productIds:[]};
+  const fixture=catalogue({schemaVersion:1,sets:[{code:'Neo1',name:'금, 은, 신세계로'}],cards:[card]},[]);
+  const row=fixture.find(card.id);
+  assert.equal(row.thumbnailUrl,localImage);
+  assert.equal(row.image,sourceImage,'Artwork proof keys retain the original source image');
+  assert.equal(row.productId,null);
+  assert.equal(row.minPrice,undefined);
+  assert.equal(fixture.href(row),'/?set=Neo1&card=JP%3ANeo1%3Asource-no-004#cardinfo');
+});

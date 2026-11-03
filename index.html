@@ -2512,11 +2512,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261030-sidebar1">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/card-catalog-repairs.js?v=20261030-reprint-prices1"></script>
-<script src="/assets/contained-card-match.js?v=20261030-price-audit2"></script>
+<script src="/assets/contained-card-match.js?v=20261104-vintage1"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261101-picker1">
 <script src="/assets/card-rarity-filters.js?v=20261104-rarity2"></script>
-<script src="/assets/japanese-catalog.js?v=20261103-candidate-visibility1"></script>
+<script src="/assets/japanese-catalog.js?v=20261104-vintage1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20261104-modular1"></script>
@@ -7006,7 +7006,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
     async function fetchSet(code) {
       const t = Math.floor(Date.now() / 3600000);
       const tryFetch = async (c) => {
-        const version = brand === 'pokemon' ? 'v=japanese-catalog-20261014-3&' : 'v=onepiece-official-20261031-1&';
+        const version = brand === 'pokemon' ? 'v=japanese-vintage-20261104-1&' : 'v=onepiece-official-20261031-1&';
         const r = await fetch(`/data/cards-by-set/${c}.json?${version}t=${t}`);
         if (!r.ok) return null;
         const text = await r.text();
@@ -7126,7 +7126,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
                data-card-name="${escapeHtml(localizedName)}"
                ${['M6a','MF','FURBOX'].includes(setCode) ? `data-anniversary-ids="${escapeHtml(JSON.stringify(c.marketIds || []))}"` : ''}
                data-card-search="${escapeHtml(searchKey)}"
-               data-card-identity="${escapeHtml(JSON.stringify({brand:cardBrand,language:'ja',boxCode:setCode,setCode:cardSetCode,number:c.number || '',baseNumber:c.baseNumber || '',fullId:c.fullId || '',id:c.id || '',name:c.name || '',rarity:c.rarity || '',rarityOriginal:c.rarityOriginal,rarityDisplayLabel:c.rarityDisplayLabel,rarityNotApplicable:c.rarityNotApplicable,raritySourceUnlisted:c.raritySourceUnlisted,rarityReferenceValue:c.rarityReferenceValue,rarityReferenceUnlisted:c.rarityReferenceUnlisted,rarityReferenceConflict:c.rarityReferenceConflict,rarityReferenceDisagreement:c.rarityReferenceDisagreement,rarityEvidence:c.rarityEvidence,rarityDisclosureStatus:c.rarityDisclosureStatus,rarityDisclosureEvidence:c.rarityDisclosureEvidence,sourceUrl:c.sourceUrl || c.url || '',officialId:c.officialId || '',sourceCategory:c.sourceCategory || '',acquisition:c.acquisition || '',sourceId:c.sourceId || '',image:c.image || '',bundle:!!c.isBundle,cardType:c.cardType || '',finish:c.finish || '',marketLinkPolicy:c.marketLinkPolicy || '',unprintedNumber:!!c.unprintedNumber,inventoryNumber:c.inventoryNumber || '',variant:c.variant || ''}))}"
+               data-card-identity="${escapeHtml(JSON.stringify({brand:cardBrand,language:'ja',boxCode:setCode,setCode:cardSetCode,number:c.number || '',baseNumber:c.baseNumber || '',fullId:c.fullId || '',id:c.id || '',name:c.name || '',rarity:c.rarity || '',rarityOriginal:c.rarityOriginal,rarityDisplayLabel:c.rarityDisplayLabel,rarityNotApplicable:c.rarityNotApplicable,raritySourceUnlisted:c.raritySourceUnlisted,rarityReferenceValue:c.rarityReferenceValue,rarityReferenceUnlisted:c.rarityReferenceUnlisted,rarityReferenceConflict:c.rarityReferenceConflict,rarityReferenceDisagreement:c.rarityReferenceDisagreement,rarityEvidence:c.rarityEvidence,rarityDisclosureStatus:c.rarityDisclosureStatus,rarityDisclosureEvidence:c.rarityDisclosureEvidence,sourceUrl:c.sourceUrl || c.url || '',currentSourceUrl:c.currentSourceUrl || '',officialId:c.officialId || '',sourceCategory:c.sourceCategory || '',acquisition:c.acquisition || '',sourceId:c.sourceId || '',image:c.image || '',bundle:!!c.isBundle,cardType:c.cardType || '',finish:c.finish || '',marketLinkPolicy:c.marketLinkPolicy || '',unprintedNumber:!!c.unprintedNumber,inventoryNumber:c.inventoryNumber || '',variant:c.variant || ''}))}"
                data-card-variant="${escapeHtml(variantSuffix)}">
             <div class="set-card-img" style="background:#f3f4f6">
               ${primarySrc ? `<img src="${escapeHtml(primarySrc)}" alt="${escapeHtml(localizedName)}" loading="lazy" referrerpolicy="no-referrer" ${onerrorAttr}>` : `<span style="padding:12px;text-align:center;font-size:12px;color:var(--ink-sub)">${escapeHtml(localizedName)}<br>이미지 준비 중</span>`}
@@ -7319,6 +7319,14 @@ async function openJapaneseCatalogueCard(card) {
 // Printed Japanese cards keep one current price source and their original artwork.
 let CI_CARD_DETAIL_REQUEST = 0;
 document.addEventListener('click', async e => {
+  const candidate = e.target.closest('[data-contained-market-id]');
+  if (candidate) {
+    const id = candidate.dataset.containedMarketId;
+    if (!/^\d+$/.test(id || '')) return;
+    closeAnyModal();
+    openSlidePanel(id, candidate.dataset.containedMarketImage || '');
+    return;
+  }
   if (e.target.closest('.card-price-fallback a')) return;
   const item = e.target.closest('.set-card-item[data-card-search]');
   if (!item) return;
@@ -7365,6 +7373,7 @@ document.addEventListener('click', async e => {
       ${window.CardRarityFilters?.evidenceHtml(identity) || ''}
       ${identity.acquisition ? `<p class="ci-acquisition">입수처 · ${escapeHtml(identity.acquisition)}</p>` : ''}
       <div class="tci-price-host ci-card-detail-price">${priceHTML}</div>
+      ${window.ContainedCardCandidates?.render(target || identity) || ''}
     </div>`);
 });
 
@@ -11173,7 +11182,8 @@ if(window.CardThumbnails){
 <!-- TCGHUB_CHIIKAWA_START -->
 <!-- TCGHUB_CHIIKAWA_END -->
 <script src="/assets/card-price-fallback.js?v=20261101-artwork-review1"></script>
-<script src="/assets/contained-card-prices.js?v=20261031-official1"></script>
+<script src="/assets/contained-card-prices.js?v=20261104-vintage1"></script>
+<script src="/assets/contained-card-candidates.js?v=20261104-vintage1"></script>
 <!-- Collections stay within Card info; private records are never cached by this module. -->
 </body>
 </html>

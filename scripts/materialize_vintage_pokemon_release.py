@@ -360,6 +360,7 @@ def download_asset(row, stop, pacer=None):
         except urllib.error.HTTPError as error:
             if error.code in (403, 429):
                 stop.set()
+                error.add_note('Reviewed artwork source denied: ' + str(row.get('setCode', 'unknown-set')) + '/' + str(row.get('sourceId', 'unknown-card')))
                 raise
             if error.code not in (500, 502, 503, 504) or attempt == 2:
                 raise

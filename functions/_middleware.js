@@ -20,8 +20,95 @@ Sitemap: https://tcghub.kr/sitemap.xml
 Crawl-delay: 1
 `;
 
+// One visible card still returns one original image. Only the worker reads its
+// small static pack; shared promises avoid repeatedly fetching/parsing a pack
+// when a lazy grid requests several neighboring cards at the same time.
+const vintageImagePacks = new Map();
+const VINTAGE_PACK_MAX_BYTES = 8 * 1024 * 1024;
+const VINTAGE_CACHE_MAX_BYTES = 20 * 1024 * 1024;
+
+async function vintageImagePack(context, target, setCode, bucket) {
+  const key = target.pathname;
+  const saved = vintageImagePacks.get(key);
+  if (saved && saved.expires > Date.now()) return saved.promise;
+  if (saved) vintageImagePacks.delete(key);
+  while (vintageImagePacks.size >= 4) vintageImagePacks.delete(vintageImagePacks.keys().next().value);
+  const entry = {expires:Date.now()+60000,bytes:0};
+  entry.promise = (async () => {
+    const response = context.env.ASSETS
+      ? await context.env.ASSETS.fetch(new Request(target))
+      : await fetch(target, {cf:{cacheTtl:86400}});
+    if (response.status === 404 || response.ok && !/\bapplication\/json\b/i.test(response.headers.get('Content-Type') || '')) return null;
+    if (!response.ok) throw Error('Vintage image pack unavailable');
+    if (Number(response.headers.get('Content-Length') || 0) > VINTAGE_PACK_MAX_BYTES) {
+      await response.body?.cancel();
+      throw Error('Vintage image pack exceeds its runtime budget');
+    }
+    const reader = response.body?.getReader();
+    if (!reader) throw Error('Vintage image pack body missing');
+    const decoder = new TextDecoder();
+    let text='',bytes=0;
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > VINTAGE_PACK_MAX_BYTES) {
+        await reader.cancel();
+        throw Error('Vintage image pack exceeds its runtime budget');
+      }
+      text += decoder.decode(chunk.value,{stream:true});
+    }
+    text += decoder.decode();
+    const pack = JSON.parse(text);
+    if (pack.schemaVersion !== 1 || pack.setCode !== setCode || pack.bucket !== bucket ||
+        !pack.files || typeof pack.files !== 'object' || Array.isArray(pack.files)) throw Error('Invalid vintage image pack identity');
+    entry.bytes=bytes;entry.expires=Date.now()+3600000;
+    let total=[...vintageImagePacks.values()].reduce((sum,item)=>sum+item.bytes,0);
+    for (const [oldKey,old] of vintageImagePacks) {
+      if (total <= VINTAGE_CACHE_MAX_BYTES) break;
+      vintageImagePacks.delete(oldKey);total-=old.bytes;
+    }
+    return pack;
+  })().catch(error => {
+    if (vintageImagePacks.get(key) === entry) vintageImagePacks.delete(key);
+    throw error;
+  });
+  vintageImagePacks.set(key,entry);
+  return entry.promise;
+}
+
 export async function onRequest(context) {
   const url = new URL(context.request.url);
+
+  if (url.pathname.startsWith('/images/pokemon-vintage/')) {
+    const match = url.pathname.match(/^\/images\/pokemon-vintage\/([A-Za-z0-9+_-]+)\/((?:tcg-([1-9][0-9]{0,8})|pooka-ja-[a-z0-9-]+)\.(webp|jpg|png))$/);
+    if (!match) return new Response('Not found',{status:404});
+    if (!['GET','HEAD'].includes(context.request.method)) return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
+    const [,setCode,file,sourceId,extension] = match;
+    const bucket = sourceId ? String(Math.floor(Number(sourceId)/16)) : 'pooka';
+    const target = new URL('/data/pokemon-vintage-packs/'+setCode+'/'+bucket+'.json',url);
+    try {
+      const pack = await vintageImagePack(context,target,setCode,bucket);
+      if (!pack) return context.next(); // Retain older unpacked publication paths.
+      if (!Object.hasOwn(pack.files,file)) return new Response('Not found',{status:404});
+      const image = pack.files[file];
+      const type = {webp:'image/webp',jpg:'image/jpeg',png:'image/png'}[extension];
+      if (!image || image.contentType !== type || !/^[0-9a-f]{64}$/.test(image.sha256 || '') ||
+          !Number.isInteger(image.bytes) || image.bytes <= 0 || image.bytes > 3000000 || typeof image.data !== 'string' ||
+          image.data.length !== Math.ceil(image.bytes/3)*4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(image.data)) throw Error('Invalid vintage artwork record');
+      const headers = {'Content-Type':type,'Content-Length':String(image.bytes),'Cache-Control':'public, max-age=86400',
+        ETag:'"'+image.sha256+'"','X-Content-Type-Options':'nosniff'};
+      if (context.request.headers.get('If-None-Match') === headers.ETag) return new Response(null,{status:304,headers});
+      if (context.request.method === 'HEAD') return new Response(null,{headers});
+      const binary = atob(image.data);
+      if (binary.length !== image.bytes) throw Error('Vintage artwork byte count mismatch');
+      const body = new Uint8Array(binary.length);
+      for (let index=0;index<binary.length;index++) body[index]=binary.charCodeAt(index);
+      return new Response(body,{headers});
+    } catch {
+      return new Response('Image unavailable',{status:503});
+    }
+  }
 
   // The static /index.html rewrite canonicalizes this legacy destination to
   // /. Serve the app here so old Card Info links keep their intended route.

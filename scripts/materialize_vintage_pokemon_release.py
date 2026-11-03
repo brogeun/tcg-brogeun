@@ -225,8 +225,12 @@ def patch_documents(root, review, validate_only=False):
             apply_metadata_repair(card, row, validate_only)
             if validate_only and any(card.get(field) != row[field] for field in ('localImage', 'imageSourceUrl')):
                 raise ValueError('Current inventory is missing reviewed display paths: ' + code)
+            current_source = row.get('canonicalSourceUrl') or row['sourceUrl']
+            if validate_only and card.get('currentSourceUrl') != current_source:
+                raise ValueError('Current inventory is missing the reviewed display source URL: ' + code)
             card['localImage'] = row['localImage']
             card['imageSourceUrl'] = row['imageSourceUrl']
+            card['currentSourceUrl'] = current_source
             current_numbers[(code.upper(), address)] = card.get('number')
             seen.add(address)
         if seen != set(rows):
@@ -255,8 +259,12 @@ def patch_documents(root, review, validate_only=False):
         apply_metadata_repair(card, row, validate_only)
         if validate_only and any(card.get(field) != row[field] for field in ('localImage', 'imageSourceUrl')):
             raise ValueError('Japanese catalogue is missing reviewed display paths')
+        current_source = row.get('canonicalSourceUrl') or row['sourceUrl']
+        if validate_only and card.get('currentSourceUrl') != current_source:
+            raise ValueError('Japanese catalogue is missing the reviewed display source URL')
         card['localImage'] = row['localImage']
         card['imageSourceUrl'] = row['imageSourceUrl']
+        card['currentSourceUrl'] = current_source
         seen.add(key)
     if seen != set(by_source):
         raise ValueError('Japanese catalogue is missing reviewed source cards')

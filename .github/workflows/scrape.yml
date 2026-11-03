@@ -84,6 +84,7 @@ jobs:
         run: |
           python scripts/materialize_vintage_pokemon_release.py --base "$COLLECTION_COMMIT"
           python -B -m unittest discover -s scripts -p test_materialize_vintage_pokemon_release.py
+          python -B -m unittest discover -s scripts -p test_vintage_image_bundle.py
 
       - name: Validate certificate matching, retries and polling
         run: node --test scripts/test_certificates.mjs scripts/test_bgs_cert.mjs scripts/test_psa_polling.mjs
@@ -339,7 +340,9 @@ jobs:
 
       - name: Verify the complete deployment fits the public asset budget
         working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data --check-limits
+        run: |
+          python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data --pack-vintage-images
+          python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data --check-limits
 
       - name: Validate collection catalogue, private state and deployment completeness
         working-directory: ${{ env.DEPLOY_SOURCE }}

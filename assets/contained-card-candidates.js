@@ -6,7 +6,7 @@
     try{const url=new URL(String(value||''));return url.protocol==='https:'&&hosts.includes(url.hostname)&&!url.username&&!url.password&&(!url.port||url.port==='443')?url.href:'';}catch{return '';}
   }
   const marketImage=value=>safeURL(value,['cdn.snkrdunk.com']);
-  const sourceURL=target=>safeURL(target?.sourceUrl||target?.url,['www.tcgcollector.com','tcgcollector.com','pooka.app','www.pooka.app','www.pokemon-card.com','pokemon-card.com','www.onepiece-cardgame.com','onepiece-cardgame.com']);
+  const sourceURL=target=>safeURL(target?.currentSourceUrl||target?.sourceUrl||target?.url,['www.tcgcollector.com','tcgcollector.com','pooka.app','www.pooka.app','www.pokemon-card.com','pokemon-card.com','www.onepiece-cardgame.com','onepiece-cardgame.com']);
   function render(target){
     if(!target||!['pokemon','onepiece'].includes(target.brand)||target.language!=='ja')return '';
     const source=sourceURL(target),sourceLink=source?`<a class="ci-source-card-link" href="${esc(source)}" target="_blank" rel="noopener noreferrer">원본 카드 보기</a>`:'';

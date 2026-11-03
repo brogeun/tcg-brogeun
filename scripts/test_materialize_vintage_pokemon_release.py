@@ -78,9 +78,11 @@ class MaterializationTests(unittest.TestCase):
         self.assertEqual(current['untouchedCurrentMetadata'], {'value': 1})
         self.assertEqual(card['localImage'], self.fixture.row['localImage'])
         self.assertEqual(card['imageSourceUrl'], self.fixture.row['imageSourceUrl'])
+        self.assertEqual(card['currentSourceUrl'], self.fixture.row['sourceUrl'])
         catalogue = target.read_json(self.root / target.CATALOGUE)
         self.assertEqual(catalogue['audit'], {'preserve': True})
         self.assertEqual(catalogue['cards'][0]['rarity'], 'C')
+        self.assertEqual(catalogue['cards'][0]['currentSourceUrl'], self.fixture.row['sourceUrl'])
         self.assertEqual((self.root / self.fixture.row['localImage'][1:]).read_bytes(), self.fixture.body)
         result = target.run(self.root, validate_only=True)
         self.assertEqual(result['files'], 4)
@@ -177,10 +179,33 @@ class MaterializationTests(unittest.TestCase):
         self.assertEqual(current['name'], row['sourceName'])
         self.assertEqual(current['image'], row['originalImage'])
         self.assertEqual(current['localImage'], row['localImage'])
+        self.assertEqual(current['currentSourceUrl'], row['canonicalSourceUrl'])
+        catalogue_card = target.read_json(self.root / target.CATALOGUE)['cards'][0]
+        self.assertEqual(catalogue_card['sourceUrl'], row['sourceUrl'])
+        self.assertEqual(catalogue_card['currentSourceUrl'], row['canonicalSourceUrl'])
+        target.run(self.root, validate_only=True)
         row['sourceCurrentName'] = 'Vaporeon (Moonlit Pursuit & Dawn Dash No. 101)'
         self.fixture.save_review()
         with self.assertRaisesRegex(ValueError, 'Unreviewed split-set'):
             target.load_review(self.root)
+
+    def test_validation_rejects_missing_or_stale_display_source_url(self):
+        self.fixture.row['canonicalSourceUrl'] = self.fixture.row['sourceUrl'].replace('no-001', 'no-002')
+        self.fixture.save_review()
+        self.materialize()
+        for name in ('data/cards-by-set/Neo1.json', target.CATALOGUE):
+            saved = target.read_json(self.root / name)
+            for value in (None, self.fixture.row['sourceUrl']):
+                with self.subTest(path=name, value=value):
+                    changed = copy.deepcopy(saved)
+                    if value is None:
+                        changed['cards'][0].pop('currentSourceUrl')
+                    else:
+                        changed['cards'][0]['currentSourceUrl'] = value
+                    self.fixture.write(name, changed)
+                    with self.assertRaisesRegex(ValueError, 'reviewed display source URL'):
+                        target.run(self.root, validate_only=True)
+                    self.fixture.write(name, saved)
 
     def test_explicit_canonical_original_artwork_is_preserved_independently(self):
         catalogue = target.read_json(self.root / target.CATALOGUE)

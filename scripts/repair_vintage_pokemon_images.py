@@ -291,6 +291,7 @@ def sync_catalogue(entries):
             row["canonicalSourceId"] = str(card["sourceId"])
         card["localImage"] = row["localImage"]
         card["imageSourceUrl"] = row["imageSourceUrl"]
+        card["currentSourceUrl"] = row.get("canonicalSourceUrl") or row["sourceUrl"]
         if row.get("metadataRepair"):
             repair = row["metadataRepair"]
             if card.get("name") not in {repair["originalName"], repair["correctedName"]}:
@@ -328,7 +329,7 @@ def validate(entries, codes, check_catalogue=False):
         data = read_json(ROOT / f"data/cards-by-set/{code}.json")
         for card in data["cards"]:
             row = by_key[(code, card.get("url") or card.get("sourceUrl"))]
-            if card.get("image") != row["originalImage"] or card.get("localImage") != row["localImage"] or card.get("imageSourceUrl") != row["imageSourceUrl"]:
+            if card.get("image") != row["originalImage"] or card.get("localImage") != row["localImage"] or card.get("imageSourceUrl") != row["imageSourceUrl"] or card.get("currentSourceUrl") != (row.get("canonicalSourceUrl") or row["sourceUrl"]):
                 raise ValueError("Set artwork display paths or original identity changed")
             total += 1
             if row.get("metadataRepair") and (card.get("name") != row["metadataRepair"]["correctedName"] or card.get("metadataRepair") != row["metadataRepair"]):
@@ -340,7 +341,7 @@ def validate(entries, codes, check_catalogue=False):
             key = (card.get("boxCode") or card.get("setCode"), card.get("sourceUrl") or card.get("url"))
             if key in by_key:
                 row = by_key[key]
-                if card.get("localImage") != row["localImage"] or card.get("image") not in {row["originalImage"], row.get("canonicalOriginalImage", row["originalImage"])}:
+                if card.get("localImage") != row["localImage"] or card.get("image") not in {row["originalImage"], row.get("canonicalOriginalImage", row["originalImage"])} or card.get("currentSourceUrl") != (row.get("canonicalSourceUrl") or row["sourceUrl"]):
                     raise ValueError("Canonical catalogue display path or original identity changed")
                 seen.add(key)
         missing = set(by_key) - seen
@@ -407,6 +408,7 @@ def main():
             entry = by_key[code + ":" + source_id]
             card["localImage"] = entry["localImage"]
             card["imageSourceUrl"] = entry["imageSourceUrl"]
+            card["currentSourceUrl"] = entry.get("canonicalSourceUrl") or entry["sourceUrl"]
         write_json(ROOT / f"data/cards-by-set/{code}.json", data)
         print(f"{code}: {len(data['cards'])} exact artwork paths restored", flush=True)
     if errors:

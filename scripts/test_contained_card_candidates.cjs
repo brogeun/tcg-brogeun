@@ -49,6 +49,16 @@ test('source-only cards keep an exact source link without a candidate section',(
  assert.match(html,/원본 카드 보기/);assert.doesNotMatch(html,/판본 확인이 필요한 상품|상품 시세 보기/);
 });
 
+test('a reviewed current source page repairs the outgoing link without replacing the price identity',()=>{
+ const sourceUrl='https://www.tcgcollector.com/cards/27058/obsolete-source';
+ const currentSourceUrl='https://www.tcgcollector.com/cards/123456/reviewed-current-source';
+ const identity={...target,sourceUrl,currentSourceUrl,snkrdunkStatus:'unlinked',marketCandidates:[]};
+ const html=candidates.render(identity);
+ assert.match(html,/href="https:\/\/www.tcgcollector.com\/cards\/123456\/reviewed-current-source"/);
+ assert.doesNotMatch(html,/obsolete-source/);
+ assert.equal(identity.sourceUrl,sourceUrl);
+});
+
 test('old expansion title Champion of the Sky is not a prize or limited printing',()=>{
  const own={...target,setCode:'ADV3',boxCode:'ADV3',number:'001/054',name:'Grimer (Rulers of the Heavens 001/054)'};
  const plain={...make(432419),name:'Grimer [ADV3 001/054](Expansion Pack Vol.3 "Champion of the Sky")',productNumber:'pkmn-tcg-ADV3-001'};

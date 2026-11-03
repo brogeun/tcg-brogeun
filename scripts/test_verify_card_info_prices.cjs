@@ -66,6 +66,7 @@ test('production verification exercises every stored artwork and the complete OP
  vm.runInNewContext(fs.readFileSync(file,'utf8'),context);
  await context.module.exports.run();
  assert.equal(state.exitCode,0,errors.join('\n'));
- const report=JSON.parse(output.at(-1));assert.equal(report.artworkBindings,612);assert.equal(report.completeSets.OP16,149);assert.equal(report.completeSets.OP17,158);assert.equal(report.liveRocks.length,3);
+ // The reviewed vintage publication adds 517 bindings to the original 612.
+ const report=JSON.parse(output.at(-1));assert.equal(report.artworkBindings,1129);assert.equal(report.completeSets.OP16,149);assert.equal(report.completeSets.OP17,158);assert.equal(report.liveRocks.length,3);
  assert.equal(calls.filter(p=>p==='/api/card-grades').length,3);
 });

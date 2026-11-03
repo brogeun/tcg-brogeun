@@ -1,5 +1,6 @@
 """Exercise the manual-login wait without a browser or authentication state."""
 import contextlib
+import copy
 import io
 import threading
 from types import SimpleNamespace
@@ -53,9 +54,31 @@ class ResponsiveHistoryPage:
 
             return Row()
 
+        def count(self):
+            return self.page.row_count
+
+    class Drawer:
+        def __init__(self, page):
+            self.page = page
+
+        def filter(self, *, visible):
+            return self
+
+        @property
+        def first(self):
+            return self
+
+        def is_visible(self):
+            return 'visible.clicked' in self.page.events
+
+        def wait_for(self, *, state, timeout):
+            if state != 'visible' or not self.is_visible():
+                raise TimeoutError('Drawer has not opened')
+
     def __init__(self, row_count=6):
         self.events, self.role_requests, self.requested_rows = [], [], []
         self.row_count = row_count
+        self.url = setup.PRODUCT['source_url']
         self.hidden = self.Button('hidden', False, self.events)
         self.visible = self.Button('visible', True, self.events)
 
@@ -67,9 +90,13 @@ class ResponsiveHistoryPage:
 
     def get_by_text(self, _name):
         # Model the previous selector: .first resolves to the hidden mobile copy.
+        if not _name.search('거래 내역 더보기'):
+            return SimpleNamespace(all=lambda: [])
         return self.Buttons([self.hidden, self.visible])
 
     def locator(self, selector):
+        if selector == '.drawer':
+            return self.Drawer(self)
         if selector != '.drawer .tab_content.show .price_body .body_list':
             raise AssertionError('Unexpected trade-row selector')
         return self.Rows(self)
@@ -97,8 +124,9 @@ class ResponsiveHistoryControlTests(unittest.TestCase):
         page = ResponsiveHistoryPage(row_count=5)
         with mock.patch.object(setup, 'open_product'), \
                 mock.patch.object(setup, 'require_login_access'):
-            with self.assertRaises(TimeoutError):
+            with self.assertRaises(collector.CollectionError) as caught:
                 setup.verify_full_history_access(page)
+        self.assertEqual(caught.exception.code, 'history_rows_unavailable')
         self.assertEqual(page.requested_rows, [5])
         self.assertEqual(page.events, ['visible.clicked'])
 
@@ -109,7 +137,7 @@ class ResponsiveHistoryControlTests(unittest.TestCase):
                 stages = []
                 with mock.patch.object(setup, 'open_product'), \
                         mock.patch.object(setup, 'require_login_access'):
-                    with self.assertRaises(TimeoutError):
+                    with self.assertRaises(collector.CollectionError):
                         setup.verify_full_history_access(
                             page, on_stage=stages.append, phase=phase)
                 self.assertTrue(stages)
@@ -119,9 +147,16 @@ class ResponsiveHistoryControlTests(unittest.TestCase):
     def test_daily_collector_also_opens_visible_control(self):
         page = ResponsiveHistoryPage()
         stop_after_opening = RuntimeError('Stop before collecting any rows')
+        original_locator = page.locator
+
+        def stop_at_rows(selector):
+            if selector == '.drawer .tab_content.show .price_body .body_list':
+                raise stop_after_opening
+            return original_locator(selector)
+
         with mock.patch.object(collector, 'open_product'), \
                 mock.patch.object(collector, 'require_login_access'), \
-                mock.patch.object(page, 'locator', side_effect=stop_after_opening):
+                mock.patch.object(page, 'locator', side_effect=stop_at_rows):
             with self.assertRaises(RuntimeError) as caught:
                 collector.collect(page, setup.PRODUCT, {'rows': []})
         self.assertIs(caught.exception, stop_after_opening)
@@ -232,7 +267,122 @@ class OwnerLoginWaitTests(unittest.TestCase):
                 self.assertFalse(thread.is_alive())
 
 
+class SessionReplaySelectionTests(unittest.TestCase):
+    native = {'cookies': [{'domain': '.kream.co.kr', 'value': 'PRIVATE-TEST'}], 'origins': []}
+    candidate = {**native, 'sessionStorage': {'https://kream.co.kr': {'token': 'PRIVATE-TAB-TEST'}}}
+
+    def source_context(self):
+        return mock.Mock(storage_state=mock.Mock(side_effect=lambda **_: copy.deepcopy(self.native)))
+
+    def test_native_success_never_captures_additional_tab_state(self):
+        context, page = self.source_context(), mock.Mock()
+        with mock.patch.object(setup, 'verify_restored_state') as verify, \
+                mock.patch.object(setup, 'capture_tab_state') as capture:
+            result = setup.choose_restorable_state(mock.Mock(), context, page)
+        self.assertEqual(result, self.native)
+        verify.assert_called_once()
+        capture.assert_not_called()
+
+    def test_tab_only_login_can_be_verified_without_native_state(self):
+        context = mock.Mock(storage_state=mock.Mock(return_value={'cookies': [], 'origins': []}))
+        candidate = {'cookies': [], 'origins': [], 'sessionStorage': {'https://kream.co.kr': {'token': 'PRIVATE-TAB-ONLY'}}}
+        with mock.patch.object(setup, 'verify_restored_state') as verify, \
+                mock.patch.object(setup, 'capture_tab_state', return_value=candidate):
+            result = setup.choose_restorable_state(mock.Mock(), context, mock.Mock())
+        self.assertEqual(result, candidate)
+        verify.assert_called_once()
+        self.assertEqual(verify.call_args.args[1], candidate)
+        self.assertEqual(verify.call_args.kwargs['phase'], 'restored_with_tab_storage')
+
+    def test_authentication_or_http_denial_does_not_retry_or_capture(self):
+        for code in ('access_denied', 'source_http_error', 'unexpected_redirect'):
+            with self.subTest(code=code):
+                error = collector.CollectionError(code, 'Safe failure')
+                with mock.patch.object(setup, 'verify_restored_state', side_effect=error) as verify, \
+                        mock.patch.object(setup, 'capture_tab_state') as capture:
+                    with self.assertRaises(collector.CollectionError) as caught:
+                        setup.choose_restorable_state(mock.Mock(), self.source_context(), mock.Mock())
+                self.assertIs(caught.exception, error)
+                verify.assert_called_once()
+                capture.assert_not_called()
+
+    def test_empty_tab_state_preserves_the_original_restore_error(self):
+        error = collector.CollectionError('history_rows_unavailable', 'Safe failure')
+        with mock.patch.object(setup, 'verify_restored_state', side_effect=error) as verify, \
+                mock.patch.object(setup, 'capture_tab_state', return_value=None):
+            with self.assertRaises(collector.CollectionError) as caught:
+                setup.choose_restorable_state(mock.Mock(), self.source_context(), mock.Mock())
+        self.assertIs(caught.exception, error)
+        verify.assert_called_once()
+
+    def test_additional_state_is_returned_only_after_its_own_replay_passes(self):
+        initial = collector.CollectionError('session_expired', 'Safe failure')
+        with mock.patch.object(setup, 'verify_restored_state', side_effect=[initial, None]) as verify, \
+                mock.patch.object(setup, 'capture_tab_state', return_value=self.candidate):
+            result = setup.choose_restorable_state(mock.Mock(), self.source_context(), mock.Mock())
+        self.assertEqual(result, self.candidate)
+        self.assertEqual(verify.call_count, 2)
+        self.assertEqual(verify.call_args.args[1], self.candidate)
+        self.assertEqual(verify.call_args.kwargs['phase'], 'restored_with_tab_storage')
+
+    def test_failed_additional_replay_cannot_return_a_working_state(self):
+        initial = collector.CollectionError('session_expired', 'Safe failure')
+        final = collector.CollectionError('history_rows_unavailable', 'Still unavailable')
+        with mock.patch.object(setup, 'verify_restored_state', side_effect=[initial, final]) as verify, \
+                mock.patch.object(setup, 'capture_tab_state', return_value=self.candidate), \
+                mock.patch.object(setup, 'upload_session') as upload:
+            with self.assertRaises(collector.CollectionError) as caught:
+                setup.choose_restorable_state(mock.Mock(), self.source_context(), mock.Mock())
+        self.assertIs(caught.exception, final)
+        self.assertEqual(verify.call_count, 2)
+        upload.assert_not_called()
+
+    def test_unclassified_runtime_error_does_not_capture_or_retry(self):
+        error = RuntimeError('PRIVATE-RUNTIME-ERROR')
+        with mock.patch.object(setup, 'verify_restored_state', side_effect=error) as verify, \
+                mock.patch.object(setup, 'capture_tab_state') as capture:
+            with self.assertRaises(RuntimeError) as caught:
+                setup.choose_restorable_state(mock.Mock(), self.source_context(), mock.Mock())
+        self.assertIs(caught.exception, error)
+        verify.assert_called_once()
+        capture.assert_not_called()
+
+    def test_failed_restored_context_is_closed(self):
+        context = mock.Mock()
+        error = collector.CollectionError('history_rows_unavailable', 'Safe failure')
+        with mock.patch.object(setup, 'browser_context_for_session', return_value=context), \
+                mock.patch.object(setup, 'verify_full_history_access', side_effect=error):
+            with self.assertRaises(collector.CollectionError):
+                setup.verify_restored_state(mock.Mock(), self.native)
+        context.close.assert_called_once()
+
+    def test_foreign_snapshot_is_not_exported(self):
+        context, page = self.source_context(), mock.Mock()
+        page.evaluate.return_value = {'origin': 'https://unrelated.example', 'entries': {'token': 'PRIVATE-FOREIGN'}}
+        self.assertIsNone(setup.capture_tab_state(context, page))
+        context.storage_state.assert_not_called()
+
+    def test_tab_capture_stays_in_memory_and_does_not_print_values(self):
+        context, page = self.source_context(), mock.Mock()
+        page.evaluate.return_value = {'origin': 'https://kream.co.kr', 'entries': {'token': 'PRIVATE-TAB-TEST'}}
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = setup.capture_tab_state(context, page)
+        self.assertEqual(result, self.candidate)
+        self.assertNotIn('PRIVATE', output.getvalue())
+        expression = page.evaluate.call_args.args[0]
+        self.assertLess(expression.index('allowed.includes'), expression.index('window.sessionStorage'))
+
+
 class CredentialFreeDiagnosticsTests(unittest.TestCase):
+    def test_final_size_limit_covers_additional_tab_state(self):
+        state = {'cookies': [], 'origins': [], 'sessionStorage': {'https://kream.co.kr': {'token': 'x' * (50 * 1024)}}}
+        with mock.patch.object(setup.subprocess, 'run') as run:
+            with self.assertRaises(collector.CollectionError) as caught:
+                setup.upload_session(state)
+        self.assertEqual(caught.exception.code, 'session_too_large')
+        run.assert_not_called()
+
     def test_browser_exception_reports_stage_without_raw_private_message(self):
         manager = mock.MagicMock()
         manager.__enter__.return_value.chromium.launch.side_effect = RuntimeError('PRIVATE-URL-AND-TOKEN')

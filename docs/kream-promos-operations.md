@@ -14,17 +14,25 @@
 
 ```sh
 gh auth login
-python -m pip install 'playwright==1.56.0'
+python -m pip install 'playwright==1.56.0' tzdata
 python -m playwright install chromium
 python scripts/setup_kream_session.py
 ```
 
+Windows에 설치된 Edge를 사용하려면 `python scripts/setup_kream_session.py --browser msedge`로 실행한다.
 열린 KREAM 창에서 직접 로그인하고 터미널에서 Enter를 누른다.
 도구는 한복 아리의 전체 체결 창에 접근할 수 있는지 확인하고,
 KREAM 도메인의 브라우저 상태만 GitHub Actions의 `KREAM_STORAGE_STATE` 비밀값으로 등록한다.
 브라우저 상태는 메모리에서 GitHub CLI 표준입력으로 전달한다. 세션 파일·비밀번호·쿠키를 저장소나 채팅에 올리지 않는다.
 이 명령은 해당 이름의 기존 비밀값을 교체하고 `KREAM Korean Promos Daily` 실행을 요청한다.
 스크립트는 기존 브라우저 프로필을 읽거나 변경하지 않는 새 브라우저를 연다.
+로그인 대기 중에도 브라우저 이벤트를 처리하고, 체결 창이 실제로 열린 뒤 여섯 번째 행을 검사한다.
+첫 클릭이 페이지 초기화 전에 무효가 된 경우에만 화면 로딩 후 한 번 더 확인한다.
+기본 브라우저 상태로 새 창 검증이 안 될 때 필요한 경우에 한해, 로그인한 현재 탭의
+정확한 `https://kream.co.kr` 또는 `https://www.kream.co.kr` sessionStorage를 메모리에서 추가 복원한다.
+이 추가 상태도 새 컨텍스트의 여섯 번째 체결 검증을 통과해야 등록하며, 자동 수집기도 같은 형식으로 복원한다.
+추가 저장소의 키와 값은 출력하지 않고, 전체 비밀값의 48 KiB 제한을 유지한다.
+401/403/429 등 접근 거부와 일반 실행 오류는 이 복원 방식으로 재시도하지 않는다.
 
 이 작업을 원격 점검 도구가 대신 로그인하거나 인증을 우회해서 완료하지 않는다.
 인증·접근 차단이 나오면 정상 계정 접근을 확인하고 중단한다.
@@ -50,3 +58,4 @@ KREAM 도메인의 브라우저 상태만 GitHub Actions의 `KREAM_STORAGE_STATE
 참고: [Playwright 인증 상태](https://playwright.dev/python/docs/auth),
 [GitHub Actions 비밀값](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
 [GitHub 예약 실행 지연](https://docs.github.com/en/actions/how-tos/troubleshoot-workflows).
+

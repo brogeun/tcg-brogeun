@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 
 IDS = ('1096144', '893073', '998016', '998022', '937106', '934334', '508949')
 KST = ZoneInfo('Asia/Seoul')
+SESSION_STORAGE_ORIGINS = ('https://kream.co.kr', 'https://www.kream.co.kr')
 
 class CollectionError(RuntimeError):
     """A fixed, credential-free failure suitable for the public health file."""
@@ -43,11 +44,62 @@ def session_state(value):
         cookies = [c for c in cookies if kream_host(c.get('domain'))]
         origins = [o for o in origins if urlparse(o.get('origin', '')).scheme == 'https'
                    and kream_host(urlparse(o.get('origin', '')).hostname)]
-        if not cookies and not any(o.get('localStorage') or o.get('indexedDB') for o in origins):
+        result = {'cookies': cookies, 'origins': origins}
+        if 'sessionStorage' in state:
+            supplied = state['sessionStorage']
+            if not isinstance(supplied, dict):
+                raise ValueError()
+            scoped = {}
+            for origin, entries in supplied.items():
+                if origin not in SESSION_STORAGE_ORIGINS:
+                    continue
+                if not isinstance(entries, dict) or any(
+                        not isinstance(key, str) or not isinstance(value, str)
+                        for key, value in entries.items()):
+                    raise ValueError()
+                scoped[origin] = entries
+            result['sessionStorage'] = scoped
+        if (not cookies and not any(o.get('localStorage') or o.get('indexedDB') for o in origins)
+                and not any(result.get('sessionStorage', {}).values())):
             raise ValueError()
-        return {'cookies': cookies, 'origins': origins}
+        return result
     except (ValueError, TypeError, AttributeError):
         raise CollectionError('session_invalid', 'KREAM login session is invalid; reconnect it using the setup script.') from None
+
+def browser_context_for_session(browser, state, **options):
+    """Restore native state and optional first-party tab storage without logging it."""
+    state = session_state(json.dumps(state))
+    native = {key: state[key] for key in ('cookies', 'origins')}
+    context = None
+    try:
+        context = browser.new_context(storage_state=native, **options)
+        tab_storage = state.get('sessionStorage', {})
+        if any(tab_storage.values()):
+            # Parse JSON data rather than interpolating keys/values as executable JS.
+            # A JSON string literal also safely preserves quotes, backslashes and
+            # Unicode separators, including an entry named __proto__.
+            payload = json.dumps(json.dumps(tab_storage, ensure_ascii=True, separators=(',', ':')),
+                                 ensure_ascii=True)
+            script = """(() => {
+  const origins = JSON.parse(""" + payload + """);
+  if (!Object.prototype.hasOwnProperty.call(origins, window.location.origin)) return;
+  const entries = origins[window.location.origin];
+  for (const [key, value] of Object.entries(entries)) {
+    if (window.sessionStorage.getItem(key) === null) {
+      window.sessionStorage.setItem(key, value);
+    }
+  }
+})();"""
+            # The caller creates its first page only after this script is installed.
+            context.add_init_script(script=script)
+        return context
+    except Exception:
+        if context is not None:
+            try:
+                context.close()
+            except Exception:
+                pass
+        raise CollectionError('session_invalid', 'KREAM login session could not be restored; reconnect it.') from None
 
 def require_login_access(page):
     if re.search(r'/(?:login|signin)(?:[/?#]|$)', page.url):
@@ -59,6 +111,42 @@ def require_login_access(page):
 def full_history_button(page):
     # Hidden responsive copies precede the visible desktop control on KREAM.
     return page.get_by_role('button', name=re.compile(r'(?:체결|거래)\s*내역\s*더보기')).filter(visible=True).first
+
+def open_history_drawer(page):
+    """Open the read-only drawer, retrying one ignored pre-hydration click."""
+    drawer = page.locator('.drawer').filter(visible=True).first
+    for attempt in range(2):
+        require_login_access(page)
+        if attempt and drawer.is_visible():
+            return drawer
+        try:
+            button = full_history_button(page)
+            button.wait_for(state='visible', timeout=20000)
+            button.click()
+        except Exception as error:
+            if type(error).__name__ != 'TimeoutError':
+                raise
+            require_login_access(page)
+            raise CollectionError('trade_drawer_unavailable', 'Full trade history control is unavailable; prior trades retained.') from None
+        require_login_access(page)
+        try:
+            drawer.wait_for(state='visible', timeout=5000 if attempt == 0 else 15000)
+        except Exception as error:
+            if type(error).__name__ != 'TimeoutError':
+                raise
+            require_login_access(page)
+            if attempt:
+                raise CollectionError('trade_drawer_unavailable', 'Full trade history drawer did not open; prior trades retained.') from None
+            try:
+                page.wait_for_load_state('load', timeout=45000)
+            except Exception as error:
+                if type(error).__name__ != 'TimeoutError':
+                    raise
+                require_login_access(page)
+                raise CollectionError('trade_drawer_unavailable', 'KREAM product page did not finish loading; prior trades retained.') from None
+            continue
+        require_login_access(page)
+        return drawer
 
 def open_product(page, card):
     # Retry transient server errors only, in the same normal browser context.
@@ -242,15 +330,7 @@ def publish_generation(root, original_manifest, staged, attempted):
 def collect(page, card, old):
     anchor = datetime.now(KST)
     open_product(page, card)
-    more = full_history_button(page)
-    try:
-        more.wait_for(state='visible', timeout=20000)
-    except Exception:
-        require_login_access(page)
-        raise CollectionError('trade_drawer_unavailable', 'Full trade history control is unavailable; prior trades retained.') from None
-    require_login_access(page)
-    more.click()
-    require_login_access(page)
+    open_history_drawer(page)
     rows_locator = page.locator('.drawer .tab_content.show .price_body .body_list')
     rows_locator.first.wait_for(state='visible', timeout=15000)
     count_before, stable = 0, 0
@@ -328,7 +408,7 @@ def main():
         with sync_playwright() as pw:
             browser=pw.chromium.launch(headless=True)
             try:
-                context=browser.new_context(storage_state=state,locale='ko-KR',timezone_id='Asia/Seoul',viewport={'width':1440,'height':1080})
+                context=browser_context_for_session(browser,state,locale='ko-KR',timezone_id='Asia/Seoul',viewport={'width':1440,'height':1080})
             except Exception:
                 raise CollectionError('session_invalid','KREAM login session could not be loaded; reconnect it.') from None
             page=context.new_page()

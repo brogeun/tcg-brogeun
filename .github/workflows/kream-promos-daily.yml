@@ -35,7 +35,7 @@ jobs:
         run: echo "KREAM_BASE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Validate original full histories and duplicate preservation
         run: |
-          python -m unittest scripts.test_kream_promos
+          python -m unittest scripts.test_kream_promos scripts.test_setup_kream_session scripts.test_kream_session_storage
           python scripts/collect_kream_promos.py --validate-only
       - name: Check owner session and daily freshness
         id: preflight
@@ -83,3 +83,4 @@ jobs:
         run: |
           echo 'KREAM collection did not succeed. Prior prices and charts are preserved; inspect data/korean-promos-health.json.'
           exit 1
+

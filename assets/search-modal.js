@@ -2,22 +2,39 @@
 (() => {
   const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>';
   const closeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';
-  let modal, input, list, count, opener, timer, version=0, category='all', language='ja', visible=30, composing=false, ready;
+  let modal, input, list, count, opener, timer, version=0, category='all', language='ja', visible=30, composing=false, ready, retryManifest=false;
   const normalized=new Map();
+  const normalize=value=>window.JapaneseCardNames?.normalizeQuery(value) || String(value||'').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu,'');
   const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
   function cardTitle(c) {
     if(c.brand==='pokemon' && window.JapaneseCardNames) return JapaneseCardNames.title(c);
-    if(c.brand==='onepiece' && c.cardType==='DON' && c.nameKo)return c.nameKo;
+    if(c.brand==='onepiece' && c.nameKo)return c.nameKo;
     let title=c.name.replace(/\s*\((?:Enhanced|High Class|Booster|Expansion|Promotional|Starter)\b.*$/i,'').trim();
     return title;
   }
   function ensureData() {
-    if (ready && !window.PromoSearch?.needsRetry()) return ready;
+    if (ready && !retryManifest && !window.PromoSearch?.needsRetry()) return ready;
+    retryManifest=false;
     ready=(async()=>{
       await loadCardSearchData();
       if (!_ALL_CARDS_INDEX?.length) throw new Error('검색 데이터를 불러오지 못했어요.');
       await window.JapaneseCardNames?.ensureData();
-      const searchRows=window.JapaneseCatalog?.getSearchRows() || _ALL_CARDS_INDEX;
+      // Starter, premium and promotion labels arrive after the initial box list.
+      // Give that manifest a bounded wait and retry missing labels next search.
+      let onepieceSets=CARDINFO.onepiece||[],manifestUnavailable=false,manifestTimer;
+      if(window.OnePieceCatalog?.ensureManifest){
+        try{
+          await Promise.race([OnePieceCatalog.ensureManifest(),new Promise((resolve,reject)=>{
+            manifestTimer=setTimeout(()=>reject(new Error('Official box labels unavailable')),5000);
+          })]);
+          onepieceSets=OnePieceCatalog.registerSets(onepieceSets);
+        }catch{manifestUnavailable=true;}
+        finally{clearTimeout(manifestTimer);}
+      }
+      // Use the same official artwork rows as searchCards(). A separate product
+      // index drops every official result when its JP:ONEPIECE ID is looked up.
+      const baseRows=window.JapaneseCatalog?.getSearchRows() || _ALL_CARDS_INDEX;
+      const searchRows=window.OnePieceCatalog?.mergeSearch(baseRows) || baseRows;
       const boxes=searchRows.filter(c=>c.kind==='box'&&!c._catalogue).map(c=>({...c}));
       await enrichPriceProductMetadata(boxes,'box');
       // Current price feed precedes manual fallback; keep its price for duplicate IDs.
@@ -28,12 +45,13 @@
         const c=boxMap.get(raw.id)||raw;
         if(window.JapaneseCardNames ? JapaneseCardNames.language(c)!=='ja' : ['en','zh','zh-cn','zh-tw','cn'].includes(String(c.language||'').toLowerCase())||[c.setCode,c.code,c.id].some(value=>/^(?:EN|CN)-/i.test(String(value||''))))continue;
         const kind=c.kind==='box' ? (c._catalogue || isPriceBoxProduct(c)?'box':'card') : 'card';
-        const sets=CARDINFO[c.brand]||[];
-        const code=(c.code||c.productNumber||'').toUpperCase();
+        const sets=c.brand==='onepiece' ? onepieceSets : CARDINFO[c.brand]||[];
+        const code=(c.boxCode||c.setCode||c.code||c.productNumber||'').toUpperCase();
         const set=sets.find(s=>(kind==='box' && String(s.boxId)===c.id) || (code && (code===s.code.toUpperCase() || code.startsWith(s.code.toUpperCase()+'-') || code.startsWith('PKMN-TCG-'+s.code.toUpperCase()+'-'))));
-        const name=kind==='box' ? (getBoxKoreanName(c,c.brand)||c._koName||c.name) : cardTitle(c);
+        const name=kind==='box' ? (getBoxKoreanName(c,c.brand)||set?.name||c._koName||c.name) : cardTitle(c);
         normalized.set(c.id,{...c,kind,displayName:name,setName:c.setName || set?.name || c.productNumber?.toUpperCase() || (c.brand==='onepiece'?'원피스':'포켓몬')});
       }
+      retryManifest=manifestUnavailable;
     })().catch(error=>{ready=null;if(!_ALL_CARDS_INDEX?.length)_ALL_CARDS_INDEX=null;throw error});
     return ready;
   }
@@ -160,7 +178,11 @@
       else {
       searchCards(q,Infinity).forEach(raw=>{const c=normalized.get(raw.id);if(c&&(category==='all'||c.kind===category))unique.set(c.id,c)});
       // ID-based Korean box names also remain searchable after metadata enrichment.
-      normalized.forEach(c=>{if(c.displayName.toLowerCase().includes(q.toLowerCase())&&(category==='all'||c.kind===category))unique.set(c.id,c)});
+      const queryText=normalize(q),queryWords=q.split(/\s+/).map(normalize).filter(Boolean);
+      normalized.forEach(c=>{
+        const text=normalize([c.displayName,c.setName].filter(Boolean).join(' '));
+        if(queryText&&(text.includes(queryText)||queryWords.length>0&&queryWords.every(word=>text.includes(word)))&&(category==='all'||c.kind===category))unique.set(c.id,c);
+      });
       }
       const plan=language==='ja' ? window.JapaneseCatalog?.prepareQuery?.(q) : null;
       const matched=plan?.type ? [...unique.values()].filter(c=>JapaneseCatalog.acceptsQuery(c,plan)) : [...unique.values()];

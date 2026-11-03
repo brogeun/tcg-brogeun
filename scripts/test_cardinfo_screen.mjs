@@ -10,6 +10,7 @@ const start = html.indexOf('const CARDINFO = {');
 const end = html.indexOf('/* ─────────── 세트 카드 그리드 모달', start);
 const list = {innerHTML:''};
 const ctx = vm.createContext({
+  window:{},
   document:{getElementById:() => list},
   escapeHtml:value => String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'),
 });
@@ -30,6 +31,14 @@ assert(!list.innerHTML.includes('<img src=x'));
 assert(list.innerHTML.includes('&lt;img'));
 vm.runInContext("CI_TAB='onepiece'; CI_QUERY='op15'; renderCardInfo();",ctx);
 assert.match(list.innerHTML,/data-set-code="OP15"/);
+for (const query of ['고대의포효', '고대포효', '고대 포효', 'SV4K', 'Ancient Roar']) {
+  vm.runInContext(`CI_TAB='pokemon'; CI_QUERY=${JSON.stringify(query)}; renderCardInfo();`,ctx);
+  assert.match(list.innerHTML,/data-set-code="SV4K"/,query);
+}
+for (const query of ['OP-15', 'ＯＰ１５', '신의섬의모험']) {
+  vm.runInContext(`CI_TAB='onepiece'; CI_QUERY=${JSON.stringify(query)}; renderCardInfo();`,ctx);
+  assert.match(list.innerHTML,/data-set-code="OP15"/,query);
+}
 let jsonFiles = 0;
 for (const name of readdirSync(join(root,'data/cards-by-set'))) {
   if (!name.endsWith('.json')) continue;

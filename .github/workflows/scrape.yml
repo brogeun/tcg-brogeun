@@ -124,6 +124,8 @@ jobs:
           python scripts/build_onepiece_official.py --validate-only
           node scripts/build_onepiece_search.cjs
           node --test scripts/test_onepiece_official.cjs
+          node scripts/test_cardinfo_screen.mjs
+          node --test scripts/test_search_modal_catalog_rows.cjs scripts/test_catalogue_card_navigation.cjs scripts/test_japanese_candidate_visibility.cjs
           python -m unittest scripts.test_yuyutei_index_migration
 
       - name: Build integrated Card Info from the current source snapshots

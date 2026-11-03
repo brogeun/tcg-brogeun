@@ -1,0 +1,45 @@
+name: KREAM Browser Compatibility
+
+on:
+  push:
+    branches: [codex/kream-browser-compat-20261103]
+    paths:
+      - 'scripts/check_kream_browser_compat.py'
+      - '.github/workflows/kream-browser-compat.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/codex/kream-browser-compat-20261103'
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Ubuntu Chrome headless
+            os: ubuntu-24.04
+            channel: chrome
+            extra_args: ''
+          - label: Windows Edge headless
+            os: windows-2025
+            channel: msedge
+            extra_args: ''
+          - label: Windows Edge headed
+            os: windows-2025
+            channel: msedge
+            extra_args: '--headed'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python browser client
+        run: python -m pip install --disable-pip-version-check 'playwright==1.56.0' tzdata
+      - name: Check normal browser access without changing trade data
+        env:
+          KREAM_STORAGE_STATE: ${{ secrets.KREAM_STORAGE_STATE }}
+        run: python -m scripts.check_kream_browser_compat --channel ${{ matrix.channel }} ${{ matrix.extra_args }}

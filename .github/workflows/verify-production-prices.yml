@@ -1,0 +1,52 @@
+name: Verify Production Prices
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/verify-production-prices.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch only the source and data used by the production checks
+        uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.gitattributes
+            /package.json
+            /index.html
+            /sw.js
+            /assets/*.js
+            /scripts/verify_card_info_prices_production.cjs
+            /scripts/test_verify_card_info_prices.cjs
+            /scripts/verify_onepiece_official_production.py
+            /data/all-cards.json
+            /data/card-catalog-repairs.json
+            /data/contained-card-market-links.json
+            /data/onepiece-card-overrides.json
+            /data/onepiece-official-manifest.json
+            /data/cards-by-set/*.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify asset-gate regressions and every reviewed printing
+        run: node --test scripts/test_verify_card_info_prices.cjs
+      - name: Verify prices and official inventory on both production hosts
+        env:
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          for origin in https://tcghub.kr https://tcghubrogeun.pages.dev; do
+            PRICE_VERIFY_ORIGIN="$origin" node scripts/verify_card_info_prices_production.cjs
+            PRICE_VERIFY_ORIGIN="$origin" python scripts/verify_onepiece_official_production.py
+          done

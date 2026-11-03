@@ -30,8 +30,9 @@ test('production asset gate reads the declared remote loader and fetches exact c
 test('production asset gate validates the actual deployed bootstrap and route manifest contract',async()=>{
  const h=assetFixture({htmlTransform:()=>fs.readFileSync(path.join(root,'index.html'),'utf8')});
  const report=await verifyPriceAssets(h);assert.equal(report.lazy,true);
- assert(h.calls.includes('/assets/app-route-loader.js?v=20261104-modular1'));
- assert(h.calls.includes('/assets/contained-card-match.js?v=20261030-price-audit2'));
+ const declared=[...h.html.matchAll(/<script\b[^>]*\bsrc=["'](\/assets\/(?:app-route-loader|contained-card-match)\.js\?[^"']+)["']/g)].map(match=>match[1]);
+ assert.equal(declared.length,2);
+ for(const url of declared)assert(h.calls.includes(url),'The actual index version URL must be verified: '+url);
 });
 test('production asset gate rejects absent, unrelated or unwired feature loaders and incomplete pages',async()=>{
  const broken=[

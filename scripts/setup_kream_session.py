@@ -12,9 +12,9 @@ import sys
 import threading
 
 try:
-    from scripts.collect_kream_promos import CollectionError, full_history_button, open_product, require_login_access, session_state
+    from scripts.collect_kream_promos import CollectionError, browser_context_for_session, open_history_drawer, open_product, require_login_access, session_state
 except ModuleNotFoundError:
-    from collect_kream_promos import CollectionError, full_history_button, open_product, require_login_access, session_state
+    from collect_kream_promos import CollectionError, browser_context_for_session, open_history_drawer, open_product, require_login_access, session_state
 
 REPO = 'brogeun/tcg-brogeun'
 SECRET = 'KREAM_STORAGE_STATE'
@@ -27,16 +27,83 @@ def verify_full_history_access(page, *, on_stage=None, phase='source'):
 
     mark('open_product')
     open_product(page, PRODUCT)
-    mark('find_trade_button')
-    more = full_history_button(page)
-    more.wait_for(state='visible', timeout=20000)
     mark('open_trade_drawer')
-    more.click()
+    open_history_drawer(page)
+    mark('drawer_visible')
     require_login_access(page)
     # A public five-trade preview is not evidence of full-history access.
     mark('verify_sixth_trade')
-    page.locator('.drawer .tab_content.show .price_body .body_list').nth(5).wait_for(state='visible', timeout=20000)
+    rows = page.locator('.drawer .tab_content.show .price_body .body_list')
+    try:
+        rows.nth(5).wait_for(state='visible', timeout=20000)
+    except Exception as error:
+        if type(error).__name__ != 'TimeoutError':
+            raise
+        require_login_access(page)
+        print('[KREAM] history_rows=' + str(rows.count()), flush=True)
+        raise CollectionError('history_rows_unavailable', 'The trade drawer opened but full authenticated history was not available.') from None
     require_login_access(page)
+
+def capture_tab_state(context, page):
+    """Capture only this owner's dedicated KREAM tab, never a personal profile."""
+    snapshot = page.evaluate('''() => {
+        const allowed = ['https://kream.co.kr', 'https://www.kream.co.kr'];
+        if (!allowed.includes(window.location.origin)) return null;
+        return {origin: window.location.origin, entries: Object.fromEntries(Object.entries(window.sessionStorage))};
+    }''')
+    if not isinstance(snapshot, dict) or snapshot.get('origin') not in ('https://kream.co.kr', 'https://www.kream.co.kr'):
+        return None
+    if not snapshot.get('entries'):
+        return None
+    state = context.storage_state(indexed_db=True)
+    state['sessionStorage'] = {snapshot['origin']: snapshot['entries']}
+    return session_state(json.dumps(state))
+
+def verify_restored_state(browser, state, *, on_stage=None, phase='restored'):
+    context = browser_context_for_session(browser, state, locale='ko-KR', timezone_id='Asia/Seoul')
+    try:
+        verify_full_history_access(context.new_page(), on_stage=on_stage, phase=phase)
+    finally:
+        context.close()
+
+def choose_restorable_state(browser, context, page, *, on_stage=None):
+    def mark(stage):
+        if on_stage:
+            on_stage(stage)
+
+    def restore_tab_candidate():
+        candidate = capture_tab_state(context, page)
+        if candidate is None:
+            return None
+        mark('restore_session_with_tab_storage')
+        verify_restored_state(browser, candidate, on_stage=on_stage, phase='restored_with_tab_storage')
+        return candidate
+
+    mark('export_session_in_memory')
+    try:
+        state = session_state(json.dumps(context.storage_state(indexed_db=True)))
+    except CollectionError as error:
+        # A tab-only login can have no first-party native state at all. The
+        # additional candidate must still pass sanitization and a full replay.
+        if error.code != 'session_invalid':
+            raise
+        candidate = restore_tab_candidate()
+        if candidate is None:
+            raise
+        return candidate
+    mark('restore_session')
+    try:
+        verify_restored_state(browser, state, on_stage=on_stage)
+        return state
+    except CollectionError as error:
+        if error.code not in ('session_expired', 'trade_drawer_unavailable', 'history_rows_unavailable'):
+            raise
+        # Only a failed legitimate session replay may use additional tab state.
+        # HTTP/access failures are never retried by this fallback.
+        candidate = restore_tab_candidate()
+        if candidate is None:
+            raise
+        return candidate
 
 def upload_session(state):
     # Restrict the saved session to KREAM, excluding third-party sign-in state.
@@ -102,13 +169,9 @@ def main(argv=None):
             mark_stage('waiting_for_owner_login')
             wait_for_owner_login(page, '열린 KREAM 창에서 직접 로그인한 뒤, 이 터미널에서 Enter를 누르세요. ')
             verify_full_history_access(page, on_stage=mark_stage, phase='source')
-            mark_stage('export_session_in_memory')
-            state = session_state(json.dumps(context.storage_state(indexed_db=True)))
             # Prove the exported state works after restoring into a fresh context.
             # In-memory-only login state must not be uploaded as a working session.
-            mark_stage('restore_session')
-            restored = browser.new_context(storage_state=state, locale='ko-KR', timezone_id='Asia/Seoul')
-            verify_full_history_access(restored.new_page(), on_stage=mark_stage, phase='restored')
+            state = choose_restorable_state(browser, context, page, on_stage=mark_stage)
             mark_stage('register_actions_secret')
             upload_session(state)
             browser.close()

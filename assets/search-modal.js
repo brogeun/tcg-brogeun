@@ -5,7 +5,7 @@
   let modal, input, list, count, opener, timer, version=0, category='all', language='ja', visible=30, composing=false, ready, retryManifest=false;
   const normalized=new Map();
   const normalize=value=>window.JapaneseCardNames?.normalizeQuery(value) || String(value||'').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu,'');
-  const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드명 · 박스명 · 카드번호 검색';
+  const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
   function cardTitle(c) {
     if(c.brand==='pokemon' && window.JapaneseCardNames) return JapaneseCardNames.title(c);
     if(c.brand==='onepiece' && c.nameKo)return c.nameKo;

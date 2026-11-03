@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 1,
+  "provider": "TCGdex (direct pinned Git source)",
+  "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+  "records": [
+    {
+      "path": "data/Scarlet & Violet/My First Battle.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle.ts",
+      "gitBlobSha": "9ba37634378ab80501f6fd082217ce4d5cab9ebc",
+      "sha256": "9797162d14dbe4602894896e4ffccd44ee3d4e82a85664e0ac9086080bf4ea39",
+      "rawTs": "import { Set } from '../../interfaces'\nimport serie from '../Scarlet & Violet'\n\nconst set: Set = {\n\tid: \"mfb\",\n\n\tname: {\n\t\ten: \"My First Battle\",\n\t},\n\n\tserie: serie,\n\n\tcardCount: {\n\t\tofficial: 48\n\t},\n\n\treleaseDate: \"2023-09-29\",\n\n\tabbreviations: {\n\t\tofficial: \"MFB\",\n\t},\n}\n\nexport default set\n"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/1.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/1.ts",
+      "gitBlobSha": "4199cd6e95701ce11c6a2d4bc829557904e859af",
+      "sha256": "354cdbfde54dd9313065ccef7cdece8ad9f05b8c6b7385d6699acedf4c9fecce",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [1],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Bulbasaur\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 70,\n\ttypes: [\"Grass\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Tackle\",\n\t\t},\n\n\t\tdamage: 10\n\t}, {\n\t\tcost: [\"Grass\", \"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Vine Whip\",\n\t\t},\n\n\t\tdamage: 30\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741976,\n\t\t\t\ttcgplayer: 523985\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"bulbasaur\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741975,\n\t\t\t\ttcgplayer: 523984\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Saya Tsuruta\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/2.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/2.ts",
+      "gitBlobSha": "1676ef13427d1d99a6421ec55983aadcf2ec8df8",
+      "sha256": "eed17184a9155ce17564879be71f7294c049298a179ea636b8a29e849659ff3c",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [2],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Ivysaur\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 100,\n\ttypes: [\"Grass\"],\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Vine Whip\",\n\t\t},\n\n\t\tdamage: 30\n\t}, {\n\t\tcost: [\"Grass\", \"Grass\", \"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Razor Leaf\",\n\t\t},\n\n\t\tdamage: 60\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741977,\n\t\t\t\ttcgplayer: 524007\n\t\t\t}\t\t\t\n\t\t},\n\t],\n\n\tillustrator: \"Narumi Sato\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/3.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/3.ts",
+      "gitBlobSha": "2ec51bcac5885da100caf78688c540d6e5e7dac5",
+      "sha256": "d0d857915f78187556c7641e8e69332de88d28911669bda9323a9c96d12d9eae",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [43],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Oddish\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 50,\n\ttypes: [\"Grass\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Absorb\",\n\t\t},\n\n\t\teffect: {\n\t\t\ten: \"Heal 10 damage from this Pokémon.\",\n\t\t},\n\n\t\tdamage: 10\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741978,\n\t\t\t\ttcgplayer: 524008\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Gemi\",\n}\n\nexport default card\n"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/4.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/4.ts",
+      "gitBlobSha": "3601a8aee544da69a3ae03f9ebffa04aff23d3cb",
+      "sha256": "16b01c7eaeb252ade8031d153c526d454d1b5c85278eabfffe1e4b9891985a83",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [44],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Gloom\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 90,\n\ttypes: [\"Grass\"],\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Grass\", \"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Mega Drain\",\n\t\t},\n\n\t\teffect: {\n\t\t\ten: \"Heal 20 damage from this Pokémon.\",\n\t\t},\n\n\t\tdamage: 60\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741979,\n\t\t\t\ttcgplayer: 524010\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Natsumi Yashida\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/5.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/5.ts",
+      "gitBlobSha": "00b8552f38d6136b5b3a50fbfa3b3fa4c7e88cef",
+      "sha256": "e472a036f2bbab9237afc00040095f4a0a7fcefaa6f1f2d1c068d079062f4012",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [102],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Exeggcute\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 60,\n\ttypes: [\"Grass\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Grass\", \"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Rollout\",\n\t\t},\n\n\t\tdamage: 40\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741980,\n\t\t\t\ttcgplayer: 524013\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Jerky\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/6.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/6.ts",
+      "gitBlobSha": "78bb58b1f635523cc3c837a9573fd0920a54ff13",
+      "sha256": "94b39ce8c7cb8a1085a9c2c277b08d584e45f3c5a32cb058c9b9a7256b0113af",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [103],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Exeggutor\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 120,\n\ttypes: [\"Grass\"],\n\tevolveFrom: {\n\t\ten: \"Exeggcute\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Grass\", \"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Seed Bomb\",\n\t\t},\n\n\t\tdamage: 40\n\t\t}, {\n\t\tcost: [\"Grass\", \"Grass\", \"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"Barrage Impact\",\n\t\t},\n\n\t\tdamage: 80\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741981,\n\t\t\t\ttcgplayer: 524015\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"nagimiso\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/7.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/7.ts",
+      "gitBlobSha": "a96ab0a27f44f16e21ff8e046abff37ab3081dbb",
+      "sha256": "114480560e9a801d4b043879b31df318bca3d0784c1adb3fc9b56ba0aa064aef",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [123],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Scyther\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 80,\n\ttypes: [\"Grass\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Grass\"],\n\n\t\tname: {\n\t\t\ten: \"X-Scissor\",\n\t\t},\n\n\t\teffect: {\n\t\t\ten: \"Flip a coin. If heads, this attack does 40 more damage.\",\n\t\t},\n\n\t\tdamage: \"20+\"\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741982,\n\t\t\t\ttcgplayer: 524016\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Kouki Saitou\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/8.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/8.ts",
+      "gitBlobSha": "dde043650fcb41b8b3ef0c993f5ff708adc1d74e",
+      "sha256": "f915c9b6bd7f95b7b9c128f5e2d92776ec28661c3cb1732352c3c3aeebecf433",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tset: Set,\n\n\tname: {\n\t\ten: \"Grass Energy\",\n\t},\n\n\trarity: \"None\",\n    category: \"Energy\",\n    energyType: \"Normal\",\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741986,\n\t\t\t\ttcgplayer: 524038\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"bulbasaur\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741985,\n\t\t\t\ttcgplayer: 532088\n\t\t\t}\n\t\t},\n\t],\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/9.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/9.ts",
+      "gitBlobSha": "9e463141a24352d40b2957165f5240b44faea97c",
+      "sha256": "86e7f39f6a3dc4284244f5021138b4c8074bc4c02ce3377471233255a7da3d14",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [4],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Charmander\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 70,\n\ttypes: [\"Fire\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Scratch\",\n\t\t},\n\n\t\tdamage: 10\n\t}, {\n\t\tcost: [\"Fire\", \"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Ember\",\n\t\t},\n\n\t\tdamage: 30\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741988,\n\t\t\t\ttcgplayer: 524082\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"charmander\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741976,\n\t\t\t\ttcgplayer: 523985\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Kurata So\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/10.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/10.ts",
+      "gitBlobSha": "12c5bca8f4faa0b23c9151cc352611b59e457959",
+      "sha256": "e019e5044861fffb16e5c6aab200a603606d2999867c61c663e0f62d371f3f32",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [5],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Charmeleon\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 100,\n\ttypes: [\"Fire\"],\n\tevolveFrom: {\n\t\ten: \"Charmander\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Ember\",\n\t\t},\n\n\t\tdamage: 30\n\t\t}, {\n\t\tcost: [\"Fire\", \"Fire\", \"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Flamethrower\",\n\t\t},\n\n\t\tdamage: 60\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741989,\n\t\t\t\ttcgplayer: 524085\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"kirisAki\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/11.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/11.ts",
+      "gitBlobSha": "325956e1c1f5ae925a7869c7701902d0c4c93101",
+      "sha256": "873b7a43b15ed5817ab797bf34ba32c6280672acd92cc31070c7865d8dded27c",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [37],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Vulpix\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 60,\n\ttypes: [\"Fire\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Will-O-Wisp\",\n\t\t},\n\n\t\tdamage: 20\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741990,\n\t\t\t\ttcgplayer: 524087\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Mina Nakai\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/12.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/12.ts",
+      "gitBlobSha": "0ef2f2dc13101754fc3d3ba9a195afc316275101",
+      "sha256": "23182624e31e9acc209db50284a80c63fa5bf6121c3e2d3619de10fd31e77629",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [38],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Ninetales\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 100,\n\ttypes: [\"Fire\"],\n\tevolveFrom: {\n\t\ten: \"Vulpix\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Fire\", \"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Flame Tail\",\n\t\t},\n\n\t\tdamage: 70\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741991,\n\t\t\t\ttcgplayer: 524091\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Kagemaru Himeno\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/13.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/13.ts",
+      "gitBlobSha": "a84dc1d06534229f8240cbf48d4e0ab01840cdc4",
+      "sha256": "60064cb189e64d2e1ec299390412b0afd49b47718155ab12c1ff00058722937d",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [58],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Growlithe\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 80,\n\ttypes: [\"Fire\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Fire\", \"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Gnaw\",\n\t\t},\n\n\t\tdamage: 30\n\t}, {\n\t\tcost: [\"Fire\", \"Fire\", \"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Take Down\",\n\t\t},\n\n\t\tdamage: 50\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741992,\n\t\t\t\ttcgplayer: 524092\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Mina Nakai\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/14.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/14.ts",
+      "gitBlobSha": "08090c9e2976466fd6662509048b1b36f4551c22",
+      "sha256": "83c61a6af44fce6f53ae4b8ecfa194d96841eb9687cb48345a97a163c39951fe",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [59],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Arcanine\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 140,\n\ttypes: [\"Fire\"],\n\tevolveFrom: {\n\t\ten: \"Growlithe\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Fire\", \"Fire\", \"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Flare Blitz\",\n\t\t},\n\n\t\teffect: {\n\t\t\ten: \"Flip a coin. If heads, this attack does 30 more damage\",\n\t\t},\n\n\t\tdamage: \"90+\"\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741993,\n\t\t\t\ttcgplayer: 524094\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"nisimana\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/15.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/15.ts",
+      "gitBlobSha": "7deb8c8c6a07f0121c39c120b56dc099ebc31544",
+      "sha256": "f63427960808ce9293d23539df3cb7f20fffb479a369e31deddf5ff0584e3a5a",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [126],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Magmar\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 90,\n\ttypes: [\"Fire\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Flare\",\n\t\t},\n\n\t\tdamage: 20\n\t}, {\n\t\tcost: [\"Fire\", \"Fire\"],\n\n\t\tname: {\n\t\t\ten: \"Magma Punch\",\n\t\t},\n\n\t\tdamage: 50\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741994,\n\t\t\t\ttcgplayer: 524097\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Ryuta Fuse\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/16.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/16.ts",
+      "gitBlobSha": "a026f54f11c609fedf91dacf08bed8756ef4476e",
+      "sha256": "3bcc19818b56ff2bae8888aced5490ea0e3d1c70a9daef9ac285a09f2d48165c",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tset: Set,\n\n\tname: {\n\t\ten: \"Fire Energy\",\n\t},\n\n\trarity: \"None\",\n    category: \"Energy\",\n    energyType: \"Normal\",\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741998,\n\t\t\t\ttcgplayer: 524039\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"charmander\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741997,\n\t\t\t\ttcgplayer: 532087\n\t\t\t}\n\t\t},\n\t],\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/17.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/17.ts",
+      "gitBlobSha": "29f038a6bc8c1261827850ae818c1fecb54d9adf",
+      "sha256": "4d922a6566390d0fa0231fe441e1931d21a89a6055ca2d9eae209db6ca5486b5",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [25],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Pikachu\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 70,\n\ttypes: [\"Lightning\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Quick Attack\",\n\t\t},\n\n\t\tdamage: 10\n\t}, {\n\t\tcost: [\"Lightning\", \"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Electro Ball\",\n\t\t},\n\n\t\tdamage: 30\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742000,\n\t\t\t\ttcgplayer: 524060\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"pikachu\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741999,\n\t\t\t\ttcgplayer: 524061\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Saino Misaki\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/18.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/18.ts",
+      "gitBlobSha": "493b169595873b7b91e5860e68218bcf7b7c1b87",
+      "sha256": "4daa474962db586738a4fd5831993ee23c875b84a735ebc07f2af67539d669c1",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [26],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Raichu\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 100,\n\ttypes: [\"Lightning\"],\n\tevolveFrom: {\n\t\ten: \"Pikachu\",\n\t},\t\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Electro Ball\",\n\t\t},\n\n\t\tdamage: 30\n\t}, {\n\t\tcost: [\"Lightning\", \"Lightning\", \"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Thunder\",\n\t\t},\n\n\t\tdamage: 60\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742001,\n\t\t\t\ttcgplayer: 524062\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Kariya\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/19.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/19.ts",
+      "gitBlobSha": "c94f018cc0b697abc455f4e0a65d6ed35c7b1a13",
+      "sha256": "b37c1216166d5e1cbbc4fbd708b12d781ca558dd5e9b5251228036a176bd0503",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [81],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Magnemite\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 60,\n\ttypes: [\"Lightning\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Thunder Shock\",\n\t\t},\n\n\t\tdamage: 20\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742002,\n\t\t\t\ttcgplayer: 524063\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Shibuzoh.\",\n}\n\nexport default card\n"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/20.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/20.ts",
+      "gitBlobSha": "52aaa71de65abfe51fa184a932ad67f860115dff",
+      "sha256": "c41cb6a07064ba2155a87bcad23f0efed3b8ec6ee8f3d5880b26046a8ded4cb3",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [82],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Magneton\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 110,\n\ttypes: [\"Lightning\"],\n\tevolveFrom: {\n\t\ten: \"Magnemite\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Thunder Shock\",\n\t\t},\n\n\t\tdamage: 20\n\t\t}, {\n\t\tcost: [\"Lightning\", \"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Magnetic Circle\",\n\t\t},\n\n\t\teffect: {\n\t\t\ten: \"This attack does 20 more damage for each of your Benched lightning Pokémon\",\n\t\t},\n\n\t\tdamage: \"20+\"\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742003,\n\t\t\t\ttcgplayer: 524064\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"GOSSAN\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/21.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/21.ts",
+      "gitBlobSha": "93691ec659efc652aee59a2a67ef895b3e45f897",
+      "sha256": "16f15c598227365eff3db6cb64d7736b42ad39393e1cd53825d2cfd346883c85",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [100],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Voltorb\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 50,\n\ttypes: [\"Lightning\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Rollout\",\n\t\t},\n\n\t\tdamage: 10\n\t\t}, {\n\t\tcost: [\"Lightning\", \"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Spark\",\n\t\t},\n\n\t\tdamage: 30\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742004,\n\t\t\t\ttcgplayer: 524065\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"OKACHEKE\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/22.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/22.ts",
+      "gitBlobSha": "a2856d328b505531eba24b7bc195b096a2cff3d9",
+      "sha256": "30bd3279a47a7fef3a113c003e80425639360bad4f039020b7d8eebdd052c986",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [130],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Electrode\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 80,\n\ttypes: [\"Lightning\"],\n\tevolveFrom: {\n\t\ten: \"Voltorb\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Speed Attack\",\n\t\t},\n\n\t\tdamage: 40\n\t\t}, {\n\t\tcost: [\"Lightning\", \"Lightning\", \"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Single Shot Blast\",\n\t\t},\n\n\t\teffect: {\n\t\t\ten: \"Flip a coin. If tails, this attack does nothing.\",\n\t\t},\n\n\t\tdamage: 120\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742005,\n\t\t\t\ttcgplayer: 524066\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"miki kudo\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/23.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/23.ts",
+      "gitBlobSha": "e4bbef83f395ce54c700ca4229de827aa6d9753a",
+      "sha256": "89859bc9fe11d12369a441c26e9db796c3b6fb5365d197ba14b04c9e0d307a00",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [125],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Electabuzz\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 90,\n\ttypes: [\"Lightning\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Low Kick\",\n\t\t},\n\n\t\tdamage: 20\n\t}, {\n\t\tcost: [\"Lightning\", \"Lightning\"],\n\n\t\tname: {\n\t\t\ten: \"Electro Punch\",\n\t\t},\n\n\t\tdamage: 50\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742006,\n\t\t\t\ttcgplayer: 524068\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"hncl\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/24.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/24.ts",
+      "gitBlobSha": "a506b2e486c8f9c47716564be1feda23e3475898",
+      "sha256": "f2025f8ef3a078ae9c36a7228167289d70e820325702a3b83c63ac6218e7cfae",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tset: Set,\n\n\tname: {\n\t\ten: \"Lightning Energy\",\n\t},\n\n\trarity: \"None\",\n    category: \"Energy\",\n    energyType: \"Normal\",\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742010,\n\t\t\t\ttcgplayer: 524040\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"pikachu\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742009,\n\t\t\t\ttcgplayer: 532090\n\t\t\t}\n\t\t},\n\t],\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/25.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/25.ts",
+      "gitBlobSha": "621f4488a752c680eedaa63e1dd1a68d5a0a54be",
+      "sha256": "ae14728c0676efb377f96774da28feee98195057035a32b6e529cf4181623c9a",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [7],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Squirtle\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 70,\n\ttypes: [\"Water\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Tackle\",\n\t\t},\n\n\t\tdamage: 10\n\t}, {\n\t\tcost: [\"Water\", \"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Water Gun\",\n\t\t},\n\n\t\tdamage: 30\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742012,\n\t\t\t\ttcgplayer: 524047\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"squirtle\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742011,\n\t\t\t\ttcgplayer: 524046\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"ryoma uratsuka\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/26.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/26.ts",
+      "gitBlobSha": "f0eece5e18098f0c1a683a34d11c93f8aed44c30",
+      "sha256": "b88f5f66a87876ef6ef401560f225fe1c881cec60ce9b3a5d2c33c92f67499cb",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [8],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Wartortle\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 100,\n\ttypes: [\"Water\"],\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Water Gun\",\n\t\t},\n\n\t\tdamage: 30\n\t}, {\n\t\tcost: [\"Water\", \"Water\", \"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Skull Bash\",\n\t\t},\n\n\t\tdamage: 60\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742013,\n\t\t\t\ttcgplayer: 524048\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Hitoshi Ariga\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/27.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/27.ts",
+      "gitBlobSha": "c20127e685d269de605fb2f7af6c55421da36032",
+      "sha256": "b5a6b384b6edb6574af81d4209dbed1c390a7d5ac54b0e36651afd3d0da92757",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [60],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Poliwag\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 60,\n\ttypes: [\"Water\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Pound\",\n\t\t},\n\n\t\tdamage: 20\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742014,\n\t\t\t\ttcgplayer: 524052\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"0313\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/28.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/28.ts",
+      "gitBlobSha": "238061f9827303cb305043c5e35ca4ad14aa8ced",
+      "sha256": "afb578c156ce19b3dc034d7e714de15a52d5844dbf9b39744acd14e9450e09ce",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [61],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Poliwhirl\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 90,\n\ttypes: [\"Water\"],\n\tevolveFrom: {\n\t\ten: \"Poliwag\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Wave Splash\",\n\t\t},\n\n\t\tdamage: 50\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742015,\n\t\t\t\ttcgplayer: 524053\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Mizue\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/29.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/29.ts",
+      "gitBlobSha": "a9c2cf57170a631ab741f4388a1f148ca7e8dfc7",
+      "sha256": "27015664f0a7a503a3de3ee5ef9669508aee87397650fbb5293cf2d479a502c1",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [129],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Magikarp\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 30,\n\ttypes: [\"Water\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Splash\",\n\t\t},\n\n\t\tdamage: 10\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742016,\n\t\t\t\ttcgplayer: 524054\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Amelicart\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/30.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/30.ts",
+      "gitBlobSha": "c32f902fd97527f2700ad509f8b83a12c744c9b0",
+      "sha256": "c76ff8cf2c1a112b236f6fb55b41e48e3677f6633699bb411ac8995e93deed9e",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [130],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Gyarados\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 160,\n\ttypes: [\"Water\"],\n\tevolveFrom: {\n\t\ten: \"Magikarp\",\n\t},\n\tstage: \"Stage1\",\n\n\tattacks: [{\n\t\tcost: [\"Water\", \"Water\", \"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Tail Smash\",\n\t\t},\n\n\t\teffect: {\n\t\t\ten: \"Flip a coin. If tails, this attack does nothing.\",\n\t\t},\n\n\t\tdamage: 90\n\t\t}, {\n\t\tcost: [\"Water\", \"Water\", \"Water\", \"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Hyper Beam\",\n\t\t},\n\n\t\tdamage: 120\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742017,\n\t\t\t\ttcgplayer: 524055\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"NC Empire\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/31.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/31.ts",
+      "gitBlobSha": "fd853dfe6585eab5fc653ac3fd6deb0657bdf085",
+      "sha256": "bd482bc8f0ab21c8b2a926c4b46ef2c93d7603b847480c521169b98301dcac7b",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tdexId: [129],\n\tset: Set,\n\n\tname: {\n\t\ten: \"Lapras\",\n\t},\n\n\trarity: \"None\",\n\tcategory: \"Pokemon\",\n\thp: 110,\n\ttypes: [\"Water\"],\n\tstage: \"Basic\",\n\n\tattacks: [{\n\t\tcost: [\"Water\", \"Water\"],\n\n\t\tname: {\n\t\t\ten: \"Surf\",\n\t\t},\n\n\t\tdamage: 50\n\t}],\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742018,\n\t\t\t\ttcgplayer: 524056\n\t\t\t}\n\t\t},\n\t],\n\n\tillustrator: \"Akira Komayama\",\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/32.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/32.ts",
+      "gitBlobSha": "0a4d434a104069d39e54f360bc97402088e5c017",
+      "sha256": "ac9f4804c64c48485dfbcdc2d984c9677529c853497e77740d6310cbb8308ab6",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tset: Set,\n\n\tname: {\n\t\ten: \"Water Energy\",\n\t},\n\n\trarity: \"None\",\n    category: \"Energy\",\n    energyType: \"Normal\",\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742022,\n\t\t\t\ttcgplayer: 524041\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tsubtype: \"blue-border\",\n\t\t\tstamp: [\"squirtle\", \"pokeball\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742022,\n\t\t\t\ttcgplayer: 524041\n\t\t\t}\n\t\t},\n\t],\n}\n\nexport default card"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/33.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/33.ts",
+      "gitBlobSha": "94ac27c9f378c87a9b4529ff77cfceb3b584f95d",
+      "sha256": "d299dbba2fa9d37197dd9070169f5275cd42f1c5c6c2044f9d044831e4bfe4fa",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tset: Set,\n\n\tname: {\n\t\ten: \"Potion\",\n\t\tfr: \"Potion\",\n\t\tes: \"Poción\",\n\t\t'es-mx': \"Poción\",\n\t\tde: \"Trank\",\n\t\tit: \"Pozione\",\n\t\tpt: \"Poção\"\n\t},\n\n\tillustrator: \"Ayaka Yoshida\",\n\trarity: \"None\",\n\tcategory: \"Trainer\",\n\n\teffect: {\n\t\ten: \"Heal 30 damage from 1 of your Pokémon.\",\n\t\tfr: \"Soignez 30 dégâts de l'un de vos Pokémon.\",\n\t\tes: \"Cura 30 puntos de daño a uno de tus Pokémon.\",\n\t\t'es-mx': \"Cura 30 puntos de daño a 1 de tus Pokémon.\",\n\t\tde: \"Heile 30 Schadenspunkte bei 1 deiner Pokémon.\",\n\t\tit: \"Cura uno dei tuoi Pokémon da 30 danni.\",\n\t\tpt: \"Cure 30 pontos de dano de 1 dos seus Pokémon.\"\n\t},\n\n\ttrainerType: \"Item\",\n\tregulationMark: \"None\",\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742007,\n\t\t\t\ttcgplayer: 524028\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\ttcgplayer: 742019,\n\t\t\t\tcardmarket: 524029\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741983,\n\t\t\t\ttcgplayer: 524026\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741995,\n\t\t\t\ttcgplayer: 524027\n\t\t\t}\n\t\t},\n\t],\n}\n\nexport default card\n"
+    },
+    {
+      "path": "data/Scarlet & Violet/My First Battle/34.ts",
+      "repositoryCommit": "a8fe5736aef9bd6be2436e3be730109030f4c6e2",
+      "url": "https://github.com/tcgdex/cards-database/blob/a8fe5736aef9bd6be2436e3be730109030f4c6e2/data/Scarlet%20%26%20Violet/My%20First%20Battle/34.ts",
+      "gitBlobSha": "0b53f1b7f28d7701b37d88ec1f71b76b55d3917e",
+      "sha256": "26fed0c1d339f3ad78c7ead8c31f6968641d34a8638a4dc05532980076529961",
+      "rawTs": "import { Card } from \"../../../interfaces\"\nimport Set from \"../My First Battle\"\n\nconst card: Card = {\n\tset: Set,\n\n\tname: {\n\t\ten: \"Switch\",\n\t\tfr: \"Échange\",\n\t\tde: \"Tausch\",\n\t\tit: \"Scambio\",\n\t\tes: \"Cambio\",\n\t\tpt: \"Substituição\",\n\t\t'es-mx': \"Cambio\"\n\t},\n\n\tillustrator: \"Studio Bora Inc.\",\n\trarity: \"None\",\n\tcategory: \"Trainer\",\n\n\teffect: {\n\t\ten: \"Switch your Active Pokémon with 1 of your Benched Pokémon.\",\n\t\tfr: \"Échangez votre Pokémon Actif contre l'un de vos Pokémon de Banc.\",\n\t\tde: \"Tausche dein Aktives Pokémon gegen 1 Pokémon auf deiner Bank aus.\",\n\t\tit: \"Scambia il tuo Pokémon attivo con uno nella tua panchina.\",\n\t\tes: \"Cambia tu Pokémon Activo por uno de tus Pokémon en Banca.\",\n\t\tpt: \"Troque o seu Pokémon Ativo por 1 dos seus Pokémon no Banco.\",\n\t\t'es-mx': \"Cambia tu Pokémon Activo por 1 de tus Pokémon en Banca.\"\n\t},\n\n\ttrainerType: \"Item\",\n\tregulationMark: \"None\",\n\n\tvariants: [\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"pikachu\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742008,\n\t\t\t\ttcgplayer: 524028\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"squirtle\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 742020,\n\t\t\t\ttcgplayer: 524034\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"bulbasaur\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741984,\n\t\t\t\ttcgplayer: 524026\n\t\t\t}\n\t\t},\n\t\t{\n\t\t\ttype: \"normal\",\n\t\t\tstamp: [\"charmander\"],\n\n\t\t\tthirdParty: {\n\t\t\t\tcardmarket: 741996,\n\t\t\t\ttcgplayer: 524036\n\t\t\t}\n\t\t},\n\t],\n\n\tthirdParty: {\n\t\tcardmarket: 741984,\n\t\ttcgplayer: 524026\n\t}\n}\n\nexport default card"
+    }
+  ]
+}

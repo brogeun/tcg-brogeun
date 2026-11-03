@@ -16,5 +16,8 @@
     "sync:ios": "node scripts/native/harden-social-login-logging.mjs && node scripts/native/prepare-hosted-web.mjs && cap sync ios && node scripts/normalize-capacitor-spm.mjs && node scripts/test_native_configuration.mjs",
     "check:native": "node scripts/native/harden-social-login-logging.mjs && node scripts/test_native_configuration.mjs",
     "sync:android": "node scripts/native/harden-social-login-logging.mjs && node scripts/native/prepare-hosted-web.mjs && node scripts/prepare-native-android.mjs && node scripts/test_native_configuration.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

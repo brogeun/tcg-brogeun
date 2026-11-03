@@ -1,6 +1,7 @@
 /* Execute real provider render/detail/return functions with an offline DOM fixture. */
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const R=require('../assets/card-rarity-filters.js');
+const {assetGraph}=require('./helpers/app_asset_graph.cjs');
 const root=path.resolve(__dirname,'..');
 const indexPath=process.env.TCG_RARITY_INDEX||path.join(root,'index.html');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -80,7 +81,7 @@ test('JP/OP inline box path includes helper and restoration, not collection mark
   assert(inline.includes('CardRarityFilters'),'JP/OP real inline route integrates helper');
   assert(inline.includes('RarityFilters'),'JP/OP inline panel provides mounted filter container');
   assert(/viewState\.rarities/.test(inline),'restore filter state is persisted');
-  assert(html.indexOf('card-rarity-filters.js')<html.indexOf('english-catalog.js'),'helper loads before providers');
+  assetGraph(root,{html}).assertOrder('card-rarity-filters.js','english-catalog.js','cardinfo');
   const wrapper=between(html,'window.openSetGrid = function(setCode, setName, externalUrl, restore = {})','function openJapaneseCatalogueCard');
   assert(wrapper.includes('rarities'),'last-set return wrapper preserves rarity selection');
 });

@@ -62,6 +62,7 @@
     list.addEventListener('error',event=>{
       const img=event.target;
       if(img.tagName!=='IMG'||!img.classList.contains('gs-thumb'))return;
+      if(window.CardThumbnails?.original(img)!==undefined && window.CardThumbnails.original(img)!==(img.getAttribute('src')||img.src))return;
       const fallback=document.createElement('span');fallback.className='gs-thumb gs-image-missing';
       fallback.textContent='이미지 준비 중';img.replaceWith(fallback);
     },true);
@@ -166,10 +167,14 @@
 
   async function render(keepScroll=false){
     const own=++version,q=input.value.trim();
-    if(!q){list.replaceChildren();count.textContent='';return}
+    if(!q){window.CardSearchClient?.cancel('global');list.replaceChildren();count.textContent='';return}
     if(!keepScroll){list.replaceChildren();list.scrollTop=0;}
     count.textContent='검색 중...';
     try{
+      if(language!=='ja' && window.AppRouteLoader){
+        const prepared=await window.AppRouteLoader.ensureSearch(language,{isCurrent:()=>own===version&&!modal.hidden});
+        if(prepared.cancelled)return;
+      }
       // Search uses one prepared snapshot; it must not wait for portfolio,
       // full metadata, grade history or display-name enrichment on this thread.
       const japanese=language==='ja'&&window.CardSearchClient
@@ -214,6 +219,7 @@
         const label=c._catalogue && !c.productId ? (c.kind==='box'?'수록 목록':'카드 정보') : price;
         return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="'+safe(href)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+(c._catalogue&&c.number?' · '+safe(c.number):'')+'</div></div><span class="gs-price" data-live-card-price="'+safe(c.id)+'"><span data-card-price-main>'+label+'</span>'+(c.cardType==='DON'?'<small data-card-price-origin style="display:block;font-size:11px;color:var(--ink-mute)">'+(Number(c.minPrice)>0?safe(fmtOrig(c.minPrice,c.currency)):'')+'</small>':'')+'</span></a>';
       }).join('')+'<nav class="gs-pages" aria-label="검색 결과 페이지">'+(first>0?'<button id="gsPrevious" class="gs-filter">이전 결과</button>':'')+(total>visible?'<button id="gsMore" class="gs-filter">다음 결과</button>':'')+'</nav>' : '<div class="gs-state">“'+escapeHtml(q)+'” 검색 결과가 없습니다.<br>이름이나 세트코드, 상품 ID를 확인해주세요.</div>';
+      window.CardThumbnails?.apply(list);
       watchSearchArtwork();
       if(language==='ja')window.CardCatalogRepairs?.hydratePrices?.(list,shown,{formatKrw:fmtKrw,formatOrig:fmtOrig,isCurrent:()=>own===version&&!modal.hidden});
     }catch(error){if(own!==version||modal.hidden)return;list.innerHTML='<div class="gs-state">검색 데이터를 불러오지 못했어요.<br>검색 버튼을 눌러 다시 시도해주세요.</div>';count.textContent=''}
@@ -231,7 +237,7 @@
     render();
     if(innerWidth>768)input.focus({preventScroll:true});else modal.querySelector('#gsClose').focus({preventScroll:true});
   }
-  function close(){
+  function close(){window.CardSearchClient?.cancel('global');
     if(!modal||modal.hidden)return;
     version++;clearTimeout(timer);modal.hidden=true;document.body.style.overflow=modal._previousOverflow||'';document.documentElement.style.overflow=modal._previousHtmlOverflow||'';opener?.focus?.({preventScroll:true});
   }

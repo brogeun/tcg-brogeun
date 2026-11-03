@@ -15,7 +15,7 @@ const FIELDS = [
   'productNumber','number','setCode','boxCode','productId','productIds','fullId',
   '_catalogue','currency','minPrice','listingCount','searchText','promoKeys','cardType','href',
 ];
-const VERSION = '20261103-search2';
+const VERSION = '20261104-search3';
 const MODULES = ['japanese-card-names','card-catalog-repairs','japanese-catalog','onepiece-official-catalog','anniversary-market','promo-search'];
 const DICTIONARY_FIELDS = ['kind','brand','language','setName','currency','setCode','boxCode','cardType','number','productNumber'];
 

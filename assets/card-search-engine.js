@@ -85,14 +85,15 @@
       for (const alias of aliases) if (alias.key === word || alias.key.includes(word)) for (const value of alias.values) expanded.add(value);
       return [...expanded];
     }
-    function search(query, options = {}) {
+    function search(query, options = {}, precompute = false) {
       const plan = planQuery(query, options.category), brand = options.brand || 'all';
       const offset = Math.max(0, Math.floor(Number(options.offset) || 0));
       const limit = options.limit === Infinity ? Infinity : Math.max(1, Math.min(300, Math.floor(Number(options.limit) || 30)));
       if (!plan.compact && !plan.type && plan.kind === 'all') return {results:[], total:0};
       if (!String(query || '').trim()) return {results:[], total:0};
+      if (precompute) plan.kind = 'all';
       const key = [plan.text, plan.kind, plan.type, plan.promo, brand].join('\0');
-      let hits = cache.get(key);
+      let hits = precompute ? null : cache.get(key);
       if (!hits) {
         const groups = plan.words.map(expand), full = plan.compact ? expand(plan.compact) : [];
         hits = [];
@@ -115,6 +116,16 @@
         hits.sort((a,b) => a.rank-b.rank || b.popularity-a.popularity || a.item.index-b.item.index);
         // A marketplace ID is an exact lookup when it exists. Otherwise short
         // numbers such as 151 must still find card numbers and named boxes.
+        if (precompute) {
+          // Deployment-only: one exact ranked scan supplies independently scoped
+          // category pages. Numeric ID suppression happens after each filter.
+          return Object.fromEntries(['all','card','box'].map(category => {
+            const kind=planQuery(query,category).kind;
+            let scoped=kind==='all'?hits:hits.filter(hit=>hit.item.row.kind===kind);
+            if (/^\d+$/.test(plan.text) && scoped[0]?.rank===0) scoped=scoped.filter(hit=>hit.rank===0);
+            return [category,{results:scoped.slice(0,limit).map(hit=>hit.item.row),total:scoped.length}];
+          }));
+        }
         if (/^\d+$/.test(plan.text) && hits[0]?.rank===0) hits=hits.filter(hit=>hit.rank===0);
         // Cache only row references. Popular broad queries must not retain a
         // second set of ranking objects for every matching catalogue card.
@@ -124,7 +135,7 @@
       }
       return {results:hits.slice(offset, limit === Infinity ? undefined : offset+limit), total:hits.length};
     }
-    return {search, size:prepared.length};
+    return {search, size:prepared.length, precompute:(query,limit=60)=>search(query,{limit},true)};
   }
   function create(snapshot) { return make(snapshot, decode(snapshot).map(prepare)); }
   async function createAsync(snapshot, yieldTask = () => new Promise(resolve => setTimeout(resolve, 0))) {

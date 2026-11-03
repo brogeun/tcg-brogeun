@@ -156,6 +156,7 @@ check('DON resource-card queries never broaden into Pokemon names or McDonald pr
   ]) assert.equal(api.matches(card, 'Don!! card'), false, card.name);
 });
 const bees = search('독침붕');
+const printedBees = bees.filter(card => card._catalogue);
 check('reviewed foreign editions and duplicate market IDs cannot alter Japanese printing identities', () => {
   for (const id of ['488126','488127','509330','739358','739359']) {
     const product = market.find(card => card.id === id);
@@ -176,17 +177,42 @@ check('reviewed foreign editions and duplicate market IDs cannot alter Japanese 
       card:original.number || original.sourceId || original.id}) + '#cardinfo');
   }
 });
-check('Japanese Beedrill search returns all 33 cards in Korean', () => {
-  assert.equal(bees.length, 33);
-  assert.equal(new Set(bees.map(card => card.id)).size, 33);
-  assert.equal(bees.filter(card => /Spirit Link/i.test(card.name)).length, 1);
-  for (const card of bees) assert.equal(names.unresolved(card), '', card.id);
+check('Japanese Beedrill search preserves all 33 printed cards and independent market candidates', () => {
+  const originals = catalogue.cards.filter(card => /Beedrill/i.test(card.name));
+  assert.equal(originals.length, 33, 'Reviewed printed Beedrill inventory changed');
+  assert.equal(printedBees.length, 33);
+  assert.deepEqual(Array.from(printedBees, card => card.id).sort(), originals.map(card => card.id).sort());
+  assert.equal(new Set(bees.map(card => card.id)).size, bees.length);
+  assert.equal(printedBees.filter(card => /Spirit Link/i.test(card.name)).length, 1);
+  const confirmed = new Set(catalogue.cards.flatMap(card => [card.productId, ...(card.productIds || [])]).filter(Boolean));
+  const candidates = new Set(originals.flatMap(card => card.candidateProductIds || []));
+  for (const card of bees.filter(card => !card._catalogue)) {
+    const original = market.find(product => product.id === card.id);
+    assert(original, card.id + ' must retain its original market identity');
+    assert(candidates.has(card.id), card.id + ' must be a candidate of an actual Beedrill printing');
+    assert(!confirmed.has(card.id), card.id + ' is an already replaced confirmed duplicate');
+    assert.equal(names.language(card), 'ja', card.id + ' must remain Japanese');
+    assert.equal(card.name, original.name);
+    assert.equal(card.thumbnailUrl, original.thumbnailUrl);
+    assert.equal(card.minPrice, original.minPrice);
+    assert.equal(api.href(card), '#price/' + card.id, 'Candidate market detail keeps its own destination');
+  }
+  for (const id of ['127790', '128138']) assert(bees.some(card => card.id === id), 'Distinct Beedrill Ball Mirror missing: ' + id);
+  for (const card of bees) {
+    assert.equal(names.unresolved(card), '', card.id);
+    assert.equal(names.language(card), 'ja', card.id);
+  }
 });
-check('Koga name and spacing aliases resolve to the correct card', () => {
+check('Koga name and spacing aliases preserve the source card and its separate unverified market candidate', () => {
+  const expectedIds = ['JP:Gym2:source-no-018', '454482'].sort();
   for (const query of ['독수의독침붕','독수의 독침붕','독수 독침붕','Koga Beedrill']) {
     const found = search(query);
-    assert.equal(found.length, 1, query);
-    assert.match(names.title(found[0]), /독수의 독침붕/);
+    assert.deepEqual(Array.from(found, card => card.id).sort(), expectedIds, query);
+    for (const card of found) assert.match(names.title(card), /독수의 독침붕/);
+    assert.equal(found.filter(card => card._catalogue).length, 1, query);
+    const candidate = found.find(card => card.id === '454482');
+    assert.equal(candidate.minPrice, 999999, 'Candidate retains its own independent quote');
+    assert.equal(api.href(candidate), '#price/454482');
   }
 });
 check('foreign title and image editions never enter Japanese search', () => {
@@ -194,7 +220,7 @@ check('foreign title and image editions never enter Japanese search', () => {
 });
 
 const linked = bees.find(card => card.boxCode === 'S10P' && card.number === '069/067');
-const unlinked = search('독수의독침붕')[0];
+const unlinked = search('독수의독침붕').find(card => card.id === 'JP:Gym2:source-no-018');
 check('verified price links and unpriced source cards remain separate', () => {
   assert.equal(linked.productId, '96640');
   assert.equal(linked.minPrice, 123456);

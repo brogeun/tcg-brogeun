@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from urllib.parse import urlparse
 
@@ -25,6 +26,31 @@ except ModuleNotFoundError:
 
 PRODUCT_URL = 'https://kream.co.kr/products/1096144'
 TRADE_ROWS = '.drawer .tab_content.show .price_body .body_list'
+NAVIGATION_FAILURES = (
+    'net::ERR_CONNECTION_RESET', 'net::ERR_CONNECTION_CLOSED',
+    'net::ERR_HTTP2_PROTOCOL_ERROR', 'net::ERR_NAME_NOT_RESOLVED',
+    'net::ERR_CERT_AUTHORITY_INVALID', 'net::ERR_ABORTED',
+    'net::ERR_TIMED_OUT', 'net::ERR_BLOCKED_BY_CLIENT',
+    'net::ERR_FAILED', 'net::ERR_CONNECTION_REFUSED',
+)
+
+
+def navigation_failure(error):
+    """Classify locally; never return or print any raw exception content."""
+    try:
+        message = str(error)
+    except Exception:
+        return 'other_navigation_error'
+    for code in NAVIGATION_FAILURES:
+        if re.search(re.escape(code) + r'(?![A-Z0-9_])', message):
+            return code
+    if (type(error).__name__ == 'TargetClosedError'
+            or 'Target page, context or browser has been closed' in message
+            or 'Target closed' in message):
+        return 'target_closed'
+    if 'Protocol error' in message:
+        return 'protocol_error'
+    return 'other_navigation_error'
 
 
 def main(argv=None):
@@ -35,12 +61,31 @@ def main(argv=None):
                         help='Launch a normal visible browser window')
     args = parser.parse_args(argv)
     config = {'platform': sys.platform, 'channel': args.channel,
-              'headless': not args.headed}
+              'headless': not args.headed, 'context': 'anonymous'}
     stage = 'validate_session'
     http_status = None
 
     def report(**fields):
         print(json.dumps(dict(config, **fields), ensure_ascii=True, sort_keys=True), flush=True)
+
+    def navigate_once(page):
+        nonlocal stage, http_status
+        stage = 'open_product'
+        http_status = None
+        try:
+            # Exactly one navigation for this context, including on failure.
+            response = page.goto(PRODUCT_URL, wait_until='domcontentloaded', timeout=45000)
+            http_status = response.status if response else 0
+        except Exception as error:
+            report(status='failed', stage=stage, failure_code='navigation_failed',
+                   navigation_failure=navigation_failure(error),
+                   error_type=type(error).__name__, http_status=None)
+            return None
+        report(status='http_response', stage=stage, http_status=http_status)
+        if http_status != 200:
+            code = 'access_denied' if http_status in (401, 403, 429) else 'source_http_error'
+            report(status='failed', stage=stage, failure_code=code, http_status=http_status)
+        return http_status
 
     report(status='starting', stage=stage)
     try:
@@ -53,20 +98,26 @@ def main(argv=None):
             browser = pw.chromium.launch(channel=args.channel, headless=not args.headed)
             try:
                 config['browser_version'] = browser.version
+                options = {'locale': 'ko-KR', 'timezone_id': 'Asia/Seoul',
+                           'viewport': {'width': 1440, 'height': 1080}}
+                stage = 'create_anonymous_context'
+                anonymous = browser.new_context(**options)
+                try:
+                    baseline_status = navigate_once(anonymous.new_page())
+                finally:
+                    stage = 'close_anonymous_context'
+                    anonymous.close()
+                # A permission or rate-limit response ends this job immediately.
+                if baseline_status in (401, 403, 429):
+                    return 1
+                # Compare once in a separate context on this same browser/VM.
+                config['context'] = 'authenticated'
+                http_status = None
                 stage = 'restore_session'
-                context = browser_context_for_session(
-                    browser, state, locale='ko-KR', timezone_id='Asia/Seoul',
-                    viewport={'width': 1440, 'height': 1080})
+                context = browser_context_for_session(browser, state, **options)
                 page = context.new_page()
-                stage = 'open_product'
-                # One navigation only. No HTTP-error retries in this diagnostic.
-                response = page.goto(PRODUCT_URL, wait_until='domcontentloaded', timeout=45000)
-                http_status = response.status if response else 0
-                report(status='http_response', stage=stage, http_status=http_status)
+                http_status = navigate_once(page)
                 if http_status != 200:
-                    code = 'access_denied' if http_status in (401, 403, 429) else 'source_http_error'
-                    report(status='failed', stage=stage, failure_code=code,
-                           http_status=http_status)
                     return 1
                 require_login_access(page)
                 location = urlparse(page.url)

@@ -13,25 +13,9 @@ permissions:
 jobs:
   check:
     if: github.ref == 'refs/heads/codex/kream-browser-compat-20261103'
-    name: ${{ matrix.label }}
-    runs-on: ${{ matrix.os }}
+    name: Windows Edge headed anonymous vs authenticated
+    runs-on: windows-2025
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: Ubuntu Chrome headless
-            os: ubuntu-24.04
-            channel: chrome
-            extra_args: ''
-          - label: Windows Edge headless
-            os: windows-2025
-            channel: msedge
-            extra_args: ''
-          - label: Windows Edge headed
-            os: windows-2025
-            channel: msedge
-            extra_args: '--headed'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,4 +26,4 @@ jobs:
       - name: Check normal browser access without changing trade data
         env:
           KREAM_STORAGE_STATE: ${{ secrets.KREAM_STORAGE_STATE }}
-        run: python -m scripts.check_kream_browser_compat --channel ${{ matrix.channel }} ${{ matrix.extra_args }}
+        run: python -m scripts.check_kream_browser_compat --channel msedge --headed

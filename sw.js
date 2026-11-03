@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-rarity-details-20261104-v1';
+const CACHE_VERSION = 'tcghub-rarity-details-20261104-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -93,7 +93,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }
-  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/tcg-search-aliases.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js'].includes(url.pathname)) {
+  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/tcg-search-aliases.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js', '/assets/chinese-catalog.js'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }
@@ -178,7 +178,7 @@ async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     // The shared picker also loads the versioned manufacturer rarity index.
-    const freshRarity = ['/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/assets/tcg-card-info.js','/data/chinese-sets/CN-30TH.json','/data/tcg-card-info/weiss_schwarz/32641ea2ce38d16d.json'].includes(new URL(req.url).pathname);
+    const freshRarity = ['/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/assets/chinese-catalog.js','/assets/tcg-card-info.js','/data/chinese-sets/CN-30TH.json','/data/tcg-card-info/weiss_schwarz/32641ea2ce38d16d.json'].includes(new URL(req.url).pathname);
     const res = await fetch(req, freshRarity ? {cache:'no-cache'} : undefined);
     if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
     return res;

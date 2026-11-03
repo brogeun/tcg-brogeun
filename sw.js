@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-search-worker-20261103-v1';
+const CACHE_VERSION = 'tcghub-performance-20261103-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -62,6 +62,13 @@ self.addEventListener('fetch', event => {
   // /api/* — 항상 네트워크 (인증/실시간 데이터)
   if (url.pathname.startsWith('/api/')) {
     return; // 기본 fetch 사용
+  }
+
+  // These URLs contain a digest of the complete shard body. Reusing the exact
+  // bytes cannot mix releases, and avoids downloading every search row again.
+  if (url.origin === location.origin && /^\/data\/search-index-ja\/part-\d{4}-[a-f0-9]{20}\.json$/.test(url.pathname)) {
+    event.respondWith(cacheFirst(req, DATA_CACHE));
+    return;
   }
 
   // Search snapshots are regenerated from the exact daily deployment data.

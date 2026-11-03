@@ -58,6 +58,8 @@ for(const product of [
 assert.match(html,/const FX_READY =/);
 assert.match(html,/async function showPriceDetailPanel\(productId\) \{[\s\S]*?await FX_READY/);
 assert.match(html,/async function renderSlidePanel\(productId,[\s\S]*?await FX_READY/);
-assert.match(html,/await FX_READY;\s*await window.AnniversaryMarket\?\.load\(\);\s*renderHomeTopRow/);
+const homeInit=html.slice(html.indexOf('async function initHome2() {'),html.indexOf("\ndocument.addEventListener('click', e => {",html.indexOf('async function initHome2() {')));
+assert(homeInit.indexOf('await FX_READY')<homeInit.indexOf('renderHomeTopRow(brand)'),'currency conversion still waits for the daily FX snapshot');
+assert(!homeInit.includes('await window.AnniversaryMarket?.load()'),'optional market data no longer blocks the first rows');
 assert.doesNotMatch(html,/현재 TOP 시세 원본에 등락률이 제공되지 않습니다/);
 console.log('PASS: listing/history separation, JPY/USD home-detail parity, raw/PSA separation, live raw protection, trade changes, missing data, dedup/retry, FX ordering');

@@ -1,6 +1,6 @@
 /* The worker owns snapshot parsing and query work, leaving taps and scrolling free. */
 'use strict';
-importScripts('/assets/card-search-engine.js?v=20261103-search1');
+importScripts('/assets/card-search-engine.js?v=20261103-search2');
 let ready;
 async function snapshotJSON(signal) {
   async function read(path,cache) {
@@ -8,7 +8,7 @@ async function snapshotJSON(signal) {
     if(!response.ok)throw new Error('Search snapshot HTTP '+response.status);
     return response.json();
   }
-  const snapshot=await read('/data/search-index-ja.json?v=20261103-search1','no-cache');
+  const snapshot=await read('/data/search-index-ja.json?v=20261103-search2','no-cache');
   if(snapshot.shards===undefined)return snapshot;
   if(snapshot.schemaVersion!==1||!Array.isArray(snapshot.rows)||snapshot.rows.length||typeof snapshot.sourceHash!=='string'||!snapshot.sourceHash||!Array.isArray(snapshot.shards)||!snapshot.shards.length||new Set(snapshot.shards).size!==snapshot.shards.length||!Number.isSafeInteger(snapshot.rowCount)||snapshot.rowCount<1)throw new Error('Invalid search snapshot manifest');
   const parts=new Array(snapshot.shards.length);let next=0;

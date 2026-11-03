@@ -1,7 +1,7 @@
 /* A single lazy worker shared by search entry points. Compatibility work yields to input. */
 (() => {
   'use strict';
-  const version='20261103-search1';
+  const version='20261103-search2';
   let worker=null,ready=null,engine=null,fallbackReady=null,sequence=0,queryVersion=0,engineScript;
   const pending=new Map(),latest=new Map();
   const yieldTask=()=>new Promise(resolve=>setTimeout(resolve,0));

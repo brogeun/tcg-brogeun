@@ -87,8 +87,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.snkrdunk.com" crossorigin> <!-- 시세 카드 이미지 CDN — LCP 단축 -->
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root {
   /* 새 디자인 토큰 (홈 + 점진적 적용용) */
@@ -138,7 +138,7 @@
 <meta name="apple-itunes-app" content="app-id=6773382755">
 
 <!-- Quill rich text editor (관리자 글쓰기) -->
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" media="print" onload="this.media='all'">
 
 <!-- DOMPurify — 관리자 글 HTML 소독 (stored XSS 방지) -->
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" defer></script>
@@ -2512,7 +2512,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 </div>
 
 <link rel="stylesheet" href="/assets/market-price-index.css?v=20261013-index19-restore1">
-<script src="/assets/market-price-index.js?v=20261013-index19-restore1"></script>
+<script src="/assets/market-price-index.js?v=20261103-startup1"></script>
 <link rel="stylesheet" href="/assets/market-references.css?v=20261029-reference1">
 <script src="/assets/market-references.js?v=20261029-reference1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261030-sidebar1">
@@ -2535,7 +2535,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/portfolio-screen.css?v=20261030-sidebar1">
 <script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
-<script src="/assets/card-search-client.js?v=20261103-search1"></script>
+<script src="/assets/card-search-client.js?v=20261103-search2"></script>
 <script>
 "use strict";
 
@@ -2609,6 +2609,7 @@ function go(pageOrPath) {
   if (target) target.classList.add('active');
   // body 에 현재 페이지 표시 (CSS 셀렉터용)
   document.body.dataset.page = page;
+  if (page !== 'home') _HOME_ASSET_RUN++;
   if (page !== 'portfolio') window.PortfolioScreen?.cancelChart();
   // 네비 활성화 (사이드바 + 모바일)
   document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
@@ -2623,7 +2624,11 @@ function go(pageOrPath) {
   // 페이지별 초기화
   if (page === 'home' && typeof initHome2 === 'function') initHome2();
   if (page === 'price') initPriceRoute(route);
-  if (page === 'admin' && window.AdminEditorUI) AdminEditorUI.enter();
+  if (page === 'admin') ensureAdminOriginals().then(() => {
+    if (document.body.dataset.page !== 'admin') return;
+    renderAdminList();
+    window.AdminEditorUI?.enter();
+  }).catch(() => window.AdminEditorUI?.message('원본 게시물을 불러오지 못했습니다. 다시 시도해 주세요.', 'error'));
   if (page === 'portfolio') refreshPortfolio();
   if (page === 'centering') {
     // 센터링 진입 시 핸들러 + 카운터 셋업 (DOMContentLoaded 이미 끝난 경우 대비)
@@ -2698,6 +2703,7 @@ window.addEventListener('popstate', e => {
   const target = document.querySelector(`.page[data-page="${page}"]`);
   if (target) target.classList.add('active');
   document.body.dataset.page = page;
+  if (page !== 'home') _HOME_ASSET_RUN++;
   if (page !== 'portfolio') window.PortfolioScreen?.cancelChart();
   document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.nav === page);
@@ -3106,6 +3112,9 @@ window.toggleHomeTopMore = function(brand) {
   const isOpen = list.classList.contains('show');
   list.classList.toggle('show');
   btn.classList.toggle('open');
+  if (!isOpen) void loadHomeTradeChanges((HOME_TOP_CACHE[brand] || []).slice(3, 10)).then(() => {
+    if (document.body.dataset.page === 'home') renderHomeTopRow(brand);
+  });
   // 첫 번째 텍스트 노드 교체
   for (const node of btn.childNodes) {
     if (node.nodeType === 3) { node.textContent = isOpen ? 'TOP 10 더보기 ' : '접기 '; break; }
@@ -3382,7 +3391,25 @@ window.matchMedia('(max-width:480px)').addEventListener('change', e => {
 });
 
 let _HOME_ASSET_RUN = 0;
+let _HOME_ASSET_SCHEDULED = false;
+function scheduleHomeAsset() {
+  if (_HOME_ASSET_SCHEDULED || document.body.dataset.page !== 'home' || document.hidden) return;
+  _HOME_ASSET_SCHEDULED = true;
+  const run = () => {
+    _HOME_ASSET_SCHEDULED = false;
+    if (document.body.dataset.page === 'home' && !document.hidden) renderHomeAsset();
+  };
+  const afterPaint = () => {
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, {timeout: 1000});
+    else setTimeout(run, 0);
+  };
+  if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(() => window.requestAnimationFrame(afterPaint));
+  else setTimeout(afterPaint, 0);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleHomeAsset(); });
+window.addEventListener('pageshow', scheduleHomeAsset);
 async function renderHomeAsset() {
+  if (document.body.dataset.page !== 'home' || document.hidden) return;
   const run = ++_HOME_ASSET_RUN;
   syncHomeAuthView();
   const valEl = document.getElementById('homeAssetValue');
@@ -3399,13 +3426,15 @@ async function renderHomeAsset() {
     if (watchEl) watchEl.textContent = '—';
     return;
   }
+  await FX_READY;
+  if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user || document.body.dataset.page !== 'home' || document.hidden) return;
   valEl.style.fontSize = '24px';
 
   // HOLDINGS/WATCHLIST 가 비어있으면 portfolio API 로 로드 (마이페이지 방문 안 했을 때)
   if ((typeof HOLDINGS === 'undefined' || !HOLDINGS.length) && typeof loadPortfolio === 'function') {
     try {
       const data = await loadPortfolio();
-      if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user) return;
+      if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user || document.body.dataset.page !== 'home' || document.hidden) return;
       if (data) {
         HOLDINGS = data.holdings || [];
         WATCHLIST = data.watchlists || [];
@@ -3446,7 +3475,7 @@ async function renderHomeAsset() {
     try { await ensureBoxIdSet(); } catch {}
   }
 
-  if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user) return;
+  if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user || document.body.dataset.page !== 'home' || document.hidden) return;
 
   // renderHoldings (line ~7134) / drawAnalytics (line ~7410) 와 동일한 평가액 계산
   const boxSet = (typeof BOX_ID_SET !== 'undefined') ? BOX_ID_SET : null;
@@ -3492,6 +3521,8 @@ window.openPortfolioOrLogin = function() {
 async function initHome2() {
   const dateEl=document.getElementById('homeTodayLabel');
   if (dateEl) dateEl.textContent=new Intl.DateTimeFormat('ko-KR',{month:'long',day:'numeric',weekday:'short'}).format(new Date());
+  renderHomeNewsGrid();
+  scheduleHomeAsset();
   // 스켈레톤 즉시 렌더 — 데이터 도착 시 섹션이 늘어나며 footer 밀리는 CLS 방지
   ['homeTopPokemon', 'homeTopOnepiece'].forEach(id => {
     const c = document.getElementById(id);
@@ -3512,9 +3543,14 @@ async function initHome2() {
     try {
       const products = await loadHomeTop(brand);
       await FX_READY;
-      await window.AnniversaryMarket?.load();
+      if (document.body.dataset.page !== 'home') return;
       renderHomeTopRow(brand);
-      void loadHomeTradeChanges(products).then(() => renderHomeTopRow(brand));
+      void loadHomeTradeChanges(products.slice(0, 3)).then(() => {
+        if (document.body.dataset.page === 'home') renderHomeTopRow(brand);
+      });
+      void window.AnniversaryMarket?.load().then(() => {
+        if (document.body.dataset.page === 'home') renderHomeTopRow(brand);
+      });
     } catch (e) {
       console.warn(`[home2] ${brand} load fail:`, e.message);
       const containerId = brand === 'pokemon' ? 'homeTopPokemon' : 'homeTopOnepiece';
@@ -3522,8 +3558,6 @@ async function initHome2() {
       if (container) container.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-tertiary); font-size:12px">시세 데이터 준비 중…<br><span style="font-size:10px">매일 04:00 KST 자동 갱신</span></div>`;
     }
   }));
-  renderHomeNewsGrid();
-  renderHomeAsset();
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -5975,10 +6009,7 @@ async function loadNews() {
     </div>`).join('');
   try {
     const [adminResult, autoResult] = await Promise.allSettled([
-      fetch(`/api/admin?type=news&t=${Date.now()}`, {cache: 'no-store'}).then(async r => {
-        if (!r.ok) throw new Error('news API 응답 실패');
-        return (await r.json()).items || [];
-      }),
+      loadPublicBoardData('news'),
       fetch(`/data/news.json?t=${Math.floor(Date.now() / 3600000)}`, {cache: 'no-store'}).then(async r => {
         if (!r.ok) throw new Error('자동 뉴스 응답 실패');
         return (await r.json()).items || [];
@@ -7504,14 +7535,56 @@ function getAdminPwd() { return sessionStorage.getItem('admin_pwd') || ''; }
 function setAdminPwd(p) { sessionStorage.setItem('admin_pwd', p); }
 function clearAdminPwd() { sessionStorage.removeItem('admin_pwd'); }
 
-async function fetchAdminData(type) {
+// Public compact responses are shared by home and hub, independently of editor originals.
+function loadPublicBoardData(type) {
+  const state = loadPublicBoardData.state ||= {pending: new Map(), completed: new Map(), generations: new Map()};
+  if (state.pending.has(type)) return state.pending.get(type);
+  const cached = state.completed.get(type);
+  if (cached && cached.expires > Date.now()) return Promise.resolve(cached.items);
+  const generation = state.generations.get(type) || 0;
+  const pending = fetch(`/api/admin?type=${encodeURIComponent(type)}&view=display`, {cache: 'no-store'})
+    .then(async response => {
+      if (!response.ok) throw new Error('Board HTTP ' + response.status);
+      const data = await response.json();
+      if (!Array.isArray(data.items)) throw new Error('Invalid board response');
+      if (generation !== (state.generations.get(type) || 0)) return loadPublicBoardData(type);
+      state.completed.set(type, {items: data.items, expires: Date.now() + 60000});
+      return data.items;
+    }).finally(() => { if (state.pending.get(type) === pending) state.pending.delete(type); });
+  state.pending.set(type, pending);
+  return pending;
+}
+function invalidatePublicBoard(type) {
+  const state = loadPublicBoardData.state;
+  if (!state) return;
+  state.generations.set(type, (state.generations.get(type) || 0) + 1);
+  state.pending.delete(type);
+  state.completed.delete(type);
+}
+function ensureAdminOriginals() {
+  if (ensureAdminOriginals.loaded) return Promise.resolve();
+  if (ensureAdminOriginals.pending) return ensureAdminOriginals.pending;
+  const pending = (async () => {
+    const [events, etc, cardshow, grading, news] = await Promise.all(
+      ['events', 'etc', 'cardshow', 'grading', 'news'].map(type => fetchAdminData(type, {strict: true}))
+    );
+    EVENTS = events; ETC_LIST = etc; CARDSHOWS = cardshow; GRADING_LIST = grading; NEWS_LIST = news;
+    ensureAdminOriginals.loaded = true;
+  })().finally(() => { if (ensureAdminOriginals.pending === pending) ensureAdminOriginals.pending = null; });
+  ensureAdminOriginals.pending = pending;
+  return pending;
+}
+
+async function fetchAdminData(type, options = {}) {
   try {
     const r = await fetch(`/api/admin?type=${type}&t=${Date.now()}`, {cache: 'no-store'});
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const d = await r.json();
+    if (options.strict && (!Array.isArray(d.items) || d.items.some(item => item?._displayOnly))) throw new Error('Original board data required');
     return d.items || [];
   } catch (e) {
     console.warn('admin load fail (' + type + '):', e);
+    if (options.strict) throw e;
     return [];
   }
 }
@@ -7541,6 +7614,7 @@ async function saveAdminData(type, items) {
       }
       return false;
     }
+    invalidatePublicBoard(type);
     return true;
   } catch (e) {
     alert('네트워크 에러: ' + e.message);
@@ -7566,8 +7640,8 @@ let NEWS_LIST = [];
 
 async function loadNewsFast() {
   try {
-    const news = await fetchAdminData('news');
-    if (Array.isArray(news) && news.length) {
+    const news = await loadPublicBoardData('news');
+    if (!ensureAdminOriginals.loaded && Array.isArray(news) && news.length) {
       NEWS_LIST = news;
       window._adminLoaded = true;
       try { localStorage.setItem('home_news_cache_v1', JSON.stringify(news.slice(0, 8))); } catch (e) {}
@@ -7578,21 +7652,24 @@ async function loadNewsFast() {
 // 페이지 로드 즉시 news 단독 fetch (다른 admin data 보다 우선)
 loadNewsFast();
 
-async function loadAllAdminData() {
-  const [events, etc, cardshow, grading, news] = await Promise.all([
-    fetchAdminData('events'),
-    fetchAdminData('etc'),
-    fetchAdminData('cardshow'),
-    fetchAdminData('grading'),
-    fetchAdminData('news'),
+async function loadAllAdminData(options = {}) {
+  if (options.full) { ensureAdminOriginals.loaded = false; return ensureAdminOriginals(); }
+  const results = await Promise.allSettled([
+    loadPublicBoardData('events'),
+    loadPublicBoardData('etc'),
+    loadPublicBoardData('cardshow'),
+    loadPublicBoardData('grading'),
+    loadPublicBoardData('news'),
   ]);
-  EVENTS = events;
-  ETC_LIST = etc;
+  if (ensureAdminOriginals.loaded) return;
+  const [events, etc, cardshow, grading, news] = results.map(result => result.status === 'fulfilled' ? result.value : null);
+  if (events) EVENTS = events;
+  if (etc) ETC_LIST = etc;
   renderHomeRecommendations();
-  CARDSHOWS = cardshow;
-  GRADING_LIST = grading;
-  NEWS_LIST = news;
-  try { localStorage.setItem('home_news_cache_v1', JSON.stringify((news || []).slice(0, 8))); } catch (e) {}
+  if (cardshow) CARDSHOWS = cardshow;
+  if (grading) GRADING_LIST = grading;
+  if (news) NEWS_LIST = news;
+  if (news) try { localStorage.setItem('home_news_cache_v1', JSON.stringify(news.slice(0, 8))); } catch (e) {}
 }
 
 function applyThumbFallback(img) {
@@ -8460,6 +8537,7 @@ function _initAdminSortable() {
     chosenClass: 'admin-row-chosen',
     // 관리자는 데스크톱 전용 — 네이티브 HTML5 drag API 사용 (부드러움)
     onEnd: async (evt) => {
+      await ensureAdminOriginals();
       if (evt.oldIndex === evt.newIndex) return;
       // DOM 순서대로 새 배열 만들기
       const newOrder = Array.from(container.querySelectorAll('.admin-row')).map(el => el.dataset.id);
@@ -8487,6 +8565,7 @@ function _initAdminSortable() {
 
 // 글 순서 이동 — 배열 인덱스 swap + 저장
 async function adminMoveEntry(id, direction) {
+  await ensureAdminOriginals();
   const arr = adminCurrentArr();
   const idx = arr.findIndex(x => x.id === id);
   if (idx < 0) return;
@@ -8782,7 +8861,8 @@ window.adminMigrateNews = async function() {
     const saveData = await saveResp.json();
     if (saveData.ok) {
       alert(`✓ 마이그레이션 완료\n새로 추가: ${addedCount}건\n총 뉴스: ${merged.length}건\n\n페이지 새로고침해주세요.`);
-      await loadAllAdminData();
+      invalidatePublicBoard('news');
+      await loadAllAdminData({full: true});
       renderAdminList();
     } else {
       alert('저장 실패: ' + (saveData.error || '알 수 없는 오류'));
@@ -8793,6 +8873,7 @@ window.adminMigrateNews = async function() {
 };
 
 async function adminSaveEntry() {
+  await ensureAdminOriginals();
   await ensureQuill();
   const editId = document.getElementById('adminEditId').value;
   const title = document.getElementById('adminTitle').value.trim();
@@ -8886,6 +8967,7 @@ async function adminSaveEntry() {
 }
 
 async function adminEditEntry(id) {
+  await ensureAdminOriginals();
   if (window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
   await ensureQuill();
   const arr = adminCurrentArr();
@@ -8916,6 +8998,7 @@ async function adminEditEntry(id) {
 }
 
 async function adminDeleteEntry(id) {
+  await ensureAdminOriginals();
   if (!confirm('정말 삭제하시겠습니까?')) return;
   const key = adminCurrentKey();
   const arr = adminCurrentArr().filter(e => e.id !== id);
@@ -8928,7 +9011,8 @@ async function adminDeleteEntry(id) {
   renderAdminList();
 }
 
-function adminExportJson() {
+async function adminExportJson() {
+  await ensureAdminOriginals();
   const data = {events: EVENTS, cardshow: CARDSHOWS, etc: ETC_LIST, exportedAt: new Date().toISOString()};
   const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
@@ -9846,7 +9930,7 @@ renderAuthStatus = function() {
   if (location.hash === '#portfolio') refreshPortfolio();
   // 홈 페이지에 있을 때는 자산 바도 다시 그림 (CURRENT_USER 로드 직후 갱신)
   const path = (location.hash || '#home').replace('#', '') || 'home';
-  if (path === 'home' && typeof renderHomeAsset === 'function') renderHomeAsset();
+  if (path === 'home') scheduleHomeAsset();
 };
 
 /* ────────────────────────────────────
@@ -9922,7 +10006,7 @@ function renderAuthStatus() {
   syncAdminAccess();
   if (window.AdminEditorUI) AdminEditorUI.access(CURRENT_USER);
   syncHomeAuthView();
-  if (CURRENT_USER) renderHomeAsset();
+  if (CURRENT_USER) scheduleHomeAsset();
   const box = document.getElementById('authStatus');
   const topAvatar = document.getElementById('topAvatar');
   if (CURRENT_USER) {
@@ -11007,7 +11091,7 @@ window.addEventListener('appinstalled', () => {
 // </script>
 <script src="/assets/english-search.js?v=20260908-search1"></script>
 <script src="/assets/promo-search.js?v=20261013-promo1"></script>
-<script src="/assets/search-modal.js?v=20261103-search1"></script>
+<script src="/assets/search-modal.js?v=20261103-search2"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261030-rarity1"></script>

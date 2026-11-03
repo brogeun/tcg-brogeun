@@ -1,0 +1,55 @@
+name: KREAM Local Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: 'Exact data-only commit created on the owner PC'
+        required: true
+        type: string
+      source_base:
+        description: 'Exact main commit used as the local baseline'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kream-korean-promos
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Record publication baseline
+        run: echo "KREAM_BASE=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Validate collector and local import boundaries
+        run: |
+          python -m unittest scripts.test_kream_promos scripts.test_setup_kream_session scripts.test_kream_session_storage scripts.test_run_kream_local scripts.test_import_kream_local
+          python scripts/collect_kream_promos.py --validate-only
+      - name: Fetch data objects without executing submitted code
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+          SOURCE_BASE: ${{ inputs.source_base }}
+        run: |
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ && "$SOURCE_BASE" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          git fetch --no-tags --depth=2 origin "$SOURCE_COMMIT"
+          test "$(git show -s --format=%P "$SOURCE_COMMIT")" = "$SOURCE_BASE"
+      - name: Import the complete validated price generation
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+          SOURCE_BASE: ${{ inputs.source_base }}
+        run: python scripts/import_kream_local.py --source-commit "$SOURCE_COMMIT" --source-base "$SOURCE_BASE"
+      - name: Publish prices while preserving concurrent unrelated changes
+        run: python scripts/publish_data_snapshot.py --files data/korean-promos.json --base "$KREAM_BASE" --message 'Refresh Korean promo KREAM histories from owner PC'

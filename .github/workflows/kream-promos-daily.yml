@@ -1,15 +1,9 @@
 name: KREAM Korean Promos Daily
 
 on:
-  schedule:
-    - cron: '10 21 * * *' # 06:10 Asia/Seoul
-    - cron: '40 22 * * *' # 07:40 KST fallback; skips after a successful daily collection
+  # Cloud source navigation failed even in ordinary installed browsers.
+  # Owner-PC scheduled collection uses KREAM Local Publish; cloud is manual only.
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/collect_kream_promos.py'
-      - '.github/workflows/kream-promos-daily.yml'
 
 permissions:
   contents: write
@@ -83,4 +77,5 @@ jobs:
         run: |
           echo 'KREAM collection did not succeed. Prior prices and charts are preserved; inspect data/korean-promos-health.json.'
           exit 1
+
 

@@ -22,7 +22,7 @@ on:
           - all
           - search-only
   workflow_run:
-    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'KREAM Korean Promos Daily']
+    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'KREAM Korean Promos Daily', 'KREAM Local Publish']
     types: [completed]
     branches: [main]
   push:
@@ -508,3 +508,4 @@ jobs:
         run: |
           echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
           exit 1
+

@@ -3,7 +3,61 @@
 대상은 `1096144, 893073, 998016, 998022, 937106, 934334, 508949`의 7종이다.
 사인 아리와 포켓패드는 제외한다. 등급·라벨·팩 옵션별 원본 거래와 동일 날짜·가격의 별도 거래를 보존한다.
 
+## 기본 운영: 소유자 Windows PC에서 수집
+
+2026-11-03에 소유자 PC의 정상 로그인과 새 컨텍스트 전체 체결 접근은 성공했다.
+같은 상태를 등록한 GitHub 서버는 첫 상품 HTTP 500으로 실패했고, 별도 Windows Edge와
+Ubuntu Chrome 점검도 상품 탐색 단계에서 실패했다. 같은 Windows 서버의 비로그인·로그인
+컨텍스트 모두 HTTP 응답 없이 탐색이 실패했다. 서버 측 원인이나 IP 차단 여부는 확정하지 않는다.
+따라서 클라우드 수집 예약은 중지하고 `KREAM Korean Promos Daily`는 수동 진단용으로 남긴다.
+
+`scripts/install_kream_local.ps1 -SourceRef <검토·병합된 40자리 커밋>`을 소유자의
+Windows PowerShell에서 실행한다. 설치 파일과 Python 코드 모두 같은 고정 커밋에서 받는다.
+관리자 권한이나 Windows 암호를 요구하지 않는다. 기존 Python 3.11, GitHub CLI 로그인을 사용한다.
+필요한 Python 패키지는 `playwright==1.56.0`, `tzdata`이다. 설치된 Edge를 사용한다.
+
+- 전용 Edge 프로필: `%LOCALAPPDATA%\TCGHUB\kream-local\profile`.
+  기존 일반 브라우저 프로필은 읽지 않는다. 이 프로필에만 로그인 상태를 PC에 유지한다.
+  이전 연결 도구의 임시 브라우저와 별개이므로 최초 설치 때 이 전용 창에서 한 번 로그인한다.
+- 설치 도구가 `run_kream_local.py --setup`을 실행한다. 로그인 후 PowerShell에서 Enter를 누르면
+  실제 전체 체결 창과 여섯 번째 행을 확인한다. 로그인 대기 중 브라우저 이벤트를 계속 처리한다.
+- 현재 Windows 사용자로 작업 `TCGHUB-KREAM-Local-<사용자 SID>`를 등록한다.
+  매일 오전 09:00 **Windows 현지 시각**과 사용자 로그인 시 실행한다.
+  PC가 켜져 있고 해당 사용자가 로그인해 있어야 한다. 놓친 실행은 다음 가능한 때 실행하며
+  동시 실행은 무시한다. 수집 도중 Edge 전용 창이 보이는 것은 정상이다.
+- 설치 직후 첫 전체 수집을 실행한다. 이후 당일 동일 세대 성공이 있으면 중복 수집을 생략한다.
+- 안전한 진행 기록: `%LOCALAPPDATA%\TCGHUB\kream-local\logs\latest.log`.
+  인증값·원본 예외·브라우저 추적·스크린샷은 기록하지 않는다.
+
+`--run`은 GitHub의 최신 main 커밋을 고정하고 기존 9개 가격 JSON을 내려받아 검증한다.
+같은 전용 Edge 컨텍스트에서 7종 전체를 수집하고, 모든 기존 거래의 다중집합 보존을 확인한다.
+전체 수집 성공 후에만 9개 가격 JSON으로 이루어진 새 데이터 커밋과
+`kream-local-data/*` 브랜치를 만들고 `KREAM Local Publish`를 main에서 요청한다.
+브라우저 프로필·비밀번호·쿠키·세션값은 업로드하지 않는다. PC에 Git 설치는 필요 없다.
+수집·로그인·완전성 검사 실패 시 원격 데이터나 원격 성공 상태를 변경하지 않는다.
+
+서버는 main의 검토된 코드만 실행한다. 전달된 커밋은 체크아웃하거나 실행하지 않고,
+정확한 부모 커밋·9개 경로·일반 파일 모드·동일 기준 세대·JSON·정적 메타데이터·관측 시각·
+전체 거래량과 옵션·모든 과거 거래의 다중집합을 검사한다. 검증 전 가격 파일을 변경하지 않는다.
+기존 원자적 게시 도구로 현재 main의 동시 변경을 다시 확인한 뒤 9개 파일을 함께 게시한다.
+기준 가격 파일이 수집 중 바뀌면 해당 변경을 보존하고 게시를 중단한다.
+`KREAM Local Publish` 성공은 기존 `Scrape SNKRDUNK Daily`의 배포 전용 실행을 요청한다.
+PC의 업로드 요청 메시지만으로 수집·배포 성공으로 표시하지 않는다.
+
+로그인 만료 시 작업을 반복 우회하지 않고 중단한다. 같은 고정 버전 설치 명령을 다시 실행해
+전용 Edge 창에서 정상 재로그인하면 된다. 프로필을 삭제하면 저장된 로그인도 제거된다.
+자동 실행만 중지하려면 현재 사용자 PowerShell에서 다음을 실행한다.
+
+```powershell
+$kreamInstall = Get-Content (Join-Path $env:LOCALAPPDATA 'TCGHUB\kream-local\install.json') -Raw | ConvertFrom-Json
+Unregister-ScheduledTask -TaskName $kreamInstall.taskName -Confirm:$false
+```
+
+Windows PC를 공개 저장소의 자체 호스팅 Actions 실행기로 등록하지 않는다.
+
 ## 최초 연결 또는 세션 만료 시
+
+다음은 **수동 클라우드 진단용** 연결이다. 기본 운영은 위 PC 수집이다.
 
 2026-11-02에 공개 상품 페이지를 확인했을 때 비로그인 화면은 최근 5건만 보여주고
 “모든 시세는 로그인 후 확인 가능합니다.”를 표시했다. 전체 체결 수집에는 정상 로그인이 필요하다.
@@ -24,7 +78,7 @@ Windows에 설치된 Edge를 사용하려면 `python scripts/setup_kream_session
 도구는 한복 아리의 전체 체결 창에 접근할 수 있는지 확인하고,
 KREAM 도메인의 브라우저 상태만 GitHub Actions의 `KREAM_STORAGE_STATE` 비밀값으로 등록한다.
 브라우저 상태는 메모리에서 GitHub CLI 표준입력으로 전달한다. 세션 파일·비밀번호·쿠키를 저장소나 채팅에 올리지 않는다.
-이 명령은 해당 이름의 기존 비밀값을 교체하고 `KREAM Korean Promos Daily` 실행을 요청한다.
+이 명령은 해당 이름의 기존 비밀값을 교체하고 `KREAM Korean Promos Daily` 수동 실행을 요청한다.
 스크립트는 기존 브라우저 프로필을 읽거나 변경하지 않는 새 브라우저를 연다.
 로그인 대기 중에도 브라우저 이벤트를 처리하고, 체결 창이 실제로 열린 뒤 여섯 번째 행을 검사한다.
 첫 클릭이 페이지 초기화 전에 무효가 된 경우에만 화면 로딩 후 한 번 더 확인한다.
@@ -42,8 +96,8 @@ KREAM 도메인의 브라우저 상태만 GitHub Actions의 `KREAM_STORAGE_STATE
 
 워크플로: `.github/workflows/kream-promos-daily.yml`
 
-- 06:10 KST 기본 예약, 07:40 KST 보조 예약. GitHub 예약은 지연될 수 있으며 정확한 시각을 보장하지 않는다.
-- 보조 실행은 당일 06:10 이후 성공한 동일 세대의 상태가 있을 때만 수집을 생략한다. 실패 후에는 재시도한다.
+- 클라우드 예약은 중지했다. 기본 수집은 위 Windows 작업의 09:00 현지 시각과 로그인 시 실행이다.
+- 수동 클라우드 진단은 PC의 정상 세대와 같은 파일들을 게시하므로 필요할 때만 실행한다.
 - 세션 누락/잘못된 형식은 브라우저 설치 전에 실패 처리한다.
 - 500/502/503/504만 동일 브라우저에서 최대 3회 시도한다. 401/403/429 또는 로그인 요구는 우회·반복하지 않는다.
 - 7종 전체 수집·원본 거래의 다중집합 보존·후보 세대 검증을 통과한 후에만 가격 파일을 교체한다.
@@ -58,4 +112,5 @@ KREAM 도메인의 브라우저 상태만 GitHub Actions의 `KREAM_STORAGE_STATE
 참고: [Playwright 인증 상태](https://playwright.dev/python/docs/auth),
 [GitHub Actions 비밀값](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
 [GitHub 예약 실행 지연](https://docs.github.com/en/actions/how-tos/troubleshoot-workflows).
+
 

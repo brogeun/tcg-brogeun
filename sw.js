@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-box-card-search-20261103-v1';
+const CACHE_VERSION = 'tcghub-search-worker-20261103-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -62,6 +62,13 @@ self.addEventListener('fetch', event => {
   // /api/* — 항상 네트워크 (인증/실시간 데이터)
   if (url.pathname.startsWith('/api/')) {
     return; // 기본 fetch 사용
+  }
+
+  // Search snapshots are regenerated from the exact daily deployment data.
+  // Revalidate the worker and its matching decoder together on every release.
+  if (url.origin === location.origin && (url.pathname === '/data/search-index-ja.json' || url.pathname.startsWith('/data/search-index-ja/') || ['/assets/card-search-client.js', '/assets/card-search-worker.js', '/assets/card-search-engine.js', '/assets/search-modal.js'].includes(url.pathname))) {
+    event.respondWith(networkFirst(req, url.pathname.startsWith('/data/') ? DATA_CACHE : STATIC_CACHE));
+    return;
   }
 
   // Keep collection registry shards and their decoder on the same reviewed release.

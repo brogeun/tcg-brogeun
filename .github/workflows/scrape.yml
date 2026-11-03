@@ -236,6 +236,13 @@ jobs:
       - name: Prepare a current-main deployment source without changing collected files
         run: python -B scripts/publish_data_snapshot.py --prepare-deploy
 
+      - name: Build and verify the compact search snapshot from this deployment
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: |
+          node scripts/build_search_snapshot.cjs
+          node --test scripts/test_card_search_engine.cjs scripts/test_fast_price_search.cjs
+          node scripts/test_search_snapshot.cjs
+
       - name: Record freshness of the exact deployment data
         id: deployment-health
         working-directory: ${{ env.DEPLOY_SOURCE }}

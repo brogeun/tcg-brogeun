@@ -43,6 +43,11 @@ jobs:
             echo "No changes — Cloudflare blocked or all cached."
           fi
 
+      - name: Build and verify the search snapshot before manual publication
+        run: |
+          node scripts/build_search_snapshot.cjs
+          node --test scripts/test_card_search_engine.cjs scripts/test_fast_price_search.cjs scripts/test_search_snapshot.cjs
+
       - name: Verify public home card index before deploy
         if: success()
         run: node scripts/verify_card_index_public_bundle.cjs --bundle-dir .

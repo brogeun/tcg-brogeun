@@ -19,6 +19,11 @@ on:
       - 'scripts/test_retailer_printing_covers.py'
       - 'scripts/materialize_vintage_pokemon_release.py'
       - 'scripts/test_materialize_vintage_pokemon_release.py'
+      - 'scripts/collect_vintage_rarity.py'
+      - 'scripts/test_collect_vintage_rarity.py'
+      - 'scripts/test_vintage_rarity_overlay.cjs'
+      - 'data/collections/sources/pokemon-jp-rarity-metadata.json'
+      - 'data/collections/sources/pokemon-rarity-recheck/part-7100.json'
       - 'scripts/test_vintage_resume.py'
       - 'scripts/run_vintage_backfill.py'
       - 'scripts/test_run_vintage_backfill.py'
@@ -50,7 +55,14 @@ jobs:
             /data/english-catalog.json
             /data/english-set-images.json
             /data/us-market/
+            /data/cards-by-set/Neo1.json
+            /data/cards-by-set/Neo2.json
+            /data/cards-by-set/Neo3.json
+            /data/cards-by-set/Neo4.json
+            /data/collections/sources/pokemon-jp-rarity-metadata.json
+            /data/collections/sources/pokemon-rarity-recheck/part-7100.json
             /images/box/
+            /images/box2/
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -64,6 +76,8 @@ jobs:
           node --test scripts/test_english_set_images.cjs scripts/test_japanese_set_artwork.cjs scripts/test_set_artwork_release.cjs
           python -B -m unittest discover -s scripts -p test_retailer_printing_covers.py
           python -B -m unittest discover -s scripts -p test_materialize_vintage_pokemon_release.py
+          python -B -m unittest discover -s scripts -p test_collect_vintage_rarity.py
+          node --test scripts/test_vintage_rarity_overlay.cjs
           python -B -m unittest discover -s scripts -p test_vintage_resume.py
           python -B -m unittest discover -s scripts -p test_run_vintage_backfill.py
 

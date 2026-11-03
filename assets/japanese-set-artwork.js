@@ -15,6 +15,21 @@
     S7R: '/images/box/s7R.webp', S7D: '/images/box/s7D.webp',
     S6a: '/images/box/s6a.webp'
   });
+  // These exact existing assets were already used by the main set list. Share
+  // the same registry with synthesized catalogue/search boxes and detail views.
+  const legacy = Object.freeze(Object.fromEntries([
+    'S6H','S6K','S5a','S5R','S5I','S4a','S4','S3a','S3','S2a','S2','S1a','S1H','S1W',
+    'SM12a','SM12','SM11b','SM11a','SM11','SM10b','SM10a','SM10','SM9b','SM9a','SM9',
+    'SM8b','SM8a','SM8','SM7b','SM7a','SM7','SM6b','SM6a','SM6','SM5+','SM5M','SM5S',
+    'SM4+','SM4S','SM4A','SM3+','SM3H','SM3N','SM2+','SM2L','SM2K','SM1+','SM1M','SM1S',
+    'XY11-Br','XY11-Bb','XY10','XY9','XY8-Br','XY8-Bb','XY7','XY6','XY5-Bt','XY5-Bg',
+    'XY4','XY3','XY2','XY1-By','XY1-Bx','BW9','BW8-Brn','BW8-Brf','BW7','BW6-Bf',
+    'BW6-Bc','BW5-Brz','BW5-Brn','BW4','BW3-Bh','BW3-Bp','BW2','BW1-Bw','BW1-Bb',
+    'L3','L2','L1-Bss','L1-Bhg','Pt4','Pt3','Pt2','Pt1','DP6','DP5','DP4-Bd','DP4-Bm',
+    'DP3','DP2','DP1','PCG9','PCG8','PCG7','PCG6','PCG5','PCG4','PCG3','PCG2','PCG1',
+    'ADV4','ADV3','ADV2','ADV1','e5','e4','e3','e2','e1','Neo4','Neo3','Neo2','Neo1',
+    'Gym2','Gym1','CL4','CL3','CL2','CL1'
+  ].map(code => [code, '/images/box2/' + code + '.webp'])));
   const packs = Object.freeze({
     BSTXY: {image:'https://www.pokemon-card.com/products/xy/best_of_xy/images/20170330/SM_XY_pillow_1221.jpg', sourceUrl:'https://www.pokemon-card.com/products/xy/best_of_xy.html'},
     CP3: {image:'https://www.pokemon-card.com/products/2016/images/1232_CP3_pillow_img_151102.jpg', sourceUrl:'https://www.pokemon-card.com/products/xy/cp3.html'},
@@ -34,10 +49,10 @@
     // A verified explicit photo, even on an external source, always wins.
     const generated = '/images/sets/' + encodeURIComponent(String(set.code || '')) + '.jpg';
     if (explicit && explicit.replace(/^\/?/, '/') !== generated) return explicit;
-    return local[set.code] || packs[set.code]?.image || explicit || fallback;
+    return local[set.code] || legacy[set.code] || packs[set.code]?.image || explicit || fallback;
   }
   function kind(set) {
     return packs[set?.code] && image(set) === packs[set.code].image ? 'pack' : '';
   }
-  return {image, kind, local, packs};
+  return {image, kind, local, legacy, packs};
 });

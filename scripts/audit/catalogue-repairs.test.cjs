@@ -77,7 +77,19 @@ test('four reported Pokemon images are repaired in both search and source grids 
   for(const repair of manifest.pokemonImages){
     const original=catalogue.cards.find(card=>card.id===repair.catalogueId),before=JSON.stringify(original);
     const row=b.JapaneseCatalog.find(repair.catalogueId);
-    assert.equal(row.thumbnailUrl,repair.image);assert.equal(row.image,repair.image);
+    let displayImage=repair.image;
+    if(original.localImage){
+      const vintage=read('data/pokemon-vintage-image-repairs.json').images.find(proof=>
+        proof.localImage===original.localImage&&proof.sourceUrl===repair.sourceUrl&&proof.setCode===repair.setCode);
+      assert(vintage,'New display image requires its exact reviewed source identity');
+      assert.equal(vintage.originalImage,repair.image);
+      assert.equal(vintage.canonicalOriginalImage,original.image);
+      const bytes=fs.readFileSync(path.join(root,original.localImage));
+      assert.equal(bytes.length,vintage.bytes);
+      assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),vintage.sha256);
+      displayImage=original.localImage;
+    }
+    assert.equal(row.thumbnailUrl,displayImage);assert.equal(row.image,repair.image);
     assert.equal(row.productId,original.productId);assert.deepEqual(Array.from(row.productIds),original.productIds);assert.equal(row.number,original.number);
     assert.equal(JSON.stringify(original),before);
     const source=read('data/cards-by-set/'+repair.setCode+'.json'),card=source.cards.find(c=>c.url===repair.sourceUrl);

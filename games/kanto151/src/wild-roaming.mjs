@@ -1,5 +1,6 @@
 import {habitatValid,bodyAt} from './ecology.mjs';
 import {speciesEcology} from './species-ecology.mjs';
+import {steeringCandidates,rememberSteering} from './locomotion.mjs';
 
 const TAU=Math.PI*2;
 const DEFAULT_PROFILE=Object.freeze({locomotion:'ground',speed:.7,rest:2,stride:2.2,altitude:0,activity:'look',habitat:'meadow',resource:'none',social:'solitary'});
@@ -102,25 +103,25 @@ export function updateWildRoaming(game,actor,dt,{fleeFrom=null,interest=null}={}
  if(fleeFrom){
   const angle=Math.atan2(pos.x-fleeFrom.x,pos.z-fleeFrom.z);state.goal={x:pos.x+Math.sin(angle)*2.5,z:pos.z+Math.cos(angle)*2.5};state.rest=0;state.interestSource=null;
  }else if(interest&&(state.interestSource!==interest||flatDistance(state.interestPoint||interest,interest)>.35)){
-  state.interestSource=interest;state.interestPoint={x:interest.x,z:interest.z};state.goal=goalFor(game,actor,profile,state,interest);state.rest=0;
+  state.interestSource=interest;state.interestPoint={x:interest.x,z:interest.z};state.goal=goalFor(game,actor,profile,state,interest);state.rest=0;rememberSteering(state,0);
  }else if(!interest)state.interestSource=null;
  if(state.rest>0){state.rest=Math.max(0,state.rest-dt);actor.behavior=interest?'look':state.activity;pose(actor,state,profile,actor.behavior,interest);return;}
- if(!state.goal)state.goal=goalFor(game,actor,profile,state,interest);
+ if(!state.goal){rememberSteering(state,0);state.goal=goalFor(game,actor,profile,state,interest);}
  if(!state.goal){state.rest=.35+Math.random()*.4;state.activity=interest?'look':profile.activity;actor.behavior=state.activity;pose(actor,state,profile,state.activity,interest);return;}
  const dx=state.goal.x-pos.x,dz=state.goal.z-pos.z,distance=Math.hypot(dx,dz);
- if(distance<.22){state.goal=null;state.rest=interest?.6:profile.rest*(.7+Math.random()*.3);state.activity=interest?'look':profile.activity;actor.behavior=state.activity;pose(actor,state,profile,state.activity,interest);return;}
+ if(distance<.22){state.goal=null;rememberSteering(state,0);state.rest=interest?.6:profile.rest*(.7+Math.random()*.3);state.activity=interest?'look':profile.activity;actor.behavior=state.activity;pose(actor,state,profile,state.activity,interest);return;}
  let angle=Math.atan2(dx,dz),sx=0,sz=0;
  for(const other of game.wild||[]){if(other===actor||other.hp<=0||other.capturing)continue;const ox=pos.x-other.model.position.x,oz=pos.z-other.model.position.z,d=Math.hypot(ox,oz);if(d>.01&&d<1.8){sx+=ox/d*(1.8-d);sz+=oz/d*(1.8-d);}}
  angle=Math.atan2(Math.sin(angle)+sx*.8,Math.cos(angle)+sz*.8);
  const travel=Math.min(distance,dt*(fleeFrom?Math.max(1.1,profile.speed*2.8):profile.speed));
- for(const turn of [0,.48,-.48,.95,-.95,1.5,-1.5]){
+ for(const turn of steeringCandidates(state,dt,[0,.48,-.48,.95,-.95,1.5,-1.5])){
   const heading=angle+turn,x=pos.x+Math.sin(heading)*travel,z=pos.z+Math.cos(heading)*travel;
   if(!legal(game,actor,x,z,pos))continue;
   pos.x=x;pos.z=z;pos.y=wildGroundHeight(game.world,actor.id,x,z);
   const delta=Math.atan2(Math.sin(heading-actor.model.rotation.y),Math.cos(heading-actor.model.rotation.y));actor.model.rotation.y+=delta*Math.min(1,dt*7);actor.angle=heading;actor.moving=true;
-  actor.behavior=fleeFrom?'flee':interest?'investigate':'roam';pose(actor,state,profile,'move',interest);state.blocked=0;return;
+  rememberSteering(state,turn);actor.behavior=fleeFrom?'flee':interest?'investigate':'roam';pose(actor,state,profile,'move',interest);state.blocked=0;return;
  }
- state.blocked++;state.goal=null;state.rest=.12;state.activity=interest?'look':profile.activity;actor.behavior=state.activity;pose(actor,state,profile,state.activity,interest);
+ state.blocked++;if(state.blocked>=2)state.goal=null;state.rest=.2;state.activity=interest?'look':profile.activity;actor.behavior=state.activity;pose(actor,state,profile,state.activity,interest);
 }
 
 // Only stalled pursuit uses this small local search. A short reverse segment is
@@ -152,19 +153,19 @@ export function moveWildToward(game,actor,target,dt,speed=2.8) {
  if(!Number.isFinite(dt)||dt<=0||busy(actor))return false;
  actor.ecologyPose=null;
  const pos=actor.model.position,distance=flatDistance(pos,target),state=actor.pursuit??={best:distance,stalled:0,cooldown:0,path:null,target:{x:target.x,z:target.z}};
- if(flatDistance(state.target,target)>1.5){state.path=null;state.best=distance;state.stalled=0;state.target={x:target.x,z:target.z};}
+ if(flatDistance(state.target,target)>1.5){state.path=null;state.best=distance;state.stalled=0;state.target={x:target.x,z:target.z};rememberSteering(state,0);}
  state.cooldown=Math.max(0,state.cooldown-dt);
  if(distance<state.best-.15){state.best=distance;state.stalled=0;}else if(!state.path)state.stalled+=dt;
  if(state.path?.length&&flatDistance(pos,state.path[0])<.32){state.path.shift();if(!state.path.length){state.path=null;state.best=distance;state.stalled=0;}}
  if(state.stalled>.9&&state.cooldown<=0){state.path=detourFor(game,actor,target);state.cooldown=1.5;state.stalled=0;}
  const point=state.path?.[0]||target,angle=Math.atan2(point.x-pos.x,point.z-pos.z),side=actor.id%2?1:-1,travel=Math.min(speed*dt,flatDistance(pos,point));
- for(const turn of [0,side*.5,-side*.5,side*1.05,-side*1.05,side*1.57,-side*1.57]){
+ for(const turn of steeringCandidates(state,dt,[0,side*.5,-side*.5,side*1.05,-side*1.05,side*1.57,-side*1.57])){
   const heading=angle+turn,x=pos.x+Math.sin(heading)*travel,z=pos.z+Math.cos(heading)*travel;
   if(!legal(game,actor,x,z,pos))continue;
   pos.x=x;pos.z=z;pos.y=wildGroundHeight(game.world,actor.id,x,z);
   const delta=Math.atan2(Math.sin(heading-actor.model.rotation.y),Math.cos(heading-actor.model.rotation.y));
   actor.model.rotation.y+=Math.max(-6*dt,Math.min(6*dt,delta));
-  actor.angle=heading;actor.moving=true;actor.roaming=null;return true;
+  rememberSteering(state,turn);actor.angle=heading;actor.moving=true;actor.roaming=null;return true;
  }
  actor.moving=false;
  if(state.path){state.stalled+=dt;if(state.stalled>.35){state.path=null;state.stalled=1;}}

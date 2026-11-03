@@ -1,5 +1,7 @@
 import {validateJourney} from './journey-state.mjs';
 import {ensureSupplies,SUPPLY_RULES} from './supplies.mjs';
+import {survivalDrainScale,survivalDepletionScale} from './survival-rules.mjs';
+export {beginnerSurvivalRemaining} from './survival-rules.mjs';
 export const SAVE_VERSION = 3;
 export const SAVE_KEY = 'tcghub:kanto151:v3';
 export const LEGACY_SAVE_KEY = 'tcghub:kanto151:v2';
@@ -9,9 +11,10 @@ export const ITEMS = {apple:{name:'사과',portable:true,description:`허기 ${S
 export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export const BALL_SUPPLY_RULES=Object.freeze({start:12,startGreat:0,restMinimum:3,cacheBalls:1,cacheRespawn:300,landmarkBalls:1,streakEvery:5,streakBalls:1,researchGreat:2,milestoneGreatSmall:1,milestoneGreat:2,milestoneUltra:1});
 export const SURVIVAL_RATES=Object.freeze({multiplier:1.75,hunger:Object.freeze({idle:.055,moving:.095}),thirst:Object.freeze({idle:.085,moving:.14}),warning:20,saveMinimum:25,depletionDamageFraction:.08});
-export function advanceSurvival(save,dt,moving=false){const needs=save.survival;if(!needs||!Number.isFinite(dt)||dt<=0)return;for(const key of ['hunger','thirst'])needs[key]=clamp(needs[key]-dt*SURVIVAL_RATES[key][moving?'moving':'idle']*SURVIVAL_RATES.multiplier,0,100);}
+export const survivalDamageFraction=save=>SURVIVAL_RATES.depletionDamageFraction*survivalDepletionScale(save);
+export function advanceSurvival(save,dt,moving=false){const needs=save.survival;if(!needs||!Number.isFinite(dt)||dt<=0)return;for(const key of ['hunger','thirst'])needs[key]=clamp(needs[key]-dt*SURVIVAL_RATES[key][moving?'moving':'idle']*SURVIVAL_RATES.multiplier*survivalDrainScale(save),0,100);}
 export function eatFoodDrop(save,id){const needs=save.survival,index=needs.drops.findIndex(drop=>drop.id===id);if(index<0||needs.hunger>=100)return false;needs.drops.splice(index,1);needs.hunger=clamp(needs.hunger+SUPPLY_RULES.fieldBerryRecovery,0,100);return true;}
-export function drinkWater(save){const needs=save.survival;if(needs.thirst>=100)return false;needs.thirst=clamp(needs.thirst+SUPPLY_RULES.directWaterRecovery,0,100);return true;}
+export function drinkWater(save){const needs=save.survival;if(needs.thirst>=100)return false;needs.thirst=clamp(needs.thirst+SUPPLY_RULES.directWaterRecovery,0,100);(save.flags??={})['water-supply-learned']=true;return true;}
 export const uid=()=>globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
 export const nice=s=>String(s??'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 export function newSave(){return ensureSupplies({version:SAVE_VERSION,starter:null,party:[],collection:[],dex:{},inventory:{'poke-ball':BALL_SUPPLY_RULES.start,'great-ball':BALL_SUPPLY_RULES.startGreat,potion:8,revive:3,'fishing-rod':1},coins:300,region:'camp',position:[0,10],discovered:['camp'],bosses:[],flags:{},quests:{},survival:{hunger:100,thirst:100,drops:[]},settings:{volume:.4,quality:'auto',camera:1,motion:true,shake:.65,vibration:false,locale:'ko-KR'},playTime:0,worldTime:9,weather:'clear',savedAt:null});}

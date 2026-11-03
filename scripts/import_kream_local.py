@@ -14,10 +14,10 @@ import subprocess
 import tempfile
 
 try:
-    from scripts.collect_kream_promos import (IDS, KST, unpack_history, validate_bundle,
+    from scripts.collect_kream_promos import (IDS, KST, unpack_history, pack_history, validate_bundle,
                                              validate_new_rows, replace_file)
 except ModuleNotFoundError:
-    from collect_kream_promos import (IDS, KST, unpack_history, validate_bundle,
+    from collect_kream_promos import (IDS, KST, unpack_history, pack_history, validate_bundle,
                                      validate_new_rows, replace_file)
 
 FILES = ('data/korean-promos.json', 'data/korean-promos-health.json') + tuple(
@@ -114,7 +114,12 @@ def validate_candidate(baseline, candidate, now=None):
             reject()
         name = card['file'].lstrip('/')
         old = unpack_history(strict_json((baseline / name).read_bytes()))
-        data = unpack_history(strict_json((candidate / name).read_bytes()))
+        packed = strict_json((candidate / name).read_bytes())
+        data = unpack_history(packed)
+        # Generated packs have no unused dictionaries, ignored columns, or
+        # coerced flag values in which unrelated private content could hide.
+        if packed.get('rowEncoding') != 'indexed-v1' or packed != pack_history(data):
+            reject()
         if static(old, CHANGING_HISTORY) != static(data, CHANGING_HISTORY):
             reject()
         validate_new_rows(old, data['rows'])

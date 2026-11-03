@@ -32,13 +32,15 @@ foreach ($kreamHelperName in @('Quote-KreamTaskArgument', 'New-KreamLocalTaskDef
 
 # Verify a branch name cannot reach the installer body or any network action.
 $kreamValidateErrors = @()
-try {
-    & $InstallerPath -SourceRef 'main'
-    throw 'An unpinned source ref was accepted.'
-} catch [Management.Automation.ParameterBindingValidationException] {
-    $kreamValidateErrors += $_
+foreach ($kreamInvalidRef in @('main', ('a' * 39), (('a' * 40) + "`n"))) {
+    try {
+        & $InstallerPath -SourceRef $kreamInvalidRef
+        throw 'An unpinned source ref was accepted.'
+    } catch [Management.Automation.ParameterBindingValidationException] {
+        $kreamValidateErrors += $_
+    }
 }
-Assert-KreamCheck ($kreamValidateErrors.Count -eq 1) 'Unpinned source validation did not stop installation.'
+Assert-KreamCheck ($kreamValidateErrors.Count -eq 3) 'Unpinned source validation did not stop installation.'
 
 $kreamPythonCommand = Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1
 $kreamPython = $kreamPythonCommand.Source

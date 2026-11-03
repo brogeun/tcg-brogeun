@@ -152,6 +152,29 @@ class LocalImportTests(unittest.TestCase):
         path.write_bytes(collector.encoded(manifest))
         self.assert_rejected_unchanged(self.commit_candidate())
 
+    def test_unused_packed_values_and_ignored_columns_are_rejected(self):
+        for field in ('options', 'dates', 'dateLabels', 'row_columns', 'flag_value'):
+            with self.subTest(field=field):
+                self.candidate()
+                name = importer.FILES[2]
+                packed = json.loads((self.root / name).read_bytes())
+                if field == 'row_columns':
+                    packed['rows'][0].append('PRIVATE-TEST')
+                elif field == 'flag_value':
+                    packed['rows'][0][3] = 'PRIVATE-TEST'
+                else:
+                    packed[field].append('PRIVATE-TEST')
+                raw = collector.encoded(packed)
+                (self.root / name).write_bytes(raw)
+                manifest_path = self.root / importer.FILES[0]
+                manifest = json.loads(manifest_path.read_bytes())
+                manifest['cards'][0]['version'] = hashlib.sha256(raw).hexdigest()[:16]
+                manifest_path.write_bytes(collector.encoded(manifest))
+                # Every bundle count/hash still validates. The importer must
+                # reject otherwise-ignored content before writing any files.
+                collector.validate_bundle(self.root)
+                self.assert_rejected_unchanged(self.commit_candidate())
+
     def test_same_old_success_cannot_be_relabelled_as_fresh(self):
         path = self.root / importer.FILES[1]
         health = json.loads(path.read_bytes())

@@ -106,6 +106,7 @@ jobs:
           node --test scripts/audit/*.test.mjs scripts/audit/*.test.cjs
           node scripts/test_admin_auth.mjs
           node --test scripts/test_public_board_loading.cjs scripts/test_search_shard_cache.cjs scripts/test_home_startup.cjs scripts/test_market_chart_startup.cjs
+          node --test scripts/test_app_route_loader.cjs scripts/test_app_route_integration.cjs scripts/test_card_thumbnails.cjs scripts/test_portfolio_summary.cjs scripts/test_portfolio_summary_client.cjs scripts/test_home_summary_integration.cjs scripts/test_search_fastpath.cjs
           node scripts/test_price_box_names.mjs
 
       - name: Validate Chinese catalogue and daily FX
@@ -247,6 +248,8 @@ jobs:
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: |
           node scripts/build_search_snapshot.cjs
+          node scripts/build_search_fastpath.cjs
+          node scripts/build_portfolio_quotes.cjs
           node --test scripts/test_card_search_engine.cjs scripts/test_fast_price_search.cjs
           node scripts/test_search_snapshot.cjs
 
@@ -259,6 +262,8 @@ jobs:
 
       - name: Validate Kanto151 account saves and original Pokemon preservation
         working-directory: ${{ env.DEPLOY_SOURCE }}
+        env:
+          KANTO_ESBUILD_MODULE: ${{ github.workspace }}/node_modules/esbuild
         run: node --test scripts/test_kanto*.mjs games/kanto151/scripts/*.test.mjs
 
       - name: Prepare deploy bundle (정적 + admin function 만)
@@ -277,18 +282,21 @@ jobs:
           for d in assets images img public static ev-calculator games; do
             [ -d "$d" ] && cp -r "$d" _deploy/ || true
           done
+          KANTO_ESBUILD_MODULE="$GITHUB_WORKSPACE/node_modules/esbuild" node scripts/build_kanto_runtime.mjs --deploy-dir _deploy
           # functions 배포 — admin + auth + portfolio (명시적 화이트리스트)
           mkdir -p _deploy/functions/api/auth
           mkdir -p _deploy/functions/api/portfolio/holding
           mkdir -p _deploy/functions/api/portfolio/watchlist
           mkdir -p _deploy/functions/_shared
           # 공유 헬퍼
-          for f in jwt.js email.js auth.js apple.js admin.js board-media.js certificates.js kanto151-save.js centering-jpeg.js collections.js; do
+          for f in jwt.js email.js auth.js apple.js admin.js board-media.js portfolio-summary.js certificates.js kanto151-save.js centering-jpeg.js collections.js; do
             [ -f "functions/_shared/$f" ] && cp "functions/_shared/$f" "_deploy/functions/_shared/$f" && echo "✓ _shared/$f"
           done
           # admin
           [ -f functions/api/admin.js ] && cp functions/api/admin.js _deploy/functions/api/admin.js && echo "✓ admin"
           cp functions/api/admin-media.js _deploy/functions/api/admin-media.js
+          cp functions/api/card-search.js _deploy/functions/api/card-search.js
+          cp functions/api/portfolio/summary.js _deploy/functions/api/portfolio/summary.js
           # Preserve the existing card API routes in the operating site.
           for f in beezie-prices.js card.js cards.js img.js scrape-set.js scraped-sets.js snkrdunk.js top10.js; do
             [ -f "functions/api/$f" ] && cp "functions/api/$f" "_deploy/functions/api/$f"

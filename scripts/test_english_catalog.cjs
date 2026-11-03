@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const root=path.resolve(__dirname,'..');
-const ctx={window:{openSetGrid(){},TCGFX:{convert:(n,c)=>c==='USD'?Math.floor(n*1000):null}},renderCardInfo(){},document:{getElementById(){return null},addEventListener(){}},fetch:()=>new Promise(()=>{})};
+const ctx={location:{hash:'#cardinfo',search:''},window:{openSetGrid(){},TCGFX:{convert:(n,c)=>c==='USD'?Math.floor(n*1000):null}},renderCardInfo(){},document:{getElementById(){return null},addEventListener(){}},fetch:()=>new Promise(()=>{})};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(root,'assets/english-catalog.js'),'utf8'),ctx);
 const api=ctx.window.EnglishCatalog;
 const sample=[{date:'2026-09-01',priceCents:10000},{date:'2026-09-01',priceCents:12000},{date:'2026-09-10',priceCents:20000}];

@@ -189,13 +189,40 @@ export function appearancePaths(info,shiny=false){
   return [...paths].filter(Boolean);
 }
 
+function resourceObjects(records){
+  const geometries=new Set(),textures=new Set();
+  for(const record of records){
+    for(const bone of record.geometry?.bones||[])if(bone.geometry)geometries.add(bone.geometry);
+    for(const texture of record.textures?.values()||[])textures.add(texture);
+  }
+  return {geometries,textures};
+}
+
+// This is a budget estimate, not a measurement of the browser/GPU process.
+// Attribute and texture identities are counted once even when models share them.
+export function estimatedResourceBytes(records){
+  const {geometries,textures}=resourceObjects(records),attributes=new Set();let bytes=0;
+  for(const geometry of geometries){
+    const values=[...Object.values(geometry.attributes||{}),geometry.index,...Object.values(geometry.morphAttributes||{}).flat()];
+    for(const attribute of values){
+      if(!attribute)continue;const buffer=attribute.data||attribute;
+      if(attributes.has(buffer))continue;attributes.add(buffer);bytes+=buffer.array?.byteLength||0;
+    }
+  }
+  for(const texture of textures){
+    const image=texture.image||texture.source?.data,width=image?.width||image?.naturalWidth||0,height=image?.height||image?.naturalHeight||0;
+    bytes+=Math.ceil(width*height*4*(texture.generateMipmaps?4/3:1));
+  }
+  return bytes;
+}
+
 /** Lazy species cache; active instances retain shared geometry/textures until released. */
 export class PokemonResources {
-  constructor(THREE, manifest, baseUrl, {maxSpecies=24,onProgress}={}) {
+  constructor(THREE, manifest, baseUrl, {maxSpecies=24,maxBytes=32*1024*1024,onProgress}={}) {
     this.THREE=THREE;
     this.manifest=new Map((Array.isArray(manifest)?manifest:manifest.pokemon).map(row=>[Number(row.id),row]));
     this.baseUrl=String(baseUrl).replace(/\/?$/,'/');
-    this.maxSpecies=maxSpecies; this.onProgress=onProgress;
+    this.maxSpecies=maxSpecies;this.maxBytes=Math.max(0,maxBytes); this.onProgress=onProgress;
     this.cache=new Map(); this.requests=new Map(); this.errors=[]; this.loaded=0;
   }
   url(path) { return this.baseUrl+path; }
@@ -252,12 +279,13 @@ export class PokemonResources {
     this.evict();
   }
   evict() {
-    const unused=[...this.cache.values()].filter(v=>v.refs===0&&!(v.textureRequests?.size)).sort((a,b)=>a.used-b.used);
-    while(this.cache.size>this.maxSpecies&&unused.length) {
+    const unused=[...this.cache.values()].filter(v=>v.refs===0&&!this.requests.has(v.id)&&!(v.textureRequests?.size)).sort((a,b)=>a.used-b.used);
+    while(unused.length&&(this.cache.size>this.maxSpecies||estimatedResourceBytes(this.cache.values())>this.maxBytes)) {
       const item=unused.shift();
-      for(const bone of item.geometry.bones)bone.geometry?.dispose();
-      for(const texture of item.textures.values())texture.dispose();
       this.cache.delete(item.id);
+      const released=resourceObjects([item]),retained=resourceObjects(this.cache.values());
+      for(const geometry of released.geometries)if(!retained.geometries.has(geometry))geometry.dispose();
+      for(const texture of released.textures)if(!retained.textures.has(texture))texture.dispose();
     }
   }
   async create(id,{shiny=false,scale=1,maxDimension=5.5,grounded=true}={}) {
@@ -405,7 +433,7 @@ export class PokemonResources {
     };
     this.evict();return group;
   }
-  stats() {const records=[...this.cache.values()];return {species:this.cache.size,active:records.reduce((n,v)=>n+v.refs,0),pending:this.requests.size+records.reduce((n,v)=>n+(v.textureRequests?.size||0),0),textures:records.reduce((n,v)=>n+v.textures.size,0),errors:this.errors,expressionWarnings:[...diagnostics]};}
+  stats() {const records=[...this.cache.values()];return {species:this.cache.size,active:records.reduce((n,v)=>n+v.refs,0),pending:this.requests.size+records.reduce((n,v)=>n+(v.textureRequests?.size||0),0),textures:records.reduce((n,v)=>n+v.textures.size,0),estimatedBytes:estimatedResourceBytes(records),activeEstimatedBytes:estimatedResourceBytes(records.filter(record=>record.refs>0)),maxEstimatedBytes:this.maxBytes,errors:this.errors,expressionWarnings:[...diagnostics]};}
   dispose() {for(const item of this.cache.values())item.refs=0;this.maxSpecies=0;this.evict();}
 }
 

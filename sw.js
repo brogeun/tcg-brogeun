@@ -8,7 +8,7 @@
  *  - 외부 이미지 CDN  : cache-first (한 번 받은 이미지는 영구 캐시)
  */
 
-const CACHE_VERSION = 'tcghub-vintage-artwork-20261104-v1';
+const CACHE_VERSION = 'tcghub-modular-vintage-20261104-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 const IMAGE_CACHE = `${CACHE_VERSION}-images`;
@@ -68,6 +68,11 @@ self.addEventListener('fetch', event => {
   // bytes cannot mix releases, and avoids downloading every search row again.
   if (url.origin === location.origin && /^\/data\/search-index-ja\/part-\d{4}-[a-f0-9]{20}\.json$/.test(url.pathname)) {
     event.respondWith(cacheFirst(req, DATA_CACHE));
+    return;
+  }
+
+  if (url.origin === location.origin && ['/assets/app-route-loader.js','/assets/portfolio-summary-client.js','/assets/card-thumbnails.js'].includes(url.pathname)) {
+    event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }
 

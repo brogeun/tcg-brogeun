@@ -66,6 +66,8 @@
         // POST returns {ok,id}, not a watchlist row. Reload also handles upserts.
         await reload();
       }
+      window.PortfolioSummaryClient?.invalidate();
+      if(typeof scheduleHomeAsset==='function')scheduleHomeAsset();
       showToast(existing.length ? '즐겨찾기 해제' : '즐겨찾기 추가', existing.length ? 'info' : 'success');
       if (typeof renderWatchlist === 'function' && document.getElementById('wlList')) renderWatchlist();
       const count = document.getElementById('pfWatchCount');

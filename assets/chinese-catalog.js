@@ -6,6 +6,7 @@
   let active, currentCard, opener, cardPage=1, cardQuery='', cardRarities=[], cardScroll=0, linkNotice='';
   const cardCache=new Map();
   let market, marketReady, marketFailed=false;
+  const routeRun=()=>typeof _FEATURE_ROUTE_RUN==='undefined'?null:_FEATURE_ROUTE_RUN;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const normalize=s=>String(s||'').normalize('NFKC').toLowerCase().replace(/\s+/g,'');
   const official=url=>/^https:\/\/(?:[a-z0-9-]+\.)?pokemon\.cn\//.test(url||'');
@@ -186,19 +187,22 @@
   }
   async function open(code,id=null){
     if(!/^CN-[A-Z0-9-]+$/.test(code))return;
-    window.EnglishCatalog?.cancelPending?.();const own=++request;opener=document.activeElement;active=null;currentCard=null;linkNotice='';
+    window.EnglishCatalog?.cancelPending?.();const own=++request,intent=Number(window._CI_USER_INTENT)||0,route=location.hash,search=location.search,run=routeRun();opener=document.activeElement;active=null;currentCard=null;linkNotice='';
+    const current=()=>own===request&&routeRun()===run&&(!document.body?.dataset?.page||document.body.dataset.page==='cardinfo')&&location.hash===route&&location.search===search&&(Number(window._CI_USER_INTENT)||0)===intent;
+    if(!current())return;
     panel(header()+'<h3 id="cnPanelTitle" class="enc-loading-title">포켓몬 · 중판</h3><div class="ci-panel-scroll">수록 카드 불러오는 중…</div>');
     try{
       const data=await ensureData(),set=data.sets.find(s=>s.code===code);
-      if(!set){if(own===request&&document.querySelector('#anyModal.open #cnPanelTitle'))panel(header()+'<h3 id="cnPanelTitle" class="enc-loading-title">확장팩을 찾지 못했습니다.</h3><div class="ci-panel-scroll">중판 박스 목록에서 확장팩을 선택해 주세요.</div>');return;}
-      const [cards]=await Promise.all([ensureCards(code),ensureMarket()]);if(own!==request||!document.querySelector('#anyModal.open #cnPanelTitle'))return;
+      if(!current())return;
+      if(!set){if(current()&&document.querySelector('#anyModal.open #cnPanelTitle'))panel(header()+'<h3 id="cnPanelTitle" class="enc-loading-title">확장팩을 찾지 못했습니다.</h3><div class="ci-panel-scroll">중판 박스 목록에서 확장팩을 선택해 주세요.</div>');return;}
+      const [cards]=await Promise.all([ensureCards(code),ensureMarket()]);if(!current()||!document.querySelector('#anyModal.open #cnPanelTitle'))return;
       const rarityCards=await window.CardRarityFilters?.enrich(cards.cards,{brand:'pokemon-cn',setCode:code})||cards.cards;
-      if(own!==request||!document.querySelector('#anyModal.open #cnPanelTitle'))return;
+      if(!current()||!document.querySelector('#anyModal.open #cnPanelTitle'))return;
       active={...cards,...set,cards:rarityCards,cardCount:cards.cardCount};cardPage=1;cardQuery='';cardRarities=[];cardScroll=0;
       if(id&&!cards.cards.some(c=>c.id===String(id)))linkNotice='공유된 카드를 찾지 못했습니다. 이 확장팩의 카드 목록을 확인해 주세요.';
       setModal();if(id&&!linkNotice)detail(id);
     }catch{
-      if(own===request&&document.querySelector('#anyModal.open #cnPanelTitle'))panel(header()+'<h3 id="cnPanelTitle" class="enc-loading-title">수록 카드를 불러오지 못했습니다.</h3><div class="ci-panel-scroll"><button type="button" data-cn-set="'+esc(code)+'"'+(id?' data-cn-card-id="'+esc(id)+'"':'')+'>다시 시도</button></div>');
+      if(current()&&document.querySelector('#anyModal.open #cnPanelTitle'))panel(header()+'<h3 id="cnPanelTitle" class="enc-loading-title">수록 카드를 불러오지 못했습니다.</h3><div class="ci-panel-scroll"><button type="button" data-cn-set="'+esc(code)+'"'+(id?' data-cn-card-id="'+esc(id)+'"':'')+'>다시 시도</button></div>');
     }
   }
   function detail(id){
@@ -229,7 +233,7 @@
     else if(b.hasAttribute('data-cn-share'))share();
     else render();
   },true);
-  const query=new URLSearchParams(location.search),code=query.get('set'),shared=code?.startsWith('CN-')&&location.hash==='#cardinfo';
+  const query=new URLSearchParams(location.search),code=query.get('set'),shared=code?.startsWith('CN-')&&location.hash==='#cardinfo'&&(!document.body?.dataset?.page||document.body.dataset.page==='cardinfo');
   window.ChineseCatalog={prepare,prepareCards,prepareMarket,ensureMarket,cardQuotes,ensureData,ensureCards,ensureSearch,matching,search,href,isImage,art,render,open,detail,setBody,cancelPending(){request++;},initialLanguage:shared?'zh-CN':'ja'};
   if(shared){CI_TAB='pokemon';open(code,query.get('card'));}
 })();

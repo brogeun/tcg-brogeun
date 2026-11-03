@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const rarityFilters = require('../assets/card-rarity-filters.js');
 const root = path.resolve(__dirname, '..');
 const chineseSource = fs.readFileSync(path.join(root, 'assets/chinese-catalog.js'), 'utf8');
 const englishSource = fs.readFileSync(path.join(root, 'assets/english-catalog.js'), 'utf8');
@@ -58,7 +59,7 @@ function deferred() {
   const promise = new Promise((ok, fail) => {resolve = ok; reject = fail;});
   return {promise, resolve, reject};
 }
-function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGate, market = null, marketGate, marketError = false, fx = null, fxReady, english = false, actualRenderer = false, search = ''} = {}) {
+function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGate, market = null, marketGate, marketError = false, fx = null, fxReady, english = false, actualRenderer = false, search = '', rarity = null} = {}) {
   const nodes = new Map(), handlers = [], inputHandlers = [], windowHandlers = new Map(), fetched = [], opened = [], shared = [];
   function node(id) {
     if (!nodes.has(id)) {
@@ -149,6 +150,7 @@ function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGa
     dispatchEvent(event){for(const handler of windowHandlers.get(event.type)||[])handler(event);return true;}}
   if(fx)ctx.TCGFX={getState:()=>fx,ready:fxReady?.promise,
     convert(amount,currency){const rate=fx.rates?.[currency];return fx.cnyReady&&typeof rate==='number'&&Number.isFinite(rate)&&rate>0?Math.floor(amount*rate):null;}};
+  if(rarity)ctx.CardRarityFilters=rarity;
   // The original renderer is called as a bare function by the wrapper.
   ctx.renderCardInfo = () => {list.innerHTML = 'original-' + ctx.CI_TAB;};
   ctx.window = ctx;
@@ -201,6 +203,43 @@ async function test(name, run) {
   catch(error){failures++;console.error('FAIL: ' + name + '\n' + error.stack);}
 }
 (async () => {
+  await test('Chinese panel enriches exact set references without changing source grades, artwork or auction identity', async () => {
+    const cards=clone(cardSets),calls=[];cards['CN-TEST'].cards[0].rarity='';
+    const original=clone(cards['CN-TEST'].cards[0]);let filters;
+    const proof={kind:'external-explicit',references:[{provider:'Pikaqian',url:'https://pikaqian.com/cards/reviewed-cn-card',literal:'无标记'}]};
+    const rarity={...rarityFilters,async enrich(rows,options){calls.push(options);return rows.map((c,i)=>i?c:{...c,rarityReferenceUnlisted:true,rarityEvidence:proof});},
+      mount(node,config){filters=config;rarityFilters.mount(node,config);}};
+    const h=harness({cards,rarity,market:marketFixture()});await h.api.open('CN-TEST');
+    assert.equal(calls.length,1);assert.equal(calls[0].brand,'pokemon-cn');assert.equal(calls[0].setCode,'CN-TEST');
+    assert.equal(filters.cards[0].rarity,'');assert.equal(filters.cards[0].image,original.image);
+    assert.equal(filters.cards[0].number,original.number);assert.equal(filters.cards[0].sourceId,original.sourceId);
+    assert.match(h.node('cnCardGrid').innerHTML,/미표기 분류 · 외부 DB/);
+    filters.onChange(['reference-unlisted']);assert.match(h.node('cnCardCount').innerHTML,/필터 1장/);
+    assert.equal((h.node('cnCardGrid').innerHTML.match(/data-cn-card=/g)||[]).length,1);
+    h.api.detail(original.id);
+    assert.match(h.modal.innerHTML,/미표기 분류 · 외부 DB/);assert.match(h.modal.innerHTML,/Pikaqian: 无标记/);
+    assert.match(h.modal.innerHTML,/https:\/\/pikaqian.com\/cards\/reviewed-cn-card/);
+    assert.match(h.modal.innerHTML,/¥987.65 CNY/,'exact auction record remains attached to its original printing');
+    assert.match(h.modal.innerHTML,new RegExp(original.image.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.equal(cards['CN-TEST'].cards[0].rarity,'','caller-owned source stays unchanged');
+    await h.click({attributes:['data-cn-back']});assert.match(h.node('cnCardCount').innerHTML,/필터 1장/);
+    h.api.detail('CARD-02');assert.match(h.modal.innerHTML,/SAR/);assert.doesNotMatch(h.modal.innerHTML,/Pikaqian: 无标记/,'another printing has no inherited evidence');
+  });
+  await test('late Chinese rarity enrichment cannot reopen or overwrite a cancelled panel', async () => {
+    const gate=deferred(),started=deferred();
+    const h=harness({rarity:{...rarityFilters,async enrich(rows){started.resolve();await gate.promise;return rows;}}});
+    const opening=h.api.open('CN-TEST');await started.promise;
+    h.api.cancelPending();h.modal.innerHTML='<h3>다른 화면</h3>';gate.resolve();await opening;
+    assert.equal(h.modal.innerHTML,'<h3>다른 화면</h3>');
+  });
+  await test('a newer Chinese set stays active when an earlier rarity request finishes late', async () => {
+    const gate=deferred(),started=deferred(),calls=[];
+    const h=harness({rarity:{...rarityFilters,async enrich(rows,options){calls.push(options.setCode);if(options.setCode==='CN-TEST'){started.resolve();await gate.promise;}return rows;}}});
+    const first=h.api.open('CN-TEST');await started.promise;
+    await h.api.open('CN-SECOND');assert.match(h.modal.innerHTML,/두 번째 세트/);
+    gate.resolve();await first;assert.match(h.modal.innerHTML,/두 번째 세트/);assert.doesNotMatch(h.modal.innerHTML,/브레이브/);
+    assert.deepEqual(calls,['CN-TEST','CN-SECOND']);
+  });
   await test('catalog schema, duplicate codes, language and official-source validation', () => {
     const api = harness().api;
     assert.equal(api.prepare(clone(fixture)).sets.length, 2);

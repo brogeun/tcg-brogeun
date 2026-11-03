@@ -11,18 +11,21 @@
   const metadataURLs = {
     pokemon:'/data/collections/sources/pokemon-jp-rarity-metadata.json?v=20261101-rarity-recheck1',
     'pokemon-en':'/data/collections/sources/pokemon-en-rarity-recheck.json?v=20261101-rarity-deep1',
-    onepiece:'/data/collections/sources/onepiece-printing-metadata.json?v=20261029-source-rarity-1'
+    onepiece:'/data/collections/sources/onepiece-printing-metadata.json?v=20261029-source-rarity-1',
+    'pokemon-cn':'/data/collections/sources/pokemon-cn-rarity-crossdb.json?v=20261104-resume1'
   };
   const referenceURLs = {
-    pokemon:'/data/collections/sources/pokemon-jp-rarity-crossdb.json?v=20261101-crossdb1',
+    pokemon:'/data/collections/sources/pokemon-jp-rarity-crossdb.json?v=20261104-resume1',
     'pokemon-en':'/data/collections/sources/pokemon-en-rarity-crossdb.json?v=20261101-crossdb1'
   };
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
   const empty = /^(?:[-—?]|unknown|unconfirmed|미확인|확인\s*중)$/i;
   const referenceValue = ref => {
     const literal=ref.literal.normalize('NFKC').trim().replace(/\s+/g,' ');
-    return ({'Rare Secret':'Secret Rare','Holo Rare':'Rare Holo'})[literal] || literal;
+    return ({'Rare Secret':'Secret Rare','Holo Rare':'Rare Holo','R(レア)':'R'})[literal] || literal;
   };
+  // Explicit provider categories only; a blank field or dash is insufficient.
+  const unlistedReference = ref => ['None','表記無し(-)','表記無し','レアリティなし','レアリティ表記無し','无标记'].includes(ref.literal);
 
   function metadata(card) {
     if (card?.rarityNotApplicable === true) return {key:NOT_APPLICABLE, label:'해당 없음', state:'not-applicable'};
@@ -79,13 +82,14 @@
       // existing grade. A missing printed symbol alone is not such evidence.
       const state = metadata(card).state;
       if (state !== 'unknown' && state !== SOURCE_UNLISTED) return card;
-      if (brand === 'pokemon' || brand === 'pokemon-en') {
+      if (brand === 'pokemon' || brand === 'pokemon-en' || brand === 'pokemon-cn') {
         const source = String(card.url || card.sourceUrl || '');
         const entry = Object.prototype.hasOwnProperty.call(payload.cards,source) ? payload.cards[source] : null;
-        if (payload.schemaVersion !== 1 || payload.brand !== 'pokemon' || payload.language !== (brand==='pokemon-en'?'en':'ja') ||
+        if (payload.schemaVersion !== 1 || payload.brand !== 'pokemon' || payload.language !== (brand==='pokemon-cn'?'zh-CN':brand==='pokemon-en'?'en':'ja') ||
             !entry || entry.sourceUrl !== source ||
             String(entry.setCode).toUpperCase() !== String(setCode).toUpperCase() ||
             entry.number !== card.number || entry.name !== card.name) return card;
+        if (brand === 'pokemon-cn' && (entry.cardId !== card.id || entry.sourceId !== card.sourceId || entry.variant !== card.variant)) return card;
         const proof = entry.rarityEvidence;
         const publisherVerified = entry.rarityStatus === 'manufacturer-verified' &&
           proof?.schemaVersion === 1 && proof.value === entry.rarity && proof.exactEdition === true &&
@@ -99,7 +103,7 @@
           return {...card,rarityEvidence:proof};
         }
         if (external && entry.rarityStatus === 'reference-unlisted' && !entry.rarity && proof.value === 'None' &&
-            references.every(ref=>ref.literal==='None')) {
+            references.every(unlistedReference)) {
           return {...card,rarityOriginal:entry.rarityOriginal,raritySourceUnlisted:true,rarityReferenceUnlisted:true,
             rarityReferenceDisagreement:Array.isArray(proof.otherReferences)&&proof.otherReferences.length>0,rarityEvidence:proof};
         }
@@ -197,7 +201,7 @@
     const links=[...refs,...(proof?.otherReferences||[])].filter(ref=>/^https:\/\//.test(ref.url || '')).map(ref=>'<a href="'+esc(ref.url)+'" target="_blank" rel="noopener noreferrer">'+esc(ref.provider)+': '+esc(ref.literal)+'</a>');
     if (!links.length) return '';
     return '<p class="ci-rarity-evidence">'+(card.rarityDisclosureStatus==='verified-unprinted-rarity' ? '해당 상품의 희귀도 미표기 근거' : proof?.kind==='external-candidate' ? '외부 DB의 단일 후보 · 등급 적용 보류' : '외부 DB 분류 · 제조사 확정과 구분')+'<br>'+links.join(' · ')+
-      (proof?.kind==='external-explicit' ? proof.identityMethod==='named-world-championship-deck' ? '<br>같은 연도·선수·덱에서 이름이 유일하게 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호로 취급하지 않습니다. 실물 판본은 별도 확인이 필요합니다.' : '<br>동일 언어·세트·카드 번호 기준의 분류입니다. 세부 인쇄 판본 확인 여부는 별도입니다.' : '')+
+      (proof?.kind==='external-explicit' ? proof.identityMethod==='named-world-championship-deck' ? '<br>같은 연도·선수·덱에서 이름이 유일하게 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호로 취급하지 않습니다. 실물 판본은 별도 확인이 필요합니다.' : proof.identityMethod==='named-fixed-set-energy' ? '<br>같은 고정 덱에서 에너지 이름이 일치한 참고 분류입니다. 목록의 No. 번호는 인쇄 번호가 아니며, 실물 판본은 별도 확인이 필요합니다.' : '<br>동일 언어·세트·카드 번호 기준의 분류입니다. 세부 인쇄 판본 확인 여부는 별도입니다.' : '')+
       (card.rarityReferenceDisagreement ? '<br>자료별 값이 달라 동일 상품 TCGplayer 분류를 참고값으로 우선 표시합니다.' : '')+'</p>';
   }
 
@@ -228,7 +232,7 @@
       '<div class="ci-rarity-menu"><div class="ci-rarity-filters" role="group" aria-label="희귀도 복수 선택">'+
       button('', '전체', cards.length, all)+entries.map(item => button(item.key, item.label, item.count, keys.includes(item.key))).join('')+
       '</div>'+(entries.some(item=>item.state===SOURCE_UNLISTED) ? '<p class="ci-rarity-note">원문 등급 미표기는 무등급 확정이 아닙니다. 공식 등급이 확인되면 반영합니다.</p>' : '')+
-      (cards.some(card=>card.rarityEvidence?.kind==='external-explicit') ? '<p class="ci-rarity-note">외부 DB 분류를 포함합니다. ‘미표기 분류’는 DB의 명시값 None이며 제조사 무등급 확정과 다릅니다.</p>' : '')+
+      (cards.some(card=>card.rarityEvidence?.kind==='external-explicit') ? '<p class="ci-rarity-note">외부 DB 분류를 포함합니다. ‘미표기 분류’는 외부 자료에 명시된 분류이며 제조사 무등급 확정과 다릅니다.</p>' : '')+
       (cards.some(card=>card.rarityReferenceDisagreement) ? '<p class="ci-rarity-note">자료에 등급 차이가 있습니다. ‘참고’ 항목은 동일 상품 TCGplayer 분류를 우선 표시하며, 다른 자료의 값도 출처 목록에 보존합니다.</p>' : '')+
       referenceLinksHtml(cards,keys)+
       '<button type="button" class="ci-rarity-done" data-card-rarity-close>선택 완료</button></div></details>';

@@ -56,6 +56,8 @@ for(const kind of ['english','chinese','chiikawa','riftbound']){
     if(cards&&supplement){cards=R.merge(cards,supplement,{brand:'pokemon-en',setCode:s.code});const shard=supplement.setShards?.[s.code.toUpperCase()];
       if(shard)cards=R.merge(cards,shardPayload(shard,s.code),{brand:'pokemon-en',setCode:s.code});}
     if(cards&&kind==='english')cards=crossReference(cards,'pokemon-en',s.code);
+    if(cards&&kind==='chinese'&&exists('data/collections/sources/pokemon-cn-rarity-crossdb.json'))
+      cards=R.merge(cards,read('data/collections/sources/pokemon-cn-rarity-crossdb.json'),{brand:'pokemon-cn',setCode:s.code});
     return cards?[{code:s.code,...count(cards)}]:[];
   }));
 }

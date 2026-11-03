@@ -237,3 +237,83 @@ test('deep review keeps upstream blanks and exact identities while restoring onl
   }
   function intBetween(n,a,b){return Number(n)>=a&&Number(n)<=b;}
 });
+
+test('native no-symbol references require the exact Chinese printing and never replace a source or manufacturer grade',()=>{
+  const card={id:'CN-TEST:001:holo',sourceId:'source-1',sourceUrl:'https://pikaqian.com/cards/source-1',name:'皮卡丘',number:'001',variant:'holo',rarity:'',raritySourceUnlisted:true};
+  const entry={cardId:card.id,sourceId:card.sourceId,sourceUrl:card.sourceUrl,setCode:'CN-TEST',name:card.name,number:card.number,variant:card.variant,rarity:'',rarityOriginal:'',rarityStatus:'reference-unlisted',
+    rarityEvidence:{schemaVersion:1,kind:'external-explicit',exactCardIdentity:true,value:'None',physicalPrintingConfirmed:false,references:[{provider:'Cryst',url:'https://tcg.mik.moe/card/source-1',literal:'无标记'}]}};
+  const payload={schemaVersion:1,brand:'pokemon',language:'zh-CN',cards:{[card.sourceUrl]:entry}};
+  const merge=(c=card,p=payload,options={brand:'pokemon-cn',setCode:'CN-TEST'})=>R.merge([c],p,options)[0];
+  const result=merge();assert.equal(R.metadata(result).state,'reference-unlisted');assert.equal(result.rarity,'');assert(!result.rarityNotApplicable);assert.equal(result.rarityEvidence.physicalPrintingConfirmed,false);
+  for(const patch of [{id:'another-printing'},{sourceId:'other'},{sourceUrl:card.sourceUrl+'2'},{name:'different'},{number:'002'},{variant:'reverse'}])assert.deepEqual(merge({...card,...patch}),{...card,...patch});
+  for(const language of ['ja','en','zh-TW'])assert.deepEqual(merge(card,{...payload,language}),card);
+  assert.deepEqual(merge(card,payload,{brand:'pokemon-cn',setCode:'CN-OTHER'}),card);
+  assert.deepEqual(merge(card,payload,{brand:'pokemon',setCode:'CN-TEST'}),card);
+  for(const literal of ['None','表記無し(-)','表記無し','レアリティなし','レアリティ表記無し','无标记']){
+    const p={...payload,cards:{[card.sourceUrl]:{...entry,rarityEvidence:{...entry.rarityEvidence,references:[{...entry.rarityEvidence.references[0],literal}]}}}};
+    assert.equal(R.metadata(merge(card,p)).state,'reference-unlisted',literal);
+  }
+  for(const literal of ['', '-', '—', 'unknown']){
+    const p={...payload,cards:{[card.sourceUrl]:{...entry,rarityEvidence:{...entry.rarityEvidence,references:[{...entry.rarityEvidence.references[0],literal}]}}}};
+    assert.equal(R.metadata(merge(card,p)).state,'source-unlisted',literal);
+  }
+  const known={...card,rarity:'Pikachu Rare'};assert.deepEqual(merge(known),known);
+});
+
+test('resumed 246 classifications preserve real source cards while AR candidates, CN149 and mismatched English editions stay held',()=>{
+  const fs=require('node:fs'),path=require('node:path'),root=path.join(__dirname,'..'),read=f=>JSON.parse(fs.readFileSync(path.join(root,f)));
+  const review=read('data/collections/sources/rarity-resume-ja-cn-20261103.json'),bundle=read('data/collections/sources/pokemon-rarity-recheck/part-5000.json'),cn=read('data/collections/sources/pokemon-cn-rarity-crossdb.json');
+  const jpSets=new Map(read('data/japanese-catalog.json').sets.map(s=>[s.code.toUpperCase(),s]));let adopted=0,grades=0,candidates=0,ordinal=0;
+  for(const row of review.rows){
+    const set=jpSets.get(row.setCode.toUpperCase()),file=row.language==='zh-CN'?'data/chinese-sets/'+row.setCode+'.json':'data/cards-by-set/'+(set.fileCode||set.code)+'.json';
+    const matches=read(file).cards.filter(c=>(c.sourceUrl||c.url)===row.sourceUrl);assert.equal(matches.length,1,row.sourceUrl);const card=matches[0],before=JSON.stringify(card);
+    let payload=cn;if(row.language==='ja'){const member=bundle.sets[row.setCode.toUpperCase()];payload={...member,cards:Object.fromEntries(Object.entries(member.cards).map(([sourceUrl,c])=>[sourceUrl,{...c,sourceUrl,setCode:member.setCode}]))};}
+    const result=R.merge([card],payload,{brand:row.language==='zh-CN'?'pokemon-cn':'pokemon',setCode:row.setCode})[0];
+    assert.equal(JSON.stringify(card),before,'original source remains immutable');
+    for(const key of Object.keys(card).filter(k=>!['rarityOriginal','rarityEvidence','raritySourceUnlisted'].includes(k)))assert.deepEqual(result[key],card[key],row.sourceUrl+' '+key);
+    assert.equal(result.rarity,card.rarity);assert(!result.rarityNotApplicable);
+    if(row.proposedState==='reference-candidate'){
+      candidates++;assert.equal(R.metadata(result).state,R.metadata(card).state);assert.equal(result.rarityReferenceValue,undefined);
+      if(row.language==='zh-CN'){assert.equal(row.number,'149');assert.equal(payload.cards[row.sourceUrl],undefined);assert.deepEqual(result,card);}
+      else{assert(['041/040','042/040'].includes(row.number));assert.equal(result.rarityEvidence.kind,'external-candidate');assert.match(R.evidenceHtml(result),/등급 적용 보류/);}
+    }else{
+      adopted++;assert.equal(R.metadata(result).state,row.proposedState);assert.equal(result.rarityEvidence.physicalPrintingConfirmed,false);
+      if(row.proposedState==='reference-grade'){grades++;assert.equal(row.setCode,'S10b');assert.equal(row.number,'053/071');assert.equal(result.rarityReferenceValue,'R');assert.equal(result.rarityEvidence.references[0].literal,'R(レア)');}
+      if(row.catalogueNumberIsOrdinal){ordinal++;assert.match(row.number,/^No\. 04[5-9]$/);assert.equal(result.rarityEvidence.identityMethod,'named-fixed-set-energy');assert.match(R.evidenceHtml(result),/목록의 No\. 번호는 인쇄 번호가 아니며/);}
+    }
+  }
+  assert.equal(adopted,246);assert.equal(grades,1);assert.equal(candidates,3);assert.equal(ordinal,5);assert.equal(Object.keys(cn.cards).length,37);
+  const en=read('data/collections/sources/rarity-resume-en-20261103.json'),overlay=read('data/collections/sources/rarity-resume-en-20261103-overlay.json');
+  assert.equal(en.recoveredReferenceGrade,0);assert.equal(en.withheldEditionMismatch,26);assert.equal(en.rows.length,26);assert(en.rows.every(row=>row.referenceStatus==='withheld-edition-mismatch'));assert.deepEqual(overlay.cards,{});assert.deepEqual(overlay.sets,{});
+});
+
+test('actual runtime enrichment accounts for all 3381 original rows and preserves their source grades, artwork and quotes',async()=>{
+  const fs=require('node:fs'),path=require('node:path'),zlib=require('node:zlib'),vm=require('node:vm'),root=path.join(__dirname,'..');
+  const cached=new Map(),read=f=>{if(!cached.has(f))cached.set(f,JSON.parse(fs.readFileSync(path.join(root,f))));return cached.get(f);};
+  const directory='data/collections/sources/',archive=f=>JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(root,directory,f))));
+  const targets=fs.readdirSync(path.join(root,directory)).filter(f=>/^rarity-crossdb-20261101-(ja|en)-\d+\.json.gz$/.test(f)).flatMap(f=>archive(f).rows);
+  const others=archive('rarity-crossdb-20261101-cn-ws-0000.json.gz').rows[0].proposals;
+  targets.push(...others.filter(row=>row.language==='zh-CN').map(row=>({...row,sourceUrl:row.sourceFields.sourceUrl})));
+  const runtime={module:{exports:{}},AbortController,setTimeout,clearTimeout};vm.runInNewContext(fs.readFileSync(path.join(root,'assets/card-rarity-filters.js'),'utf8'),runtime);const actual=runtime.module.exports;
+  const jpSets=new Map(read('data/japanese-catalog.json').sets.map(s=>[s.code.toUpperCase(),s])),counts={},remaining={ja:0,en:0,'zh-CN':0};
+  const fetchImpl=async url=>{const f=url.split('?')[0].replace(/^\//,'');assert(f.startsWith(directory),'runtime metadata stays local and credential-free');return fs.existsSync(path.join(root,f))?{ok:true,json:async()=>read(f)}:{ok:false};};
+  for(const row of targets){
+    const set=jpSets.get(row.setCode.toUpperCase()),file=row.language==='ja'?'data/cards-by-set/'+(set.fileCode||set.code)+'.json':row.language==='en'?'data/english-sets/'+row.setCode+'.json':'data/chinese-sets/'+row.setCode+'.json';
+    const matches=read(file).cards.filter(c=>(c.url||c.sourceUrl)===row.sourceUrl);assert.equal(matches.length,1,row.sourceUrl);const card=matches[0],before=JSON.stringify(card);assert.equal(card.number,row.number);
+    const brand=row.language==='ja'?'pokemon':row.language==='en'?'pokemon-en':'pokemon-cn',result=(await actual.enrich([card],{brand,setCode:row.setCode,fetchImpl}))[0],state=actual.metadata(result).state;
+    counts[state]=(counts[state]||0)+1;if(['source-unlisted','unknown','reference-conflict'].includes(state))remaining[row.language]++;
+    assert.equal(JSON.stringify(card),before);
+    for(const key of Object.keys(card).filter(k=>!['rarityOriginal','rarityEvidence','raritySourceUnlisted'].includes(k)))assert.deepEqual(result[key],card[key],row.sourceUrl+' '+key);
+  }
+  const disclosures=read(directory+'rarity-disclosures.json').cards.weiss_schwarz,ids=new Set(Object.keys(disclosures));let documented=0;
+  for(const file of fs.readdirSync(path.join(root,'data/tcg-card-info/weiss_schwarz')))for(const card of read('data/tcg-card-info/weiss_schwarz/'+file).cards||[]){
+    if(!ids.has(String(card.snkrdunkId||card.id)))continue;
+    assert.equal(actual.metadata(card).state,'documented-unprinted');assert.match(actual.evidenceHtml(card),/希|レアリティ|rarity/i);assert.equal(card.rarity,'');documented++;
+  }
+  assert.equal(documented,9);counts['documented-unprinted']=documented;
+  assert.deepEqual(counts,{'reference-grade':852,'reference-unlisted':1614,'reference-conflict':14,'source-unlisted':892,'documented-unprinted':9});
+  assert.equal(Object.values(counts).reduce((a,b)=>a+b,0),3381);assert.deepEqual(remaining,{ja:7,en:898,'zh-CN':1});
+});
+
+// Detail provenance uses the same release gate as its source-rarity contract.
+require('./test_contained_rarity_details.cjs');

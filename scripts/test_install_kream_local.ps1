@@ -61,7 +61,7 @@ $kreamProcessInfo.UseShellExecute = $false
 $kreamProcessInfo.RedirectStandardOutput = $true
 $kreamProcessInfo.RedirectStandardError = $true
 $kreamProcessInfo.CreateNoWindow = $true
-$kreamProcessInfo.Arguments = '-c "import json,sys;print(json.dumps(sys.argv[1:]))" ' + $kreamQuoted
+$kreamProcessInfo.Arguments = '-c "import json,sys;print(json.dumps(dict(arguments=sys.argv[1:])))" ' + $kreamQuoted
 $kreamProbeProcess = [Diagnostics.Process]::Start($kreamProcessInfo)
 if (-not $kreamProbeProcess.WaitForExit(10000)) {
     $kreamProbeProcess.Kill()
@@ -69,8 +69,13 @@ if (-not $kreamProbeProcess.WaitForExit(10000)) {
 }
 $kreamProbeOutput = $kreamProbeProcess.StandardOutput.ReadToEnd()
 Assert-KreamCheck ($kreamProbeProcess.ExitCode -eq 0) 'The Python argument probe failed.'
-$kreamActual = @($kreamProbeOutput | ConvertFrom-Json)
-Assert-KreamCheck ($kreamActual.Count -eq $kreamExpected.Count) 'Task arguments changed count.'
+# ConvertFrom-Json enumerates a top-level JSON array differently in Windows
+# PowerShell 5.1 and PowerShell 7. Keep the array inside one JSON object instead
+# of wrapping the pipeline output and accidentally creating a nested array.
+$kreamProbeResult = ConvertFrom-Json -InputObject $kreamProbeOutput
+$kreamActual = $kreamProbeResult.arguments
+Write-Host ('Synthetic task argument probe: count={0}; data={1}' -f $kreamActual.Count, $kreamProbeOutput.Trim())
+Assert-KreamCheck ($kreamActual.Count -eq $kreamExpected.Count) ('Task arguments changed count: expected={0}; actual={1}.' -f $kreamExpected.Count, $kreamActual.Count)
 for ($kreamIndex = 0; $kreamIndex -lt $kreamExpected.Count; $kreamIndex++) {
     Assert-KreamCheck ($kreamActual[$kreamIndex] -ceq $kreamExpected[$kreamIndex]) 'Task argument quoting changed a path.'
 }

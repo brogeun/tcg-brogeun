@@ -34,6 +34,7 @@ jobs:
       - name: Install Windows timezone database
         run: python -m pip install tzdata
       - name: Validate original data and local collection boundaries
+        shell: bash
         run: |
           python -m unittest scripts.test_kream_promos scripts.test_setup_kream_session scripts.test_kream_session_storage scripts.test_run_kream_local scripts.test_import_kream_local
           python scripts/collect_kream_promos.py --validate-only

@@ -122,7 +122,7 @@ eval(data.script);
 process.stdout.write(JSON.stringify({values: Object.fromEntries(values), injected: globalThis.injected === true}));
 '''
         result = subprocess.run([shutil.which('node'), '-e', harness],
-                                input=json.dumps({'script': script}), text=True,
+                                input=json.dumps({'script': script}), text=True, encoding='utf-8',
                                 capture_output=True, check=True, timeout=5)
         actual = json.loads(result.stdout)
         self.assertEqual(actual['values'], entries['https://kream.co.kr'])
@@ -151,7 +151,7 @@ process.stdout.write(JSON.stringify({
 }));
 '''
         result = subprocess.run([shutil.which('node'), '-e', harness],
-                                input=json.dumps({'script': script}), text=True,
+                                input=json.dumps({'script': script}), text=True, encoding='utf-8',
                                 capture_output=True, check=True, timeout=5)
         actual = json.loads(result.stdout)
         self.assertEqual(actual['first'], {'token': 'rotated', 'new-key': 'seed'})
@@ -266,3 +266,4 @@ class DrawerOpeningTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

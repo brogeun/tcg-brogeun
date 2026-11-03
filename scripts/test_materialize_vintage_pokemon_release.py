@@ -1,6 +1,7 @@
 """Offline reproduction, identity preservation and real Git publication boundaries."""
 from __future__ import annotations
 
+import concurrent.futures
 import copy
 import gzip
 import hashlib
@@ -57,6 +58,32 @@ class Fixture:
         path.parent.mkdir(parents=True, exist_ok=True)
         with gzip.open(path, 'wt', encoding='utf-8') as stream:
             json.dump(self.review, stream)
+
+
+class PacingClock:
+    def __init__(self):
+        self.now = 0.0
+
+    def monotonic(self):
+        return self.now
+
+
+class PacingStop:
+    def __init__(self, clock):
+        self.clock = clock
+        self.event = threading.Event()
+        self.waits = []
+
+    def is_set(self):
+        return self.event.is_set()
+
+    def set(self):
+        self.event.set()
+
+    def wait(self, delay):
+        self.waits.append(delay)
+        self.clock.now += delay
+        return self.event.is_set()
 
 
 class MaterializationTests(unittest.TestCase):
@@ -239,6 +266,144 @@ class MaterializationTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'circuit is open'):
                         target.download_asset(self.fixture.row, stop)
                     self.assertEqual(open_url.call_count, 1)
+
+    def test_shared_pacer_spaces_four_worker_request_starts(self):
+        clock = PacingClock()
+        stop = PacingStop(clock)
+        pacer = target.RequestPacer()
+        barrier = threading.Barrier(4)
+        starts = []
+        response = object()
+        request = target.urllib.request.Request(self.fixture.row['imageSourceUrl'])
+
+        def open_url(request, timeout):
+            starts.append(clock.monotonic())
+            self.assertEqual(timeout, 30)
+            return response
+
+        def worker():
+            barrier.wait(timeout=5)
+            return pacer.open(request, stop)
+
+        with patch.object(target.time, 'monotonic', side_effect=clock.monotonic):
+            with patch.object(target.urllib.request, 'urlopen', side_effect=open_url):
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+                    results = list(pool.map(lambda _: worker(), range(4)))
+        self.assertEqual(results, [response] * 4)
+        self.assertEqual(starts, [0.0, 0.25, 0.5, 0.75])
+        self.assertEqual(stop.waits, [0.25] * 3)
+
+    def test_every_transient_retry_uses_the_same_request_pacer(self):
+        clock = PacingClock()
+        stop = PacingStop(clock)
+        pacer = target.RequestPacer()
+        starts, addresses, agents = [], [], []
+        response = io.BytesIO(self.fixture.body)
+        response.url = self.fixture.row['imageSourceUrl']
+        response.headers = {'Content-Type': 'image/webp'}
+
+        def open_url(request, timeout):
+            starts.append(clock.monotonic())
+            addresses.append(request.full_url)
+            agents.append(request.get_header('User-agent'))
+            if len(starts) < 3:
+                raise urllib.error.HTTPError(request.full_url, 503, 'temporary', {}, None)
+            return response
+
+        with patch.object(target.time, 'monotonic', side_effect=clock.monotonic):
+            with patch.object(target.time, 'sleep') as backoff:
+                with patch.object(target.urllib.request, 'urlopen', side_effect=open_url):
+                    body = target.download_asset(self.fixture.row, stop, pacer)
+        self.assertEqual(body, self.fixture.body)
+        self.assertEqual(starts, [0.0, 0.25, 0.5])
+        self.assertEqual(addresses, [self.fixture.row['imageSourceUrl']] * 3)
+        self.assertEqual(agents, ['TCGHUB reviewed artwork release/1.0'] * 3)
+        self.assertEqual([call.args[0] for call in backoff.call_args_list], [0.5, 1.0])
+        self.assertFalse(stop.is_set())
+
+    def test_pacing_wait_and_queued_worker_stop_without_new_requests(self):
+        clock = PacingClock()
+        entered = threading.Event()
+
+        class InterruptedStop(PacingStop):
+            def wait(self, delay):
+                self.waits.append(delay)
+                entered.set()
+                return self.event.wait(timeout=5)
+
+        stop = InterruptedStop(clock)
+        pacer = target.RequestPacer()
+        request = target.urllib.request.Request(self.fixture.row['imageSourceUrl'])
+        with patch.object(target.time, 'monotonic', side_effect=clock.monotonic):
+            with patch.object(target.urllib.request, 'urlopen', return_value=object()) as open_url:
+                pacer.open(request, stop)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                    waiting = pool.submit(pacer.open, request, stop)
+                    queued = None
+                    try:
+                        self.assertTrue(entered.wait(timeout=5))
+                        queued = pool.submit(pacer.open, request, stop)
+                    finally:
+                        stop.set()
+                    for future in (waiting, queued):
+                        with self.assertRaisesRegex(RuntimeError, 'circuit is open'):
+                            future.result(timeout=5)
+                self.assertEqual(open_url.call_count, 1)
+        self.assertEqual(stop.waits, [0.25])
+
+    def test_denial_closes_circuit_before_other_workers_can_start(self):
+        for status in (403, 429):
+            with self.subTest(status=status):
+                stop = threading.Event()
+                pacer = target.RequestPacer()
+                barrier = threading.Barrier(4)
+                request = target.urllib.request.Request(self.fixture.row['imageSourceUrl'])
+                error = urllib.error.HTTPError(request.full_url, status, 'blocked', {}, None)
+
+                def worker():
+                    barrier.wait(timeout=5)
+                    try:
+                        pacer.open(request, stop)
+                    except (RuntimeError, urllib.error.HTTPError) as failure:
+                        return type(failure)
+                    raise AssertionError('Denied source unexpectedly completed')
+
+                with patch.object(target.urllib.request, 'urlopen', side_effect=error) as open_url:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+                        failures = list(pool.map(lambda _: worker(), range(4)))
+                self.assertEqual(failures.count(urllib.error.HTTPError), 1)
+                self.assertEqual(failures.count(RuntimeError), 3)
+                self.assertTrue(stop.is_set())
+                self.assertEqual(open_url.call_count, 1)
+
+    def test_materialization_shares_one_pacer_for_all_downloads(self):
+        rows = []
+        cards = []
+        for ident in ('29518', '29519', '29520'):
+            row = {**self.fixture.row, 'sourceId': ident,
+                   'sourceUrl': self.fixture.row['sourceUrl'].replace('29518', ident),
+                   'localImage': self.fixture.row['localImage'].replace('29518', ident)}
+            rows.append(row)
+            cards.append({**self.fixture.card, 'url': row['sourceUrl']})
+        self.fixture.review['images'] = rows
+        self.fixture.save_review()
+        self.fixture.write('data/cards-by-set/Neo1.json',
+                           {'brand': 'pokemon', 'code': 'Neo1', 'cards': cards})
+        self.fixture.write(target.CATALOGUE, {'cards': [
+            {**card, 'boxCode': 'Neo1', 'sourceUrl': card['url']} for card in cards]})
+        seen = []
+        seen_lock = threading.Lock()
+
+        def download(row, stop, pacer):
+            with seen_lock:
+                seen.append((stop, pacer))
+            return self.fixture.body
+
+        with patch.object(target, 'download_asset', side_effect=download):
+            target.run(self.root, workers=4)
+        self.assertEqual(len(seen), 3)
+        self.assertIsInstance(seen[0][1], target.RequestPacer)
+        self.assertTrue(all(stop is seen[0][0] and pacer is seen[0][1] for stop, pacer in seen))
 
     def test_only_exact_officially_reviewed_pt1_metadata_correction_is_applied(self):
         row = {**self.fixture.row, 'setCode': 'Pt1', 'sourceId': '26775',

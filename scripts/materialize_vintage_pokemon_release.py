@@ -29,6 +29,7 @@ MANIFEST = 'data/pokemon-vintage-image-repairs.json'
 CATALOGUE = 'data/japanese-catalog.json'
 MAX_IMAGE_BYTES = 3_000_000
 MAX_REVIEW_BYTES = 20_000_000
+MIN_REQUEST_INTERVAL = 0.25
 METHODS = {'exact-source-page-canonical-id-and-title-set',
            'exact-source-page-canonical-id-and-image-alt',
            'exact-existing-pooka-source-image-card-id'}
@@ -302,17 +303,51 @@ def release_files(root, review=None):
     return sorted(outputs)
 
 
-def download_asset(row, stop):
+class RequestPacer:
+    """Share conservative request starts across the complete worker pool."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._last_started = None
+
+    def open(self, request, stop):
+        # Keep header acquisition inside the gate so a delayed worker cannot
+        # resume alongside another permitted request and create a new burst.
+        # Body reads and byte/hash validation remain outside this lock.
+        with self._lock:
+            if stop.is_set():
+                raise RuntimeError('Source request circuit is open')
+            while self._last_started is not None:
+                delay = self._last_started + MIN_REQUEST_INTERVAL - time.monotonic()
+                if delay <= 0:
+                    break
+                if stop.wait(delay):
+                    raise RuntimeError('Source request circuit is open')
+            if stop.is_set():
+                raise RuntimeError('Source request circuit is open')
+            self._last_started = time.monotonic()
+            try:
+                return urllib.request.urlopen(request, timeout=30)
+            except urllib.error.HTTPError as error:
+                # Open the existing denial circuit before releasing queued
+                # workers. A denial is never retried or routed elsewhere.
+                if error.code in (403, 429):
+                    stop.set()
+                raise
+
+
+def download_asset(row, stop, pacer=None):
     if stop.is_set():
         raise RuntimeError('Source request circuit is open')
     address = row['imageSourceUrl']
     expected = urllib.parse.urlsplit(address).hostname
+    pacer = pacer or RequestPacer()
     for attempt in range(3):
         if stop.is_set():
             raise RuntimeError('Source request circuit is open')
         request = urllib.request.Request(address, headers={'User-Agent': 'TCGHUB reviewed artwork release/1.0'})
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with pacer.open(request, stop) as response:
                 final = urllib.parse.urlsplit(response.url)
                 if final.scheme != 'https' or final.hostname != expected or final.username or final.password:
                     raise ValueError('Artwork redirected outside its reviewed source')
@@ -325,6 +360,7 @@ def download_asset(row, stop):
         except urllib.error.HTTPError as error:
             if error.code in (403, 429):
                 stop.set()
+                error.add_note('Reviewed artwork source denied: ' + str(row.get('setCode', 'unknown-set')) + '/' + str(row.get('sourceId', 'unknown-card')))
                 raise
             if error.code not in (500, 502, 503, 504) or attempt == 2:
                 raise
@@ -345,6 +381,7 @@ def run(root, base=None, validate_only=False, workers=4):
     # changing a working file. New rarity or metadata fields remain in this copy.
     documents = patch_documents(root, review)
     stop = threading.Event()
+    pacer = RequestPacer()
     missing = []
     for row in review['images']:
         path = safe_path(root, row['localImage'][1:])
@@ -358,7 +395,7 @@ def run(root, base=None, validate_only=False, workers=4):
     with tempfile.TemporaryDirectory(prefix='pokemon-vintage-release-') as temporary:
         stage = Path(temporary)
         def collect(row):
-            body = download_asset(row, stop)
+            body = download_asset(row, stop, pacer)
             path = stage / row['localImage'][1:]
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(body)

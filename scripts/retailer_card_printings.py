@@ -83,11 +83,14 @@ def augment_retailer(root, manifest, outputs):
         if not rows:
             continue
         key = key_for('retailer-printings', 'weiss_schwarz', pid)
+        cover = next((row for row in rows if row.get('image')), None)
         entry = {'id': key, 'name': parent['name'] + ' · 실물 포일 판본',
                  'sourceGame': 'weiss_schwarz', 'referenceNativeProductId': pid,
                  'language': 'ja', 'coverage': 'verified-retailer-printings',
                  'officialComplete': False, 'inclusionScope': 'related-printing',
-                 'cardCount': len(rows), 'file': '/data/tcg-card-info/weiss_schwarz/' + key + '.json'}
+                 'cardCount': len(rows), 'file': '/data/tcg-card-info/weiss_schwarz/' + key + '.json',
+                 'coverType': 'card', 'image': cover['image'] if cover else '',
+                 'coverProductId': cover['id'] if cover else ''}
         for row in rows:
             validate_retailer_card(row, entry)
         payload = {'schemaVersion': 1, 'game': 'weiss_schwarz', 'sourceGame': 'weiss_schwarz',

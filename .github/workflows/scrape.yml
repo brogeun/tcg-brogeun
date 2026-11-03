@@ -103,6 +103,8 @@ jobs:
 
       - name: Validate security, navigation and price regression boundaries
         run: |
+          node --test scripts/test_english_set_images.cjs scripts/test_japanese_set_artwork.cjs scripts/test_set_artwork_release.cjs
+          python -B -m unittest discover -s scripts -p test_retailer_printing_covers.py
           node --test scripts/audit/*.test.mjs scripts/audit/*.test.cjs
           node scripts/test_admin_auth.mjs
           node --test scripts/test_public_board_loading.cjs scripts/test_search_shard_cache.cjs scripts/test_home_startup.cjs scripts/test_market_chart_startup.cjs
@@ -247,6 +249,7 @@ jobs:
       - name: Build and verify the compact search snapshot from this deployment
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: |
+          node scripts/build_english_set_images.cjs
           node scripts/build_search_snapshot.cjs
           node scripts/build_search_fastpath.cjs
           node scripts/build_portfolio_quotes.cjs

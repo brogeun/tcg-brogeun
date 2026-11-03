@@ -120,14 +120,14 @@ self.addEventListener('fetch', event => {
   }
 
   // Card names and catalogue modules must use the same current release.
-  if (url.origin === location.origin && ['/assets/card-catalog-repairs.js', '/assets/japanese-card-names.js', '/assets/japanese-catalog.js', '/assets/search-modal.js', '/assets/contained-card-match.js', '/assets/contained-card-market.js', '/assets/price-expanded.js', '/assets/price-expanded.css'].includes(url.pathname)) {
+  if (url.origin === location.origin && ['/assets/card-catalog-repairs.js', '/assets/japanese-card-names.js', '/assets/japanese-set-artwork.js', '/assets/japanese-catalog.js', '/assets/app-route-loader.js', '/assets/search-modal.js', '/assets/contained-card-match.js', '/assets/contained-card-market.js', '/assets/price-expanded.js', '/assets/price-expanded.css'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }
 
   // /data/*.json — stale-while-revalidate
   // Search labels and printing identities form one current catalogue release.
-  if (url.origin === location.origin && (['/data/onepiece-official-search.json', '/data/onepiece-reviewed-promo-links.json', '/data/onepiece-reviewed-fallback-links.json', '/data/onepiece-official-manifest.json', '/data/contained-card-market-links.json', '/data/onepiece-card-overrides.json', '/data/card-catalog-repairs.json', '/data/japanese-catalog.json', '/data/japanese-card-names-ko.json', '/data/chinese-sets/CN-30TH.json'].includes(url.pathname) || url.pathname.startsWith('/data/cards-by-set/'))) {
+  if (url.origin === location.origin && (['/data/english-set-images.json', '/data/onepiece-official-search.json', '/data/onepiece-reviewed-promo-links.json', '/data/onepiece-reviewed-fallback-links.json', '/data/onepiece-official-manifest.json', '/data/contained-card-market-links.json', '/data/onepiece-card-overrides.json', '/data/card-catalog-repairs.json', '/data/japanese-catalog.json', '/data/japanese-card-names-ko.json', '/data/chinese-sets/CN-30TH.json'].includes(url.pathname) || url.pathname.startsWith('/data/cards-by-set/'))) {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }

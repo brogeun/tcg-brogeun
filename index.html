@@ -2516,7 +2516,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261101-picker1">
 <script src="/assets/card-rarity-filters.js?v=20261104-rarity2"></script>
-<script src="/assets/japanese-catalog.js?v=20261104-vintage1"></script>
+<script src="/assets/japanese-set-artwork.js?v=20261104-box-images1"></script>
+<script src="/assets/japanese-catalog.js?v=20261104-box-images1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20261104-modular1"></script>
@@ -2528,7 +2529,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
 <script src="/assets/card-search-client.js?v=20261104-search3"></script>
-<script src="/assets/app-route-loader.js?v=20261104-modular1"></script>
+<script src="/assets/app-route-loader.js?v=20261104-box-images1"></script>
 <script src="/assets/portfolio-summary-client.js?v=20261104-modular1"></script>
 <script src="/assets/card-thumbnails.js?v=20261104-modular1"></script>
 <script>
@@ -6919,7 +6920,9 @@ function renderCardInfo() {
     const imgSrcBase = s.image || (isLegacyBox2
       ? `images/box2/${s.code}.webp`
       : isNewWebp ? `images/box/${webpName}.webp` : `images/sets/${s.code}.jpg`);
-    const imgSrc = s.imageVersion ? `${imgSrcBase}?v=${s.imageVersion}` : imgSrcBase;
+    const reviewedImgSrc = window.JapaneseSetArtwork?.image(s, imgSrcBase) || imgSrcBase;
+    const imgSrc = s.imageVersion ? `${reviewedImgSrc}?v=${s.imageVersion}` : reviewedImgSrc;
+    const packageCaption = window.JapaneseSetArtwork?.kind(s) === 'pack' ? ' · 팩 소개 이미지' : '';
     const imgClass = (isNewWebp || isLegacyBox2) ? 'set-tile-img is-webp' : 'set-tile-img';
     const imgStyle = s.imageScale ? `style="transform:scale(${s.imageScale})"` : '';
     // onerror: 회색 background + 조용히 hide
@@ -6933,7 +6936,7 @@ function renderCardInfo() {
           <div class="set-tile-body">
             <div class="set-tile-code">${s.code}</div>
             <div class="set-tile-name" title="${safeName}">${safeName}</div>
-            <div class="set-tile-meta">발매일: ${escapeHtml(s.release || '미정')} · 연동 준비 중</div>
+            <div class="set-tile-meta">발매일: ${escapeHtml(s.release || '미정')} · 연동 준비 중${packageCaption}</div>
           </div>
         </div>`;
     }
@@ -6945,7 +6948,7 @@ function renderCardInfo() {
         <div class="set-tile-body">
           <div class="set-tile-code">${s.code}</div>
           <div class="set-tile-name" title="${safeName}">${safeName}</div>
-          <div class="set-tile-meta">${s.release ? `발매일: ${escapeHtml(s.release)}` : s.officialCardCount ? `수록 카드 ${Number(s.officialCardCount).toLocaleString()}종` : '발매일 정보 확인 중'}</div>
+          <div class="set-tile-meta">${s.release ? `발매일: ${escapeHtml(s.release)}` : s.officialCardCount ? `수록 카드 ${Number(s.officialCardCount).toLocaleString()}종` : '발매일 정보 확인 중'}${packageCaption}</div>
         </div>
       </div>`;
   }).join('');

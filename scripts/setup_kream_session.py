@@ -11,9 +11,9 @@ import subprocess
 import sys
 import threading
 
-try:
-    from scripts.collect_kream_promos import CollectionError, browser_context_for_session, open_history_drawer, open_product, require_login_access, session_state
-except ModuleNotFoundError:
+if __package__:
+    from .collect_kream_promos import CollectionError, browser_context_for_session, open_history_drawer, open_product, require_login_access, session_state
+else:
     from collect_kream_promos import CollectionError, browser_context_for_session, open_history_drawer, open_product, require_login_access, session_state
 
 REPO = 'brogeun/tcg-brogeun'
@@ -196,4 +196,5 @@ def main(argv=None):
 
 if __name__ == '__main__':
     sys.exit(main())
+
 

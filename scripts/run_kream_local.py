@@ -19,10 +19,14 @@ import subprocess
 import tempfile
 import uuid
 
-try:
-    from scripts import collect_kream_promos as collector
-    from scripts.setup_kream_session import wait_for_owner_login, verify_full_history_access
-except ModuleNotFoundError:
+if __package__:
+    # Repository/module execution: resolve siblings in this package only.
+    from . import collect_kream_promos as collector
+    from .setup_kream_session import wait_for_owner_login, verify_full_history_access
+else:
+    # The installer launches this file directly from its three-file release.
+    # Its own directory is sys.path[0]; an unrelated package named "scripts"
+    # elsewhere on the PC must not participate in these imports.
     import collect_kream_promos as collector
     from setup_kream_session import wait_for_owner_login, verify_full_history_access
 

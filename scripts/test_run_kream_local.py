@@ -6,7 +6,11 @@ from datetime import datetime
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -174,6 +178,67 @@ class LocalCollectorTests(unittest.TestCase):
         raw = '2026-11-03T20:00:00Z'
         self.assertTrue(local.already_successful_today(
             {'last_success_at': raw}, {'status': 'success', 'last_success_at': raw}, now))
+
+
+class StandaloneReleaseImportTests(unittest.TestCase):
+    def release(self, root):
+        release = root / 'installed release' / 'scripts'
+        release.mkdir(parents=True)
+        source = Path(__file__).resolve().parent
+        for name in ('run_kream_local.py', 'setup_kream_session.py', 'collect_kream_promos.py'):
+            shutil.copyfile(source / name, release / name)
+        return release
+
+    def test_direct_three_file_release_ignores_unrelated_scripts_packages(self):
+        for regular_package in (False, True):
+            with self.subTest(regular_package=regular_package), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                release = self.release(root)
+                foreign = root / 'unrelated modules'
+                scripts = foreign / 'scripts'
+                scripts.mkdir(parents=True)
+                if regular_package:
+                    (scripts / '__init__.py').write_text('raise RuntimeError("UNRELATED-SCRIPTS-PACKAGE")\n')
+                else:
+                    (scripts / 'unrelated.py').write_text('UNRELATED = True\n')
+                outside = root / 'working directory'
+                outside.mkdir()
+                environment = dict(os.environ, PYTHONPATH=str(foreign))
+                for name in ('run_kream_local.py', 'setup_kream_session.py'):
+                    result = subprocess.run([sys.executable, str(release / name), '--help'],
+                                            cwd=outside, env=environment, capture_output=True,
+                                            text=True, encoding='utf-8', errors='replace', timeout=15)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn('usage:', result.stdout)
+                    self.assertNotIn('UNRELATED-SCRIPTS-PACKAGE', result.stderr)
+                # Exercise real startup beyond argparse without opening a browser
+                # or making a network request; the missing CLI has a safe code.
+                result = subprocess.run([
+                    sys.executable, str(release / 'run_kream_local.py'), '--run',
+                    '--state-root', str(root / 'state'),
+                    '--gh-path', str(root / 'missing-gh-executable')],
+                    cwd=outside, env=environment, capture_output=True, text=True,
+                    encoding='utf-8', errors='replace', timeout=15)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(json.loads(result.stdout.splitlines()[-1])['code'], 'github_cli_missing')
+                self.assertNotIn('Traceback', result.stderr)
+
+    def test_repository_package_imports_keep_shared_module_identity(self):
+        repository = Path(__file__).resolve().parents[1]
+        code = (
+            'from scripts import run_kream_local as runner; '
+            'from scripts import collect_kream_promos as collector; '
+            'from scripts import setup_kream_session as setup; '
+            'assert runner.collector is collector; '
+            'assert runner.wait_for_owner_login is setup.wait_for_owner_login; '
+            'assert setup.session_state is collector.session_state; '
+            'print("repository_import_ok")'
+        )
+        result = subprocess.run([sys.executable, '-c', code], cwd=repository,
+                                env=dict(os.environ, PYTHONPATH=''), capture_output=True,
+                                text=True, encoding='utf-8', errors='replace', timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), 'repository_import_ok')
 
 
 if __name__ == '__main__':

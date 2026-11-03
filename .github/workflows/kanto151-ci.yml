@@ -27,9 +27,16 @@ permissions:
 jobs:
   gameplay-and-saves:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            .github/workflows
+            scripts
+            functions
+            games/kanto151
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

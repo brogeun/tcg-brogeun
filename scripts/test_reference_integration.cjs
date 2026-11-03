@@ -3,17 +3,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const {assetGraph}=require('./helpers/app_asset_graph.cjs');
 const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 
 test('registry and reference helpers load before their detail consumers', () => {
   const html = read('index.html');
-  const pos = name => html.indexOf('src="/assets/' + name);
-  assert(pos('game-registry.js') >= 0);
-  assert(pos('market-references.js') > pos('game-registry.js'));
-  for (const consumer of ['price-expanded.js', 'english-catalog.js']) {
-    assert(pos(consumer) > pos('market-references.js'), consumer);
-  }
+  const assets=assetGraph(root,{html});
+  assets.assertScript('game-registry.js');
+  assets.assertOrder('game-registry.js','market-references.js');
+  assets.assertOrder('market-references.js','price-expanded.js');
+  assets.assertOrder('market-references.js','english-catalog.js','cardinfo');
   assert(!html.includes('href="/market-references"'));
   assert(!html.includes('mr-game-shortcuts'));
   assert.match(html, /data-ci="nikke"/);

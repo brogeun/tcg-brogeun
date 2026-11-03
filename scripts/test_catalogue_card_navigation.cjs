@@ -6,12 +6,12 @@ const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
 const html=()=>fs.readFileSync(process.env.TCG_CATALOGUE_INDEX||path.join(root,'index.html'),'utf8');
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function between(source,start,end){const a=source.indexOf(start),b=source.indexOf(end,a);assert(a>=0&&b>a,'locate real source: '+start);return source.slice(a,b);}
-function navigation({pokemon=[],onepiece=[],ensureManifest=async()=>{},registerSets=sets=>sets}={}){
+function navigation({pokemon=[],onepiece=[],ensureManifest=async()=>{},registerSets=sets=>sets,prepareRoute=async()=>({ready:true})}={}){
   const opened=[],routes=[],closed=[],tabs=['pokemon','onepiece'].map(brand=>({dataset:{ci:brand},attributes:{},active:false,classList:{toggle(_name,value){this.owner.active=value;}},setAttribute(name,value){this.attributes[name]=value;}}));
   tabs.forEach(tab=>{tab.classList.owner=tab;});
   const onepieceAPI={ensureManifest,registerSets};
   const context=vm.createContext({CARDINFO:{pokemon,onepiece},CI_TAB:'pokemon',SLIDE_PANEL_REQUEST:1,window:{OnePieceCatalog:onepieceAPI,closeGlobalSearch(){closed.push(true);}},OnePieceCatalog:onepieceAPI,
-    document:{querySelectorAll:()=>tabs},openSetGrid(...args){opened.push(args);return 'opened';},go(page){routes.push(page);},renderCardInfo(){},console});
+    document:{body:{dataset:{page:'home'}},querySelectorAll:()=>tabs},openSetGrid(...args){opened.push(args);return 'opened';},go(page){routes.push(page);context.document.body.dataset.page=page;return prepareRoute(page);},renderCardInfo(){},console});
   const source=html(),start=source.search(/(?:async\s+)?function openJapaneseCatalogueCard\(/);
   assert(start>=0,'locate real navigation function');
   vm.runInContext(source.slice(start,source.indexOf('// Printed Japanese cards',start)),context,{filename:'index.html catalogue navigation'});
@@ -61,6 +61,27 @@ test('a delayed manifest cannot replace a more recent card navigation',async()=>
   h.context.SLIDE_PANEL_REQUEST++;
   release();await result;
   assert.equal(h.opened.length,0);assert.equal(h.closed.length,0);assert.equal(h.routes.length,0);
+});
+
+test('catalogue navigation waits for route modules before opening its exact printing',async()=>{
+  let release;const route=new Promise(resolve=>{release=resolve;});
+  const h=navigation({pokemon:[{code:'SV4K',name:'fixture'}],prepareRoute:()=>route});
+  const work=h.open({brand:'pokemon',kind:'card',boxCode:'SV4K',number:'090/066'});
+  await Promise.resolve();assert.equal(h.opened.length,0);
+  release({ready:true});await work;assert.equal(h.opened[0][3].cardKey,'090/066');
+});
+test('failed or departed feature routes do not open a catalogue over the current screen',async()=>{
+  for(const result of [{ready:false},{ready:false,cancelled:true}]){
+    const h=navigation({pokemon:[{code:'SV4K',name:'fixture'}],prepareRoute:async()=>result});
+    await h.open({brand:'pokemon',kind:'card',boxCode:'SV4K',number:'090/066'});assert.equal(h.opened.length,0);
+  }
+});
+test('a newer slide detail cancels a printed-card route that was awaiting its modules',async()=>{
+  let release;const route=new Promise(resolve=>{release=resolve;});
+  const h=navigation({pokemon:[{code:'SV4K',name:'fixture'}],prepareRoute:()=>route});
+  const work=h.open({brand:'pokemon',kind:'card',boxCode:'SV4K',number:'090/066'});
+  await Promise.resolve();h.context.SLIDE_PANEL_REQUEST++;release({ready:true});await work;
+  assert.equal(h.opened.length,0);
 });
 
 test('EB05 official artwork key selects the correct page despite a different marketplace fullId',async()=>{

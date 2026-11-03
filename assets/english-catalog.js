@@ -3,6 +3,10 @@
   'use strict';
   const VERSION='20260908-en4',cache=new Map(),size=24,cardsPerPage=18;
   let catalog=null,names={},language=window.ChineseCatalog?.initialLanguage||'ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',cardRarities=[],cardScroll=0,request=0,opener=null;
+  const routeRun=()=>typeof _FEATURE_ROUTE_RUN==='undefined'?null:_FEATURE_ROUTE_RUN;
+  const initialRoute={hash:location.hash,search:location.search,intent:Number(window._CI_USER_INTENT)||0,tab:typeof CI_TAB==='undefined'?null:CI_TAB,run:routeRun()};
+  const inCardInfo=()=>!document.body?.dataset?.page||document.body.dataset.page==='cardinfo';
+  const initialCurrent=()=>routeRun()===initialRoute.run&&inCardInfo()&&location.hash==='#cardinfo'&&location.search===initialRoute.search&&initialRoute.hash==='#cardinfo'&&(Number(window._CI_USER_INTENT)||0)===initialRoute.intent&&CI_TAB===initialRoute.tab&&request===0;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=c=>{if(!Number.isSafeInteger(c)||c<=0)return null;const won=window.TCGFX?.getState?.().available===false?null:window.TCGFX?.convert?.(c/100,'USD');return Number.isFinite(won)&&won>0?'₩'+Math.floor(won).toLocaleString('ko-KR'):'환율 확인 중';};
   const name=c=>names[c.name]||c.name;
@@ -56,16 +60,17 @@
   }
   async function open(code,keep=false,cardId=null){
     window.ChineseCatalog?.cancelPending?.();
-    const token=++request;opener=document.activeElement;
+    const token=++request,intent=Number(window._CI_USER_INTENT)||0,route=location.hash,search=location.search,run=routeRun();opener=document.activeElement;
+    const current=()=>token===request&&routeRun()===run&&inCardInfo()&&location.hash===route&&location.search===search&&(Number(window._CI_USER_INTENT)||0)===intent;
     try{
-      await ready;const set=catalog.sets.find(s=>s.code===code);if(!set||token!==request)return;
+      await ready;const set=catalog.sets.find(s=>s.code===code);if(!set||!current())return;
       panel(`${header()}<h3 class="enc-loading-title" id="encPanelTitle">${esc(set.name)} · 영판</h3><div class="ci-panel-scroll">카드 불러오는 중…</div>`,'encPanelTitle');let data=cache.get(code);
       if(!data){const r=await fetch(`/data/english-sets/${encodeURIComponent(code)}.json?v=${VERSION}`);if(!r.ok)throw Error();data=await r.json();if(data.language!=='en'||data.code!==code||data.cards?.length!==set.cardCount)throw Error();cache.set(code,data);if(cache.size>8)cache.delete(cache.keys().next().value);}
-      if(token!==request||!document.getElementById('anyModal')?.classList.contains('open')||!document.getElementById('encPanelTitle'))return;
+      if(!current()||!document.getElementById('anyModal')?.classList.contains('open')||!document.getElementById('encPanelTitle'))return;
       const rarityCards=await window.CardRarityFilters?.enrich(data.cards,{brand:'pokemon-en',setCode:code})||data.cards;
-      if(token!==request||!document.getElementById('anyModal')?.classList.contains('open')||!document.getElementById('encPanelTitle'))return;
+      if(!current()||!document.getElementById('anyModal')?.classList.contains('open')||!document.getElementById('encPanelTitle'))return;
       const reset=!keep||active?.code!==code;active={...data,cards:rarityCards};if(reset){cardPage=1;cardQuery='';cardRarities=[];cardScroll=0;}setModal();if(cardId)detail(cardId);
-    }catch{if(token===request&&document.getElementById('anyModal')?.classList.contains('open')&&document.getElementById('encPanelTitle'))panel(`${header()}<h3 class="enc-loading-title" id="encPanelTitle">영문판 카드</h3><div class="ci-panel-scroll">카드를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</div>`,'encPanelTitle');}
+    }catch{if(current()&&document.getElementById('anyModal')?.classList.contains('open')&&document.getElementById('encPanelTitle'))panel(`${header()}<h3 class="enc-loading-title" id="encPanelTitle">영문판 카드</h3><div class="ci-panel-scroll">카드를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</div>`,'encPanelTitle');}
   }
   function dailySales(sales){const days=new Map();for(const s of sales){const d=days.get(s.date)||{date:s.date,total:0,count:0};d.total+=s.priceCents;d.count++;days.set(s.date,d);}return [...days.values()].sort((a,b)=>a.date.localeCompare(b.date)).map(d=>({...d,price:Math.round(d.total/d.count)}));}
   function historyHTML(sales){
@@ -94,7 +99,7 @@
   document.addEventListener('input',e=>{if(e.target.id==='encCardSearch'){cardQuery=e.target.value;cardPage=1;setBody();}});
   document.addEventListener('click',e=>{
     const b=e.target.closest('[data-enc-language],[data-enc-set],[data-enc-page],[data-enc-card-page],[data-enc-card],[data-enc-back],[data-enc-share],[data-enc-expand],[data-enc-close]');if(!b||b.disabled)return;e.preventDefault();e.stopPropagation();
-    if(b.dataset.encLanguage){language=b.dataset.encLanguage;page=1;renderCardInfo();}
+    if(b.dataset.encLanguage){request++;language=b.dataset.encLanguage;page=1;renderCardInfo();}
     else if(b.dataset.encSet)open(b.dataset.encSet);
     else if(b.dataset.encPage){page=Number(b.dataset.encPage);render();document.getElementById('encLanguages').scrollIntoView({block:'start'});}
     else if(b.dataset.encCardPage){cardPage=Number(b.dataset.encCardPage);setBody();document.querySelector('.enc-scroll').scrollTop=0;}
@@ -105,7 +110,7 @@
     else if(b.hasAttribute('data-enc-close')){request++;closeAnyModal();}
   },true);
   ensureLanguages();
-  ready.then(()=>{renderCardInfo();const query=new URLSearchParams(location.search),code=query.get('set');if(code?.startsWith('EN-')&&location.hash==='#cardinfo'){language='en';CI_TAB='pokemon';renderCardInfo();open(code,false,query.get('card'));}}).catch(()=>{if(language==='en')document.getElementById('cardInfoList').innerHTML='<p>영문판 목록을 불러오지 못했습니다. 새로고침해 주세요.</p>';});
+  ready.then(()=>{renderCardInfo();const query=new URLSearchParams(initialRoute.search),code=query.get('set');if(code?.startsWith('EN-')&&initialCurrent()){language='en';CI_TAB='pokemon';renderCardInfo();open(code,false,query.get('card'));}}).catch(()=>{if(language==='en')document.getElementById('cardInfoList').innerHTML='<p>영문판 목록을 불러오지 못했습니다. 새로고침해 주세요.</p>';});
   window.addEventListener?.('tcg:fx-updated',()=>{const modal=document.getElementById('anyModal');if(typeof CI_TAB!=='undefined'&&CI_TAB==='pokemon'&&language==='en'&&modal?.classList.contains('open')&&modal.querySelector('.enc-scroll,.enc-detail-scroll')){if(currentCard)detail(currentCard.sourceId);else setBody();}});
   window.EnglishCatalog={art,quote,open,name,dailySales,historyHTML,cancelPending(){request++;}};
 })();

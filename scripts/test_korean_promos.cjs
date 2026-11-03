@@ -1,4 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const {assetGraph}=require('./helpers/app_asset_graph.cjs');
 const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const context={window:{addEventListener(){}},document:{getElementById(){return null},addEventListener(){}},renderCardInfo(){},location:{search:'',hash:''},URLSearchParams,Date,Map,Set,console};
 vm.createContext(context);vm.runInContext(read('assets/korean-promos.js'),context);
@@ -29,6 +30,6 @@ assert.equal(api.selectRows([base,{...base,date:'2026-09-01'}],'A',30,'2026-11-0
 assert.equal(api.selectRows([base],'B',0).length,0);
 assert.throws(()=>api.prepareHistory({...JSON.parse(read('data/korean-promos/1096144.json')),id:'937107'},'1096144'));
 const html=read('index.html'),sw=read('sw.js');
-assert(html.indexOf('assets/korean-promos.js')>html.indexOf('assets/collections.js'));
+assetGraph(root,{html}).assertOrder('collections.js','korean-promos.js','cardinfo');
 assert.match(sw,/url\.pathname\.startsWith\('\/data\/korean-promos'\)/);
 console.log(JSON.stringify({ok:true,cards:7,trades:total,exactOptions:true,dailyVolumes:true,latestFirst:true}));

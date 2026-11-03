@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import assetGraphTools from './helpers/app_asset_graph.cjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argument=process.argv.indexOf('--bundle-dir');
@@ -88,9 +89,13 @@ function validate(base){
   for(const row of audit.rows){const card=cards.get(row.targetCardId);assert.ok(card?.artistIds.includes('pokemon:Shinji Kanda'));assert.ok(artists.get('pokemon:Shinji Kanda')?.cardIds.includes(row.targetCardId));}
   for(const sourceKey of ['JP:S10P:001/067','JP:S10P:068/067','JP:CP4:002/131','JP:SV2a:015/165','JP:CP6:007/087','JP:VS:061/141']){const card=[...cards.values()].find(c=>c.sourceKey===sourceKey&&c.game==='pokemon'&&c.language==='ja');assert.ok(card?.characterIds.includes('pokemon:species:15'),'Vendor annotation dropped a Beedrill printing '+sourceKey);}
   const html=read(base,'index.html');
-  for(const asset of ['card-rarity-filters.js','card-rarity-filters.css','collection-catalog-codec.js','collections.js','collections.css'])assert.ok(html.includes('/assets/'+asset),'Unlinked '+asset);
-  assert.ok(html.indexOf('/assets/card-rarity-filters.js')<html.indexOf('/assets/japanese-catalog.js'));
-  assert.ok(html.indexOf('/assets/collection-catalog-codec.js')<html.indexOf('/assets/collections.js'));
+  const assets=assetGraphTools.assetGraph(base,{html});
+  assets.assertScript('card-rarity-filters.js');
+  assets.assertStyle('card-rarity-filters.css');
+  for(const asset of ['collection-catalog-codec.js','collections.js'])assets.assertScript(asset,'cardinfo');
+  assets.assertStyle('collections.css','cardinfo');
+  assets.assertOrder('card-rarity-filters.js','japanese-catalog.js');
+  assets.assertOrder('collection-catalog-codec.js','collections.js','cardinfo');
   const required=['functions/_shared/collections.js','functions/api/collections/index.js','functions/api/collections/[id].js','functions/api/collections/[id]/items.js','functions/api/collection-ownership.js','functions/api/auth/delete-account.js'];
   for(const name of required)assert.ok(fs.statSync(path.join(base,name)).size,'Missing deployed endpoint '+name);
   for(const table of ['collections','collection_mutations','user_card_states'])assert.ok(read(base,'functions/api/auth/delete-account.js').includes("'"+table+"'"));

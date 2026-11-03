@@ -138,14 +138,12 @@
 <meta name="apple-itunes-app" content="app-id=6773382755">
 
 <!-- Quill rich text editor (관리자 글쓰기) -->
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" media="print" onload="this.media='all'">
 
 <!-- DOMPurify — 관리자 글 HTML 소독 (stored XSS 방지) -->
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" defer></script>
 <!-- Lucide Icons (모던 SVG 아이콘) — 버전 고정 + defer (렌더 차단 방지, jsdelivr = SW 캐시 대상) -->
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js" defer></script>
 <!-- SortableJS — 관리자 글 드래그앤드롭 (모바일 터치도 지원) -->
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" defer></script>
 <script>
   // ─── 전역 에러 핸들러 — 조용한 실패 감지 (콘솔 + 최근 오류 보관) ───
   window._LAST_ERRORS = [];
@@ -691,11 +689,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/search-modal.css?v=20261103-search1">
 <link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
 <link rel="stylesheet" href="/assets/home-discovery.css?v=20260908-compact4">
-<link rel="stylesheet" href="/assets/centering-tool.css?v=20261025-grade-range-v1">
 <link rel="stylesheet" href="/assets/app-shell.css?v=20261030-latest-sidebar1">
-<script defer src="/assets/centering-geometry.js?v=20261025-evidence-v1"></script>
-<script defer src="/assets/centering-result-cache.js?v=20261025-grade-range-v1"></script>
-<script defer src="/assets/centering-tool.js?v=20261025-grade-range-v1"></script>
 <script src="/assets/onepiece-official-catalog.js?v=20261031-official1"></script>
 </head>
 <body>
@@ -2525,17 +2519,18 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/japanese-catalog.js?v=20261103-candidate-visibility1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
-<script src="/assets/card-artwork.js?v=20261102-detail-artwork1"></script>
+<script src="/assets/card-artwork.js?v=20261104-modular1"></script>
 <script src="/assets/price-expanded.js?v=20261102-detail-artwork1"></script>
-<script src="/assets/card-favorites.js?v=20260907-favorites1"></script>
+<script src="/assets/card-favorites.js?v=20261104-modular1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
-<link rel="stylesheet" href="/assets/admin-editor.css?v=20260907-admin2">
-<script src="/assets/admin-editor.js?v=20260907-admin2"></script>
 <link rel="stylesheet" href="/assets/portfolio-screen.css?v=20261030-sidebar1">
 <script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
-<script src="/assets/card-search-client.js?v=20261103-search2"></script>
+<script src="/assets/card-search-client.js?v=20261104-search3"></script>
+<script src="/assets/app-route-loader.js?v=20261104-modular1"></script>
+<script src="/assets/portfolio-summary-client.js?v=20261104-modular1"></script>
+<script src="/assets/card-thumbnails.js?v=20261104-modular1"></script>
 <script>
 "use strict";
 
@@ -2568,6 +2563,7 @@ function initPriceRoute(route) {
   const current = () => document.body.dataset.page === 'price' && location.hash === '#' + route.path && request === (renderPriceSearchAsGrid.generation || 0) && (!input || input.value.trim() === route.query);
   Promise.resolve(loading).then(async () => {
     if (!current()) return;
+    if (window.CardSearchClient) { await runPriceSearch(route.query); return; }
     const status = document.getElementById('priceStatus');
     if (status) status.textContent = `"${route.query}" 검색 데이터를 불러오는 중입니다.`;
     await loadCardSearchData();
@@ -2576,6 +2572,57 @@ function initPriceRoute(route) {
     renderPriceSearchAsGrid(results, route.query);
   }).catch(error => console.warn('[route-search]', error));
 }
+function activatePage(page, route) {
+  if (page === 'home' && typeof initHome2 === 'function') initHome2();
+  if (page === 'price') initPriceRoute(route);
+  if (page === 'admin') ensureAdminOriginals().then(() => {
+    if (document.body.dataset.page !== 'admin' || !isAdminAccount()) return;
+    renderAdminList();
+    window.AdminEditorUI?.access(CURRENT_USER);
+    window.AdminEditorUI?.enter();
+  }).catch(() => window.AdminEditorUI?.message('원본 게시물을 불러오지 못했습니다. 다시 시도해 주세요.', 'error'));
+  if (page === 'portfolio') refreshPortfolio();
+  if (page === 'cardinfo' && typeof initCardInfoScreen === 'function') initCardInfoScreen();
+  if (page === 'centering') setTimeout(() => {
+    if (document.body.dataset.page !== 'centering') return;
+    window.CenteringTool?.setup();
+    if (typeof setupCentering === 'function') setupCentering();
+    if (typeof setupCenteringDrag === 'function') setupCenteringDrag();
+    if (typeof updateAICenteringCountUI === 'function') updateAICenteringCountUI();
+  }, 0);
+  if (page === 'casing' && typeof loadCardSearchData === 'function') loadCardSearchData();
+}
+let _FEATURE_ROUTE_RUN = 0;
+function preparePage(page, route) {
+  const run=++_FEATURE_ROUTE_RUN;
+  const current=()=>run===_FEATURE_ROUTE_RUN&&document.body.dataset.page===page;
+  const feature=['admin','centering','cardinfo'].includes(page);
+  if (!feature || !window.AppRouteLoader) return activatePage(page,route);
+  const host=document.querySelector(`.page[data-page="${page}"]`);
+  let state=host?.querySelector?.('[data-feature-load]');
+  if (!state && host && document.createElement) {
+    state=document.createElement('div');state.dataset.featureLoad='';state.setAttribute('role','status');
+    state.style.cssText='padding:12px 16px;margin-bottom:12px;color:#666';host.prepend(state);
+  }
+  if(state)state.textContent='화면을 불러오는 중…';
+  const coreReady=document.readyState==='loading'
+    ? new Promise(resolve=>document.addEventListener('DOMContentLoaded',resolve,{once:true})) : Promise.resolve();
+  return coreReady.then(()=>{
+    if(!current())return {ready:false,cancelled:true,profile:page};
+    return window.AppRouteLoader.ensure(page,{isCurrent:current,activate:()=>{
+      state?.remove();activatePage(page,route);
+    }});
+  }).catch(error=>{
+    if(!current())return {ready:false,cancelled:true,profile:page};
+    if(!state)return {ready:false,cancelled:false,profile:page};
+    state.textContent='화면을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요. ';
+    const retry=document.createElement('button');retry.type='button';retry.className='btn';retry.textContent='다시 시도';retry.onclick=()=>preparePage(page,route);
+    const reload=document.createElement('button');reload.type='button';reload.className='btn';reload.textContent='앱 새로고침';reload.onclick=()=>location.reload();
+    state.append(retry,reload);
+    return {ready:false,cancelled:false};
+  });
+}
+
 function go(pageOrPath) {
   if (document.body.dataset.page === 'admin' && pageOrPath !== 'admin' && window.AdminEditorUI && !AdminEditorUI.allowDiscard()) return;
   window.cancelPriceSearch?.();
@@ -2622,28 +2669,11 @@ function go(pageOrPath) {
   }
   window._CUR_HASH = newHash;  // popstate 의 모달 닫기 복원용
   // 페이지별 초기화
-  if (page === 'home' && typeof initHome2 === 'function') initHome2();
-  if (page === 'price') initPriceRoute(route);
-  if (page === 'admin') ensureAdminOriginals().then(() => {
-    if (document.body.dataset.page !== 'admin') return;
-    renderAdminList();
-    window.AdminEditorUI?.enter();
-  }).catch(() => window.AdminEditorUI?.message('원본 게시물을 불러오지 못했습니다. 다시 시도해 주세요.', 'error'));
-  if (page === 'portfolio') refreshPortfolio();
-  if (page === 'centering') {
-    // 센터링 진입 시 핸들러 + 카운터 셋업 (DOMContentLoaded 이미 끝난 경우 대비)
-    setTimeout(() => {
-      if (typeof setupCentering === 'function') setupCentering();
-      if (typeof setupCenteringDrag === 'function') setupCenteringDrag();
-      if (typeof updateAICenteringCountUI === 'function') updateAICenteringCountUI();
-    }, 50);
-  }
-  if (page === 'casing') {
-    // TCG Casing 진입 시 카드 검색 인덱스 prefetch
-    if (typeof loadCardSearchData === 'function') loadCardSearchData();
-  }
+  const ready=preparePage(page,route);
+
   // 스크롤 맨 위로
   window.scrollTo({top: 0, behavior: 'instant'});
+  return ready;
 }
 
 // data-nav 클릭 → 페이지 전환 (이벤트 위임)
@@ -2708,8 +2738,7 @@ window.addEventListener('popstate', e => {
   document.querySelectorAll('.nav-item, .mnav-item').forEach(n => {
     n.classList.toggle('active', n.dataset.nav === page);
   });
-  if (page === 'price') initPriceRoute(route);
-  if (page === 'portfolio') refreshPortfolio();
+  preparePage(page,route);
   window._CUR_HASH = '#' + path;
 });
 
@@ -3102,6 +3131,7 @@ function renderHomeTopRow(brand) {
     rest.map((p, i) => _homePriceRowHTML(p, i + 3)).join('') +
     `</div>`;
   if (expanded) document.getElementById(`${brand}-more-list`)?.classList.add('show');
+  window.CardThumbnails?.apply(container);
 }
 
 window.toggleHomeTopMore = function(brand) {
@@ -3428,6 +3458,25 @@ async function renderHomeAsset() {
   }
   await FX_READY;
   if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user || document.body.dataset.page !== 'home' || document.hidden) return;
+  if (typeof window === 'object' && window.PortfolioSummaryClient) {
+    try {
+      const summary=await window.PortfolioSummaryClient.get(user.id);
+      if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user || document.body.dataset.page !== 'home' || document.hidden) return;
+      const fx=summary.fx;
+      if (fx.asOf===FX_AS_OF && fx.basis===FX_BASIS && ['JPY','USD','CNY'].every(currency=>fx.rates[currency]===({JPY:JPY_KRW,USD:USD_KRW,CNY:CNY_KRW})[currency])) {
+        const value=summary.totalValueJpy,cost=summary.totalCostJpy,diff=value-cost;
+        valEl.style.fontSize='24px';valEl.textContent='₩'+Math.floor(value*JPY_KRW).toLocaleString();
+        if(holdEl)holdEl.textContent=summary.holdingsCount+'종';
+        if(watchEl)watchEl.textContent=summary.watchCount+'종';
+        if(changeEl){
+          changeEl.style.display=cost?'inline-flex':'none';
+          if(cost){changeEl.className='asset-change '+(diff>=0?'up':'down');changeEl.textContent=`${diff>=0?'▲':'▼'} ${diff>=0?'+':'-'}₩${Math.floor(Math.abs(diff)*JPY_KRW).toLocaleString()} · ${diff>=0?'+':''}${(diff/cost*100).toFixed(1)}%`;}
+        }
+        return;
+      }
+    } catch { /* The existing valuation remains available if the summary cannot be verified. */ }
+    if (run !== _HOME_ASSET_RUN || CURRENT_USER !== user || document.body.dataset.page !== 'home' || document.hidden) return;
+  }
   valEl.style.fontSize = '24px';
 
   // HOLDINGS/WATCHLIST 가 비어있으면 portfolio API 로 로드 (마이페이지 방문 안 했을 때)
@@ -4340,6 +4389,7 @@ function loadCardProductData() {
   return _CARD_PRODUCTS_READY;
 }
 async function buildCardProductData() {
+  if (document.readyState==='loading') await new Promise(resolve=>document.addEventListener('DOMContentLoaded',resolve,{once:true}));
   const t = Math.floor(Date.now() / 3600000);
   if (!_PRICE_BOX_NAME_OVERRIDES) {
     try {
@@ -6909,7 +6959,8 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
   const request = ++CI_PANEL_REQUEST;
   const brand = CARDINFO.onepiece.some(s => s.code === setCode) ? 'onepiece' : 'pokemon';
   const set = CARDINFO[brand].find(s => s.code === setCode);
-  const sourceImage = [...document.querySelectorAll('.set-tile[data-set-code]')].find(el => el.dataset.setCode === setCode)?.querySelector('img')?.getAttribute('src');
+  const sourceImageElement = [...document.querySelectorAll('.set-tile[data-set-code]')].find(el => el.dataset.setCode === setCode)?.querySelector('img');
+  const sourceImage = window.CardThumbnails?.original(sourceImageElement) || sourceImageElement?.getAttribute('src');
   const opener = document.activeElement;
   openAnyModal(`
     <div class="ci-panel-head">
@@ -7259,7 +7310,8 @@ async function openJapaneseCatalogueCard(card) {
     t.classList.toggle('active', t.dataset.ci === brand);
     t.setAttribute('aria-pressed', String(t.dataset.ci === brand));
   });
-  go('cardinfo');
+  const ready=await go('cardinfo');
+  if(ready?.cancelled||ready?.ready===false||request!==SLIDE_PANEL_REQUEST||document.body.dataset.page!=='cardinfo')return;
   renderCardInfo();
   return openSetGrid(set.code,set.name,set.url || '',{cardKey:card.kind==='card' ? card.fullId || card.officialId || card.number || card.sourceId : ''});
 }
@@ -7279,7 +7331,7 @@ document.addEventListener('click', async e => {
   if (!['pokemon','onepiece'].includes(identity.brand) || identity.language!=='ja') return;
   const cardName = item.dataset.cardName || identity.name || '';
   const cardImageElement = item.querySelector('img');
-  const cardImage = cardImageElement?.currentSrc || cardImageElement?.src || '';
+  const cardImage = window.CardThumbnails?.original(cardImageElement) || cardImageElement?.currentSrc || cardImageElement?.src || '';
   let target, price, unavailable = false;
   try {
     target = await window.ContainedCardPrices.prepareTarget(identity,{isCurrent:current});
@@ -7329,6 +7381,7 @@ document.addEventListener('click', e => {
   document.querySelectorAll('#ciTabs .tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-pressed', 'false'); });
   tab.classList.add('active');
   tab.setAttribute('aria-pressed', 'true');
+  window._CI_USER_INTENT=(window._CI_USER_INTENT||0)+1;
   CI_TAB = tab.dataset.ci;
   renderCardInfo();
 });
@@ -7352,14 +7405,20 @@ document.addEventListener('click', e => {
   });
 })();
 
+let _CARDINFO_SETUP_STARTED=false;
+function initCardInfoScreen() {
 renderCardInfo();
+if(_CARDINFO_SETUP_STARTED)return;
+_CARDINFO_SETUP_STARTED=true;
+const routeKey=location.search,initialIntent=window._CI_USER_INTENT||0,initialRouteRun=_FEATURE_ROUTE_RUN;
+const current=()=>initialRouteRun===_FEATURE_ROUTE_RUN&&document.body.dataset.page==='cardinfo'&&location.hash==='#cardinfo'&&location.search===routeKey&&(window._CI_USER_INTENT||0)===initialIntent;
 
 // Register every official product category without blocking the initial Pokemon view.
 window.OnePieceCatalog?.ensureManifest().then(()=>{
   CARDINFO.onepiece=OnePieceCatalog.registerSets(CARDINFO.onepiece);
-  if(CI_TAB==='onepiece')renderCardInfo();
+  if(current()&&CI_TAB==='onepiece')renderCardInfo();
   const query=new URLSearchParams(location.search),code=query.get('set');
-  if(location.hash==='#cardinfo'&&code&&!/^(?:OP|EB)\d+$/.test(code)){
+  if(current()&&code&&!/^(?:OP|EB)\d+$/.test(code)){
     const set=CARDINFO.onepiece.find(s=>s.code===code);
     if(set){CI_TAB='onepiece';document.querySelectorAll('#ciTabs .tab').forEach(t=>{t.classList.toggle('active',t.dataset.ci==='onepiece');t.setAttribute('aria-pressed',String(t.dataset.ci==='onepiece'));});renderCardInfo();openSetGrid(set.code,set.name,set.url||'',{cardKey:query.get('card')||''});}
   }
@@ -7377,9 +7436,11 @@ if (location.hash === '#cardinfo' && sharedSetCode) {
     });
     renderCardInfo();
     const set = CARDINFO[brand].find(s => s.code === sharedSetCode);
-    setTimeout(() => openSetGrid(set.code, set.name, set.url || '', {cardKey:new URLSearchParams(location.search).get('card') || ''}), 0);
+    setTimeout(() => { if(current())openSetGrid(set.code,set.name,set.url||'',{cardKey:new URLSearchParams(routeKey).get('card')||''}); }, 0);
   }
 }
+}
+
 document.addEventListener('keydown', e => {
   const target = e.target.closest('.card-price-fallback a') ? null : e.target.closest('.set-tile[role="button"], .set-card-item[role="button"]');
   if (target && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); target.click(); }
@@ -9263,6 +9324,7 @@ function syncPortfolioOwner() {
   const owner = CURRENT_USER ? String(CURRENT_USER.id) : null;
   if (owner === _PF_SESSION_OWNER) return;
   _PF_SESSION_OWNER = owner;
+  window.PortfolioSummaryClient?.invalidate();
   _PF_OWNER_ID = null;
   _PF_REFRESH_RUN++;
   _PF_REFRESH_WORK = null;
@@ -9289,6 +9351,7 @@ function refreshPortfolio({force = false} = {}) {
   const current = () => run === _PF_REFRESH_RUN && CURRENT_USER === userAtStart;
   const visible = () => document.body.dataset.page === 'portfolio';
   if (force) {
+    window.PortfolioSummaryClient?.invalidate();
     // A successful mutation must not join an older read or be overwritten by its response.
     _PORTFOLIO_READY = null;
     _PORTFOLIO_USER = null;
@@ -9760,7 +9823,7 @@ window.removePsaCert = async function(certId) {
 
 async function removeWatchlistApi(id) {
   const r = await fetch(`/api/portfolio/watchlist/${id}`, { method: 'DELETE', credentials: 'include' });
-  if (r.ok) { WATCHLIST = WATCHLIST.filter(w => String(w.id) !== String(id)); window.CardFavorites?.sync(); showToast('관심에서 제거', 'info'); refreshPortfolio({force: true}); }
+  if (r.ok) { window.PortfolioSummaryClient?.invalidate(); WATCHLIST = WATCHLIST.filter(w => String(w.id) !== String(id)); window.CardFavorites?.sync(); showToast('관심에서 제거', 'info'); refreshPortfolio({force: true}); }
   else showToast('제거 실패', 'error');
 }
 
@@ -11094,32 +11157,24 @@ window.addEventListener('appinstalled', () => {
   console.log('[PWA] installed');
 });
 
+// List images may use a smaller provider variant; card-detail selection reads the preserved original.
+if(window.CardThumbnails){
+  const scan=root=>window.CardThumbnails.apply(root);
+  const start=()=>{scan(document);if(typeof MutationObserver==='function')new MutationObserver(records=>{
+    for(const record of records)for(const node of record.addedNodes)if(node.nodeType===1)scan(node);
+  }).observe(document.body,{childList:true,subtree:true});};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+}
+
 // </script>
-<script src="/assets/english-search.js?v=20260908-search1"></script>
 <script src="/assets/promo-search.js?v=20261013-promo1"></script>
-<script src="/assets/search-modal.js?v=20261103-search2"></script>
-<link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
-<link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
-<script src="/assets/chinese-catalog.js?v=20261104-rarity2"></script>
-<script src="/assets/english-catalog.js?v=20261030-price-audit2"></script>
-<link rel="stylesheet" href="/assets/riftbound-catalog.css?v=20260909-rb1">
-<script src="/assets/riftbound-catalog.js?v=20261030-rarity1"></script>
+<script src="/assets/search-modal.js?v=20261104-modular1"></script>
 
 <!-- TCGHUB_CHIIKAWA_START -->
-<link rel="stylesheet" href="/assets/chiikawa-catalog.css?v=38b07b90dbdf">
-<script src="/assets/chiikawa-catalog.js?v=20261030-rarity1" defer></script>
 <!-- TCGHUB_CHIIKAWA_END -->
-<link rel="stylesheet" href="/assets/tcg-card-info.css?v=20261101-filter-picker-ko1">
 <script src="/assets/card-price-fallback.js?v=20261101-artwork-review1"></script>
 <script src="/assets/contained-card-prices.js?v=20261031-official1"></script>
-<script src="/assets/tcg-search-aliases.js?v=20261101-ko1" defer></script>
-<script src="/assets/tcg-card-info.js?v=20261102-detail-artwork1" defer></script>
 <!-- Collections stay within Card info; private records are never cached by this module. -->
-<link rel="stylesheet" href="/assets/collections.css?v=20261030-collections1">
-<script src="/assets/collection-catalog-codec.js?v=20261030-collections1" defer></script>
-<script src="/assets/collections.js?v=20261030-collections1" defer></script>
-<link rel="stylesheet" href="/assets/korean-promos.css?v=20261101-responsive-image1">
-<script src="/assets/korean-promos.js?v=20261101-brg1" defer></script>
 </body>
 </html>
 

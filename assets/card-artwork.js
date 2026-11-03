@@ -32,7 +32,7 @@
   function fit(img) {
     const host=img.parentElement;
     if(!host || !img.matches(selector))return;
-    const art=bounds[img.currentSrc || img.src];
+    const art=bounds[window.CardThumbnails?.original(img)] || bounds[img.currentSrc || img.src];
     if(!art || !img.complete || !img.naturalWidth){
       const old=saved.get(img);
       if(old){for(const [key,value,priority] of old)img.style.setProperty(key,value,priority);saved.delete(img);}

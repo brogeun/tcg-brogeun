@@ -63,24 +63,26 @@ async function run(){
     }
     terminate(){this.stopped=true;}
   }
-  const ctx={window:{},Worker:FakeWorker,AbortController,setTimeout,clearTimeout,fetch(){throw Error('Main thread must not fetch or parse search data with a working worker');}};
+  const ctx={window:{},Worker:FakeWorker,AbortController,URLSearchParams,setTimeout,clearTimeout,fetch:async url=>{if(url.startsWith('/api/'))return {ok:false,status:503,json:async()=>({code:'unavailable'})};throw Error('Main thread must not fetch or parse the full snapshot with a working worker');}};
   vm.createContext(ctx);vm.runInContext(clientSource,ctx);const client=ctx.window.CardSearchClient;
   await Promise.all([client.warm(),client.warm()]);
-  assert.equal(workers,1);assert.equal(initRequests,1,'Concurrent preparation shares one worker');
+  assert.equal(workers,0);assert.equal(initRequests,0,'Opening search no longer warms the complete worker catalogue');
   const old=client.search('리자몽'),recent=client.search('루피');
   assert.equal((await old).cancelled,true);assert.equal((await recent).total,3);
+  assert.equal(workers,1);assert.equal(initRequests,1,'Concurrent API fallback shares one worker');
   const preview=client.search('리자몽',{lane:'price-preview'}),grid=client.search('루피',{lane:'price-grid'});
   assert(!(await preview).cancelled);assert(!(await grid).cancelled,'Independent search surfaces must not cancel each other');
   const closed=client.search('리자몽');client.cancel();assert.equal((await closed).cancelled,true);
   client.reset();
 
   let fallbackFetches=0;
-  const fallbackCtx={window:{CardSearchEngine:api},AbortController,setTimeout,clearTimeout,fetch:async()=>{fallbackFetches++;return {ok:true,json:async()=>snapshot};}};
+  const fallbackCtx={window:{CardSearchEngine:api},AbortController,URLSearchParams,setTimeout,clearTimeout,fetch:async url=>{if(url.startsWith('/api/'))return {ok:false,status:404,json:async()=>({code:'fastpath_miss'})};fallbackFetches++;return {ok:true,json:async()=>snapshot};}};
   vm.createContext(fallbackCtx);vm.runInContext(clientSource,fallbackCtx);
   const fallbackClient=fallbackCtx.window.CardSearchClient;
   await Promise.all([fallbackClient.warm(),fallbackClient.warm()]);
-  assert.equal(fallbackFetches,1,'Unsupported workers use one yielding fallback snapshot');
+  assert.equal(fallbackFetches,0,'Empty search does not download a fallback snapshot');
   assert.equal((await fallbackClient.search('고대박스')).results[0].id,'JPSET:SV4K');
+  assert.equal(fallbackFetches,1,'Unsupported workers use one yielding fallback snapshot after a miss');
   fallbackClient.reset();
 
   const messages=[],imports=[];
@@ -95,6 +97,7 @@ async function run(){
   const manifest={...snapshot,rows:[],rowCount:rows.length,sourceHash:'fixture-release',shards:shardPaths};
   let active=0,maxActive=0,broken='missing';
   const shardFetch=async(url,{signal}={})=>{
+    if(url.startsWith('/api/'))return {ok:false,status:404,json:async()=>({code:'fastpath_miss'})};
     if(url.includes('search-index-ja.json?'))return {ok:true,json:async()=>manifest};
     const index=shardPaths.indexOf(url);assert(index>=0,'Only manifest-declared local shards may be fetched');
     active++;maxActive=Math.max(maxActive,active);
@@ -122,10 +125,10 @@ async function run(){
   await shardedCtx.self.onmessage({data:{type:'search',id:5,query:'OP-01 001',options:{limit:30}}});
   assert.deepEqual(shardedReplies.at(-1).result.results.map(row=>row.id),['op-1','op-2']);
   assert(maxActive<=3,'Snapshot shard concurrency must be bounded to three');
-  const shardedFallbackCtx={window:{CardSearchEngine:api},AbortController,setTimeout,clearTimeout,fetch:shardFetch};
+  const shardedFallbackCtx={window:{CardSearchEngine:api},AbortController,URLSearchParams,setTimeout,clearTimeout,fetch:shardFetch};
   vm.createContext(shardedFallbackCtx);vm.runInContext(clientSource,shardedFallbackCtx);
-  broken='missing';await assert.rejects(shardedFallbackCtx.window.CardSearchClient.warm(),/404/);
-  broken=null;await shardedFallbackCtx.window.CardSearchClient.warm();
+  broken='missing';await assert.rejects(shardedFallbackCtx.window.CardSearchClient.search('고대박스'),/404/);
+  broken=null;await shardedFallbackCtx.window.CardSearchClient.search('고대박스');
   assert.equal((await shardedFallbackCtx.window.CardSearchClient.search('고대박스')).results[0].id,'JPSET:SV4K');
   shardedFallbackCtx.window.CardSearchClient.reset();
 

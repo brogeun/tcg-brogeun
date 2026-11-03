@@ -5,7 +5,7 @@
   let modal, input, list, count, opener, timer, version=0, category='all', language='ja', visible=30, composing=false, ready, retryManifest=false;
   const normalized=new Map();
   const normalize=value=>window.JapaneseCardNames?.normalizeQuery(value) || String(value||'').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu,'');
-  const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
+  const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드명 · 박스명 · 카드번호 검색';
   function cardTitle(c) {
     if(c.brand==='pokemon' && window.JapaneseCardNames) return JapaneseCardNames.title(c);
     if(c.brand==='onepiece' && c.nameKo)return c.nameKo;
@@ -96,7 +96,8 @@
       }
     });
     list.addEventListener('click',e=>{
-      if(e.target.closest('#gsMore')){visible+=30;render(true);return}
+      if(e.target.closest('#gsMore')){visible+=30;render();return}
+      if(e.target.closest('#gsPrevious')){visible=Math.max(30,visible-30);render();return}
       if(e.target.closest('.gs-row'))close();
     });
   }
@@ -169,11 +170,17 @@
     if(!keepScroll){list.replaceChildren();list.scrollTop=0;}
     count.textContent='검색 중...';
     try{
+      // Search uses one prepared snapshot; it must not wait for portfolio,
+      // full metadata, grade history or display-name enrichment on this thread.
+      const japanese=language==='ja'&&window.CardSearchClient
+        ? await CardSearchClient.search(q,{category,limit:30,offset:visible-30}) : null;
+      if(japanese?.cancelled)return;
       const chinese=language==='zh-CN' ? await ChineseCatalog.search(q,category) : null;
-      const english=language==='en' ? await EnglishSearch.ensureData() : (language==='ja' ? (await ensureData(),null) : null);
+      const english=language==='en' ? await EnglishSearch.ensureData() : (language==='ja'&&!japanese ? (await ensureData(),null) : null);
       if(own!==version||modal.hidden)return;
       const unique=new Map();
-      if(chinese) chinese.forEach(c=>{if(category==='all'||c.kind===category)unique.set(c.setCode+':'+c.kind+':'+c.id,c)});
+      if(japanese) japanese.results.forEach(c=>unique.set(c.id,c));
+      else if(chinese) chinese.forEach(c=>{if(category==='all'||c.kind===category)unique.set(c.setCode+':'+c.kind+':'+c.id,c)});
       else if(english) EnglishSearch.search(english,q,category).forEach(c=>unique.set(c.id,c));
       else {
       searchCards(q,Infinity).forEach(raw=>{const c=normalized.get(raw.id);if(c&&(category==='all'||c.kind===category))unique.set(c.id,c)});
@@ -186,9 +193,11 @@
       }
       const plan=language==='ja' ? window.JapaneseCatalog?.prepareQuery?.(q) : null;
       const matched=plan?.type ? [...unique.values()].filter(c=>JapaneseCatalog.acceptsQuery(c,plan)) : [...unique.values()];
-      const results=(language==='ja'&&window.PromoSearch ? PromoSearch.filterCodeQuery(matched,q) : matched);
-      count.textContent=results.length ? results.length+'개 결과 · '+Math.min(visible,results.length)+'개 표시' : '';
-      list.innerHTML=results.length ? results.slice(0,visible).map(c=>{
+      const results=(!japanese&&language==='ja'&&window.PromoSearch ? PromoSearch.filterCodeQuery(matched,q) : matched);
+      const total=japanese ? japanese.total : results.length;
+      const first=visible-30,shown=japanese?results:results.slice(first,visible);
+      count.textContent=total ? total+'개 결과 · '+(first+1)+'–'+Math.min(visible,total)+' 표시' : '';
+      list.innerHTML=shown.length ? shown.map(c=>{
         const safe=escapeHtml;
         if(c.language==='en') {
           const image=c.kind==='card' ? '<span class="gs-thumb gs-en-art">'+EnglishCatalog.art(c)+'</span>' : (/^https:\/\//.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>');
@@ -201,12 +210,12 @@
         }
         const image=/^(https?:\/\/|\/)/.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>';
         const price=Number(c.minPrice)>0 ? fmtKrw(Number(c.minPrice),c.currency) : '시세 없음';
-        const href=window.JapaneseCatalog ? JapaneseCatalog.href(c) : '#price/'+encodeURIComponent(c.id);
+        const href=c.href||(window.JapaneseCatalog ? JapaneseCatalog.href(c) : '#price/'+encodeURIComponent(c.id));
         const label=c._catalogue && !c.productId ? (c.kind==='box'?'수록 목록':'카드 정보') : price;
         return '<a class="gs-row" data-id="'+safe(c.id)+'" data-kind="'+c.kind+'" href="'+safe(href)+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.displayName)+'</div><div class="gs-meta" title="'+safe(c.setName)+'">'+(c.kind==='box'?'박스':'카드')+' · '+safe(c.setName)+(c._catalogue&&c.number?' · '+safe(c.number):'')+'</div></div><span class="gs-price" data-live-card-price="'+safe(c.id)+'"><span data-card-price-main>'+label+'</span>'+(c.cardType==='DON'?'<small data-card-price-origin style="display:block;font-size:11px;color:var(--ink-mute)">'+(Number(c.minPrice)>0?safe(fmtOrig(c.minPrice,c.currency)):'')+'</small>':'')+'</span></a>';
-      }).join('')+(results.length>visible?'<button id="gsMore" class="gs-filter" style="margin:16px 0;width:100%">검색 결과 더 보기</button>':'') : '<div class="gs-state">“'+escapeHtml(q)+'” 검색 결과가 없습니다.<br>이름이나 세트코드, 상품 ID를 확인해주세요.</div>';
+      }).join('')+'<nav class="gs-pages" aria-label="검색 결과 페이지">'+(first>0?'<button id="gsPrevious" class="gs-filter">이전 결과</button>':'')+(total>visible?'<button id="gsMore" class="gs-filter">다음 결과</button>':'')+'</nav>' : '<div class="gs-state">“'+escapeHtml(q)+'” 검색 결과가 없습니다.<br>이름이나 세트코드, 상품 ID를 확인해주세요.</div>';
       watchSearchArtwork();
-      if(language==='ja')window.CardCatalogRepairs?.hydratePrices?.(list,results.slice(0,visible),{formatKrw:fmtKrw,formatOrig:fmtOrig,isCurrent:()=>own===version&&!modal.hidden});
+      if(language==='ja')window.CardCatalogRepairs?.hydratePrices?.(list,shown,{formatKrw:fmtKrw,formatOrig:fmtOrig,isCurrent:()=>own===version&&!modal.hidden});
     }catch(error){if(own!==version||modal.hidden)return;list.innerHTML='<div class="gs-state">검색 데이터를 불러오지 못했어요.<br>검색 버튼을 눌러 다시 시도해주세요.</div>';count.textContent=''}
   }
   function open(query=''){
@@ -217,7 +226,9 @@
     input.placeholder=placeholder();
     if(modal.hidden){modal._previousOverflow=document.body.style.overflow;modal._previousHtmlOverflow=document.documentElement.style.overflow}
     modal.hidden=false;document.body.style.overflow='hidden';document.documentElement.style.overflow='hidden';
-    input.value=query;list.replaceChildren();count.textContent='';render();
+    input.value=query;list.replaceChildren();count.textContent='';
+    if(language==='ja')window.CardSearchClient?.warm().catch(()=>{});
+    render();
     if(innerWidth>768)input.focus({preventScroll:true});else modal.querySelector('#gsClose').focus({preventScroll:true});
   }
   function close(){

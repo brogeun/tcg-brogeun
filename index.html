@@ -688,7 +688,7 @@ input, select, textarea {
 input:focus, select:focus { outline: none; border-color: var(--accent); }
 .form-row { margin-bottom: 14px; }
 </style>
-<link rel="stylesheet" href="/assets/search-modal.css?v=20261030-catalogue1">
+<link rel="stylesheet" href="/assets/search-modal.css?v=20261103-search1">
 <link rel="stylesheet" href="/assets/home-minigames.css?v=20260907-4">
 <link rel="stylesheet" href="/assets/home-discovery.css?v=20260908-compact4">
 <link rel="stylesheet" href="/assets/centering-tool.css?v=20261025-grade-range-v1">
@@ -2535,6 +2535,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/portfolio-screen.css?v=20261030-sidebar1">
 <script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
+<script src="/assets/card-search-client.js?v=20261103-search1"></script>
 <script>
 "use strict";
 
@@ -4514,28 +4515,63 @@ function renderSearchResults(results, query) {
 // 검색 입력 핸들러 (debounced) — 카드 시세 페이지 + 홈 hero 모두 지원
 let _SEARCH_TIMER = null;
 let _SEARCH_PREVIEW_REQUEST = 0;
-document.addEventListener('input', e => {
+const _SEARCH_COMPOSING = new WeakSet();
+function scheduleCardSearchPreview(e) {
   const isPrice = e.target.id === 'cardSearchInput';
   const isHome = e.target.id === 'homeSearchInput';
   if (!isPrice && !isHome) return;
   const q = e.target.value;
   const clearId = isPrice ? 'cardSearchClear' : 'homeSearchClear';
   const resultsId = isPrice ? 'cardSearchResults' : 'homeSearchResults';
-  document.getElementById(clearId).style.display = q ? 'block' : 'none';
+  const clearButton = document.getElementById(clearId);
+  if (clearButton) clearButton.style.display = q ? 'block' : 'none';
   clearTimeout(_SEARCH_TIMER);
   const request = ++_SEARCH_PREVIEW_REQUEST;
+  if (e.isComposing || _SEARCH_COMPOSING.has(e.target)) return;
+  if (!q.trim()) {
+    const results = document.getElementById(resultsId);
+    if (results) { results.style.display = 'none'; results.innerHTML = ''; }
+    return;
+  }
   _SEARCH_TIMER = setTimeout(async () => {
-    await loadCardSearchData();
-    if (request !== _SEARCH_PREVIEW_REQUEST || e.target.value !== q || document.body.dataset.page !== (isPrice ? 'price' : 'home')) return;
-    // 타이핑 중: dropdown 표시 (홈/카드시세 둘 다 미리보기)
-    renderSearchResultsTo(resultsId, searchCards(q), q);
-  }, 250);
+    const current = () => request === _SEARCH_PREVIEW_REQUEST && e.target.value === q && document.body.dataset.page === (isPrice ? 'price' : 'home');
+    try {
+      let results;
+      if (window.CardSearchClient) {
+        const response = await window.CardSearchClient.search(q, {limit:30, lane:'price-preview'});
+        if (response.cancelled || !current()) return;
+        results = response.results;
+      } else {
+        await loadCardSearchData();
+        if (!current()) return;
+        results = searchCards(q);
+      }
+      renderSearchResultsTo(resultsId, results, q);
+    } catch (error) {
+      if (!current()) return;
+      const results = document.getElementById(resultsId);
+      if (results) { results.textContent = '검색 데이터를 불러오지 못했습니다. 다시 검색해 주세요.'; results.style.display = 'block'; }
+      console.warn('[search-preview]', error);
+    }
+  }, 180);
+}
+document.addEventListener('input', scheduleCardSearchPreview);
+document.addEventListener('compositionstart', e => {
+  if (!['cardSearchInput','homeSearchInput'].includes(e.target.id)) return;
+  _SEARCH_COMPOSING.add(e.target); clearTimeout(_SEARCH_TIMER); _SEARCH_PREVIEW_REQUEST++;
+});
+document.addEventListener('compositionend', e => {
+  if (!['cardSearchInput','homeSearchInput'].includes(e.target.id)) return;
+  _SEARCH_COMPOSING.delete(e.target); scheduleCardSearchPreview(e);
 });
 
 // 검색 인덱스 사전 워밍 — 첫 타이핑 시 5.5MB JSON 파싱(메인스레드 블로킹)으로 INP 1초+ 튀는 것 방지
 // 페이지 로드 후 유휴 시간에 미리 파싱해두면 타이핑 시점엔 검색만 수행
 function _warmSearchIndex() {
-  try { loadCardSearchData().catch(() => {}); } catch (e) {}
+  try {
+    if (window.CardSearchClient) window.CardSearchClient.warm().catch(() => {});
+    else loadCardSearchData().catch(() => {});
+  } catch (e) {}
 }
 // Build the full printed-card search catalogue when search is used.
 // Automatic warming on home competes with valuation and blocks slower phones.
@@ -4547,7 +4583,7 @@ document.addEventListener('focusin', e => {
 // 카드 시세 검색창에서 엔터 누르면 → dropdown 닫고 priceGrid 영역에 검색 결과 카드 표시
 document.addEventListener('keydown', e => {
   if (e.target.id !== 'cardSearchInput') return;
-  if (e.key !== 'Enter') return;
+  if (e.key !== 'Enter' || e.isComposing || _SEARCH_COMPOSING.has(e.target)) return;
   e.preventDefault();
   const q = e.target.value.trim();
   if (!q) return;
@@ -4588,7 +4624,7 @@ function cancelPriceSearch() {
 }
 window.cancelPriceSearch = cancelPriceSearch;
 
-async function runPriceSearch(query) {
+async function runPriceSearch(query, requestedPage = 1) {
   const q = String(query || '').trim();
   if (!q || document.body.dataset.page !== 'price') return;
   cancelPriceSearch();
@@ -4600,6 +4636,13 @@ async function runPriceSearch(query) {
   const status = document.getElementById('priceStatus');
   if (status) status.textContent = `"${q}" 검색 데이터를 불러오는 중입니다.`;
   try {
+    if (window.CardSearchClient) {
+      const page = Math.max(1, Math.floor(Number(requestedPage)) || 1);
+      const response = await window.CardSearchClient.search(q, {limit:60, offset:(page-1)*60, lane:'price-grid'});
+      if (response.cancelled || !current()) return;
+      renderPriceSearchAsGrid(response.results, q, page, {total:response.total, pageSize:60});
+      return;
+    }
     await loadCardSearchData();
     if (!current()) return;
     renderPriceSearchAsGrid(searchCards(q, Infinity), q);
@@ -4611,7 +4654,7 @@ async function runPriceSearch(query) {
   }
 }
 
-function renderPriceSearchAsGrid(results, query, requestedPage = 1) {
+function renderPriceSearchAsGrid(results, query, requestedPage = 1, pageData = null) {
   const grid = document.getElementById('priceGrid');
   const status = document.getElementById('priceStatus');
   if (!grid || (document.body?.dataset?.page && document.body.dataset.page !== 'price')) return;
@@ -4625,15 +4668,17 @@ function renderPriceSearchAsGrid(results, query, requestedPage = 1) {
   if (typeof PRICE_GRID_REQUEST === 'number') PRICE_GRID_REQUEST++;
   if (typeof PRICE_LOADING === 'boolean') PRICE_LOADING = false;
   const rows = Array.isArray(results) ? results : [];
-  const pageSize = 60, pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const remote = pageData && Number.isFinite(pageData.total);
+  const total = remote ? Math.max(0, Math.floor(pageData.total)) : rows.length;
+  const pageSize = 60, pageCount = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.max(1, Math.min(pageCount, Math.floor(Number(requestedPage)) || 1));
-  const first = (page - 1) * pageSize, visible = rows.slice(first, first + pageSize);
+  const first = (page - 1) * pageSize, visible = remote ? rows.slice(0,pageSize) : rows.slice(first, first + pageSize);
   state.results = rows;
   state.query = query;
   state.page = page;
   const info = document.getElementById('priceListInfo');
-  if (info) info.textContent = `검색 결과 ${rows.length}개`;
-  if (status) status.innerHTML = `<div style="padding:8px 4px; font-size:13px; color:var(--ink-sub)">"<b>${escapeHtml(query)}</b>" 검색 결과: <b>${rows.length}</b>개${rows.length ? ` · ${first + 1}–${first + visible.length} 표시` : ''}</div>`;
+  if (info) info.textContent = `검색 결과 ${total}개`;
+  if (status) status.innerHTML = `<div style="padding:8px 4px; font-size:13px; color:var(--ink-sub)">"<b>${escapeHtml(query)}</b>" 검색 결과: <b>${total}</b>개${visible.length ? ` · ${first + 1}–${first + visible.length} 표시` : ''}</div>`;
   const pager = document.getElementById('priceSearchPages');
   if (pager) {
     pager.hidden = pageCount <= 1;
@@ -4642,7 +4687,8 @@ function renderPriceSearchAsGrid(results, query, requestedPage = 1) {
     pager.onclick = event => {
       const button = event.target.closest('[data-price-search-page]');
       if (!button || button.disabled || !current()) return;
-      renderPriceSearchAsGrid(state.results, state.query, Number(button.dataset.priceSearchPage));
+      if (remote) void runPriceSearch(state.query, Number(button.dataset.priceSearchPage));
+      else renderPriceSearchAsGrid(state.results, state.query, Number(button.dataset.priceSearchPage));
       status?.scrollIntoView?.({block:'start'});
     };
   }
@@ -4650,8 +4696,8 @@ function renderPriceSearchAsGrid(results, query, requestedPage = 1) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-title">"${escapeHtml(query)}" 일치 카드 없음</div><div class="empty-sub">한국어/일본어/영어/세트코드/ID 모두 가능</div></div>`;
     return;
   }
-  if (rows.some(card => card._catalogue) && window.JapaneseCatalog) {
-    grid.innerHTML = visible.map(card => `<a class="price-card" href="${escapeHtml(JapaneseCatalog.href(card))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl ? `<img loading="lazy" referrerpolicy="no-referrer" src="${escapeHtml(card.thumbnailUrl)}" alt="${escapeHtml(card.displayName || card.name)}">` : ''}</div><div class="price-card-body" data-live-card-price="${escapeHtml(String(card.id))}"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number ? ' · ' + escapeHtml(card.number) : ''}</div><div class="price-card-price" data-card-price-main>${Number(card.minPrice) > 0 ? fmtKrw(card.minPrice,card.currency) : card._catalogue ? '카드 정보' : '시세 없음'}</div><div class="price-card-krw" data-card-price-origin>${card.cardType==='DON'&&Number(card.minPrice)>0 ? fmtOrig(card.minPrice,card.currency) : ''}</div></div></a>`).join('');
+  if (remote || (rows.some(card => card._catalogue) && window.JapaneseCatalog)) {
+    grid.innerHTML = visible.map(card => `<a class="price-card" href="${escapeHtml(card.href || (window.JapaneseCatalog ? JapaneseCatalog.href(card) : '#price/'+encodeURIComponent(card.id)))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl ? `<img loading="lazy" referrerpolicy="no-referrer" src="${escapeHtml(card.thumbnailUrl)}" alt="${escapeHtml(card.displayName || card.name)}">` : ''}</div><div class="price-card-body" data-live-card-price="${escapeHtml(String(card.id))}"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${remote ? (card.kind==='box'?'박스 시세 · ':'참고 시세 · ') : ''}${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number ? ' · ' + escapeHtml(card.number) : ''}</div><div class="price-card-price" data-card-price-main>${Number(card.minPrice) > 0 ? fmtKrw(card.minPrice,card.currency) : card._catalogue ? '카드 정보' : '시세 없음'}</div><div class="price-card-krw" data-card-price-origin>${card.cardType==='DON'&&Number(card.minPrice)>0 ? fmtOrig(card.minPrice,card.currency) : ''}</div></div></a>`).join('');
     window.CardCatalogRepairs?.hydratePrices?.(grid,visible,{isCurrent:current,formatKrw:fmtKrw,formatOrig:fmtOrig});
     return;
   }
@@ -4688,7 +4734,7 @@ function renderSearchResultsTo(targetId, results, query) {
     const brandLabel = window.TCGGameRegistry?.label(c.brand) || 'TCG';
     const priceText = Number(c.minPrice)>0 ? fmtKrw(c.minPrice,c.currency) : '시세 없음';
     return `
-    <div class="search-result-item" data-card-id="${c.id}" style="display:grid; grid-template-columns:60px 1fr auto; gap:10px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.15s"
+    <div class="search-result-item" data-card-id="${escapeHtml(String(c.id))}"${c.href ? ` data-card-href="${escapeHtml(c.href)}"` : ''} style="display:grid; grid-template-columns:60px 1fr auto; gap:10px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer; transition:background 0.15s"
          onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
       <div style="width:60px; height:84px; background:#f3f4f6; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center">
         ${c.thumbnailUrl ? `<img src="${c.thumbnailUrl}" alt="${escapeHtml(c.displayName || c.name)}" style="width:100%; height:100%; object-fit:contain" referrerpolicy="no-referrer" loading="lazy">` : ''}
@@ -4768,7 +4814,9 @@ document.addEventListener('click', e => {
     if (el) el.style.display = 'none';
   });
   const catalogueCard = window.JapaneseCatalog?.find(cardId);
-  if (catalogueCard) {
+  if (item.dataset.cardHref) {
+    location.href = item.dataset.cardHref;
+  } else if (catalogueCard) {
     location.href = JapaneseCatalog.href(catalogueCard);
   } else {
     location.hash = `#price/${cardId}`;
@@ -4790,9 +4838,9 @@ document.addEventListener('click', e => {
 
 // 검색 페이지 진입 시 미리 데이터 로드 (첫 검색 빠르게)
 window.addEventListener('hashchange', () => {
-  if (location.hash.startsWith('#price')) loadCardSearchData();
+  if (location.hash.startsWith('#price')) _warmSearchIndex();
 });
-if (location.hash.startsWith('#price')) loadCardSearchData();
+if (location.hash.startsWith('#price')) _warmSearchIndex();
 
 /* ────────────────────────────────────
    가격·거래량 히스토리 차트 (Chart.js)
@@ -10959,7 +11007,7 @@ window.addEventListener('appinstalled', () => {
 // </script>
 <script src="/assets/english-search.js?v=20260908-search1"></script>
 <script src="/assets/promo-search.js?v=20261013-promo1"></script>
-<script src="/assets/search-modal.js?v=20261103-box-search1"></script>
+<script src="/assets/search-modal.js?v=20261103-search1"></script>
 <link rel="stylesheet" href="/assets/english-catalog.css?v=20260908-en6">
 <link rel="stylesheet" href="/assets/chinese-catalog.css?v=20261012-cn-release1">
 <script src="/assets/chinese-catalog.js?v=20261030-rarity1"></script>

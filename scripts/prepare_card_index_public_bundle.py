@@ -80,6 +80,17 @@ def pack_vintage_images(target):
     source = target.parent / 'images/pokemon-vintage'
     if not manifest.exists() and not source.exists():
         return None
+    if not manifest.exists():
+        # Exact, reviewed raw files can be seeded ahead of a complete backfill.
+        # They are inputs, not a published generation. Omit only the disposable
+        # deploy copies after checking both their hashes and absent public refs.
+        import materialize_vintage_pokemon_release as vintage
+        review = vintage.load_review(target.parent.parent)
+        vintage.validate_published_references(target.parent, set())
+        count = vintage.validate_seeded_artwork(target.parent, review)
+        shutil.rmtree(source)
+        return {'status': 'deferred-local-backfill', 'verifiedSeedsOmitted': count,
+                'originalSourcesModified': False}
     if (manifest.is_symlink() or not manifest.is_file() or source.is_symlink()
             or (target.parent / 'images').is_symlink() or not source.is_dir()
             or not source.resolve().is_relative_to(target.parent)

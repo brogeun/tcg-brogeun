@@ -1,7 +1,8 @@
 """Reproduce hash-reviewed vintage Pokemon artwork without changing card identity.
 
-CI reads the committed gzip review, downloads only its original image URLs and
-patches display paths onto the current inventories. Collection numbers, rarity,
+A resumable backfill reads the committed review and downloads only its original
+image URLs into a verified persistent cache before patching display paths.
+Normal deployment validates the published generation without source requests. Collection numbers, rarity,
 market bindings and all other current fields stay untouched. Publication uses the
 existing latest-main, exact-blob conflict guard.
 """
@@ -101,9 +102,11 @@ def reviewed_split_identity(row):
                 and original and current and original[1] == current[1])
 
 
-def load_review(root):
+def load_review(root, published=False):
     root = Path(root).resolve()
-    with gzip.open(safe_path(root, REVIEW), 'rb') as stream:
+    path = safe_path(root, MANIFEST if published else REVIEW)
+    opener = open if published else gzip.open
+    with opener(path, 'rb') as stream:
         raw = stream.read(MAX_REVIEW_BYTES + 1)
     if len(raw) > MAX_REVIEW_BYTES:
         raise ValueError('Oversized artwork review')
@@ -371,8 +374,98 @@ def download_asset(row, stop, pacer=None):
     raise RuntimeError('Artwork download did not complete')
 
 
-def run(root, base=None, validate_only=False, workers=4):
+class PartialDownloadError(RuntimeError):
+    """An incomplete collection whose individually verified cache is retained."""
+
+    def __init__(self, failures, completed):
+        self.failures = failures
+        self.completed = completed
+        super().__init__(f'Artwork collection incomplete: {completed} verified, {len(failures)} pending; saved downloads retained')
+
+
+def validate_published_references(root, allowed):
+    candidates = [safe_path(root, CATALOGUE), *safe_path(root, 'data/cards-by-set').glob('*.json')]
+    def references(value):
+        if isinstance(value, str) and value.startswith('/images/pokemon-vintage/'):
+            yield value
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from references(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from references(item)
+    for path in candidates:
+        if path.is_file() and b'/images/pokemon-vintage/' in path.read_bytes():
+            if set(references(read_json(path))) - allowed:
+                raise ValueError('Vintage artwork reference exists without a published manifest entry: ' + path.name)
+
+
+def validate_seeded_artwork(root, review):
+    """Recognize exact reviewed seed files without treating them as a release."""
+    source = safe_path(root, 'images/pokemon-vintage')
+    if not source.exists():
+        return 0
+    if not source.is_dir():
+        raise ValueError('Vintage artwork seed path must be a directory')
+    declared = {row['localImage'][1:]: row for row in review['images']}
+    count = 0
+    for path in source.rglob('*'):
+        name = path.relative_to(root).as_posix()
+        safe_path(root, name)
+        if path.is_file():
+            row = declared.get(name)
+            if row is None:
+                raise ValueError('Unreviewed vintage artwork seed: ' + name)
+            if path.stat().st_size != row['bytes']:
+                raise ValueError('Vintage artwork seed size changed: ' + name)
+            image_bytes(path.read_bytes(), row)
+            count += 1
+    return count
+
+
+def validate_published_release(root):
+    """Deploy an existing complete release without contacting pending sources."""
     root = Path(root).resolve()
+    manifest = safe_path(root, MANIFEST)
+    if manifest.exists():
+        # A newer config is pending work, never a reason to discard the last
+        # complete generation. Validate the published generation on its own.
+        review = load_review(root, published=True)
+        validate_published_references(root, {row['localImage'] for row in review['images']})
+        files = release_files(root, review)
+        return {'status': 'validated-published', 'artworks': len(review['images']), 'files': len(files), 'networkRequests': 0}
+    validate_published_references(root, set())
+    review = load_review(root)
+    seeded = validate_seeded_artwork(root, review)
+    return {'status': 'deferred-local-backfill', 'pendingArtworks': len(review['images']),
+            'verifiedSeeds': seeded, 'networkRequests': 0, 'publishedDataChanged': False}
+
+
+def cache_asset(cache, row, body):
+    """Durably checkpoint one verified image, never a catalogue or credential."""
+    body = image_bytes(body, row)
+    path = safe_path(cache, row['sha256'])
+    cache.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=cache, prefix='.download-', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(body)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    return path
+
+
+def run(root, base=None, validate_only=False, workers=4, cache_dir=None, offline=False):
+    root = Path(root).resolve()
+    if offline:
+        if base or validate_only:
+            raise ValueError('Offline deployment validation cannot publish or materialize a pending generation')
+        return validate_published_release(root)
     review = load_review(root)
     if validate_only:
         files = release_files(root, review)
@@ -380,55 +473,97 @@ def run(root, base=None, validate_only=False, workers=4):
     # Check every current source identity before making network requests or
     # changing a working file. New rarity or metadata fields remain in this copy.
     documents = patch_documents(root, review)
-    stop = threading.Event()
-    pacer = RequestPacer()
+    cache = Path(cache_dir) if cache_dir is not None else root / '.cache/vintage-artwork'
+    if cache.is_symlink():
+        raise ValueError('Artwork cache cannot be a symlink')
+    cache = cache.resolve()
+    sources = {urllib.parse.urlsplit(row['imageSourceUrl']).hostname for row in review['images']}
+    circuits = {host: (threading.Event(), RequestPacer()) for host in sources}
     missing = []
+    ready = {}
     for row in review['images']:
         path = safe_path(root, row['localImage'][1:])
         if path.is_file():
             image_bytes(path.read_bytes(), row)
         else:
+            saved = safe_path(cache, row['sha256'])
+            if saved.is_file():
+                try:
+                    if saved.stat().st_size != row['bytes']:
+                        raise ValueError('Cached artwork size changed')
+                    image_bytes(saved.read_bytes(), row)
+                except (ValueError, OSError):
+                    # A torn/corrupt cache is disposable; retain it separately
+                    # for diagnosis and redownload only this exact asset.
+                    saved.replace(saved.with_name(saved.name + '.corrupt-' + str(time.time_ns())))
+                else:
+                    ready[row['localImage']] = saved
+                    continue
             missing.append(row)
-    # All downloads remain temporary until the complete generation succeeds.
-    # A blocked source, changed byte hash, or missing card leaves current data and
-    # images unchanged. Four workers also bound concurrent requests after a stop.
-    with tempfile.TemporaryDirectory(prefix='pokemon-vintage-release-') as temporary:
-        stage = Path(temporary)
+    # Only this cache survives interruption. Public documents and images still
+    # change together after the entire reviewed generation has been verified.
+    if missing:
+        failures = []
+        fatal = None
         def collect(row):
+            host = urllib.parse.urlsplit(row['imageSourceUrl']).hostname
+            stop, pacer = circuits[host]
             body = download_asset(row, stop, pacer)
-            path = stage / row['localImage'][1:]
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(body)
-            return row['localImage']
-        if missing:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, workers))) as pool:
-                for index, _ in enumerate(pool.map(collect, missing), 1):
-                    if index % 200 == 0:
-                        print(json.dumps({'artworksDownloaded': index, 'artworksRequired': len(missing)}), flush=True)
-        # Validate that no source was edited while downloads were in flight.
-        if patch_documents(root, review) != documents:
-            raise ValueError('Current catalogue changed during artwork materialization')
-        prepared = {}
-        for name, value in documents.items():
-            prepared[name] = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
-        for row in missing:
-            name = row['localImage'][1:]
-            output = safe_path(root, name)
-            if output.exists():
-                image_bytes(output.read_bytes(), row)
-                continue
-            output.parent.mkdir(parents=True, exist_ok=True)
-            temporary_output = output.with_suffix(output.suffix + '.vintage-tmp')
-            temporary_output.write_bytes((stage / name).read_bytes())
-            os.replace(temporary_output, output)
-        for name, body in prepared.items():
-            output = safe_path(root, name)
-            if output.is_file() and output.read_bytes() == body:
-                continue
-            output.parent.mkdir(parents=True, exist_ok=True)
-            temporary_output = output.with_suffix(output.suffix + '.vintage-tmp')
-            temporary_output.write_bytes(body)
-            os.replace(temporary_output, output)
+            return cache_asset(cache, row, body)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, workers))) as pool:
+            futures = {pool.submit(collect, row): row for row in missing}
+            try:
+                for future in concurrent.futures.as_completed(futures):
+                    row = futures[future]
+                    try:
+                        ready[row['localImage']] = future.result()
+                        if len(ready) % 50 == 0:
+                            print(json.dumps({'artworksCached': len(ready), 'artworksRequired': len(review['images'])}), flush=True)
+                    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as error:
+                        host = urllib.parse.urlsplit(row['imageSourceUrl']).hostname
+                        # Exhausted transient failures also pause their source;
+                        # independent hosts keep their own request circuit.
+                        if isinstance(error, (urllib.error.URLError, TimeoutError)):
+                            if not isinstance(error, urllib.error.HTTPError) or error.code in (403, 429, 500, 502, 503, 504):
+                                circuits[host][0].set()
+                        if isinstance(error, RuntimeError) and str(error) != 'Source request circuit is open':
+                            raise
+                        failures.append({'host': host, 'setCode': row['setCode'], 'sourceId': row['sourceId'],
+                                         'kind': type(error).__name__, 'httpCode': getattr(error, 'code', None)})
+            except BaseException as error:
+                for stop, _ in circuits.values():
+                    stop.set()
+                for future in futures:
+                    future.cancel()
+                fatal = error
+        if fatal is not None:
+            raise fatal
+        if failures:
+            raise PartialDownloadError(failures, len(review['images']) - len(failures))
+    # Validate that no source was edited while downloads were in flight.
+    if patch_documents(root, review) != documents:
+        raise ValueError('Current catalogue changed during artwork materialization')
+    prepared = {}
+    for name, value in documents.items():
+        prepared[name] = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+    for row in review['images']:
+        name = row['localImage'][1:]
+        output = safe_path(root, name)
+        if output.exists():
+            image_bytes(output.read_bytes(), row)
+            continue
+        output.parent.mkdir(parents=True, exist_ok=True)
+        temporary_output = output.with_suffix(output.suffix + '.vintage-tmp')
+        temporary_output.write_bytes(image_bytes(ready[row['localImage']].read_bytes(), row))
+        os.replace(temporary_output, output)
+    for name, body in prepared.items():
+        output = safe_path(root, name)
+        if output.is_file() and output.read_bytes() == body:
+            continue
+        output.parent.mkdir(parents=True, exist_ok=True)
+        temporary_output = output.with_suffix(output.suffix + '.vintage-tmp')
+        temporary_output.write_bytes(body)
+        os.replace(temporary_output, output)
     files = release_files(root, review)
     if base:
         from publish_data_snapshot import publish
@@ -442,5 +577,13 @@ if __name__ == '__main__':
     parser.add_argument('--base', help='Publish safely atop current main using this exact collection commit')
     parser.add_argument('--validate-only', action='store_true')
     parser.add_argument('--workers', type=int, default=4)
+    parser.add_argument('--cache-dir', type=Path, help='Persistent verified downloads; resume without repeating successful requests')
+    parser.add_argument('--offline', action='store_true', help='Validate the last published generation without source downloads')
     args = parser.parse_args()
-    print(json.dumps(run(args.root, args.base, args.validate_only, args.workers)))
+    result = run(args.root, args.base, args.validate_only, args.workers, args.cache_dir, args.offline)
+    print(json.dumps(result))
+    if args.offline and os.environ.get('GITHUB_STEP_SUMMARY'):
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as summary:
+            summary.write('\nVintage artwork: ' + result['status'] + '. Network requests: 0.\n')
+            if result['status'] == 'deferred-local-backfill':
+                summary.write('Pending: ' + str(result['pendingArtworks']) + '. Run TCGHUB_Vintage_Backfill.cmd; existing site data retained. This is not a completed image repair.\n')

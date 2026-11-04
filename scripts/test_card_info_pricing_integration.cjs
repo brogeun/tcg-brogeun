@@ -10,7 +10,7 @@ const start = html.indexOf('// Printed Japanese cards keep one current price sou
 const handler = html.slice(start, html.indexOf('// 박스로 돌아가기', start));
 const defer = () => { let resolve; const promise=new Promise(r=>resolve=r); return {promise,resolve}; };
 function harness(prepare, lookup = async () => ({source:'yuyutei',status:'priced',amount:100})) {
-  const calls={slide:[],html:[],lookup:0,closed:0};
+  const calls={slide:[],slideImages:[],html:[],lookup:0,closed:0};
   const origin={}, state={open:true}; let click;
   const ctx={CI_PANEL_REQUEST:1,_LAST_OPENED_SET:{setName:'Test'},escapeHtml:s=>String(s||''),
     document:{addEventListener:(_,fn)=>click=fn,getElementById:id=>id==='setGridContent'?origin:{classList:{contains:()=>state.open}}},
@@ -20,11 +20,18 @@ function harness(prepare, lookup = async () => ({source:'yuyutei',status:'priced
     }},
     closeAnyModal:()=>{calls.closed++;state.open=false;},
     openAnyModal:s=>{calls.html.push(s);state.open=true;},
-    openSlidePanel:id=>calls.slide.push(id),
+    openSlidePanel:(id,image)=>{calls.slide.push(id);calls.slideImages.push(image);},
   };
   vm.runInNewContext(handler,ctx);
   const item = (id='1') => ({dataset:{cardName:'Card '+id,cardIdentity:JSON.stringify({brand:'pokemon',language:'ja',id,number:'001/100'})},isConnected:true,querySelector:()=>null});
-  return {calls,state,item,click:i=>click({target:{closest:s=>s==='.card-price-fallback a'?null:i}})};
+  const candidate=(id='42',image='/images/reviewed-candidate.webp')=>({dataset:{containedMarketId:id,containedMarketImage:image}});
+  const closest=(selector,target)=>{
+    if(selector==='[data-contained-market-id]') return Object.hasOwn(target.dataset,'containedMarketId')?target:null;
+    if(selector==='.card-price-fallback a') return null;
+    if(selector==='.set-card-item[data-card-search]') return target.dataset.cardIdentity?target:null;
+    throw new Error('Unsupported click selector: '+selector);
+  };
+  return {calls,state,item,candidate,click:i=>click({target:{closest:s=>closest(s,i)}})};
 }
 test('new categories live in Card Info and source page shortcuts are removed',()=>{
   const price=html.slice(html.indexOf('data-page="price"'),html.indexOf('data-page="hub"'));
@@ -58,4 +65,17 @@ test('a newer card wins while an older card is still preparing',async()=>{
   const pending=defer(),h=harness(t=>t.id==='1'?pending.promise:Promise.resolve({snkrdunkId:'2',direct:{status:'priced',source:'snkrdunk'}}));
   const older=h.click(h.item('1'));await h.click(h.item('2'));pending.resolve({snkrdunkId:'1',direct:{status:'priced',source:'snkrdunk'}});await older;
   assert.deepEqual(h.calls.slide,['2']);assert.equal(h.calls.html.length,0);
+});
+
+test('a reviewed market candidate opens its own product and artwork without fallback lookup',async()=>{
+  const h=harness(async()=>{throw new Error('Candidate clicks must not prepare the original card');});
+  await h.click(h.candidate('871062','/images/reviewed-rocks.webp'));
+  assert.deepEqual(h.calls.slide,['871062']);assert.deepEqual(h.calls.slideImages,['/images/reviewed-rocks.webp']);
+  assert.equal(h.calls.closed,1);assert.equal(h.calls.lookup,0);assert.equal(h.calls.html.length,0);
+});
+
+test('an invalid market candidate cannot open a product or fall through to card pricing',async()=>{
+  const h=harness(async()=>{throw new Error('Invalid candidates must be ignored');});
+  await h.click(h.candidate('871062-other'));
+  assert.equal(h.calls.slide.length,0);assert.equal(h.calls.closed,0);assert.equal(h.calls.lookup,0);assert.equal(h.calls.html.length,0);
 });

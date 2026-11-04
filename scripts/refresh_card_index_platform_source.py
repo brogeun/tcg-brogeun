@@ -14,6 +14,10 @@ from refresh_market_price_index_source import wait_backoff,pause_for
 ROOT=Path(__file__).resolve().parents[1];JST=timezone(timedelta(hours=9));BRANDS=('pokemon','onepiece');GRADES={'raw':18,'psa10':22};SINGLE={'card','single','single-card','single_card','single card'}
 HTTP_LIMIT=threading.Semaphore(8);PRICE_LIMIT=threading.Semaphore(7);HTTP_STATS=Counter();RATE_LOCK=threading.Lock();RATE_NEXT=0.0;LOCK=threading.RLock();LOG_LOCK=threading.Lock();LOCAL=threading.local()
 MAX_REQUESTS_PER_SECOND=8;MAX_DISCOVERY_PAGES=600
+# Popularity pagination can permanently repeat before reaching its terminal.
+# Use the same complete new-order traversal as refresh_search_prices; retain
+# all previously discovered products and archived observations independently.
+DISCOVERY_ORDERS=('new',)
 def now():return datetime.now(timezone.utc).isoformat()
 def rate_limit():
  global RATE_NEXT
@@ -150,7 +154,7 @@ def main():
  started=now();source_run=((previous_universe or {}).get('discovery',{}).get('sourceRun') or (previous_universe or {}).get('generatedAt') or started) if same_day_resume else started
  for item in products.values():
   for source in item['evidence'].get('listingSources',[]):source['sourceRun']=source_run
- discovery={'sourceRun':source_run,'currentListingProductIds':{brand:{} for brand in BRANDS},'complete':False,'pageTraversalComplete':False,'platformUniverseVerified':False,'status':'in-progress','categoryId':25,'orders':['popular','new'],'streams':[],'listingPricesUsed':False,'limitations':['Public category pagination has no advertised universe total; unavailable, hidden and discontinued products may be absent.','A terminal empty page proves traversal of that public listing, not every platform SKU.']};universe_sha=None;records={};archive={};archive_fingerprints={catalog_path.relative_to(root).as_posix():catalog_sha};source_errors=Counter();arch_counts=Counter();archive_scope={}
+ discovery={'sourceRun':source_run,'currentListingProductIds':{brand:{} for brand in BRANDS},'complete':False,'pageTraversalComplete':False,'platformUniverseVerified':False,'status':'in-progress','categoryId':25,'orders':list(DISCOVERY_ORDERS),'streams':[],'listingPricesUsed':False,'limitations':['Public category pagination has no advertised universe total; unavailable, hidden and discontinued products may be absent.','A terminal empty page proves traversal of that public listing, not every platform SKU.']};universe_sha=None;records={};archive={};archive_fingerprints={catalog_path.relative_to(root).as_posix():catalog_sha};source_errors=Counter();arch_counts=Counter();archive_scope={}
  archive_fingerprints.update({path:ref['sha256'] for path,ref in archive_universe_refs.items()})
  for cid,item in products.items():
   path=root/'data/history'/f'{cid}.json'
@@ -238,7 +242,7 @@ def main():
   for cid,item in products.items():
    for source in item.get('evidence',{}).get('listingSources',[]):
     key=(source.get('brand'),source.get('order'));page=source.get('page')
-    if key[0] in BRANDS and key[1] in ('popular','new') and type(page) is int and page>0:
+    if key[0] in BRANDS and key[1] in DISCOVERY_ORDERS and type(page) is int and page>0:
      resume_pages[key].add(page);resume_ids[key].add(cid)
   for stream in (previous_universe or {}).get('discovery',{}).get('streams',[]):
    key=(stream.get('brand'),stream.get('order'))
@@ -247,7 +251,7 @@ def main():
    try:event=json.loads(line)
    except Exception:continue
    key=(event.get('brand'),event.get('order'))
-   if event.get('type')!='discovery-page' or key[0] not in BRANDS or key[1] not in ('popular','new') or event.get('terminalEmpty'):continue
+   if event.get('type')!='discovery-page' or key[0] not in BRANDS or key[1] not in DISCOVERY_ORDERS or event.get('terminalEmpty'):continue
    ids=event.get('ids',[]);page=event.get('page')
    if not ids or type(page) is not int or not all(cid in products and products[cid]['brand']==key[0] for cid in ids):continue
    resume_pages[key].add(page);resume_ids[key].update(ids);resume_fingerprints[key].add(tuple(ids))
@@ -258,7 +262,7 @@ def main():
  def discover():
   try:
    for brand in BRANDS:
-    for order in ('popular','new'):
+    for order in DISCOVERY_ORDERS:
      key=(brand,order)
      if key in resume_streams:
       stream={**resume_streams[key],'resumed':True};discovery['currentListingProductIds'][brand][order]=sorted(resume_ids[key],key=int);discovery['streams'].append(stream);print('DISCOVERY resumed completed stream '+json.dumps(stream),flush=True);continue
@@ -271,7 +275,7 @@ def main():
       try:payload,response_sha=listing_request(url)
       except Exception as exc:stream['errors'].append({'page':page,'error':str(exc)});break
       rows=payload['tradingCards'];ids=[pid(row.get('id')) if isinstance(row,dict) else None for row in rows];fingerprint=tuple(ids);stream['pages']=page
-      # Popular ordering can transiently return the preceding page. Retry the
+      # A changing listing can transiently return the preceding page. Retry the
       # same page twice without accepting a repeated page as a terminal page.
       for repeat_attempt in range(2):
        if not rows or fingerprint not in seen_pages:break
@@ -299,7 +303,7 @@ def main():
      if page>MAX_DISCOVERY_PAGES and not stream['terminalEmpty']:
       stream['errors'].append({'page':page,'error':'discovery-page-limit'})
      stream['uniqueIDs']=len(seen_ids);discovery['currentListingProductIds'][brand][order]=sorted(seen_ids,key=int);stream['potentialCap']=len(seen_ids) in (9999,10000) or any(error.get('error')=='repeated-id-page' for error in stream['errors']);discovery['streams'].append(stream);print('DISCOVERY stream '+json.dumps(stream,ensure_ascii=False),flush=True)
-   discovery['pageTraversalComplete']=len(discovery['streams'])==4 and all(stream['terminalEmpty'] and not stream['errors'] for stream in discovery['streams']);discovery['complete']=discovery['pageTraversalComplete'];discovery['status']='completed' if discovery['complete'] else 'partial';discovery['newProductsBeyondCatalog']=len(set(products)-catalog_ids);discovery['potentialServerRankingCap']=any(stream['potentialCap'] for stream in discovery['streams']);publish_universe();publish_history()
+   discovery['pageTraversalComplete']=len(discovery['streams'])==len(BRANDS)*len(DISCOVERY_ORDERS) and all(stream['terminalEmpty'] and not stream['errors'] for stream in discovery['streams']);discovery['complete']=discovery['pageTraversalComplete'];discovery['status']='completed' if discovery['complete'] else 'partial';discovery['newProductsBeyondCatalog']=len(set(products)-catalog_ids);discovery['potentialServerRankingCap']=any(stream['potentialCap'] for stream in discovery['streams']);publish_universe();publish_history()
   except Exception as exc:discovery['status']='error';discovery['error']=str(exc);publish_universe();emit({'type':'discovery-failed','error':str(exc)})
  # Prove bounded discovery before spending hours on grade charts. Keep the
  # partial source pair for a same-day resume; never publish an incomplete index.

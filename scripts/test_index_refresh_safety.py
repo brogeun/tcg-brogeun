@@ -139,7 +139,7 @@ class SafetyTests(unittest.TestCase):
             history = json.loads((root / 'data/card-index-platform-history.json').read_bytes())
             universe = json.loads((root / 'data/card-index-platform-universe.json').read_bytes())
             self.assertEqual(result, 2)
-            self.assertEqual(len(calls), 8)
+            self.assertEqual(len(calls), 4)
             self.assertTrue(all(page <= 2 for _, _, page in calls))
             self.assertFalse(history['scopeSummary']['complete'])
             self.assertEqual(history['scopeSummary']['attemptedConditions'], 0)
@@ -155,7 +155,9 @@ class SafetyTests(unittest.TestCase):
             brand, order, page = query['brandId'][0], query['order'][0], int(query['page'][0])
             key = (brand, order, page)
             calls.append(key)
-            if brand == 'pokemon' and order == 'popular' and page == 2:
+            if order != 'new':
+                raise AssertionError('Unstable popularity ranking must not block a complete catalogue refresh')
+            if brand == 'pokemon' and page == 2:
                 rows = [{'id': '1' if calls.count(key) == 1 else '2', 'kind': 'card'}]
             else:
                 rows = [{'id': '1' if brand == 'pokemon' else '101', 'kind': 'card'}] if page == 1 else []
@@ -172,10 +174,14 @@ class SafetyTests(unittest.TestCase):
                  patch('sys.argv', ['refresh', '--root', str(root), '--workers', '1']), redirect_stdout(io.StringIO()):
                 result = source.main()
             self.assertEqual(result, 0)
-            self.assertEqual(calls.count(('pokemon', 'popular', 2)), 2)
+            self.assertEqual(calls.count(('pokemon', 'new', 2)), 2)
             self.assertEqual(set(charts), {(cid, grade) for cid in ['1', '2', '101'] for grade in source.GRADES})
             history = json.loads((root / 'data/card-index-platform-history.json').read_bytes())
             self.assertTrue(history['scopeSummary']['complete'])
+            universe = json.loads((root / 'data/card-index-platform-universe.json').read_bytes())
+            self.assertEqual(universe['discovery']['orders'], ['new'])
+            self.assertEqual(len(universe['discovery']['streams']), 2)
+            self.assertFalse(universe['discovery']['platformUniverseVerified'])
 
     def test_persistent_repeated_listing_fails_before_bulk_chart_collection(self):
         calls = []
@@ -192,7 +198,7 @@ class SafetyTests(unittest.TestCase):
                  patch('sys.argv', ['refresh', '--root', str(root), '--workers', '1']), redirect_stdout(io.StringIO()):
                 result = source.main()
             self.assertEqual(result, 2)
-            self.assertEqual(len(calls), 16)
+            self.assertEqual(len(calls), 8)
             self.assertEqual(charts, [])
             universe = json.loads((root / 'data/card-index-platform-universe.json').read_bytes())
             self.assertTrue(all(stream['errors'][-1]['error'] == 'repeated-id-page' for stream in universe['discovery']['streams']))

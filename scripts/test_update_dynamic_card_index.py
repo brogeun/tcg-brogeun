@@ -1,5 +1,8 @@
 """Failure-injection checks for preserving the last verified active set."""
 import os
+import gzip
+import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -52,5 +55,49 @@ class PromotionTests(unittest.TestCase):
             self.assertTrue(all((root / 'data' / name).read_bytes() == ('old:' + name).encode() for name in names))
 
 
+class ResumeTests(unittest.TestCase):
+    def fixture(self, root):
+        cache = root / target.SOURCE_CACHE
+        cache.mkdir(parents=True)
+        universe = cache / 'card-index-platform-universe-20261105-100000-fixture.json.gz'
+        history = cache / 'card-index-platform-history-20261105-100000-fixture.json.gz'
+        universe.write_bytes(gzip.compress(json.dumps({'source':'SNKRDUNK',
+            'reportKind':'card-index-platform-universe','catalogReference':{'sha256':'current-catalog'}}).encode()))
+        payload = {'source':'SNKRDUNK','reportKind':'market-price-index-live-history',
+            'collectionAsOfJST':'2026-11-05','targetFingerprint':'current-catalog',
+            'universePath':universe.relative_to(root).as_posix(),
+            'universeFingerprint':hashlib.sha256(universe.read_bytes()).hexdigest()}
+        history.write_bytes(gzip.compress(json.dumps(payload).encode()))
+        return universe, history, payload
+
+    def test_exact_catalog_same_day_pair_is_reused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            universe, history, _ = self.fixture(root)
+            self.assertEqual(target.reusable_sources(root, '2026-11-05', 'current-catalog'),
+                             (universe.relative_to(root).as_posix(), history.relative_to(root).as_posix()))
+            self.assertIsNone(target.reusable_sources(root, '2026-11-06', 'current-catalog'))
+            self.assertIsNone(target.reusable_sources(root, '2026-11-05', 'changed-catalog'))
+            self.assertIsNone(target.reusable_sources(root, '2026-11-05', 'current-catalog', universe.relative_to(root).as_posix()))
+
+    def test_tampered_pair_is_retained_but_never_reused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            universe, history, _ = self.fixture(root)
+            universe.write_bytes(gzip.compress(b'{"different":true}'))
+            self.assertIsNone(target.reusable_sources(root, '2026-11-05', 'current-catalog'))
+            self.assertTrue(universe.exists() and history.exists())
+
+    def test_source_reference_cannot_escape_cache(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            universe, history, payload = self.fixture(root)
+            payload['universePath'] = '../outside.json.gz'
+            history.write_bytes(gzip.compress(json.dumps(payload).encode()))
+            self.assertIsNone(target.reusable_sources(root, '2026-11-05', 'current-catalog'))
+            self.assertTrue(universe.exists() and history.exists())
+
+
 if __name__ == '__main__':
     unittest.main()
+

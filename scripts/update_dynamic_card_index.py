@@ -5,6 +5,7 @@ dataset intact. No Git operation, deployment or external write is performed.
 """
 from __future__ import annotations
 import argparse
+import gzip
 import hashlib
 import json
 import os
@@ -121,6 +122,36 @@ def promote_verified_files(stage, root, stamp):
         raise RuntimeError('Index replacement failed; the previous active files were restored') from replacement_error
 
 
+def reusable_sources(root, day, catalog_sha, active_universe=None):
+    """Resume only a same-day, exact-catalog, hash-bound interrupted source pair."""
+    cache = root / SOURCE_CACHE
+    for history_path in sorted(cache.glob('card-index-platform-history-' + day.replace('-', '') + '-*.json.gz'), reverse=True):
+        try:
+            history = json.loads(gzip.decompress(history_path.read_bytes()))
+            if (history.get('source') != 'SNKRDUNK'
+                    or history.get('reportKind') != 'market-price-index-live-history'
+                    or history.get('collectionAsOfJST') != day
+                    or history.get('targetFingerprint') != catalog_sha):
+                continue
+            universe_path = data_reference(root, history.get('universePath'))
+            expected = history_path.name.replace('card-index-platform-history-', 'card-index-platform-universe-', 1)
+            if (universe_path.parent != cache or universe_path.name != expected
+                    or universe_path.relative_to(root).as_posix() == active_universe):
+                continue
+            body = universe_path.read_bytes()
+            universe = json.loads(gzip.decompress(body))
+            if (hashlib.sha256(body).hexdigest() != history.get('universeFingerprint')
+                    or universe.get('source') != 'SNKRDUNK'
+                    or universe.get('reportKind') != 'card-index-platform-universe'
+                    or universe.get('catalogReference', {}).get('sha256') != catalog_sha):
+                continue
+            return universe_path.relative_to(root).as_posix(), history_path.relative_to(root).as_posix()
+        except (OSError, ValueError, KeyError, TypeError, EOFError):
+            # Retain the invalid candidate as evidence; never reuse its records.
+            continue
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
@@ -153,6 +184,14 @@ def main():
                '--history-output', history, '--log-output', log]
     prior_history = prior.get('liveCollection', {}).get('sourcePath')
     prior_universe = prior.get('universeSourcePath')
+    day = datetime.now(timezone(timedelta(hours=9))).date().isoformat()
+    resumed = reusable_sources(root, day, hashlib.sha256((root / 'data/cards-meta.json').read_bytes()).hexdigest(), prior_universe)
+    if resumed:
+        universe, history = resumed
+        refresh[refresh.index('--universe-output') + 1] = universe
+        refresh[refresh.index('--history-output') + 1] = history
+        refresh.append('--resume')
+        print(json.dumps({'status':'resuming-checkpoint','sourceUniverse':universe,'sourceHistory':history}), flush=True)
     for archive in dict.fromkeys(['data/card-index-platform-universe-20261012.json.gz', prior_universe]):
         refresh += ['--archive-universe', archive]
     for archive in dict.fromkeys(['data/card-index-platform-history-20261012.json.gz', prior_history]):
@@ -180,3 +219,4 @@ def main():
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

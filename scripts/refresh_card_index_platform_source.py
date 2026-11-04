@@ -271,6 +271,15 @@ def main():
       try:payload,response_sha=listing_request(url)
       except Exception as exc:stream['errors'].append({'page':page,'error':str(exc)});break
       rows=payload['tradingCards'];ids=[pid(row.get('id')) if isinstance(row,dict) else None for row in rows];fingerprint=tuple(ids);stream['pages']=page
+      # Popular ordering can transiently return the preceding page. Retry the
+      # same page twice without accepting a repeated page as a terminal page.
+      for repeat_attempt in range(2):
+       if not rows or fingerprint not in seen_pages:break
+       emit({'type':'discovery-page-retry','brand':brand,'order':order,'page':page,'attempt':repeat_attempt+1,'reason':'repeated-id-page'})
+       try:payload,response_sha=listing_request(url)
+       except Exception as exc:stream['errors'].append({'page':page,'error':str(exc)});break
+       rows=payload['tradingCards'];ids=[pid(row.get('id')) if isinstance(row,dict) else None for row in rows];fingerprint=tuple(ids)
+      if stream['errors']:break
       emit({'type':'discovery-page','sourceRun':source_run,'brand':brand,'order':order,'page':page,'url':url,'count':len(rows),'ids':ids,'responseJsonOrHttpSha256':response_sha,'digestMeaning':'raw body when exposed; otherwise canonical decoded JSON','terminalEmpty':not rows})
       if not rows:stream['terminalEmpty']=True;break
       if fingerprint in seen_pages:stream['errors'].append({'page':page,'error':'repeated-id-page'});break
@@ -292,8 +301,14 @@ def main():
      stream['uniqueIDs']=len(seen_ids);discovery['currentListingProductIds'][brand][order]=sorted(seen_ids,key=int);stream['potentialCap']=len(seen_ids) in (9999,10000) or any(error.get('error')=='repeated-id-page' for error in stream['errors']);discovery['streams'].append(stream);print('DISCOVERY stream '+json.dumps(stream,ensure_ascii=False),flush=True)
    discovery['pageTraversalComplete']=len(discovery['streams'])==4 and all(stream['terminalEmpty'] and not stream['errors'] for stream in discovery['streams']);discovery['complete']=discovery['pageTraversalComplete'];discovery['status']='completed' if discovery['complete'] else 'partial';discovery['newProductsBeyondCatalog']=len(set(products)-catalog_ids);discovery['potentialServerRankingCap']=any(stream['potentialCap'] for stream in discovery['streams']);publish_universe();publish_history()
   except Exception as exc:discovery['status']='error';discovery['error']=str(exc);publish_universe();emit({'type':'discovery-failed','error':str(exc)})
-  finally:PRICE_LIMIT.release()
- discovery_thread=threading.Thread(target=discover,daemon=True);discovery_thread.start();start=time.monotonic()
+ # Prove bounded discovery before spending hours on grade charts. Keep the
+ # partial source pair for a same-day resume; never publish an incomplete index.
+ discover()
+ if not discovery['complete']:
+  publish_history();emit({'type':'discovery-incomplete','discovery':discovery,'retainedConditions':len(records)});log.close()
+  print(json.dumps({'status':'discovery-incomplete','retainedConditions':len(records),'streams':discovery['streams'],'universe':str(universe_path),'history':str(history_path)},ensure_ascii=False),flush=True)
+  return 2
+ initial=dict(products);start=time.monotonic()
  def priority(cid):return (0 if cid=='146897' else 1 if foreign(initial[cid]) else 2,int(cid))
  def collect(tasks):
   checkpoint_count=len(records);checkpoint_time=time.monotonic()
@@ -307,9 +322,10 @@ def main():
     if count%200==0:print(f'PRICES {count}/{len(products)*2}; failed {sum(record["status"]!="ok" for record in records.values())}; elapsed {round(time.monotonic()-start)}s',flush=True)
     if count-checkpoint_count>=args.checkpoint_conditions or time.monotonic()-checkpoint_time>=args.checkpoint_seconds:
      publish_history();checkpoint_count=count;checkpoint_time=time.monotonic()
- tasks=[(cid,initial[cid]['brand'],grade) for cid in sorted(initial,key=priority) for grade in GRADES if (cid,grade) not in records];collect(tasks);publish_history();discovery_thread.join()
+ tasks=[(cid,initial[cid]['brand'],grade) for cid in sorted(initial,key=priority) for grade in GRADES if (cid,grade) not in records];collect(tasks);publish_history()
  extra=[(cid,item['brand'],grade) for cid,item in products.items() for grade in GRADES if (cid,grade) not in records]
  if extra:print(f'NEW DISCOVERED grade conditions pending {len(extra)}',flush=True);collect(extra)
  publish_universe();publish_history(final=True);emit({'type':'complete','products':len(products),'records':len(records),'discovery':discovery});log.close();print(json.dumps({'universe':str(universe_path),'history':str(history_path),'products':len(products),'conditions':len(records),'discoveryComplete':discovery['complete'],'platformUniverseVerified':False,'sourceAsOf':max((r.get('latestDate') for r in records.values() if r.get('latestDate')),default=None),'elapsedSeconds':round(time.monotonic()-start,2)},ensure_ascii=False),flush=True)
  return 0 if all(r['status']=='ok' for r in records.values()) and discovery['complete'] else 2
 if __name__=='__main__':raise SystemExit(main())
+

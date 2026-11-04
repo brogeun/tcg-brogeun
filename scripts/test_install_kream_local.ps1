@@ -1,8 +1,8 @@
 #Requires -Version 5.1
 <#
-Windows-only contract checks. Parse the installer, load its two pure helpers,
-construct (but never register) a Task Scheduler definition, and round-trip
-arguments through a real Python process. No browser, login or task is started.
+Windows-only contract checks. Parse the installer, load its helpers, construct
+a Task Scheduler definition, and round-trip arguments through real Python.
+Registration failure checks use a mocked cmdlet. No browser, login or task starts.
 #>
 [CmdletBinding()]
 param(
@@ -21,12 +21,12 @@ $kreamParseErrors = $null
 $kreamAst = [Management.Automation.Language.Parser]::ParseFile($InstallerPath, [ref]$kreamTokens, [ref]$kreamParseErrors)
 Assert-KreamCheck ($kreamParseErrors.Count -eq 0) 'The installer has PowerShell syntax errors.'
 
-foreach ($kreamHelperName in @('Quote-KreamTaskArgument', 'New-KreamLocalTaskDefinition')) {
+foreach ($kreamHelperName in @('Quote-KreamTaskArgument', 'New-KreamLocalTaskDefinition', 'Register-KreamLocalSchedule', 'Invoke-KreamFirstCollection')) {
     $kreamFunctions = @($kreamAst.FindAll({
         param($Node)
         $Node -is [Management.Automation.Language.FunctionDefinitionAst] -and $Node.Name -eq $kreamHelperName
     }, $true))
-    Assert-KreamCheck ($kreamFunctions.Count -eq 1) "Missing pure helper: $kreamHelperName"
+    Assert-KreamCheck ($kreamFunctions.Count -eq 1) "Missing installer helper: $kreamHelperName"
     . ([ScriptBlock]::Create($kreamFunctions[0].Extent.Text))
 }
 
@@ -102,4 +102,74 @@ Assert-KreamCheck (-not $kreamFixture.Task.Actions.Arguments.Contains('powershel
 
 $kreamMorning = New-KreamLocalTaskDefinition -Python $kreamPython -Runner 'C:\Temp\run.py' -StateRoot 'C:\Temp\data' -GhPath 'C:\Temp\gh.exe' -UserSid $kreamSid -Now ([datetime]'2026-11-03T08:00:00')
 Assert-KreamCheck ($kreamMorning.NextDaily -eq [datetime]'2026-11-03T09:00:00') 'A future morning trigger was skipped.'
+
+$kreamLauncherFixture = New-KreamLocalTaskDefinition -Python 'C:\Windows\py.exe' -PythonArguments @('-3.11') -Runner 'C:\Temp\run.py' -StateRoot 'C:\Temp\data' -GhPath 'C:\Temp\gh.exe' -UserSid $kreamSid
+Assert-KreamCheck ($kreamLauncherFixture.Task.Actions.Arguments.StartsWith('-3.11 "C:\Temp\run.py" ')) 'Schedule repair lost the Python version argument.'
+
+# Only the mocked registration function runs. The fake collector creates a
+# marker and prints JSON, proving that denial neither stops collection nor
+# captures its progress as a schedule status array.
+$kreamTestRoot = Join-Path ([IO.Path]::GetTempPath()) ('kream-install-check-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $kreamTestRoot | Out-Null
+try {
+    # Execute the actual repair branch with isolated paths. Tool discovery is
+    # blocked, so a broken guard fails safely before any task can be registered.
+    $kreamRepairBranches = @($kreamAst.FindAll({
+        param($Node)
+        $Node -is [Management.Automation.Language.IfStatementAst] -and
+        $Node.Clauses.Count -eq 1 -and
+        $Node.Clauses[0].Item1.Extent.Text -eq '$ScheduleOnly'
+    }, $true))
+    Assert-KreamCheck ($kreamRepairBranches.Count -eq 1) 'Missing schedule-only repair branch.'
+    $kreamRepairBranch = [ScriptBlock]::Create($kreamRepairBranches[0].Extent.Text)
+    $ScheduleOnly = $true
+    $kreamRelease = Join-Path $kreamTestRoot 'release-not-installed'
+    $kreamFiles = @('collect_kream_promos.py', 'setup_kream_session.py', 'run_kream_local.py')
+    $kreamOtherSid = 'S-1-5-18'
+    if ($kreamOtherSid -eq $kreamSid) { $kreamOtherSid = 'S-1-5-19' }
+    $kreamGuardCases = @(
+        @{ Sid=$kreamOtherSid; Message='Schedule repair must run under the same Windows account as the KREAM owner.' },
+        @{ Sid=$kreamSid; Message='The specified installed KREAM release is missing. Schedule repair did not change anything.' }
+    )
+    function Get-Command { throw 'Schedule repair performed tool discovery before rejecting invalid owner or missing release.' }
+    try {
+        foreach ($kreamGuardCase in $kreamGuardCases) {
+            $OwnerSid = $kreamGuardCase.Sid
+            try {
+                & $kreamRepairBranch
+                throw 'Schedule repair accepted an invalid owner or missing release.'
+            } catch {
+                Assert-KreamCheck ($_.Exception.Message -eq $kreamGuardCase.Message) ('Schedule repair guard failed: ' + $_.Exception.Message)
+            }
+        }
+    } finally {
+        Remove-Item Function:\Get-Command -ErrorAction SilentlyContinue
+    }
+
+    $kreamFakeRunner = Join-Path $kreamTestRoot 'fake_runner.py'
+    $kreamFakeSource = @'
+import pathlib,sys
+root=pathlib.Path(sys.argv[sys.argv.index('--state-root')+1])
+(root/'collected').write_text('yes')
+print('{"code":"publication_requested"}')
+'@
+    [IO.File]::WriteAllText($kreamFakeRunner, $kreamFakeSource, [Text.UTF8Encoding]::new($false))
+    $kreamMetadata = @{python=$kreamPython; runner=$kreamFakeRunner; gh='unused'; log='safe-test-log'}
+    $kreamInstallPath = Join-Path $kreamTestRoot 'install.json'
+    $kreamFakeDefinition = @{TaskName='NEVER_REGISTER'; Task='mock'}
+    function Register-ScheduledTask { throw [UnauthorizedAccessException]::new('Simulated registration denial') }
+    $kreamResult = Invoke-KreamFirstCollection -Install $kreamMetadata -Definition $kreamFakeDefinition -InstallPath $kreamInstallPath -StateRoot $kreamTestRoot
+    Assert-KreamCheck ($kreamResult -is [string] -and $kreamResult -eq 'registration_failed') 'Registration denial did not return one explicit failed status.'
+    Assert-KreamCheck (Test-Path -LiteralPath (Join-Path $kreamTestRoot 'collected')) 'Registration denial stopped the first collection.'
+    $kreamSaved = Get-Content -LiteralPath $kreamInstallPath -Raw | ConvertFrom-Json
+    Assert-KreamCheck ($kreamSaved.scheduleStatus -eq 'registration_failed') 'Registration failure was not persisted for repair.'
+    function Register-ScheduledTask { param($TaskName, $InputObject, [switch]$Force, $ErrorAction); return 'mock success' }
+    $kreamResult = Register-KreamLocalSchedule -Install $kreamMetadata -Definition $kreamFakeDefinition -InstallPath $kreamInstallPath
+    Assert-KreamCheck ($kreamResult -eq 'registered') 'Successful registration was not reported.'
+    $kreamSaved = Get-Content -LiteralPath $kreamInstallPath -Raw | ConvertFrom-Json
+    Assert-KreamCheck ($kreamSaved.scheduleStatus -eq 'registered') 'Successful repair was not persisted.'
+} finally {
+    Remove-Item Function:\Register-ScheduledTask -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $kreamTestRoot -Recurse -Force
+}
 Write-Host 'KREAM installer contract checks passed; no task was registered.'

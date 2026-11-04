@@ -13,7 +13,8 @@ Ubuntu Chrome 점검도 상품 탐색 단계에서 실패했다. 같은 Windows 
 
 `scripts/install_kream_local.ps1 -SourceRef <검토·병합된 40자리 커밋>`을 소유자의
 Windows PowerShell에서 실행한다. 설치 파일과 Python 코드 모두 같은 고정 커밋에서 받는다.
-관리자 권한이나 Windows 암호를 요구하지 않는다. 기존 Python 3.11, GitHub CLI 로그인을 사용한다.
+수집은 일반 사용자 권한으로 실행한다. 기존 Python 3.11, GitHub CLI 로그인을 사용한다.
+예약 작업 등록은 Windows 권한 설정에 따라 같은 계정의 관리자 승인이 필요할 수 있다.
 필요한 Python 패키지는 `playwright==1.56.0`, `tzdata`이다. 설치된 Edge를 사용한다.
 
 - 전용 Edge 프로필: `%LOCALAPPDATA%\TCGHUB\kream-local\profile`.
@@ -54,6 +55,25 @@ Unregister-ScheduledTask -TaskName $kreamInstall.taskName -Confirm:$false
 ```
 
 Windows PC를 공개 저장소의 자체 호스팅 Actions 실행기로 등록하지 않는다.
+
+### 로그인 성공 뒤 예약 등록만 거부된 경우
+
+`dedicated_profile_verified`, `setup_complete` 뒤 `Register-ScheduledTask`의
+`0x80070005`가 나오면 로그인 상태는 전용 프로필에 저장됐지만 예약은 등록되지 않은 상태다.
+기존 릴리스의 `run_kream_local.py --run`을 일반 사용자 창에서 실행하면 재로그인 없이
+첫 수집을 요청할 수 있다. 세션이 실제로 만료됐다면 수집기는 정상 로그인 요구를 표시한다.
+
+설치기는 등록 실패를 `install.json`의 `scheduleStatus: registration_failed`로 저장하고
+첫 수집을 계속한다. 수집까지 성공해도 예약이 없으면 설치 종료 코드는 3이다.
+이 종료 코드는 수집 실패나 로그인 실패를 뜻하지 않는다. 실제 게시 결과는 Actions에서 확인한다.
+
+새 설치기의 `-ScheduleOnly -SourceRef <기존에 설치한 40자리 SHA> -OwnerSid <소유자 SID>`는
+기존 릴리스의 예약 등록만 재시도한다. 이전 설치에 `install.json`이 없어도 동작한다.
+브라우저·Python·GitHub CLI를 실행하거나 로그인·다운로드·수집을 반복하지 않는다.
+실행 파일 경로만 확인해 같은 사용자의 `Interactive`·`Limited` 작업을 구성한다.
+관리자 승인이 필요하면 일반 사용자 창에서 소유자 SID를 확보한 뒤 같은 계정으로
+등록 전용 명령을 승격한다. 다른 관리자 계정으로 바뀌면 거부한다.
+재시도에서도 거부되면 Windows의 작업 등록 권한을 점검해야 한다. 작업 ACL이나 보안 정책을 변경하지 않는다.
 
 ## 최초 연결 또는 세션 만료 시
 
@@ -112,5 +132,3 @@ KREAM 도메인의 브라우저 상태만 GitHub Actions의 `KREAM_STORAGE_STATE
 참고: [Playwright 인증 상태](https://playwright.dev/python/docs/auth),
 [GitHub Actions 비밀값](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
 [GitHub 예약 실행 지연](https://docs.github.com/en/actions/how-tos/troubleshoot-workflows).
-
-

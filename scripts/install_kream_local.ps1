@@ -2,14 +2,20 @@
 <#
 Install the current user's KREAM collector from one reviewed immutable commit.
 The dedicated Edge profile remains in LOCALAPPDATA; only validated price JSON
-is published by the Python runner. No Windows password or administrator role
-is requested, and this machine is not registered as a GitHub Actions runner.
+is published by the Python runner. Windows may require administrator approval
+to register the Limited task; collection always runs as the signed-in user.
 #>
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Install')]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $true, ParameterSetName = 'Install')]
+    [Parameter(Mandatory = $true, ParameterSetName = 'ScheduleOnly')]
     [ValidatePattern('\A[0-9a-fA-F]{40}\z')]
-    [string]$SourceRef
+    [string]$SourceRef,
+    [Parameter(Mandatory = $true, ParameterSetName = 'ScheduleOnly')]
+    [switch]$ScheduleOnly,
+    [Parameter(Mandatory = $true, ParameterSetName = 'ScheduleOnly')]
+    [ValidatePattern('\AS-1-[0-9]+(?:-[0-9]+)+\z')]
+    [string]$OwnerSid
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,13 +46,14 @@ function New-KreamLocalTaskDefinition {
         [string]$StateRoot,
         [string]$GhPath,
         [string]$UserSid,
+        [string[]]$PythonArguments = @(),
         [datetime]$Now = (Get-Date)
     )
-    $taskArguments = @(
+    $taskArguments = (@($PythonArguments) + @(
         (Quote-KreamTaskArgument $Runner), '--run', '--scheduled',
         '--state-root', (Quote-KreamTaskArgument $StateRoot),
         '--gh-path', (Quote-KreamTaskArgument $GhPath)
-    ) -join ' '
+    )) -join ' '
     $action = New-ScheduledTaskAction -Execute $Python -Argument $taskArguments -WorkingDirectory (Split-Path -Parent $Runner)
     $principal = New-ScheduledTaskPrincipal -UserId $UserSid -LogonType Interactive -RunLevel Limited
     # A future boundary avoids an overdue daily trigger racing the first run.
@@ -65,6 +72,33 @@ function New-KreamLocalTaskDefinition {
     }
 }
 
+function Register-KreamLocalSchedule {
+    param([hashtable]$Install, $Definition, [string]$InstallPath)
+    $status = 'registered'
+    try {
+        Register-ScheduledTask -TaskName $Definition.TaskName -InputObject $Definition.Task -Force -ErrorAction Stop | Out-Null
+    } catch {
+        $status = 'registration_failed'
+        Write-Warning 'Windows did not register the daily task. The saved KREAM login remains available; collection can run independently.'
+    }
+    $Install.scheduleStatus = $status
+    [IO.File]::WriteAllText($InstallPath, ($Install | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+    return $status
+}
+
+function Invoke-KreamFirstCollection {
+    param([hashtable]$Install, $Definition, [string]$InstallPath, [string]$StateRoot)
+    $status = Register-KreamLocalSchedule -Install $Install -Definition $Definition -InstallPath $InstallPath
+    Write-Host ('Schedule status: ' + $status)
+    Write-Host ('Log: ' + $Install.log)
+    Write-Host 'Starting the first full collection now. This can take about ten minutes.'
+    & $Install.python $Install.runner --run --state-root $StateRoot --gh-path $Install.gh | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        throw ('Local collection did not complete. Saved login retained. Log: ' + $Install.log)
+    }
+    return $status
+}
+
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
     throw 'This installer requires Windows.'
 }
@@ -78,6 +112,43 @@ $kreamReleases = Join-Path $kreamRoot 'releases'
 $kreamRelease = Join-Path $kreamReleases $SourceRef
 $kreamFiles = @('collect_kream_promos.py', 'setup_kream_session.py', 'run_kream_local.py')
 $kreamRepository = 'brogeun/tcg-brogeun'
+
+# Repair scheduling without executing Python, gh, browser, login or downloads.
+# Refuse alternate administrator credentials so registration targets the owner.
+if ($ScheduleOnly) {
+    $kreamIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    if ($kreamIdentity.User.Value -ne $OwnerSid) {
+        throw 'Schedule repair must run under the same Windows account as the KREAM owner.'
+    }
+    foreach ($kreamFile in $kreamFiles) {
+        if (-not (Test-Path -LiteralPath (Join-Path (Join-Path $kreamRelease 'scripts') $kreamFile) -PathType Leaf)) {
+            throw 'The specified installed KREAM release is missing. Schedule repair did not change anything.'
+        }
+    }
+    $kreamSchedulePython = Get-Command py -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    $kreamSchedulePythonArguments = @('-3.11')
+    if (-not $kreamSchedulePython) {
+        $kreamSchedulePython = Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1
+        $kreamSchedulePythonArguments = @()
+    }
+    $kreamScheduleGh = Get-Command gh -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $kreamScheduleRunner = Join-Path (Join-Path $kreamRelease 'scripts') 'run_kream_local.py'
+    $kreamDefinition = New-KreamLocalTaskDefinition -Python $kreamSchedulePython.Source -PythonArguments $kreamSchedulePythonArguments -Runner $kreamScheduleRunner -StateRoot $kreamRoot -GhPath $kreamScheduleGh.Source -UserSid $OwnerSid
+    $kreamInstall = @{
+        schemaVersion = 1; sourceRef = $SourceRef; taskName = $kreamDefinition.TaskName
+        python = $kreamSchedulePython.Source; pythonArguments = $kreamSchedulePythonArguments
+        gh = $kreamScheduleGh.Source; runner = $kreamScheduleRunner; ownerSid = $OwnerSid
+        log = (Join-Path $kreamRoot 'logs\latest.log')
+        schedule = '09:00 local time and current-user logon'
+    }
+    $kreamScheduleStatus = Register-KreamLocalSchedule -Install $kreamInstall -Definition $kreamDefinition -InstallPath (Join-Path $kreamRoot 'install.json')
+    if ($kreamScheduleStatus -ne 'registered') {
+        throw 'Task registration is still unavailable. Windows task permissions must be checked; collection remains available in the normal user window.'
+    }
+    Write-Host ('Task registered: ' + $kreamDefinition.TaskName)
+    Write-Host 'Daily 09:00 local time and owner logon. Task runs with Limited privileges.'
+    return
+}
 
 # Resolve the interpreter once; scheduled tasks do not rely on an interactive PATH.
 $kreamLauncher = Get-Command py -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -173,7 +244,6 @@ if ($LASTEXITCODE -ne 0) {
 $kreamIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $kreamDefinition = New-KreamLocalTaskDefinition -Python $script:KreamPython -Runner $kreamRunner -StateRoot $kreamRoot -GhPath $kreamGh -UserSid $kreamIdentity.User.Value
 $kreamTaskName = $kreamDefinition.TaskName
-Register-ScheduledTask -TaskName $kreamTaskName -InputObject $kreamDefinition.Task -Force | Out-Null
 
 $kreamInstall = @{
     schemaVersion = 1
@@ -182,17 +252,15 @@ $kreamInstall = @{
     python = $script:KreamPython
     gh = $kreamGh
     runner = $kreamRunner
+    ownerSid = $kreamIdentity.User.Value
     log = $kreamLog
     schedule = '09:00 local time and current-user logon'
 }
-[IO.File]::WriteAllText((Join-Path $kreamRoot 'install.json'), ($kreamInstall | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
-Write-Host "Task installed: $kreamTaskName"
-Write-Host 'Schedule: daily 09:00 in Windows local time and current-user logon.'
-Write-Host 'The PC must be on and this Windows user must remain signed in.'
-Write-Host "Log: $kreamLog"
-Write-Host 'Starting the first full collection now. This can take about ten minutes.'
-& $script:KreamPython $kreamRunner --run --state-root $kreamRoot --gh-path $kreamGh
-if ($LASTEXITCODE -ne 0) {
-    throw "The task is installed, but the first collection did not complete (exit $LASTEXITCODE). Log: $kreamLog"
-}
+$kreamScheduleStatus = Invoke-KreamFirstCollection -Install $kreamInstall -Definition $kreamDefinition -InstallPath (Join-Path $kreamRoot 'install.json') -StateRoot $kreamRoot
 Write-Host 'The first local run finished. Check its publication result before treating website prices as updated.'
+if ($kreamScheduleStatus -ne 'registered') {
+    Write-Warning 'Collection finished, but the daily schedule is NOT installed. Use -ScheduleOnly to repair registration without signing in again.'
+    exit 3
+}
+Write-Host ('Task installed: ' + $kreamTaskName)
+Write-Host 'Schedule: daily 09:00 local time and owner logon. The PC must be on and the owner signed in.'

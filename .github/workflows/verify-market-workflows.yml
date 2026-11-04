@@ -11,6 +11,8 @@ on:
       - 'scripts/prepare_card_index_public_bundle.py'
       - 'scripts/prepare_tcg_card_info_bundle.py'
       - 'scripts/test_prepare_public_bundle.py'
+      - 'scripts/test_vintage_image_bundle.py'
+      - 'scripts/audit/vintage-image-packs.test.mjs'
       - 'scripts/test_validate_reference_markets.py'
       - 'scripts/test_market_references_workflow.py'
       - 'scripts/audit/card-info-packs.test.mjs'
@@ -51,5 +53,8 @@ jobs:
           python -m unittest discover -s scripts -p test_validate_reference_markets.py
           python -m unittest scripts.test_market_references_workflow
           python -m unittest discover -s scripts -p test_prepare_public_bundle.py
+          python -m unittest discover -s scripts -p test_vintage_image_bundle.py
           python -m unittest discover -s tests -p test_prepare_tcg_card_info_bundle.py
           node --test scripts/audit/card-info-packs.test.mjs
+          node --test --test-concurrency=1 scripts/audit/vintage-image-packs.test.mjs
+

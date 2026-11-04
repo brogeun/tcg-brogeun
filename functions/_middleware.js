@@ -60,7 +60,7 @@ async function vintageImagePack(context, target, setCode, bucket) {
     }
     text += decoder.decode();
     const pack = JSON.parse(text);
-    if (pack.schemaVersion !== 1 || pack.setCode !== setCode || pack.bucket !== bucket ||
+    if (pack.schemaVersion !== 2 || pack.bucketSize !== 64 || pack.setCode !== setCode || pack.bucket !== bucket ||
         !pack.files || typeof pack.files !== 'object' || Array.isArray(pack.files)) throw Error('Invalid vintage image pack identity');
     entry.bytes=bytes;entry.expires=Date.now()+3600000;
     let total=[...vintageImagePacks.values()].reduce((sum,item)=>sum+item.bytes,0);
@@ -85,8 +85,8 @@ export async function onRequest(context) {
     if (!match) return new Response('Not found',{status:404});
     if (!['GET','HEAD'].includes(context.request.method)) return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
     const [,setCode,file,sourceId,extension] = match;
-    const bucket = sourceId ? String(Math.floor(Number(sourceId)/16)) : 'pooka';
-    const target = new URL('/data/pokemon-vintage-packs/'+setCode+'/'+bucket+'.json',url);
+    const bucket = sourceId ? String(Math.floor(Number(sourceId)/64)) : 'pooka';
+    const target = new URL('/data/pokemon-vintage-packs-v2/'+setCode+'/'+bucket+'.json',url);
     try {
       const pack = await vintageImagePack(context,target,setCode,bucket);
       if (!pack) return context.next(); // Retain older unpacked publication paths.

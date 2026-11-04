@@ -47,8 +47,10 @@ class VintageImageBundleTests(unittest.TestCase):
         self.assertEqual(report['packFiles'], 2)
         self.assertEqual(report['fileCountSaved'], 1)
         seen = {}
-        for path in (self.data / 'pokemon-vintage-packs').rglob('*.json'):
+        for path in (self.data / 'pokemon-vintage-packs-v2').rglob('*.json'):
             pack = json.loads(path.read_bytes())
+            self.assertEqual(pack['schemaVersion'], 2)
+            self.assertEqual(pack['bucketSize'], 64)
             for name, image in pack['files'].items():
                 local = '/images/pokemon-vintage/' + pack['setCode'] + '/' + name
                 body = base64.b64decode(image['data'], validate=True)
@@ -68,7 +70,7 @@ class VintageImageBundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'bytes differ'):
             target.pack_vintage_images(self.data)
         self.assert_source_retained()
-        self.assertFalse((self.data / 'pokemon-vintage-packs').exists())
+        self.assertFalse((self.data / 'pokemon-vintage-packs-v2').exists())
 
     def test_unreviewed_files_and_duplicate_rows_cannot_disappear_from_the_bundle(self):
         extra = self.root / '_deploy/images/pokemon-vintage/Neo1/unreviewed.webp'
@@ -89,7 +91,7 @@ class VintageImageBundleTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'runtime asset budget'):
                 target.pack_vintage_images(self.data)
         self.assert_source_retained()
-        self.assertFalse((self.data / 'pokemon-vintage-packs').exists())
+        self.assertFalse((self.data / 'pokemon-vintage-packs-v2').exists())
 
     def test_paths_and_existing_generated_packs_are_not_overwritten(self):
         original = self.rows[0]['localImage']
@@ -102,7 +104,7 @@ class VintageImageBundleTests(unittest.TestCase):
             self.assert_source_retained()
         self.rows[0]['localImage'] = original
         self.save_review()
-        destination = self.data / 'pokemon-vintage-packs'
+        destination = self.data / 'pokemon-vintage-packs-v2'
         destination.mkdir()
         (destination / 'retain.txt').write_text('already prepared')
         with self.assertRaisesRegex(ValueError, 'preexisting'):
@@ -110,6 +112,25 @@ class VintageImageBundleTests(unittest.TestCase):
         self.assertEqual((destination / 'retain.txt').read_text(), 'already prepared')
         self.assert_source_retained()
 
+    def test_64_card_buckets_merge_old_groups_and_preserve_the_next_boundary(self):
+        for ident in ('29536', '29568'):
+            local = f'/images/pokemon-vintage/Neo1/tcg-{ident}.webp'
+            body = ('exact reviewed image bytes ' + ident).encode()
+            self.bodies[local] = body
+            self.rows.append({'setCode': 'Neo1', 'sourceId': ident, 'localImage': local,
+                              'sha256': hashlib.sha256(body).hexdigest(), 'bytes': len(body)})
+            for base in (self.root, self.root / '_deploy'):
+                (base / local[1:]).write_bytes(body)
+        self.save_review()
+        report = target.pack_vintage_images(self.data)
+        self.assertEqual(report['artworkFiles'], 5)
+        self.assertEqual(report['packFiles'], 3)
+        folder = self.data / 'pokemon-vintage-packs-v2/Neo1'
+        merged = json.loads((folder / '461.json').read_bytes())
+        self.assertEqual(set(merged['files']), {'tcg-29518.webp', 'tcg-29519.webp', 'tcg-29536.webp'})
+        self.assertEqual(set(json.loads((folder / '462.json').read_bytes())['files']), {'tcg-29568.webp'})
+
 
 if __name__ == '__main__':
     unittest.main()
+

@@ -10,10 +10,19 @@ on:
       - 'scripts/test_card_info_pricing_integration.cjs'
       - 'scripts/test_verify_card_info_prices.cjs'
       - 'scripts/verify_card_info_prices_production.cjs'
+      - 'scripts/test_futuristic_market.mjs'
+      - 'scripts/sync_futuristic_market.py'
+      - 'scripts/backfill_history.py'
       - 'data/all-cards.json'
       - 'data/card-catalog-repairs.json'
       - 'data/contained-card-market-links.json'
       - 'data/onepiece-card-overrides.json'
+      - 'data/futuristic-market.json'
+      - 'data/anniversary-market.json'
+      - 'data/history/881432.json'
+      - 'data/history/881433.json'
+      - 'data/history/897035.json'
+      - 'data/history/897036.json'
       - 'data/cards-by-set/**'
       - '.github/workflows/pricing-integration-ci.yml'
       - '.github/workflows/scrape.yml'
@@ -45,6 +54,12 @@ jobs:
             /data/card-catalog-repairs.json
             /data/contained-card-market-links.json
             /data/onepiece-card-overrides.json
+            /data/futuristic-market.json
+            /data/anniversary-market.json
+            /data/history/881432.json
+            /data/history/881433.json
+            /data/history/897035.json
+            /data/history/897036.json
             /data/cards-by-set/
       - uses: actions/setup-node@v4
         with:
@@ -53,3 +68,4 @@ jobs:
         run: |
           node --test --test-concurrency=1 scripts/test_card_info_pricing_integration.cjs
           node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs
+          node scripts/test_futuristic_market.mjs

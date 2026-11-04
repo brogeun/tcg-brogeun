@@ -7,9 +7,9 @@ import vm from 'node:vm';
 const source=readFileSync(new URL('../../functions/_middleware.js',import.meta.url),'utf8');
 const original=Buffer.from('RIFF reviewed exact WEBP artwork bytes');
 const sha=createHash('sha256').update(original).digest('hex');
-const file='tcg-29518.webp',bucket='1844';
+const file='tcg-29518.webp',bucket='461';
 const image={contentType:'image/webp',sha256:sha,bytes:original.length,data:original.toString('base64')};
-const pack={schemaVersion:1,setCode:'Neo1',bucket,files:{[file]:image,'tcg-29519.webp':{...image,data:Buffer.alloc(original.length,42).toString('base64')}}};
+const pack={schemaVersion:2,bucketSize:64,setCode:'Neo1',bucket,files:{[file]:image,'tcg-29519.webp':{...image,data:Buffer.alloc(original.length,42).toString('base64')}}};
 function runtime(asset=()=>Response.json(pack)) {
   const calls=[];let next=0;
   const context=vm.createContext({URL,Request,Response,TextDecoder,Uint8Array,atob,fetch(){throw Error('Unexpected external request');}});
@@ -32,7 +32,7 @@ test('one original image URL returns only its exact binary bytes and MIME',async
   assert.equal(response.headers.get('Content-Length'),String(original.length));
   assert.equal(response.headers.get('ETag'),'"'+sha+'"');
   assert.equal(response.headers.get('Cache-Control'),'public, max-age=86400');
-  assert.deepEqual(app.calls,['https://tcghub.kr/data/pokemon-vintage-packs/Neo1/1844.json']);
+  assert.deepEqual(app.calls,['https://tcghub.kr/data/pokemon-vintage-packs-v2/Neo1/461.json']);
   assert.equal(app.next,0);
 });
 
@@ -53,11 +53,11 @@ test('HEAD and conditional 304 keep image headers without returning pack or imag
 
 test('Pooka PNG image IDs use their explicit Pooka bucket',async()=>{
   const name='pooka-ja-dp1-108.png';
-  const app=runtime(()=>Response.json({schemaVersion:1,setCode:'DP1',bucket:'pooka',files:{[name]:{...image,contentType:'image/png'}}}));
+  const app=runtime(()=>Response.json({schemaVersion:2,bucketSize:64,setCode:'DP1',bucket:'pooka',files:{[name]:{...image,contentType:'image/png'}}}));
   const response=await app.invoke('/images/pokemon-vintage/DP1/'+name);
   assert.equal(response.status,200);assert.equal(response.headers.get('Content-Type'),'image/png');
   assert.deepEqual(Buffer.from(await response.arrayBuffer()),original);
-  assert.deepEqual(app.calls,['https://tcghub.kr/data/pokemon-vintage-packs/DP1/pooka.json']);
+  assert.deepEqual(app.calls,['https://tcghub.kr/data/pokemon-vintage-packs-v2/DP1/pooka.json']);
 });
 
 test('invalid paths and write methods do not read a static pack',async()=>{
@@ -80,7 +80,8 @@ test('missing packs preserve unpacked publications and absent records return 404
 test('malformed packs, wrong identities and invalid image metadata fail closed',async()=>{
   const bad=[
     ()=>Response.json({...pack,setCode:'Neo2'}),()=>Response.json({...pack,bucket:'1845'}),
-    ()=>Response.json({...pack,schemaVersion:2}),()=>new Response('{broken',{headers:{'Content-Type':'application/json'}}),
+    ()=>Response.json({...pack,schemaVersion:1}),()=>Response.json({...pack,bucketSize:16}),
+    ()=>new Response('{broken',{headers:{'Content-Type':'application/json'}}),
     ()=>new Response('failed',{status:503}),
     ...[{contentType:'image/png'},{bytes:1},{sha256:'wrong'},{data:'!'.repeat(image.data.length)}].map(change=>
       ()=>Response.json({...pack,files:{[file]:{...image,...change}}})),
@@ -101,11 +102,11 @@ test('declared and streamed oversized packs stop before serving an image',async(
 test('the worker retains at most four requested packs',async()=>{
   const app=runtime(request=>{
     const group=Number(new URL(request.url).pathname.split('/').pop().replace('.json',''));
-    return Response.json({...pack,bucket:String(group),files:{['tcg-'+group*16+'.webp']:image}});
+    return Response.json({...pack,bucket:String(group),files:{['tcg-'+group*64+'.webp']:image}});
   });
-  for(let group=1844;group<1849;group++)assert.equal((await app.invoke('/images/pokemon-vintage/Neo1/tcg-'+group*16+'.webp')).status,200);
+  for(let group=461;group<466;group++)assert.equal((await app.invoke('/images/pokemon-vintage/Neo1/tcg-'+group*64+'.webp')).status,200);
   assert.equal(app.calls.length,5);
-  assert.equal((await app.invoke('/images/pokemon-vintage/Neo1/tcg-'+1844*16+'.webp')).status,200);
+  assert.equal((await app.invoke('/images/pokemon-vintage/Neo1/tcg-'+461*64+'.webp')).status,200);
   assert.equal(app.calls.length,6);
 });
 

@@ -13,6 +13,7 @@ from pathlib import Path
 MAX_ASSET_BYTES = 25 * 1024 * 1024
 MAX_ASSET_FILES = 19_900  # Leave room below Pages' 20,000 asset limit.
 MAX_VINTAGE_PACK_BYTES = 8 * 1024 * 1024
+VINTAGE_BUCKET_SIZE = 64
 SEARCH_INTERNAL_FIELDS = ('priceSource', 'priceCheckedAt', 'priceStatus')
 
 
@@ -122,7 +123,7 @@ def pack_vintage_images(target):
         body = path.read_bytes()
         if not 0 < len(body) <= 3_000_000 or len(body) != row.get('bytes') or hashlib.sha256(body).hexdigest() != row.get('sha256'):
             raise ValueError('Vintage artwork bytes differ from the verified source review')
-        bucket = str(int(match[3]) // 16) if match[3] else 'pooka'
+        bucket = str(int(match[3]) // VINTAGE_BUCKET_SIZE) if match[3] else 'pooka'
         encoded = base64.b64encode(body).decode('ascii')
         if base64.b64decode(encoded, validate=True) != body:
             raise ValueError('Vintage artwork base64 round-trip failed')
@@ -132,14 +133,14 @@ def pack_vintage_images(target):
         }
     if actual != declared:
         raise ValueError('Unreviewed or missing files in the vintage artwork deployment copy')
-    destination = target / 'pokemon-vintage-packs'
+    destination = target / 'pokemon-vintage-packs-v2'
     if destination.exists():
         raise ValueError('Unexpected preexisting vintage artwork packs')
     largest = 0
     with tempfile.TemporaryDirectory(dir=target, prefix='.vintage-image-packs-') as folder:
         stage = Path(folder)
         for (code, bucket), files in sorted(packs.items()):
-            body = json.dumps({'schemaVersion': 1, 'setCode': code, 'bucket': bucket, 'files': files},
+            body = json.dumps({'schemaVersion': 2, 'bucketSize': VINTAGE_BUCKET_SIZE, 'setCode': code, 'bucket': bucket, 'files': files},
                               ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode('utf-8')
             if len(body) > min(MAX_ASSET_BYTES, MAX_VINTAGE_PACK_BYTES):
                 raise ValueError('Vintage artwork pack exceeds the public runtime asset budget')

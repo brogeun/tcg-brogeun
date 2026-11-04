@@ -142,9 +142,88 @@ class SafetyTests(unittest.TestCase):
             self.assertEqual(len(calls), 8)
             self.assertTrue(all(page <= 2 for _, _, page in calls))
             self.assertFalse(history['scopeSummary']['complete'])
+            self.assertEqual(history['scopeSummary']['attemptedConditions'], 0)
             self.assertEqual(history['collectionPolicy']['maxRequestsPerSecond'], 8)
             self.assertTrue(all(stream['errors'][-1]['error'] == 'discovery-page-limit'
                                 for stream in universe['discovery']['streams']))
+
+    def test_transient_repeated_listing_page_recovers_without_losing_products(self):
+        calls = []
+        charts = []
+        def listing(url):
+            query = parse_qs(urlsplit(url).query)
+            brand, order, page = query['brandId'][0], query['order'][0], int(query['page'][0])
+            key = (brand, order, page)
+            calls.append(key)
+            if brand == 'pokemon' and order == 'popular' and page == 2:
+                rows = [{'id': '1' if calls.count(key) == 1 else '2', 'kind': 'card'}]
+            else:
+                rows = [{'id': '1' if brand == 'pokemon' else '101', 'kind': 'card'}] if page == 1 else []
+            return {'tradingCards': rows}, 'fixture-sha'
+        def chart(cid, brand, grade, *args):
+            charts.append((cid, grade))
+            return {'id': cid, 'brand': brand, 'grade': grade, 'conditionCode': source.GRADES[grade],
+                    'status': 'ok', 'history': [], 'fetchedAt': source.now()}
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'data').mkdir()
+            (root / 'data/cards-meta.json').write_text('{"cards":[]}', encoding='utf-8')
+            with patch.object(source, 'listing_request', listing), patch.object(source, 'fetch_chart', chart), \
+                 patch('sys.argv', ['refresh', '--root', str(root), '--workers', '1']), redirect_stdout(io.StringIO()):
+                result = source.main()
+            self.assertEqual(result, 0)
+            self.assertEqual(calls.count(('pokemon', 'popular', 2)), 2)
+            self.assertEqual(set(charts), {(cid, grade) for cid in ['1', '2', '101'] for grade in source.GRADES})
+            history = json.loads((root / 'data/card-index-platform-history.json').read_bytes())
+            self.assertTrue(history['scopeSummary']['complete'])
+
+    def test_persistent_repeated_listing_fails_before_bulk_chart_collection(self):
+        calls = []
+        charts = []
+        def listing(url):
+            query = parse_qs(urlsplit(url).query)
+            calls.append(url)
+            return {'tradingCards': [{'id': '1' if query['brandId'][0] == 'pokemon' else '101', 'kind': 'card'}]}, 'fixture'
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'data').mkdir()
+            (root / 'data/cards-meta.json').write_text('{"cards":[]}', encoding='utf-8')
+            with patch.object(source, 'listing_request', listing), patch.object(source, 'fetch_chart', lambda *args: charts.append(args)), \
+                 patch('sys.argv', ['refresh', '--root', str(root), '--workers', '1']), redirect_stdout(io.StringIO()):
+                result = source.main()
+            self.assertEqual(result, 2)
+            self.assertEqual(len(calls), 16)
+            self.assertEqual(charts, [])
+            universe = json.loads((root / 'data/card-index-platform-universe.json').read_bytes())
+            self.assertTrue(all(stream['errors'][-1]['error'] == 'repeated-id-page' for stream in universe['discovery']['streams']))
+
+    def test_same_day_resume_fetches_only_failed_conditions(self):
+        calls = []
+        fail = [True]
+        def chart(cid, brand, grade, *args):
+            calls.append((cid, grade))
+            return {'id':cid,'brand':brand,'grade':grade,'conditionCode':source.GRADES[grade],
+                    'status':'failed' if fail[0] and (cid, grade) == ('2', 'raw') else 'ok',
+                    'history':[],'fetchedAt':source.now()}
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'data').mkdir()
+            (root / 'data/cards-meta.json').write_text(json.dumps({'cards':[
+                {'id':'1','brand':'pokemon','kind':'card'}, {'id':'2','brand':'pokemon','kind':'card'}]}), encoding='utf-8')
+            arguments = ['refresh', '--root', str(root), '--workers', '1']
+            with patch.object(source, 'listing_request', lambda url: ({'tradingCards':[]}, 'fixture')), \
+                 patch.object(source, 'fetch_chart', chart), patch('sys.argv', arguments), redirect_stdout(io.StringIO()):
+                self.assertEqual(source.main(), 2)
+            self.assertEqual(len(calls), 4)
+            calls.clear()
+            fail[0] = False
+            with patch.object(source, 'listing_request', side_effect=AssertionError('Completed listing stream was recollected')), \
+                 patch.object(source, 'fetch_chart', chart), patch('sys.argv', arguments + ['--resume']), redirect_stdout(io.StringIO()):
+                self.assertEqual(source.main(), 0)
+            self.assertEqual(calls, [('2', 'raw')])
+            history = json.loads((root / 'data/card-index-platform-history.json').read_bytes())
+            self.assertEqual(history['scopeSummary']['succeededConditions'], 4)
+            self.assertTrue(history['scopeSummary']['complete'])
 
     def test_new_catalog_rebinds_fresh_source_and_preserves_archive_prices(self):
         def chart(cid, brand, grade, *args):
@@ -185,3 +264,4 @@ class SafetyTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

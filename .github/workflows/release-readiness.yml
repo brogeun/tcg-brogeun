@@ -1,0 +1,64 @@
+name: Verify release readiness and resumable index collection
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/release-readiness.yml'
+      - '.github/workflows/index-refresh.yml'
+      - '.github/workflows/scrape.yml'
+      - 'scripts/refresh_card_index_platform_source.py'
+      - 'scripts/update_dynamic_card_index.py'
+      - 'scripts/test_index_refresh_safety.py'
+      - 'scripts/test_update_dynamic_card_index.py'
+      - 'scripts/test_ja_production_gate.cjs'
+      - 'assets/japanese-card-names.js'
+      - 'assets/japanese-catalog.js'
+      - 'assets/search-modal.js'
+      - 'data/japanese-card-names-ko.json'
+      - 'data/japanese-catalog.json'
+      - 'data/cards-by-set/M6a.json'
+      - 'data/cards-by-set/MF.json'
+      - 'index.html'
+      - 'sw.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-readiness-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/
+            /assets/
+            /index.html
+            /sw.js
+            /data/japanese-catalog.json
+            /data/japanese-card-names-ko.json
+            /data/cards-meta.json
+            /data/search-aliases.json
+            /data/cards-by-set/M6a.json
+            /data/cards-by-set/MF.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify current Japanese labels, identities, full inventory and Korean search
+        run: node scripts/test_ja_production_gate.cjs
+      - name: Install offline index test dependencies
+        run: python -m pip install 'numpy>=1.26,<3' 'scipy>=1.11,<2' 'requests>=2.31,<3'
+      - name: Verify bounded discovery, same-day resume and preservation on failure
+        run: |
+          python -B -m unittest discover -s scripts -p test_index_refresh_safety.py
+          python -B -m unittest discover -s scripts -p test_update_dynamic_card_index.py

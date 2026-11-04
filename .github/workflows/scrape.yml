@@ -75,6 +75,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Check catalogue labels and search before costly collection and packaging
+        run: node scripts/test_ja_production_gate.cjs
+
       - name: Materialize reviewed official inventories and images
         run: |
           python -m pip install "Pillow==12.2.0"
@@ -528,4 +531,5 @@ jobs:
         run: |
           echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
           exit 1
+
 

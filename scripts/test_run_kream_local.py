@@ -163,6 +163,18 @@ class LocalCollectorTests(unittest.TestCase):
             self.assertNotIn('PRIVATE', log + output.getvalue())
             self.assertEqual(json.loads(log.splitlines()[-1])['code'], 'local_collection_failed')
 
+    def test_collection_error_keeps_safe_product_progress_in_log(self):
+        with tempfile.TemporaryDirectory() as directory:
+            error=local.collector.CollectionError('historical_rows_missing','Prior prices retained.',
+                product_id='893073',stage='validating_history',loaded_rows=50,missing_previous_rows=20)
+            with mock.patch.object(local,'execute',side_effect=error),contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(local.main(['--run','--state-root',directory]),1)
+            record=json.loads((Path(directory)/'logs/latest.log').read_text().splitlines()[-1])
+            self.assertEqual(record['code'],'historical_rows_missing')
+            self.assertEqual(record['product_id'],'893073')
+            self.assertEqual(record['loaded_rows'],50)
+            self.assertEqual(record['missing_previous_rows'],20)
+
     def test_scheduled_skip_uses_kst_midnight_and_matching_healthy_generation(self):
         now = datetime(2026, 11, 4, 9, 0, tzinfo=local.collector.KST)
         manifest = {'last_success_at': '2026-11-04T05:00:00+09:00'}

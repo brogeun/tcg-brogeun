@@ -195,4 +195,39 @@ class AuthenticatedCollectorTests(unittest.TestCase):
         self.assertFalse(collector.already_collected_today(manifest,{**health,'last_success_at':'old'},now))
         self.assertFalse(collector.already_collected_today({'last_success_at':'2026-11-01T20:00:00+09:00'},health,now))
 
+class DrawerProgressTests(unittest.TestCase):
+    def test_loading_pause_below_old_count_is_not_an_end(self):
+        page=mock.Mock();rows=mock.Mock()
+        rows.count.side_effect=[50]*7+[100]*8
+        rows.last.evaluate.return_value={'atBottom':True}
+        report=mock.Mock()
+        with mock.patch.object(collector,'require_login_access'):
+            collector.load_drawer_rows(page,rows,100,report)
+        self.assertGreaterEqual(rows.count.call_count,14)
+        self.assertEqual(report.call_args.args[0],'history_loaded')
+        self.assertEqual(report.call_args.kwargs['loaded_rows'],100)
+        self.assertTrue(any('scrollTop-200' in c.args[0] for c in rows.last.evaluate.call_args_list))
+
+    def test_truncated_drawer_never_becomes_complete(self):
+        page=mock.Mock();rows=mock.Mock();rows.count.return_value=50
+        rows.last.evaluate.return_value={'atBottom':True}
+        with mock.patch.object(collector,'require_login_access'),self.assertRaisesRegex(ValueError,'Drawer did not reach'):
+            collector.load_drawer_rows(page,rows,100,mock.Mock())
+
+    def test_validation_reason_and_safe_counts_survive_local_failure(self):
+        def incomplete(page,card,old,report):
+            report('validating_history',loaded_rows=50,missing_previous_rows=20)
+            raise ValueError('Source snapshot is incomplete or historical trades changed; preserved prior data')
+        with mock.patch.object(collector,'_collect',side_effect=incomplete),self.assertRaises(collector.CollectionError) as caught:
+            collector.collect(object(),{'id':'893073'},{'rows':[{}]*70})
+        self.assertEqual(caught.exception.code,'historical_rows_missing')
+        self.assertEqual(caught.exception.details,{'product_id':'893073','previous_rows':70,
+            'stage':'validating_history','loaded_rows':50,'missing_previous_rows':20})
+
+    def test_unrecognized_value_error_does_not_leak_private_text(self):
+        with mock.patch.object(collector,'_collect',side_effect=ValueError('PRIVATE-AUTH')),self.assertRaises(collector.CollectionError) as caught:
+            collector.collect(object(),{'id':'893073'},{'rows':[]})
+        self.assertEqual(caught.exception.code,'source_row_invalid')
+        self.assertNotIn('PRIVATE',str(caught.exception)+json.dumps(caught.exception.details))
+
 if __name__=='__main__':unittest.main()

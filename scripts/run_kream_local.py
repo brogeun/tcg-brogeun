@@ -174,7 +174,7 @@ def collect_generation(context, root, emit):
     for card in manifest['cards']:
         emit('collecting_product', product_id=card['id'])
         old = collector.unpack_history(json.loads((root / card['file'].lstrip('/')).read_bytes()))
-        data = collector.collect(page, card, old)
+        data = collector.collect(page, card, old, report=emit)
         staged[card['id']] = data
         emit('product_complete', product_id=card['id'], rows=len(data['rows']))
     collector.publish_generation(root, manifest, staged, attempted)
@@ -278,7 +278,10 @@ def main(argv=None):
                 emit('cancelled')
                 return 1
             except (LocalError, collector.CollectionError) as error:
-                emit(error.code)
+                if isinstance(error,collector.CollectionError):
+                    emit(error.code,**error.details)
+                else:
+                    emit(error.code)
                 return 1
             except Exception as error:
                 emit('local_collection_failed', error_type=type(error).__name__)

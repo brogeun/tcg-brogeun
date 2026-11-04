@@ -327,14 +327,32 @@ def publish_generation(root, original_manifest, staged, attempted):
         raise
     return manifest
 
-def collect(page, card, old):
-    anchor = datetime.now(KST)
-    open_product(page, card)
-    open_history_drawer(page)
-    rows_locator = page.locator('.drawer .tab_content.show .price_body .body_list')
-    rows_locator.first.wait_for(state='visible', timeout=15000)
+def collect(page, card, old, report=None):
+    progress={'product_id':card['id'],'previous_rows':len(old['rows'])}
+    def record(stage, **details):
+        progress.update(stage=stage, **details)
+        if report is not None:
+            report(stage, product_id=card['id'], **details)
+    try:
+        return _collect(page,card,old,record)
+    except ValueError as error:
+        # Match fixed messages only. Never emit a raw browser/DOM exception.
+        codes={
+            'Unknown source date label':'source_date_unrecognized',
+            'Invalid source row':'source_row_invalid',
+            'Drawer did not reach its end':'history_loading_incomplete',
+            'Source snapshot is incomplete or historical trades changed; preserved prior data':'historical_rows_missing',
+            'Source trade order is not newest first':'source_order_invalid',
+            'Trade count mismatch':'source_count_mismatch',
+            'Option counts mismatch':'source_option_count_mismatch',
+            'Unsorted or invalid trade':'source_history_invalid',
+        }
+        code=codes.get(str(error),'source_row_invalid')
+        raise CollectionError(code,'KREAM trade validation failed; prior prices retained.',**progress) from None
+
+def load_drawer_rows(page, rows_locator, minimum_rows, report):
     count_before, stable = 0, 0
-    for _ in range(650):
+    for scroll_pass in range(650):
         require_login_access(page)
         count = rows_locator.count()
         if count == count_before:
@@ -342,6 +360,20 @@ def collect(page, card, old):
         else:
             stable = 0
         count_before = count
+        if scroll_pass % 20 == 0 or stable in (4,8,12,16):
+            report('history_loading', loaded_rows=count, minimum_previous_rows=minimum_rows,
+                   scroll_passes=scroll_pass+1)
+        # A paused request is not an end marker. Normal upward/downward UI
+        # scrolling retriggers the lazy loader while previously seen rows lack.
+        if count < minimum_rows and stable in (4,8,12):
+            rows_locator.last.evaluate('''el => {
+              for(let p=el.parentElement;p;p=p.parentElement){
+                if(p.scrollHeight>p.clientHeight+20 && ['auto','scroll'].includes(getComputedStyle(p).overflowY)){
+                  p.scrollTop=Math.max(0,p.scrollTop-200);return;
+                }
+              }
+            }''')
+            page.wait_for_timeout(250)
         bottom = rows_locator.last.evaluate('''el => {
           for(let p=el.parentElement;p;p=p.parentElement){
             if(p.scrollHeight>p.clientHeight+20 && ['auto','scroll'].includes(getComputedStyle(p).overflowY)){
@@ -349,19 +381,38 @@ def collect(page, card, old):
             }
           } return {atBottom:false};
         }''')
-        if stable >= 4 and bottom['atBottom']:
-            break
+        if stable >= 6 and bottom['atBottom'] and count >= minimum_rows:
+            report('history_loaded',loaded_rows=count,minimum_previous_rows=minimum_rows)
+            return
+        if stable >= 16 and count < minimum_rows:
+            raise ValueError('Drawer did not reach its end')
         page.wait_for_timeout(1000 if stable == 0 else 1800)
-    else:
-        raise ValueError('Drawer did not reach its end')
+    raise ValueError('Drawer did not reach its end')
+
+def _collect(page, card, old, report):
+    anchor = datetime.now(KST)
+    report('opening_product')
+    open_product(page, card)
+    open_history_drawer(page)
+    rows_locator = page.locator('.drawer .tab_content.show .price_body .body_list')
+    rows_locator.first.wait_for(state='visible', timeout=15000)
+    load_drawer_rows(page,rows_locator,len(old['rows']),report)
     raw = rows_locator.evaluate_all('''nodes => nodes.map(r=>({
       option:r.children[0]?.textContent.trim()||'',
       price:r.children[1]?.textContent.trim()||'',
       date_raw:r.children[2]?.textContent.trim()||'',
       express_shipping:r.textContent.includes('빠른배송')
     }))''')
-    rows = [parse_row(r, anchor) for r in raw]
+    rows=[]
+    for index,source in enumerate(raw):
+        try:
+            rows.append(parse_row(source, anchor))
+        except ValueError:
+            report('parsing_source_rows',row_index=index,loaded_rows=len(raw))
+            raise
     require_login_access(page)
+    missing=Counter(signature(r) for r in old['rows'])-Counter(signature(r) for r in rows)
+    report('validating_history',loaded_rows=len(rows),missing_previous_rows=sum(missing.values()))
     validate_new_rows(old, rows)
     for i,row in enumerate(rows):
         row.update(source_rank=i, product_id=card['id'], source_url=card['source_url'])
@@ -437,4 +488,3 @@ def main():
 
 if __name__=='__main__':
     raise SystemExit(main())
-

@@ -20,11 +20,13 @@ test('production asset gate accepts eager scripts without a historical version-s
  assert(!h.calls.some(url=>url.includes('app-route-loader')));
 });
 test('production asset gate reads the declared remote loader and fetches exact cardinfo manifest URLs',async()=>{
- const h=assetFixture(),report=await verifyPriceAssets(h);assert.equal(report.lazy,true);
+ const declared=['/assets/english-catalog.js?v=fixture-english','/assets/tcg-card-info.js?v=fixture-cardinfo'];
+ const loaderSource='window.AppRouteLoader={ensure(){},manifest:{cardinfo:{scripts:'+JSON.stringify(declared)+'}}};';
+ const h=assetFixture({loaderSource}),report=await verifyPriceAssets(h);assert.equal(report.lazy,true);
  assert(h.calls.includes('/assets/app-route-loader.js?v=fixture-declared'));
- for(const name of ['english-catalog.js','tcg-card-info.js']){
-  assert(h.calls.includes('/assets/'+name+'?v=20261104-modular1'));
-  assert(!h.calls.includes('/assets/'+name),'The declared query must be retained when fetching source bytes');
+ for(const url of declared){
+  assert(h.calls.includes(url));
+  assert(!h.calls.includes(new URL(url,'https://tcghub.kr').pathname),'The declared query must be retained when fetching source bytes');
  }
 });
 test('production asset gate validates the actual deployed bootstrap and route manifest contract',async()=>{

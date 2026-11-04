@@ -1,0 +1,55 @@
+name: Verify card pricing integration
+
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'sw.js'
+      - 'assets/**'
+      - 'scripts/helpers/**'
+      - 'scripts/test_card_info_pricing_integration.cjs'
+      - 'scripts/test_verify_card_info_prices.cjs'
+      - 'scripts/verify_card_info_prices_production.cjs'
+      - 'data/all-cards.json'
+      - 'data/card-catalog-repairs.json'
+      - 'data/contained-card-market-links.json'
+      - 'data/onepiece-card-overrides.json'
+      - 'data/cards-by-set/**'
+      - '.github/workflows/pricing-integration-ci.yml'
+      - '.github/workflows/scrape.yml'
+      - '.github/workflows/market-references-daily.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pricing-integration-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /index.html
+            /sw.js
+            /assets/
+            /scripts/
+            /data/all-cards.json
+            /data/card-catalog-repairs.json
+            /data/contained-card-market-links.json
+            /data/onepiece-card-overrides.json
+            /data/cards-by-set/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check card clicks and exact deployed asset URLs
+        run: |
+          node --test --test-concurrency=1 scripts/test_card_info_pricing_integration.cjs
+          node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs

@@ -203,11 +203,15 @@ def existing_source_ids(row):
 
 
 def patch_documents(root, review, validate_only=False):
-    try:
-        from pokemon_contained_supplements import reviewed_identities, is_reviewed_card
-    except ModuleNotFoundError:
-        from scripts.pokemon_contained_supplements import reviewed_identities, is_reviewed_card
-    contained_identities = reviewed_identities(root)
+    contained_identities = {}
+    # Older portable backfill bundles have no contents supplement or helper.
+    # Require the helper whenever a review exists; never skip its validation.
+    if safe_path(root, "data/pokemon-contained-supplements.json").is_file():
+        try:
+            from pokemon_contained_supplements import reviewed_identities, is_reviewed_card
+        except ModuleNotFoundError:
+            from scripts.pokemon_contained_supplements import reviewed_identities, is_reviewed_card
+        contained_identities = reviewed_identities(root)
     by_code = {}
     for row in review['images']:
         by_code.setdefault(row['setCode'], {})[row['sourceUrl']] = row
@@ -225,7 +229,8 @@ def patch_documents(root, review, validate_only=False):
         for card in patched['cards']:
             address = card.get('url') or card.get('sourceUrl')
             row = rows.get(address)
-            if not row and is_reviewed_card(card, contained_identities.get((code.upper(), card.get('sourceId')))):
+            contained = contained_identities.get((code.upper(), card.get('sourceId')))
+            if not row and contained is not None and is_reviewed_card(card, contained):
                 continue
             repair = row.get('metadataRepair') if row else None
             names = {row['sourceName'], repair['originalName']} if repair else {row['sourceName']} if row else set()

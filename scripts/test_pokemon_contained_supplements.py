@@ -23,7 +23,9 @@ class ReviewedContentsTests(unittest.TestCase):
         self.assertEqual(first,apply_to_set(first,"DP2",self.review))
         self.assertEqual(first,apply_to_set(raw,"DP2",self.review))
         self.assertEqual(raw["cards"],[special],"A collected source was mutated in place")
-        for c in basics:self.assertTrue(c["unprintedNumber"]);self.assertIsNone(c["printedNumber"]);self.assertFalse(c.get("id"))
+        for c in basics:
+            self.assertTrue(c["unprintedNumber"]);self.assertIsNone(c["printedNumber"]);self.assertFalse(c.get("id"))
+            self.assertEqual(c["rarity"],"");self.assertEqual(c["rarityDisclosureStatus"],"verified-unprinted-rarity")
     def test_wrong_swellow_is_replaced_with_the_actual_swalot_image_without_its_prices(self):
         entry=next(e for e in self.review["entries"] if e["action"]=="replace")
         wrong={**entry["selector"],"id":"999999","minPrice":12345,"currency":"USD","productId":"999999"}

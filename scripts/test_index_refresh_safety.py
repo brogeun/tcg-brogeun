@@ -13,6 +13,81 @@ from urllib.parse import parse_qs, urlsplit
 import refresh_card_index_platform_source as source
 import update_dynamic_card_index as updater
 import build_dynamic_market_index as builder
+import verify_dynamic_card_price_index as auditor
+
+
+class DiscoveryAuditTests(unittest.TestCase):
+    def fixture(self, orders=('new',)):
+        products = {}
+        discovery = {'complete': True, 'pageTraversalComplete': True,
+                     'listingPricesUsed': False, 'potentialServerRankingCap': False,
+                     'orders': list(orders), 'sourceRun': 'source-fixture',
+                     'currentListingProductIds': {}, 'streams': []}
+        for n, brand in enumerate(auditor.BRANDS, 1):
+            cid = str(n)
+            products[cid] = {'id': cid, 'brand': brand, 'kind': 'card',
+                             'evidence': {'listingSources': []}}
+            discovery['currentListingProductIds'][brand] = {}
+            for order in orders:
+                discovery['streams'].append({'brand': brand, 'order': order,
+                    'categoryId': 25, 'pages': 2, 'uniqueIDs': 1,
+                    'terminalEmpty': True, 'errors': [], 'potentialCap': False})
+                discovery['currentListingProductIds'][brand][order] = [cid]
+                products[cid]['evidence']['listingSources'].append({
+                    'brand': brand, 'order': order, 'categoryId': 25, 'page': 1,
+                    'sourceRun': 'source-fixture',
+                    'url': 'https://snkrdunk.com/en/v1/trading-cards?'
+                           f'brandId={brand}&order={order}&categoryId=25&perPage=100&page=1'})
+        return discovery, products
+
+    def test_actual_new_order_contract_passes_with_both_brand_terminals(self):
+        discovery, products = self.fixture()
+        auditor.verify_discovery(discovery, products)
+
+    def test_legacy_four_stream_proofs_remain_readable(self):
+        for declared in (True, False):
+            with self.subTest(declared=declared):
+                discovery, products = self.fixture(('popular', 'new'))
+                if not declared:
+                    discovery.pop('orders')
+                auditor.verify_discovery(discovery, products)
+
+    def test_unsupported_missing_or_duplicate_declared_orders_are_rejected(self):
+        for orders in (None, [], ['popular'], ['random'], ['new', 'new'], 'new'):
+            with self.subTest(orders=orders):
+                discovery, products = self.fixture()
+                discovery['orders'] = orders
+                with self.assertRaises(AssertionError):
+                    auditor.verify_discovery(discovery, products)
+        discovery, products = self.fixture()
+        discovery.pop('orders')
+        with self.assertRaises(AssertionError):
+            auditor.verify_discovery(discovery, products)
+
+    def test_stream_evidence_still_rejects_false_completion(self):
+        mutations = {
+            'missing-brand': lambda d, p: d['streams'].pop(),
+            'duplicate-stream': lambda d, p: d['streams'].__setitem__(1, dict(d['streams'][0])),
+            'malformed-stream': lambda d, p: d['streams'].__setitem__(0, None),
+            'missing-terminal': lambda d, p: d['streams'][0].update(terminalEmpty=False),
+            'wrong-category': lambda d, p: d['streams'][0].update(categoryId=14),
+            'count-mismatch': lambda d, p: d['streams'][0].update(uniqueIDs=2),
+            'source-errors': lambda d, p: d['streams'][0].update(errors=['incomplete']),
+            'listing-used-as-trade': lambda d, p: d.update(listingPricesUsed=True),
+            'ranking-cap': lambda d, p: d.update(potentialServerRankingCap=True),
+            'mixed-completion': lambda d, p: d.update(pageTraversalComplete=False),
+            'foreign-run': lambda d, p: p['1']['evidence']['listingSources'][0].update(sourceRun='old'),
+            'unlisted-current-id': lambda d, p: d['currentListingProductIds']['pokemon'].update(new=[]),
+            'extra-order': lambda d, p: d['currentListingProductIds']['pokemon'].update(popular=[]),
+            'wrong-url': lambda d, p: p['1']['evidence']['listingSources'][0].update(url='https://example.invalid/'),
+            'lost-current-evidence': lambda d, p: p['1']['evidence'].update(listingSources=[]),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                discovery, products = self.fixture()
+                mutate(discovery, products)
+                with self.assertRaises(AssertionError):
+                    auditor.verify_discovery(discovery, products)
 
 
 class SafetyTests(unittest.TestCase):
@@ -182,6 +257,8 @@ class SafetyTests(unittest.TestCase):
             self.assertEqual(universe['discovery']['orders'], ['new'])
             self.assertEqual(len(universe['discovery']['streams']), 2)
             self.assertFalse(universe['discovery']['platformUniverseVerified'])
+            auditor.verify_discovery(universe['discovery'],
+                                     {row['id']: row for row in universe['products']})
 
     def test_persistent_repeated_listing_fails_before_bulk_chart_collection(self):
         calls = []
@@ -270,4 +347,5 @@ class SafetyTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
 

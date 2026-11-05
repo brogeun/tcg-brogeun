@@ -246,10 +246,16 @@ def verify_discovery(discovery, products):
           and discovery.get('potentialServerRankingCap') is False,
           'Completed discovery has incompatible traversal/price/cap claims')
     streams = discovery.get('streams')
-    expected = {(brand, order) for brand in BRANDS for order in ('popular', 'new')}
+    # New-order traversal is the current bounded discovery contract. Historical
+    # snapshots without an order declaration retain their original four streams.
+    orders = discovery.get('orders', ['popular', 'new'])
+    check(isinstance(orders, list) and orders in (['new'], ['popular', 'new']),
+          'Completed discovery declares an unsupported listing-order contract')
+    expected = {(brand, order) for brand in BRANDS for order in orders}
     check(isinstance(streams, list) and len(streams) == len(expected)
+          and all(isinstance(row, dict) for row in streams)
           and {(row.get('brand'), row.get('order')) for row in streams} == expected,
-          'Completed discovery does not cover all four declared listing streams')
+          'Completed discovery does not cover every declared listing stream')
     stream_map = {(row['brand'], row['order']): row for row in streams}
     ids = {key: set() for key in expected}
     current_listing_ids = discovery.get('currentListingProductIds')
@@ -259,7 +265,7 @@ def verify_discovery(discovery, products):
               and isinstance(current_run, str) and bool(current_run), 'Current listing run identity is missing')
         for brand in BRANDS:
             check(isinstance(current_listing_ids[brand], dict)
-                  and set(current_listing_ids[brand]) == {'popular', 'new'}, 'Current listing streams differ')
+                  and set(current_listing_ids[brand]) == set(orders), 'Current listing streams differ')
             for order, product_ids in current_listing_ids[brand].items():
                 check(isinstance(product_ids, list) and len(product_ids) == len(set(product_ids))
                       and all(type(cid) is str and cid in products and products[cid]['brand'] == brand

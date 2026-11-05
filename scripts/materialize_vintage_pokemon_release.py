@@ -203,6 +203,11 @@ def existing_source_ids(row):
 
 
 def patch_documents(root, review, validate_only=False):
+    try:
+        from pokemon_contained_supplements import reviewed_identities, is_reviewed_card
+    except ModuleNotFoundError:
+        from scripts.pokemon_contained_supplements import reviewed_identities, is_reviewed_card
+    contained_identities = reviewed_identities(root)
     by_code = {}
     for row in review['images']:
         by_code.setdefault(row['setCode'], {})[row['sourceUrl']] = row
@@ -220,6 +225,8 @@ def patch_documents(root, review, validate_only=False):
         for card in patched['cards']:
             address = card.get('url') or card.get('sourceUrl')
             row = rows.get(address)
+            if not row and is_reviewed_card(card, contained_identities.get((code.upper(), card.get('sourceId')))):
+                continue
             repair = row.get('metadataRepair') if row else None
             names = {row['sourceName'], repair['originalName']} if repair else {row['sourceName']} if row else set()
             if (not row or address in seen or card.get('image') != row['originalImage']
@@ -442,22 +449,28 @@ def validate_published_release(root):
             'verifiedSeeds': seeded, 'networkRequests': 0, 'publishedDataChanged': False}
 
 
+_CACHE_WRITE_LOCK = threading.Lock()
+
 def cache_asset(cache, row, body):
-    """Durably checkpoint one verified image, never a catalogue or credential."""
+    """Checkpoint a digest once; Windows cannot replace a concurrently read file."""
     body = image_bytes(body, row)
-    path = safe_path(cache, row['sha256'])
-    cache.mkdir(parents=True, exist_ok=True)
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile(dir=cache, prefix='.download-', delete=False) as stream:
-            temporary = Path(stream.name)
-            stream.write(body)
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(temporary, path)
-    finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
+    with _CACHE_WRITE_LOCK:
+        cache.mkdir(parents=True, exist_ok=True)
+        path = safe_path(cache, row['sha256'])
+        if path.is_file():
+            image_bytes(path.read_bytes(), row)
+            return path
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=cache, prefix='.download-', delete=False) as stream:
+                temporary = Path(stream.name)
+                stream.write(body)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, path)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
     return path
 
 

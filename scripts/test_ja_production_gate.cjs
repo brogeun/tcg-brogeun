@@ -55,7 +55,7 @@ check('reviewed catalogue remains present and internally consistent', () => {
 });
 
 check('repaired source inventories retain the reviewed totals', () => {
-  const totals = {S10P:88,S10D:88,CP1:34,CP2:27,CP3:32,CP4:140,CP5:38,CP6:103,VS:151,SD:127,'VS-MANAPHY':19,SV1S:108,SV1V:108,S8a:38,EBB:99,DS:20,LL:40,SC:25,SMP2:25,BSTXY:188,DP1:130,'DPt-MRP09':30,WCP:108,WEB:48,'ADV4-SEAL':83,'DP5-TW':65,ADV4:88};
+  const totals = {S10P:88,S10D:88,CP1:34,CP2:27,CP3:32,CP4:140,CP5:38,CP6:103,VS:151,SD:127,'VS-MANAPHY':23,SV1S:108,SV1V:108,S8a:38,EBB:99,DS:20,LL:40,SC:25,SMP2:25,BSTXY:188,DP1:130,'DPt-MRP09':30,WCP:108,WEB:48,'ADV4-SEAL':83,'DP5-TW':73,ADV4:88};
   for (const [code, count] of Object.entries(totals)) assert.equal(catalogue.sets.find(set => set.code === code)?.cardCount, count, code);
 });
 

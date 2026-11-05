@@ -405,6 +405,16 @@ class MaterializationTests(unittest.TestCase):
         self.assertIsInstance(seen[0][1], target.RequestPacer)
         self.assertTrue(all(stop is seen[0][0] and pacer is seen[0][1] for stop, pacer in seen))
 
+    def test_concurrent_shared_cache_digest_is_written_only_once(self):
+        from concurrent.futures import ThreadPoolExecutor
+        cache = self.root / '.cache' / 'shared-digest'
+        with patch.object(target.os, 'replace', wraps=os.replace) as replace:
+            with ThreadPoolExecutor(max_workers=4) as workers:
+                saved = list(workers.map(lambda _: target.cache_asset(cache, self.fixture.row, self.fixture.body), range(12)))
+        self.assertEqual(replace.call_count, 1)
+        self.assertTrue(all(path == saved[0] for path in saved))
+        self.assertEqual(saved[0].read_bytes(), self.fixture.body)
+
     def test_only_exact_officially_reviewed_pt1_metadata_correction_is_applied(self):
         row = {**self.fixture.row, 'setCode': 'Pt1', 'sourceId': '26775',
                'sourceUrl': 'https://www.tcgcollector.com/cards/26775/pluspower-galactics-conquest-084-096',

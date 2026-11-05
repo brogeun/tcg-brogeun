@@ -38,7 +38,7 @@
   function configure(data) { catalog = decode(data); return setProducts(products); }
   function ensureData() {
     if (!ready) ready = Promise.all([
-      fetch('/data/japanese-catalog.json?v=20261104-vintage1').then(response => {
+      fetch('/data/japanese-catalog.json?v=20261106-vintage-contents1').then(response => {
         if (!response.ok) throw new Error('Japanese catalogue unavailable');
         return response.json();
       }),

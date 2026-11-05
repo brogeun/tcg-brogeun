@@ -64,13 +64,13 @@ for (const brand of ['pokemon', 'onepiece']) {
   const cardInfo = cardInfoFor(brand);
   const current = readJson(`data/price-${brand}-box.json`).products;
   const manual = readJson(`data/manual-boxes-${brand}.json`).products;
-  const currentIds = new Set(current.map(product => String(product.id)));
 
   for (const product of manual) {
     const id = String(product.id);
-    if (!currentIds.has(id) || !product.code) continue;
+    // Check every known sealed product before a daily price rotation exposes it.
+    if (!product.code) continue;
     const direct = cardInfo.get(id);
-    assert(direct, `${brand} current box ${id} (${product.code}) lacks CARDINFO.boxId`);
+    assert(direct, `${brand} known box ${id} (${product.code}) lacks CARDINFO.boxId`);
     assert.equal(direct.code.toLowerCase(), String(product.code).toLowerCase(), `${brand} box ${id} code mismatch`);
     expectedDirectByBrand[brand] += 1;
   }

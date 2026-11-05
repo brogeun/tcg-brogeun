@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'scripts/test_price_box_names.mjs'
+      - 'data/manual-boxes-*.json'
+      - 'data/price-*.json'
+      - 'data/cards-meta-index.json'
       - 'sw.js'
       - 'assets/**'
       - 'scripts/helpers/**'
@@ -47,6 +51,14 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /index.html
+            /data/price-box-name-overrides.json
+            /data/cards-meta-index.json
+            /data/manual-boxes-pokemon.json
+            /data/manual-boxes-onepiece.json
+            /data/price-pokemon-box.json
+            /data/price-onepiece-box.json
+            /data/price-pokemon-card.json
+            /data/price-onepiece-card.json
             /sw.js
             /assets/
             /scripts/
@@ -69,3 +81,4 @@ jobs:
           node --test --test-concurrency=1 scripts/test_card_info_pricing_integration.cjs
           node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs
           node scripts/test_futuristic_market.mjs
+          node scripts/test_price_box_names.mjs

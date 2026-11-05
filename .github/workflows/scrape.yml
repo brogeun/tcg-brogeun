@@ -22,7 +22,7 @@ on:
           - all
           - search-only
   workflow_run:
-    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'KREAM Korean Promos Daily', 'KREAM Local Publish']
+    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'Chinese Auction Prices Daily', 'KREAM Korean Promos Daily', 'KREAM Local Publish']
     types: [completed]
     branches: [main]
   push:

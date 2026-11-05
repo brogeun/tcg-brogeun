@@ -131,6 +131,87 @@ class VintageImageBundleTests(unittest.TestCase):
         self.assertEqual(set(json.loads((folder / '462.json').read_bytes())['files']), {'tcg-29568.webp'})
 
 
+
+class ReviewedContentsImageBundleTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix='reviewed-contents-pack-test-')
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.data = self.root / '_deploy/data'
+        self.data.mkdir(parents=True)
+        self.rows, self.bodies = [], {}
+        for name in ('dp-grass.png', 'legend-water.jpg', 'hg-alph.webp'):
+            local = '/images/pokemon-contained/' + name
+            body = ('exact original artwork ' + name).encode()
+            self.bodies[local] = body
+            self.rows.append({'localImage':local,'sha256':hashlib.sha256(body).hexdigest(),'bytes':len(body)})
+            for base in (self.root, self.root / '_deploy'):
+                path = base / local[1:]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(body)
+        self.save_review()
+    def save_review(self):
+        (self.data / 'pokemon-contained-supplements.json').write_text(
+            json.dumps({'schemaVersion':1,'reviewId':'test','assets':self.rows}), encoding='utf-8')
+    def assert_retained(self):
+        for local, body in self.bodies.items():
+            for base in (self.root, self.root / '_deploy'):
+                self.assertEqual((base / local[1:]).read_bytes(),body)
+    def test_exact_original_bytes_and_urls_survive_in_one_bounded_pack(self):
+        report = target.pack_reviewed_pokemon_images(self.data)
+        self.assertEqual(report['artworkFiles'],3)
+        self.assertEqual(report['fileCountSaved'],2)
+        pack = json.loads((self.data / 'pokemon-vintage-packs-v2/reviewed-contents/originals.json').read_bytes())
+        self.assertEqual((pack['schemaVersion'],pack['setCode'],pack['bucket']),(2,'reviewed-contents','originals'))
+        for local, body in self.bodies.items():
+            image = pack['files'][Path(local).name]
+            self.assertEqual(base64.b64decode(image['data'],validate=True),body)
+            self.assertEqual(image['sha256'],hashlib.sha256(body).hexdigest())
+            self.assertEqual(image['bytes'],len(body))
+            self.assertEqual((self.root / local[1:]).read_bytes(),body)
+        self.assertFalse((self.root / '_deploy/images/pokemon-contained').exists())
+    def test_changed_bytes_or_unreviewed_files_stop_before_removal(self):
+        self.rows[0]['sha256']='a'*64
+        self.save_review()
+        with self.assertRaisesRegex(ValueError,'bytes differ'):
+            target.pack_reviewed_pokemon_images(self.data)
+        self.assert_retained()
+        self.rows[0]['sha256']=hashlib.sha256(self.bodies[self.rows[0]['localImage']]).hexdigest()
+        self.save_review()
+        extra=self.root / '_deploy/images/pokemon-contained/unreviewed.png'
+        extra.write_bytes(b'unreviewed artwork')
+        with self.assertRaisesRegex(ValueError,'Unreviewed or missing'):
+            target.pack_reviewed_pokemon_images(self.data)
+        self.assertEqual(extra.read_bytes(),b'unreviewed artwork')
+        self.assert_retained()
+    def test_unsafe_duplicate_and_preexisting_destinations_are_rejected(self):
+        original=self.rows[0]['localImage']
+        self.rows[0]['localImage']='/images/pokemon-contained/../private.png'
+        self.save_review()
+        with self.assertRaisesRegex(ValueError,'Invalid reviewed'):
+            target.pack_reviewed_pokemon_images(self.data)
+        self.rows[0]['localImage']=original
+        self.rows.append(self.rows[0])
+        self.save_review()
+        with self.assertRaisesRegex(ValueError,'Duplicate'):
+            target.pack_reviewed_pokemon_images(self.data)
+        self.rows.pop()
+        self.save_review()
+        destination=self.data / 'pokemon-vintage-packs-v2/reviewed-contents'
+        destination.mkdir(parents=True)
+        (destination / 'retain.txt').write_text('prior generation')
+        with self.assertRaisesRegex(ValueError,'preexisting'):
+            target.pack_reviewed_pokemon_images(self.data)
+        self.assertEqual((destination / 'retain.txt').read_text(),'prior generation')
+        self.assert_retained()
+    def test_runtime_budget_is_enforced_before_any_generated_image_is_removed(self):
+        with patch.object(target,'MAX_VINTAGE_PACK_BYTES',64):
+            with self.assertRaisesRegex(ValueError,'runtime asset budget'):
+                target.pack_reviewed_pokemon_images(self.data)
+        self.assert_retained()
+        self.assertFalse((self.data / 'pokemon-vintage-packs-v2/reviewed-contents').exists())
+
+
 if __name__ == '__main__':
     unittest.main()
 

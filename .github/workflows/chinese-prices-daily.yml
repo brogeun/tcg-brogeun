@@ -3,6 +3,10 @@ name: Chinese Auction Prices Daily
 on:
   workflow_call:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/chinese-prices-daily.yml'
 
 permissions:
   contents: write

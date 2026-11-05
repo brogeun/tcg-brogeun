@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/daily-recovery-ci.yml'
+      - '.github/workflows/chinese-prices-daily.yml'
+      - 'scripts/run_chinese_daily.py'
+      - 'scripts/test_chinese_daily.py'
       - '.github/workflows/scrape.yml'
       - '.github/workflows/market-references-daily.yml'
       - 'scripts/scrape_snkrdunk.py'
@@ -36,3 +39,4 @@ jobs:
           python -B -m unittest discover -s scripts -p test_scrape_snapshot_safety.py
           python -B -m unittest discover -s scripts -p test_update_health.py
           python -B -m unittest discover -s scripts -p test_market_references_workflow.py
+          python -B -m unittest discover -s scripts -p test_chinese_daily.py

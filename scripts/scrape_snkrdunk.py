@@ -352,6 +352,68 @@ def filter_by_kind(products: list, kind: str) -> list:
     return [p for p in products if not is_box_product(p)]
 
 
+def scrape_price_category(brand, kind, client=None):
+    """Read 30 typed current offers, without depending on a virtualized HTML grid."""
+    from refresh_search_prices import PublicClient, RefreshError, fx_basis, listing_price
+    if brand not in ('pokemon', 'onepiece') or kind not in ('box', 'card'):
+        raise ValueError('Unsupported price category')
+    now = datetime.now(timezone.utc)
+    basis = fx_basis(json.loads((DATA_DIR / 'fx-rates.json').read_bytes()), now)
+    client = client or PublicClient(max_seconds=180)
+    category = 14 if kind == 'box' else 25
+    known_boxes = collect_explicit_box_ids(include_catalogue=False)
+    products, seen = [], set()
+    for page in range(1, 4):
+        payload = client.get_category(brand, category, 'popular', page, 100)
+        rows = payload.get('tradingCards') if isinstance(payload, dict) else None
+        if not isinstance(rows, list) or len(rows) > 100:
+            raise RefreshError('Invalid typed price listing response')
+        if not rows:
+            break
+        accepted = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                raise RefreshError('Invalid price listing row')
+            cid = str(row.get('id') or '')
+            if not re.fullmatch(r'[1-9][0-9]{0,19}', cid) or not str(row.get('name') or '').strip():
+                raise RefreshError('Price listing lacks product identity')
+            if row.get('brandId') not in (None, brand) or row.get('brand') not in (None, brand):
+                raise RefreshError('Wrong price listing brand')
+            if row.get('categoryId') not in (None, category, str(category)):
+                raise RefreshError('Wrong price listing category')
+            if row.get('kind') not in (None, kind, 'single' if kind == 'card' else 'box', 'single-card' if kind == 'card' else 'box'):
+                raise RefreshError('Wrong price listing product kind')
+            # Category 14 also contains unopened single-card promotions. A card
+            # number in a Special Box title must not make the card a sealed box.
+            if row.get('kind') is None:
+                numbered_card = CARD_BRACKET_RE.search(row['name']) is not None
+                inferred = 'box' if cid in known_boxes else 'card' if numbered_card else kind
+                if inferred != kind:
+                    continue
+            if cid in seen:
+                continue
+            price, original_currency = listing_price(row, basis)
+            if price is None:
+                continue  # Do not turn unpriced products into zero-valued offers.
+            if row.get('listingCount') in (0, '0'):
+                raise RefreshError('Positive offer with no listings')
+            seen.add(cid)
+            accepted += 1
+            products.append({'id': cid, 'name': row['name'], 'kind': kind,
+                'productNumber': row.get('productNumber') or '',
+                'image': row.get('thumbnailUrl') or '',
+                'url': 'https://snkrdunk.com/en/trading-cards/' + cid,
+                'lastPrice': price, 'currency': 'USD', 'priceKind': 'listing-ask',
+                'priceCheckedAt': now.isoformat(),
+                'priceSource': {'originalPrice': row.get('minPrice'), 'originalCurrency': original_currency,
+                    'categoryId': category, 'page': page, 'order': 'popular'}})
+            if len(products) == 30:
+                return products
+        if not accepted:
+            raise RefreshError('Price listing repeated or has no priced progress')
+    raise RefreshError(f'Incomplete {brand}-{kind}: {len(products)}/30 distinct priced products; previous file retained')
+
+
 def preserve_product_metadata(filename: str, products: list) -> list:
     """새 스크랩이 임시 이름(Card #ID)만 주더라도 기존 상품 메타는 보존한다.
 
@@ -878,46 +940,13 @@ def main():
     print("=" * 60)
     print("Phase 2: 카드 시세 데이터 수집 (목표 30개씩)")
     print("=" * 60)
-    # fallback 의 경우 같은 URL 두 번 fetch 안 되도록 캐싱
-    fallback_cache: dict = {}
-    spillover_cards: dict = {}
     for label, primary_url in PRICE_URLS_PRIMARY.items():
         total += 1
         try:
             filename = f"price-{label}.json"
             kind = PRICE_URLS_FALLBACK[label][1]
-            candidates = scrape_url(label, primary_url, max_items=60)
-            candidates = preserve_product_metadata(filename, candidates)
-            products = filter_by_kind(candidates, kind)[:30]
-            if len(products) < 5:
-                # primary 가 5개 미만 → fallback 로 전환
-                fb_url, kind = PRICE_URLS_FALLBACK[label]
-                print(f"[{label}] ⤺ primary 부족 ({len(products)}개) → fallback {fb_url} ({kind})")
-                if fb_url in fallback_cache:
-                    all_products = fallback_cache[fb_url]
-                    print(f"  (캐시 사용 — {len(all_products)}개)")
-                else:
-                    all_products = scrape_url(f"{label}-fallback", fb_url, max_items=60)
-                    fallback_cache[fb_url] = all_products
-                candidates = preserve_product_metadata(filename, all_products)
-                products = filter_by_kind(candidates, kind)[:30]
-                print(f"  → {kind} 필터링 결과: {len(products)}개")
             brand = label.split("-", 1)[0]
-            if kind == "box":
-                # 카테고리 API가 박스 목록에 섞어 준 단일 카드를 다음 카드 파일로 넘긴다.
-                spillover_cards[brand] = filter_by_kind(candidates, "card")
-            else:
-                merged = spillover_cards.get(brand, []) + products
-                seen_ids = set()
-                products = []
-                for product in merged:
-                    product_id = str(product.get("id") or "")
-                    if not product_id or product_id in seen_ids:
-                        continue
-                    seen_ids.add(product_id)
-                    products.append(product)
-                    if len(products) >= 30:
-                        break
+            products = scrape_price_category(brand, kind)
             if not products:
                 print(f"[{label}] ⚠ 0개 추출 - 기존 데이터 유지")
                 fail_count += 1
@@ -1156,3 +1185,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

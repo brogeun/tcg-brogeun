@@ -19,7 +19,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: market-reference-prices
+  # These collectors also write shared search and official inventory outputs.
+  # Hold the same lock as daily collection until their final publication ends.
+  group: scrape
   cancel-in-progress: false
   queue: max
 
@@ -28,16 +30,19 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      code_commit: ${{ steps.source.outputs.commit }}
     permissions:
       contents: read
     steps:
-      - name: Checkout the triggering commit
+      - name: Checkout current main after acquiring the collection lock
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: main
           fetch-depth: 0
-      - name: Validate checkout identity
-        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Record the code verified before source collection
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -73,15 +78,15 @@ jobs:
     outputs:
       collector_outcome: ${{ steps.assess.outputs.outcome }}
     steps:
-      - name: Checkout the validated triggering commit
+      - name: Checkout latest data with the verified collector code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: main
           fetch-depth: 0
       - name: Record the exact collection base
         run: |
           actual="$(git rev-parse HEAD)"
-          test "$actual" = "$GITHUB_SHA"
+          git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json
           echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
@@ -130,21 +135,22 @@ jobs:
         run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh US market references'
 
   yuyutei:
-    needs: [verify]
+    needs: [verify, us]
+    if: always() && !cancelled() && needs.verify.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     outputs:
       collector_outcome: ${{ steps.assess.outputs.outcome }}
     steps:
-      - name: Checkout the validated triggering commit
+      - name: Checkout latest data with the verified collector code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: main
           fetch-depth: 0
       - name: Record the exact collection base
         run: |
           actual="$(git rev-parse HEAD)"
-          test "$actual" = "$GITHUB_SHA"
+          git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json
           echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
@@ -201,21 +207,22 @@ jobs:
         run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh Yuyutei market references'
 
   mercari:
-    needs: [verify]
+    needs: [verify, yuyutei]
+    if: always() && !cancelled() && needs.verify.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
       collector_outcome: ${{ steps.assess.outputs.outcome }}
     steps:
-      - name: Checkout the validated triggering commit
+      - name: Checkout latest data with the verified collector code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: main
           fetch-depth: 0
       - name: Record the exact collection base
         run: |
           actual="$(git rev-parse HEAD)"
-          test "$actual" = "$GITHUB_SHA"
+          git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json
           echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
@@ -258,21 +265,22 @@ jobs:
         run: python scripts/publish_data_snapshot.py --references --base "$COLLECTION_COMMIT" --message 'Refresh Mercari market references'
 
   snkrdunk:
-    needs: [verify]
+    needs: [verify, mercari]
+    if: always() && !cancelled() && needs.verify.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 145
     outputs:
       collector_outcome: ${{ steps.assess.outputs.outcome }}
     steps:
-      - name: Checkout the validated triggering commit
+      - name: Checkout latest data with the verified collector code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: main
           fetch-depth: 0
       - name: Record the exact collection base
         run: |
           actual="$(git rev-parse HEAD)"
-          test "$actual" = "$GITHUB_SHA"
+          git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json
           echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
@@ -371,3 +379,4 @@ jobs:
               raise SystemExit('All four source refreshes failed; last-good data and explicit health retained.')
           print('Validated complete or partial reference data is ready for the existing deploy-only workflow.')
           PY
+

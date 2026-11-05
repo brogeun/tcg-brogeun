@@ -133,8 +133,13 @@ class PublicClient:
         return left
 
     def get(self, brand, order, page, per_page):
+        return self.get_category(brand, 25, order, page, per_page)
+
+    def get_category(self, brand, category, order, page, per_page):
+        if brand not in BRANDS or category not in (14, 25):
+            raise RefreshError("Unsupported public listing category")
         url = ("https://snkrdunk.com/en/v1/trading-cards"
-               f"?brandId={brand}&categoryId=25&page={page}&perPage={per_page}&order={order}")
+               f"?brandId={brand}&categoryId={category}&page={page}&perPage={per_page}&order={order}")
         for attempt in range(self.attempts):
             if self.page_attempts.get(url, 0) >= self.attempts:
                 raise RefreshError("Per-page request budget exhausted (maximum 3 actual attempts)")
@@ -435,3 +440,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

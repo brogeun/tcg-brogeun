@@ -80,12 +80,16 @@ async function vintageImagePack(context, target, setCode, bucket) {
 export async function onRequest(context) {
   const url = new URL(context.request.url);
 
-  if (url.pathname.startsWith('/images/pokemon-vintage/')) {
+  if (url.pathname.startsWith('/images/pokemon-vintage/') || url.pathname.startsWith('/images/pokemon-contained/')) {
+    const contents = url.pathname.match(/^\/images\/pokemon-contained\/([a-z0-9-]+\.(webp|jpg|png))$/);
     const match = url.pathname.match(/^\/images\/pokemon-vintage\/([A-Za-z0-9+_-]+)\/((?:tcg-([1-9][0-9]{0,8})|pooka-ja-[a-z0-9-]+)\.(webp|jpg|png))$/);
-    if (!match) return new Response('Not found',{status:404});
+    if (!match && !contents) return new Response('Not found',{status:404});
     if (!['GET','HEAD'].includes(context.request.method)) return new Response('Method not allowed',{status:405,headers:{Allow:'GET, HEAD'}});
-    const [,setCode,file,sourceId,extension] = match;
-    const bucket = sourceId ? String(Math.floor(Number(sourceId)/64)) : 'pooka';
+    const setCode = contents ? 'reviewed-contents' : match[1];
+    const file = contents ? contents[1] : match[2];
+    const sourceId = contents ? null : match[3];
+    const extension = contents ? contents[2] : match[4];
+    const bucket = contents ? 'originals' : sourceId ? String(Math.floor(Number(sourceId)/64)) : 'pooka';
     const target = new URL('/data/pokemon-vintage-packs-v2/'+setCode+'/'+bucket+'.json',url);
     try {
       const pack = await vintageImagePack(context,target,setCode,bucket);

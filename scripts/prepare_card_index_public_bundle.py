@@ -156,6 +156,69 @@ def pack_vintage_images(target):
             'originalUrlsPreserved': True, 'originalSourcesModified': False}
 
 
+
+def pack_reviewed_pokemon_images(target):
+    """Pack the reviewed additions without changing their original image URLs."""
+    manifest = target / 'pokemon-contained-supplements.json'
+    source = target.parent / 'images/pokemon-contained'
+    if not manifest.exists() and not source.exists():
+        return None
+    if (manifest.is_symlink() or not manifest.is_file() or source.is_symlink()
+            or (target.parent / 'images').is_symlink() or not source.is_dir()
+            or source.resolve().parent != (target.parent / 'images').resolve()):
+        raise ValueError('Reviewed contents require their generated manifest and exact image directory')
+    review = json.loads(manifest.read_text(encoding='utf-8'))
+    if review.get('schemaVersion') != 1 or not review.get('reviewId') or not isinstance(review.get('assets'), list) or not review['assets']:
+        raise ValueError('Reviewed contents artwork is incomplete')
+    actual = set()
+    for path in source.rglob('*'):
+        if path.is_symlink():
+            raise ValueError('Reviewed contents artwork cannot contain symlinks')
+        if path.is_file():
+            actual.add(path.relative_to(target.parent).as_posix())
+    declared, files = set(), {}
+    types = {'webp':'image/webp','jpg':'image/jpeg','png':'image/png'}
+    for row in review['assets']:
+        local = row.get('localImage')
+        match = re.fullmatch(r'/images/pokemon-contained/([a-z0-9-]+\.(webp|jpg|png))', str(local))
+        if not match:
+            raise ValueError('Invalid reviewed contents artwork path')
+        name = local[1:]
+        if name in declared:
+            raise ValueError('Duplicate reviewed contents artwork path')
+        declared.add(name)
+        path = target.parent / name
+        if path.is_symlink() or not path.is_file() or path.resolve().parent != source.resolve():
+            raise ValueError('Missing or unsafe reviewed contents artwork')
+        body = path.read_bytes()
+        digest = hashlib.sha256(body).hexdigest()
+        if not 0 < len(body) <= 3_000_000 or row.get('bytes') != len(body) or row.get('sha256') != digest:
+            raise ValueError('Reviewed contents artwork bytes differ from the verified original')
+        encoded = base64.b64encode(body).decode('ascii')
+        if base64.b64decode(encoded, validate=True) != body:
+            raise ValueError('Reviewed contents artwork base64 round-trip failed')
+        files[match[1]] = {'contentType':types[match[2]],'sha256':digest,'bytes':len(body),'data':encoded}
+    if actual != declared:
+        raise ValueError('Unreviewed or missing files in the reviewed contents deployment copy')
+    destination = target / 'pokemon-vintage-packs-v2/reviewed-contents'
+    if destination.exists():
+        raise ValueError('Unexpected preexisting reviewed contents artwork pack')
+    body = json.dumps({'schemaVersion':2,'bucketSize':VINTAGE_BUCKET_SIZE,
+                       'setCode':'reviewed-contents','bucket':'originals','files':files},
+                      ensure_ascii=False,separators=(',',':'),allow_nan=False).encode('utf-8')
+    if len(body) > min(MAX_ASSET_BYTES, MAX_VINTAGE_PACK_BYTES):
+        raise ValueError('Reviewed contents artwork pack exceeds the public runtime asset budget')
+    with tempfile.TemporaryDirectory(dir=target, prefix='.reviewed-contents-pack-') as folder:
+        stage = Path(folder)
+        (stage / 'originals.json').write_bytes(body)
+        destination.parent.mkdir(exist_ok=True)
+        shutil.copytree(stage, destination)
+    # This directory belongs only to the checked, disposable _deploy copy.
+    shutil.rmtree(source)
+    return {'artworkFiles':len(files),'packFiles':1,'fileCountSaved':len(files)-1,
+            'largestPackBytes':len(body),'originalUrlsPreserved':True,'originalSourcesModified':False}
+
+
 def prepare_search_catalogue(target):
     """Compact only the disposable public copy; retain complete repo evidence."""
     path = target / 'all-cards.json'
@@ -210,7 +273,9 @@ def main():
         print(json.dumps(check_limits(target.parent)))
         return
     if args.pack_vintage_images:
-        print(json.dumps({'publicVintageImagePacks': pack_vintage_images(target), 'originalSourcesModified': False}))
+        print(json.dumps({'publicVintageImagePacks': pack_vintage_images(target),
+                          'publicReviewedPokemonImagePacks': pack_reviewed_pokemon_images(target),
+                          'originalSourcesModified': False}))
         return
     removed = []
     for pattern in ('card-index-platform-universe*', 'card-index-platform-history*',

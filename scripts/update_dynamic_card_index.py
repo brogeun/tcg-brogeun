@@ -12,7 +12,7 @@ import os
 import subprocess
 import sys
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 PUBLIC_FILES = ['market-price-index-model-state.json', 'market-price-index-independent-verification.json',
@@ -152,10 +152,23 @@ def reusable_sources(root, day, catalog_sha, active_universe=None):
     return None
 
 
+def recent_recovery_sources(root, day, catalog_sha, active_universe=None):
+    """Finish today's or yesterday's exact source date, never relabel old checks."""
+    today = date.fromisoformat(day)
+    for candidate in (today, today - timedelta(days=1)):
+        source_day = candidate.isoformat()
+        resumed = reusable_sources(root, source_day, catalog_sha, active_universe)
+        if resumed:
+            return source_day, resumed
+    raise RuntimeError('No recent exact-catalog checkpoint is available; recovery refused a new full sweep')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument('--workers', type=int, default=4)
+    parser.add_argument('--resume-recent', action='store_true',
+                        help='Finish a matching source checkpoint from today or yesterday; never start a new sweep')
     parser.add_argument('--preflight-only', action='store_true')
     parser.add_argument('--prune-source-cache', action='store_true')
     args = parser.parse_args()
@@ -185,13 +198,18 @@ def main():
     prior_history = prior.get('liveCollection', {}).get('sourcePath')
     prior_universe = prior.get('universeSourcePath')
     day = datetime.now(timezone(timedelta(hours=9))).date().isoformat()
-    resumed = reusable_sources(root, day, hashlib.sha256((root / 'data/cards-meta.json').read_bytes()).hexdigest(), prior_universe)
+    catalog_sha = hashlib.sha256((root / 'data/cards-meta.json').read_bytes()).hexdigest()
+    if args.resume_recent:
+        day, resumed = recent_recovery_sources(root, day, catalog_sha, prior_universe)
+    else:
+        resumed = reusable_sources(root, day, catalog_sha, prior_universe)
+    refresh += ['--day', day]
     if resumed:
         universe, history = resumed
         refresh[refresh.index('--universe-output') + 1] = universe
         refresh[refresh.index('--history-output') + 1] = history
         refresh.append('--resume')
-        print(json.dumps({'status':'resuming-checkpoint','sourceUniverse':universe,'sourceHistory':history}), flush=True)
+        print(json.dumps({'status':'resuming-checkpoint','sourceUniverse':universe,'sourceHistory':history,'collectionAsOfJST':day}), flush=True)
     for archive in dict.fromkeys(['data/card-index-platform-universe-20261012.json.gz', prior_universe]):
         refresh += ['--archive-universe', archive]
     for archive in dict.fromkeys(['data/card-index-platform-history-20261012.json.gz', prior_history]):

@@ -36,9 +36,8 @@ permissions:
 concurrency:
   group: scrape
   cancel-in-progress: false
-  # Deploy only the newest queued source instead of replaying every old push.
-  # Keep an active collection/deployment running so its collected data is retained.
-  queue: single
+  # A queued price collection must survive later deployment-only pushes.
+  queue: max
 
 jobs:
   scrape:
@@ -89,7 +88,8 @@ jobs:
       - name: Materialize reviewed official inventories and images
         run: |
           python -m pip install "Pillow==12.2.0"
-          python scripts/materialize_onepiece_release.py --base "$COLLECTION_COMMIT"
+          # Prepare local reviewed assets; publish once after prices and search agree.
+          python scripts/materialize_onepiece_release.py
 
       - name: Validate published vintage artwork without waiting for pending backfill
         run: |
@@ -138,6 +138,7 @@ jobs:
           python -B -m unittest discover -s scripts -p 'test_backfill_box_*.py'
           python -m unittest discover -s scripts -p test_prepare_public_bundle.py
           python -B -m unittest discover -s scripts -p test_scrape_snapshot_safety.py
+          python -B -m unittest discover -s scripts -p test_daily_recovery.py
           python -B -m unittest discover -s scripts -p test_publish_data_snapshot.py
           node --test scripts/test_beezie_snapshot_api.cjs
           node --test scripts/test_japanese_market_reviews.cjs
@@ -184,6 +185,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install "selenium>=4.20.0" "webdriver-manager>=4.0.0" "beautifulsoup4>=4.12,<5" requests
 
+      - name: Fetch FX rates (Naver USD/KRW, JPY/KRW, CNY/KRW)
+        if: env.COLLECT_DATA == 'true'
+        id: daily-fx
+        continue-on-error: true  # Retain the old rate; downstream conversion refuses stale evidence.
+        run: python scripts/fetch_fx_rates.py
+        env:
+          PYTHONUNBUFFERED: "1"
+
       - name: Run scraper
         if: env.COLLECT_PRIMARY == 'true'
         id: daily-primary
@@ -196,14 +205,6 @@ jobs:
         if: env.COLLECT_PRIMARY == 'true' && github.event_name != 'push'
         continue-on-error: true  # 한 사이트 장애가 가격 수집·배포 전체를 막지 않도록 경고 처리
         run: python scripts/scrape_news.py
-        env:
-          PYTHONUNBUFFERED: "1"
-
-      - name: Fetch FX rates (Naver USD/KRW, JPY/KRW, CNY/KRW)
-        if: env.COLLECT_DATA == 'true'
-        id: daily-fx
-        continue-on-error: true  # Keep the last snapshot; the final check reports failure.
-        run: python scripts/fetch_fx_rates.py
         env:
           PYTHONUNBUFFERED: "1"
 
@@ -248,6 +249,23 @@ jobs:
           python scripts/build_onepiece_official.py --validate-only
           node scripts/build_onepiece_search.cjs
           node --test scripts/test_onepiece_official.cjs
+
+      - name: Retain exact public collection outputs before publication
+        if: env.COLLECT_DATA == 'true'
+        id: daily-checkpoint
+        run: python -B scripts/checkpoint_daily_snapshot.py --base "$COLLECTION_COMMIT" --output "$RUNNER_TEMP/daily-collection-snapshot"
+
+      - name: Save recoverable collection snapshot
+        if: always() && steps.daily-checkpoint.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-collection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/daily-collection-snapshot
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publish reviewed assets after collected prices and search are reconciled
+        run: python scripts/materialize_onepiece_release.py --base "$COLLECTION_COMMIT"
 
       - name: Commit JSON updates (if any)
         if: env.COLLECT_DATA == 'true'
@@ -544,5 +562,6 @@ jobs:
         run: |
           echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
           exit 1
+
 
 

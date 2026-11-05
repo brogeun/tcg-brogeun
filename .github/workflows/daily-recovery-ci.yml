@@ -1,0 +1,38 @@
+name: Verify daily price recovery
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/daily-recovery-ci.yml'
+      - '.github/workflows/scrape.yml'
+      - '.github/workflows/market-references-daily.yml'
+      - 'scripts/scrape_snkrdunk.py'
+      - 'scripts/refresh_search_prices.py'
+      - 'scripts/check_daily_freshness.py'
+      - 'scripts/checkpoint_daily_snapshot.py'
+      - 'scripts/test_daily_recovery.py'
+      - 'scripts/test_market_references_workflow.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-recovery-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify typed offers, exact checkpoints, stale sources and collector ordering
+        run: |
+          python -B -m unittest discover -s scripts -p test_daily_recovery.py
+          python -B -m unittest discover -s scripts -p test_refresh_search_prices.py
+          python -B -m unittest discover -s scripts -p test_scrape_snapshot_safety.py
+          python -B -m unittest discover -s scripts -p test_update_health.py
+          python -B -m unittest discover -s scripts -p test_market_references_workflow.py

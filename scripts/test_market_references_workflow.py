@@ -60,24 +60,25 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertNotRegex(trigger, r"(?m)^\s+- ['\"]?data/")
         self.assertNotIn("workflow_run:", trigger)
 
-    def test_queued_runs_and_parallel_collectors(self):
+    def test_queued_runs_share_daily_lock_and_collectors_publish_in_order(self):
         self.assertIn("cancel-in-progress: false", self.text)
         self.assertIn("queue: max", self.text)
+        self.assertIn("group: scrape", self.text)
         self.assertIn("permissions:\n  contents: write", self.text)
         self.assertEqual(set(self.jobs), {"verify", "health", *SOURCES})
-        for source in SOURCES:
-            self.assertRegex(self.jobs[source], r"needs:\s*\[verify\]")
-            for other in SOURCES:
-                if source != other:
-                    self.assertNotRegex(self.jobs[source], r"needs:.*\b" + other + r"\b")
+        self.assertIn('needs: [verify]', self.jobs['us'])
+        for source, previous in zip(SOURCES[1:], SOURCES):
+            self.assertIn('needs: [verify, ' + previous + ']', self.jobs[source])
+            self.assertIn("if: always() && !cancelled() && needs.verify.result == 'success'", self.jobs[source])
         self.assertIn("needs: [verify, us, yuyutei, mercari, snkrdunk]", self.jobs["health"])
         self.assertIn("if: always() && needs.verify.result == 'success'", self.jobs["health"])
 
-    def test_pinned_collection_commit_and_current_main_final_health(self):
+    def test_collection_uses_current_data_and_rejects_unverified_code_changes(self):
+        self.assertIn("code_commit: ${{ steps.source.outputs.commit }}", self.jobs["verify"])
         for source in SOURCES:
             body = self.jobs[source]
-            self.assertIn("ref: ${{ github.sha }}", body)
-            self.assertIn('test "$actual" = "$GITHUB_SHA"', body)
+            self.assertIn("ref: main", body)
+            self.assertIn('git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json', body)
             self.assertIn('COLLECTION_COMMIT=$actual', body)
             self.assertIn("python-version: '3.11'", body)
             self.assertIn("fetch-depth: 0", body)
@@ -281,3 +282,4 @@ class ActualOutcomeFunctionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -8,8 +8,10 @@ from pathlib import Path
 DATASETS = {
     'top10-pokemon.json': ('fetchedAt', 36),
     'price-pokemon-card.json': ('fetchedAt', 36),
+    'price-pokemon-box.json': ('fetchedAt', 36),
     'top10-onepiece.json': ('fetchedAt', 36),
     'price-onepiece-card.json': ('fetchedAt', 36),
+    'price-onepiece-box.json': ('fetchedAt', 36),
     'cards-prices.json': ('fetchedAt', 36),
     'fx-rates.json': ('updated', 36),
     'market-price-index.json': ('sourceAsOf', 48),
@@ -69,3 +71,4 @@ def main():
 
 if __name__ == '__main__':
     raise SystemExit(main())
+

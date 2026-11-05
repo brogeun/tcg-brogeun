@@ -80,6 +80,39 @@ class ResumeTests(unittest.TestCase):
             self.assertIsNone(target.reusable_sources(root, '2026-11-05', 'changed-catalog'))
             self.assertIsNone(target.reusable_sources(root, '2026-11-05', 'current-catalog', universe.relative_to(root).as_posix()))
 
+
+    def test_explicit_recovery_finishes_yesterday_without_claiming_todays_source_date(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            universe, history, _ = self.fixture(root)
+            before = (universe.read_bytes(), history.read_bytes())
+            day, pair = target.recent_recovery_sources(root, '2026-11-06', 'current-catalog')
+            self.assertEqual(day, '2026-11-05')
+            self.assertEqual(pair, (universe.relative_to(root).as_posix(), history.relative_to(root).as_posix()))
+            self.assertEqual((universe.read_bytes(), history.read_bytes()), before)
+            self.assertIsNone(target.reusable_sources(root, '2026-11-06', 'current-catalog'))
+
+    def test_recovery_refuses_old_changed_catalog_or_already_active_sources(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            universe, history, _ = self.fixture(root)
+            for day, catalog, active in (
+                ('2026-11-07', 'current-catalog', None),
+                ('2026-11-06', 'changed-catalog', None),
+                ('2026-11-06', 'current-catalog', universe.relative_to(root).as_posix())):
+                with self.subTest(day=day, catalog=catalog, active=active), self.assertRaises(RuntimeError):
+                    target.recent_recovery_sources(root, day, catalog, active)
+            self.assertTrue(universe.exists() and history.exists())
+
+    def test_recovery_refuses_tampered_checkpoint_before_any_refresh(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            universe, history, _ = self.fixture(root)
+            universe.write_bytes(gzip.compress(b'{"unverified":true}'))
+            with self.assertRaises(RuntimeError):
+                target.recent_recovery_sources(root, '2026-11-06', 'current-catalog')
+            self.assertTrue(universe.exists() and history.exists())
+
     def test_tampered_pair_is_retained_but_never_reused(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

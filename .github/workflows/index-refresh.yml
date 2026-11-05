@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '23 9 * * *'  # 18:23 KST; source collection may take about 4 hours.
   workflow_dispatch:
+    inputs:
+      resume_recent:
+        description: 'Resume an exact checkpoint from today or yesterday without a new full sweep'
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/index-refresh.yml'
 
 permissions:
   contents: write
@@ -13,6 +22,7 @@ permissions:
 concurrency:
   group: index-refresh-${{ github.ref }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   refresh:
@@ -47,8 +57,13 @@ jobs:
       - name: Refresh complete source, independently verify, and promote as one set
         id: refresh
         timeout-minutes: 305
-        run: timeout --signal=TERM --kill-after=30s 300m python -B scripts/update_dynamic_card_index.py --workers 4
+        run: |
+          recovery_args=()
+          if [[ "$INDEX_RECOVER" == 'true' ]]; then recovery_args+=(--resume-recent); fi
+          timeout --signal=TERM --kill-after=30s "${INDEX_MAX_MINUTES}m" python -B scripts/update_dynamic_card_index.py --workers 4 "${recovery_args[@]}"
         env:
+          INDEX_RECOVER: ${{ github.event_name == 'push' || inputs.resume_recent }}
+          INDEX_MAX_MINUTES: ${{ (github.event_name == 'push' || inputs.resume_recent) && '60' || '300' }}
           PYTHONUNBUFFERED: '1'
           OPENBLAS_NUM_THREADS: '1'
           OMP_NUM_THREADS: '1'

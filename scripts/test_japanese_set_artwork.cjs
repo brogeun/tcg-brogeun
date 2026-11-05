@@ -24,7 +24,7 @@ test('unrelated products and explicit verified photos cannot be replaced', () =>
   assert.equal(artwork.image({code:'S12a',image:'/images/sets/s12a.jpg'}), '/images/sets/s12a.jpg');
   assert.equal(artwork.image({code:'Neo1'},'/images/box2/Neo1.webp'), '/images/box2/Neo1.webp');
   assert.equal(artwork.image({code:'SV1S-EN'}),'');
-  assert.equal(artwork.image({code:'WEB'}),'');
+  assert.equal(artwork.image({code:'WEB-EN'}),'');
 });
 test('verified official packaging is explicitly identified as a pack photo', () => {
   assert.equal(artwork.image({code:'BSTXY'}), 'https://www.pokemon-card.com/products/xy/best_of_xy/images/20170330/SM_XY_pillow_1221.jpg');
@@ -65,5 +65,19 @@ test('Neo catalogue search boxes use the same existing image and contained-card 
     assert.equal(catalogue.href(row), '/?set=' + encodeURIComponent(set.code) + '#cardinfo');
     assert.equal(row.kind, 'box');
     assert.equal(row.minPrice, undefined, 'Artwork repair must not infer a market price');
+  }
+});
+
+
+test('reviewed vintage product covers retain their exact packaging kinds and originals', () => {
+  const fs=require('node:fs'),path=require('node:path'),root=path.resolve(__dirname,'..');
+  const review=JSON.parse(fs.readFileSync(path.join(root,'data/pokemon-contained-supplements.json'),'utf8'));
+  assert.equal(review.covers.length,8);
+  assert.equal(review.covers.filter(c=>c.kind==='box').length,4);
+  for(const cover of review.covers){
+    assert.equal(artwork.image({code:cover.code}),cover.localImage);
+    assert.equal(artwork.kind({code:cover.code}),cover.kind);
+    assert(fs.statSync(path.join(root,cover.localImage.slice(1))).size>0);
+    assert.equal(artwork.image({code:cover.code,image:'https://example.test/new-reviewed-photo.webp'}),'https://example.test/new-reviewed-photo.webp');
   }
 });

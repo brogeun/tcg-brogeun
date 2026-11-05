@@ -78,6 +78,11 @@ jobs:
       - name: Preserve saved box identities and linked inventories
         run: node scripts/verify_box_preservation.cjs
 
+      - name: Restore and verify reviewed Pokemon product contents
+        run: |
+          python -B scripts/pokemon_contained_supplements.py
+          python -B scripts/pokemon_contained_supplements.py --validate-only
+
       - name: Check catalogue labels and search before costly collection and packaging
         run: node scripts/test_ja_production_gate.cjs
 
@@ -89,6 +94,7 @@ jobs:
       - name: Validate published vintage artwork without waiting for pending backfill
         run: |
           python scripts/materialize_vintage_pokemon_release.py --offline
+          python -B -m unittest discover -s scripts -p test_pokemon_contained_supplements.py
           python -B -m unittest discover -s scripts -p test_materialize_vintage_pokemon_release.py
           python -B -m unittest discover -s scripts -p test_vintage_resume.py
           python -B -m unittest discover -s scripts -p test_vintage_image_bundle.py

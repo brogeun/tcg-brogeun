@@ -42,6 +42,48 @@
     S10D: {image:'https://www.pokemon-card.com/ex/s10/assets/images/hero-img-2.png', sourceUrl:'https://www.pokemon-card.com/ex/s10/index.html'},
     S10P: {image:'https://www.pokemon-card.com/ex/s10/assets/images/hero-img-3.png', sourceUrl:'https://www.pokemon-card.com/ex/s10/index.html'}
   });
+  const recovered = Object.freeze({
+  "VS": {
+    "image": "/images/japanese-products/VS.webp",
+    "kind": "box",
+    "sourceUrl": "https://www.artofpkm.com/products/2944"
+  },
+  "WEB": {
+    "image": "/images/japanese-products/WEB.jpg",
+    "kind": "pack",
+    "sourceUrl": "https://www.cardrush-pokemon.jp/product/14787"
+  },
+  "ADV4-SEAL": {
+    "image": "/images/japanese-products/ADV4-SEAL.png",
+    "kind": "box",
+    "sourceUrl": "https://crownrareco.com/products/japanese-undone-seal-booster-box"
+  },
+  "VS-MANAPHY": {
+    "image": "/images/japanese-products/VS-MANAPHY.jpg",
+    "kind": "pack",
+    "sourceUrl": "https://www.cardrush-pokemon.jp/product/14849"
+  },
+  "WCP": {
+    "image": "/images/japanese-products/WCP.jpg",
+    "kind": "pack",
+    "sourceUrl": "https://jp.mercari.com/item/m95180942453"
+  },
+  "DP5-TW": {
+    "image": "/images/japanese-products/DP5-TW.png",
+    "kind": "box",
+    "sourceUrl": "https://www.japan2uk.com/products/pokemon-temple-of-anger-dp5-japanese-booster-box?open-restock=1"
+  },
+  "DPt-MRP09": {
+    "image": "/images/japanese-products/DPt-MRP09.png",
+    "kind": "pack",
+    "sourceUrl": "https://www.cardshop-hanjou.jp/product/20777"
+  },
+  "LL": {
+    "image": "/images/japanese-products/LL.webp",
+    "kind": "box",
+    "sourceUrl": "https://snkrdunk.com/apparels/86000"
+  }
+});
   function image(set, fallback = '') {
     if (!set || typeof set !== 'object') return fallback;
     const explicit = String(set.image || '').trim();
@@ -49,10 +91,11 @@
     // A verified explicit photo, even on an external source, always wins.
     const generated = '/images/sets/' + encodeURIComponent(String(set.code || '')) + '.jpg';
     if (explicit && explicit.replace(/^\/?/, '/') !== generated) return explicit;
-    return local[set.code] || legacy[set.code] || packs[set.code]?.image || explicit || fallback;
+    return local[set.code] || recovered[set.code]?.image || legacy[set.code] || packs[set.code]?.image || explicit || fallback;
   }
   function kind(set) {
+    if (recovered[set?.code] && image(set) === recovered[set.code].image) return recovered[set.code].kind;
     return packs[set?.code] && image(set) === packs[set.code].image ? 'pack' : '';
   }
-  return {image, kind, local, legacy, packs};
+  return {image, kind, local, legacy, packs, recovered};
 });

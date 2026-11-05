@@ -545,6 +545,10 @@ def main():
 
                 try:
                     data = scrape_pokemon_set(driver, code, name, url)
+                    from pokemon_contained_supplements import load_review, apply_to_set
+                    contents_review = load_review(ROOT)
+                    if contents_review:
+                        data = apply_to_set(data, code, contents_review)
                     _atomic_save(out_path, json.dumps(data, ensure_ascii=False, indent=2))
                     print(f"  {code:7s} â {data['cardCount']} ì¹´ë")
                     success += 1

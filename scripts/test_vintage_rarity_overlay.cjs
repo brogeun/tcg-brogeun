@@ -36,10 +36,12 @@ test('all 322 Neo cards receive exact-source rarities while blank printed number
   assert.equal(count,322);
 });
 
-test('15 additional old sets preserve all 1302 identities while only 1281 explicit source grades are adopted',async()=>{
+test('15 additional old sets retain 1302 prior identities and 72 reviewed basic Energy cards without inventing grades',async()=>{
   const index=read('data/collections/sources/pokemon-jp-rarity-metadata.json');
   const codes=['CL1','CL2','CL3','CL4','Gym1','Gym2','DP2','DP3','DP4-Bd','DP5','DP6','Pt1','Pt2','Pt3','Pt4'];
-  const fetched=new Set();let known=0,unknown=0,total=0;
+  const contents=read('data/pokemon-contained-supplements.json');
+  const reviewedBasics=new Map(contents.entries.filter(e=>codes.includes(e.setCode)&&e.card.basicEnergy).map(e=>[e.setCode+':'+e.card.sourceId,e.card]));
+  const fetched=new Set();let known=0,unknown=0,total=0,basic=0;
   for(const code of codes){
     const cards=read('data/cards-by-set/'+code+'.json').cards,before=JSON.stringify(cards);
     const payload=await R.ensureSetMetadata(index,code,{fetchImpl:async url=>{
@@ -52,11 +54,15 @@ test('15 additional old sets preserve all 1302 identities while only 1281 explic
     assert.equal(JSON.stringify(cards),before);assert.equal(enriched.length,cards.length);
     for(let n=0;n<cards.length;n++){
       const card=cards[n],result=enriched[n],state=R.metadata(result).state;
-      if(state==='unknown')unknown++;else{known++;assert(payload.cards[card.url].rarityOriginal);}
+      const reviewed=reviewedBasics.get(code+':'+card.sourceId);
+      if(reviewed){
+        basic++;assert.deepEqual(card,reviewed);assert.deepEqual(result,card);
+        assert.equal(state,'documented-unprinted');assert.equal(result.rarity,'');
+      }else if(state==='unknown')unknown++;else{known++;assert(payload.cards[card.url].rarityOriginal);}
       for(const key of ['name','number','image','localImage','url','currentSourceUrl','marketProductId','productId'])assert.equal(result[key],card[key]);
       if(card.rarity)assert.equal(result.rarity,card.rarity);
     }
     total+=cards.length;
   }
-  assert.equal(fetched.size,4);assert.equal(total,1302);assert.equal(known,1281);assert.equal(unknown,21);
+  assert.equal(fetched.size,4);assert.equal(total-basic,1302);assert.equal(basic,72);assert.equal(total,1374);assert.equal(known,1281);assert.equal(unknown,21);
 });

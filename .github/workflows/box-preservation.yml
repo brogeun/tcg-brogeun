@@ -1,0 +1,55 @@
+name: Preserve saved box data
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/box-preservation.yml'
+      - '.github/workflows/scrape.yml'
+      - 'scripts/verify_box_preservation.cjs'
+      - 'scripts/test_box_preservation.cjs'
+      - 'config/box-preservation-baseline.json'
+      - 'config/box-preservation-baseline/**'
+      - 'data/english-catalog.json'
+      - 'data/english-set-images.json'
+      - 'data/tcg-card-info.json'
+      - 'data/tcg-card-info/**'
+      - 'data/pokemon-vintage-image-repairs.json'
+      - 'images/pokemon-vintage/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: box-preservation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/verify_box_preservation.cjs
+            /scripts/test_box_preservation.cjs
+            /config/box-preservation-baseline.json
+            /config/box-preservation-baseline/
+            /data/english-catalog.json
+            /data/english-set-images.json
+            /data/tcg-card-info.json
+            /data/tcg-card-info/
+            /data/pokemon-vintage-image-repairs.json
+            /images/pokemon-vintage/
+            /images/box/
+            /images/box2/
+            /images/sets/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify deletion, same-count replacement and packed-file failures
+        run: node --test scripts/test_box_preservation.cjs
+      - name: Preserve the committed snapshot without any source requests
+        run: node scripts/verify_box_preservation.cjs

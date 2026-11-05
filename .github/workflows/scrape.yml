@@ -83,7 +83,8 @@ jobs:
       - name: Materialize reviewed official inventories and images
         run: |
           python -m pip install "Pillow==12.2.0"
-          python scripts/materialize_onepiece_release.py --base "$COLLECTION_COMMIT"
+          # Prepare local reviewed assets; publish once after prices and search agree.
+          python scripts/materialize_onepiece_release.py
 
       - name: Validate published vintage artwork without waiting for pending backfill
         run: |
@@ -256,6 +257,9 @@ jobs:
           path: ${{ runner.temp }}/daily-collection-snapshot
           retention-days: 14
           if-no-files-found: error
+
+      - name: Publish reviewed assets after collected prices and search are reconciled
+        run: python scripts/materialize_onepiece_release.py --base "$COLLECTION_COMMIT"
 
       - name: Commit JSON updates (if any)
         if: env.COLLECT_DATA == 'true'

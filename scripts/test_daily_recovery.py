@@ -92,6 +92,21 @@ class TypedCategoryTests(unittest.TestCase):
         self.assertEqual(result[0]['priceSource']['originalCurrency'], 'KRW')
 
 
+class PublicationOrderTests(unittest.TestCase):
+    def test_self_published_official_generation_cannot_precede_its_price_refresh(self):
+        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/scrape.yml').read_text(encoding='utf-8')
+        prepare = '          python scripts/materialize_onepiece_release.py\n'
+        publish = 'run: python scripts/materialize_onepiece_release.py --base "$COLLECTION_COMMIT"'
+        checkpoint = 'scripts/checkpoint_daily_snapshot.py --base'
+        prices = 'run: python scripts/refresh_search_prices.py'
+        commit = 'scripts/publish_data_snapshot.py --daily --base'
+        self.assertEqual(workflow.count(publish), 1)
+        self.assertLess(workflow.index(prepare), workflow.index(prices))
+        self.assertLess(workflow.index(prices), workflow.index(checkpoint))
+        self.assertLess(workflow.index(checkpoint), workflow.index(publish))
+        self.assertLess(workflow.index(publish), workflow.index(commit))
+
+
 class CheckpointTests(unittest.TestCase):
     def test_publication_failure_can_recover_exact_source_dated_bytes(self):
         with tempfile.TemporaryDirectory() as folder:

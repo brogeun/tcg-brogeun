@@ -13,6 +13,11 @@ on:
       - 'config/pokemon-tcg-english-sets.json'
       - 'config/japanese-packaging-images.json'
       - 'data/english-set-images.json'
+      - 'data/pokemon-contained-supplements.json'
+      - 'scripts/pokemon_contained_supplements.py'
+      - 'scripts/test_pokemon_contained_supplements.py'
+      - 'images/pokemon-contained/**'
+      - 'images/japanese-products/**'
       - 'scripts/*set*images*'
       - 'scripts/*set*artwork*'
       - 'scripts/retailer_card_printings.py'
@@ -56,6 +61,17 @@ jobs:
             /config/
             /data/english-catalog.json
             /data/english-set-images.json
+            /data/pokemon-contained-supplements.json
+            /data/japanese-catalog.json
+            /data/cards-by-set/DP4-Bm.json
+            /data/cards-by-set/DP5-TW.json
+            /data/cards-by-set/L1-Bhg.json
+            /data/cards-by-set/L1-Bss.json
+            /data/cards-by-set/L2.json
+            /data/cards-by-set/L3.json
+            /data/cards-by-set/VS-MANAPHY.json
+            /images/pokemon-contained/
+            /images/japanese-products/
             /data/us-market/
             /data/cards-by-set/CL1.json
             /data/cards-by-set/CL2.json
@@ -93,6 +109,7 @@ jobs:
           node --test scripts/test_english_set_images.cjs scripts/test_japanese_set_artwork.cjs scripts/test_set_artwork_release.cjs
           python -B -m unittest discover -s scripts -p test_retailer_printing_covers.py
           python -B -m unittest discover -s scripts -p test_materialize_vintage_pokemon_release.py
+          python -B -m unittest discover -s scripts -p test_pokemon_contained_supplements.py
           python -B -m unittest discover -s scripts -p test_collect_vintage_rarity.py
           python -B -m unittest discover -s scripts -p test_collect_vintage_rarity_additional.py
           node --test scripts/test_vintage_rarity_overlay.cjs

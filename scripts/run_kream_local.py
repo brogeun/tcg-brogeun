@@ -174,10 +174,25 @@ def collect_generation(context, root, emit):
     for card in manifest['cards']:
         emit('collecting_product', product_id=card['id'])
         old = collector.unpack_history(json.loads((root / card['file'].lstrip('/')).read_bytes()))
-        data = collector.collect(page, card, old, report=emit)
+        try:
+            data = collector.collect(page, card, old, report=emit)
+        except Exception as error:
+            code = getattr(error, 'code', 'product_collection_failed')
+            emit('product_retained', product_id=card['id'], failure_code=code,
+                 error_type=type(error).__name__)
+            if code in ('session_expired', 'access_denied'):
+                break
+            continue
         staged[card['id']] = data
         emit('product_complete', product_id=card['id'], rows=len(data['rows']))
-    collector.publish_generation(root, manifest, staged, attempted)
+    if not staged:
+        raise LocalError('no_products_completed')
+    if len(staged) < len(collector.IDS):
+        collector.publish_partial_generation(root, manifest, staged, attempted)
+        emit('partial_generation_validated', completed_products=len(staged),
+             retained_products=len(collector.IDS)-len(staged))
+    else:
+        collector.publish_generation(root, manifest, staged, attempted)
     return collector.validate_bundle(root)
 
 

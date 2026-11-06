@@ -15,6 +15,11 @@ from scripts import collect_kream_promos as collector
 from scripts.collect_kream_promos import KST, IDS, parse_row, validate_bundle, validate_new_rows, unpack_history, pack_history
 from scripts.publish_data_snapshot import daily_path, KOREAN_PROMO_FILES
 
+def load_tests(loader, standard_tests, pattern):
+    # Existing explicit CI/publication suites also exercise partial generations.
+    standard_tests.addTests(loader.loadTestsFromName('scripts.test_kream_partial'))
+    return standard_tests
+
 class KreamPromosTests(unittest.TestCase):
     def test_full_published_snapshot_counts_and_options(self):
         root=Path(__file__).resolve().parents[1]

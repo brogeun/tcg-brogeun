@@ -30,6 +30,7 @@ class LocalCollectorTests(unittest.TestCase):
         cards = []
         for ident in local.collector.IDS:
             history = {'schemaVersion': 1, 'id': ident, 'complete': True,
+                       'source_url': 'https://kream.co.kr/products/' + ident,
                        'rows': [{'date': '2026-11-03', 'option': 'A', 'price_krw': 100,
                                  'express_shipping': False, 'date_raw': '26/11/03'}],
                        'collected_count': 1, 'counts_by_exact_option': {'A': 1}}
@@ -111,19 +112,26 @@ class LocalCollectorTests(unittest.TestCase):
                 local.upload_generation(api, root, {'sha': self.base, 'tree': self.tree})
             api.assert_not_called()
 
-    def test_late_collection_failure_never_replaces_or_uploads_partial_data(self):
+    def test_late_login_failure_retains_failed_product_and_marks_partial(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             original = self.fixture(root)
             context = SimpleNamespace(pages=[object()])
             responses = [json.loads(original[name]) for name in local.FILES[2:]]
+            for data in responses:
+                now=datetime.now(local.collector.KST).isoformat()
+                data.update(snapshot_started_at=now,last_observed_at=now,
+                            earliest_date=data['rows'][-1]['date'],latest_date=data['rows'][0]['date'],
+                            target_count=len(data['rows']))
             responses[-1] = local.collector.CollectionError('session_expired', 'Login required')
             with mock.patch.object(local.collector, 'collect', side_effect=responses), \
                     mock.patch.object(local.collector, 'publish_generation') as publish:
-                with self.assertRaises(local.collector.CollectionError):
-                    local.collect_generation(context, root, lambda *_a, **_k: None)
+                result=local.collect_generation(context, root, lambda *_a, **_k: None)
                 publish.assert_not_called()
-            self.assertEqual({name: (root / name).read_bytes() for name in local.FILES}, original)
+            self.assertEqual(result['refresh']['status'],'partial')
+            self.assertEqual(result['refresh']['failed_product_ids'],['508949'])
+            self.assertEqual((root/local.FILES[-1]).read_bytes(),original[local.FILES[-1]])
+            self.assertEqual(result['last_success_at'],json.loads(original[local.FILES[0]])['last_success_at'])
 
     def test_gh_json_bodies_are_stdin_only_and_cli_errors_are_private(self):
         payload = {'content': 'PRIVATE-REQUEST'}

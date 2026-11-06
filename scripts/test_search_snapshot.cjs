@@ -3,14 +3,25 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const vm = require('node:vm');
 const {test} = require('node:test');
 const {compileSnapshot,FIELDS,writeSnapshot} = require('./build_search_snapshot.cjs');
 const repository = path.resolve(__dirname,'..');
-function fixture() {
+function initialCatalogue(page) {
+  const match=page.match(/const CARDINFO = (\{[\s\S]*?\n\});/);
+  assert(match,'Initial catalogue must be available to the compiler fixture');
+  return {source:match[0],data:vm.runInNewContext('('+match[1]+')',{}, {timeout:1000})};
+}
+function fixture({registered=false}={}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(),'tcghub-search-'));
   fs.mkdirSync(path.join(root,'assets'));
   fs.mkdirSync(path.join(root,'data'));
-  fs.copyFileSync(path.join(repository,'index.html'),path.join(root,'index.html'));
+  const page=fs.readFileSync(path.join(repository,'index.html'),'utf8');
+  const initial=initialCatalogue(page);
+  // This fixture exercises products absent from the initial catalogue. Its
+  // synthetic manifest labels must not depend on newly registered real boxes.
+  if(!registered)initial.data.onepiece=initial.data.onepiece.filter(row=>!['PRB01','ST01'].includes(row.code));
+  fs.writeFileSync(path.join(root,'index.html'),page.replace(initial.source,'const CARDINFO = '+JSON.stringify(initial.data,null,2)+';'));
   for (const name of ['japanese-card-names','card-catalog-repairs','japanese-catalog','onepiece-official-catalog','anniversary-market','promo-search'])
     fs.copyFileSync(path.join(repository,'assets',name+'.js'),path.join(root,'assets',name+'.js'));
   const write = (name,data) => fs.writeFileSync(path.join(root,'data',name+'.json'),JSON.stringify(data));
@@ -93,6 +104,27 @@ test('snapshot preserves reviewed printed, market, promo and DON identities with
     assert.equal(result.aliases['리자몽'][0],'Charizard');
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });
+test('registered starter products retain the same exact ID, label and destination as the initial UI',async()=>{
+  const root=fixture({registered:true});
+  try {
+    const starter=initialCatalogue(fs.readFileSync(path.join(repository,'index.html'),'utf8')).data.onepiece.find(row=>row.code==='ST01');
+    assert(starter?.boxId,'The real registered starter is required by this regression');
+    const identity=String(starter.boxId);
+    fs.writeFileSync(path.join(root,'data/manual-boxes-onepiece.json'),JSON.stringify({products:[
+      {id:identity,name:'Straw Hat Crew Starter Deck',code:'ST01',currency:'JPY',lastPrice:1000}]}));
+    const rows=unpack(await compileSnapshot(root)),market=rows.find(row=>row.id===identity);
+    assert(market);
+    assert.equal(market.displayName,starter.name);
+    assert.equal(market.href,'#price/'+identity);
+    assert.equal(market.minPrice,1000);
+    const printed=rows.find(row=>row.id.startsWith('JP:ONEPIECE:ST01:'));
+    assert.equal(printed.setName,starter.name);
+    assert.equal(printed.productId,null);
+    assert.equal(printed.minPrice,null,'A registered box quote must not become its individual card price');
+    assert(printed.href.includes('set=ST01&card='));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
 test('a missing optional-looking source fails the release instead of silently reducing search coverage',async()=>{
   const root=fixture();
   try {

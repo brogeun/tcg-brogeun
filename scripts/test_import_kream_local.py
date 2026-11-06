@@ -73,9 +73,9 @@ class LocalImportTests(unittest.TestCase):
             collector.publish_generation(self.root, manifest, staged, attempted)
         return staged
 
-    def commit_candidate(self):
+    def commit_candidate(self, *, allow_empty=False):
         self.git('add', '.')
-        self.git('commit', '-qm', 'local candidate')
+        self.git('commit', '-qm', 'local candidate', *(['--allow-empty'] if allow_empty else []))
         source = self.git('rev-parse', 'HEAD')
         self.git('reset', '--hard', self.base)
         return source
@@ -182,7 +182,9 @@ class LocalImportTests(unittest.TestCase):
         health = {key: health[key] for key in ('schemaVersion', 'status', 'last_attempt_at', 'last_success_at')}
         health['trades'] = collector.validate_bundle(self.root)['collected_trade_count']
         path.write_bytes(collector.encoded(health))
-        self.assert_rejected_unchanged(self.commit_candidate())
+        # A successful published baseline already has these exact health bytes.
+        # Replay that old generation and still require the freshness rejection.
+        self.assert_rejected_unchanged(self.commit_candidate(allow_empty=True))
 
     def test_write_failure_rolls_back_all_target_files(self):
         self.candidate()

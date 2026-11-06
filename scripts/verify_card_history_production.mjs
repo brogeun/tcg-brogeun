@@ -44,7 +44,9 @@ for(let index=0;index<chosen.length;index+=4) {
     const response=await request('/data/history/'+name);
     assert.match(response.headers.get('Content-Type')||'',/application\/json/,name);
     assert.equal(hash(Buffer.from(await response.arrayBuffer())),hash(original),name+': original history bytes differ');
-    if(!existsSync(join(root,'_deploy/data/history',name)))assert.equal(response.headers.get('ETag'),'"'+hash(original)+'"',name);
+    // The edge weakens strong ETags when it compresses an otherwise identical
+    // response. Verify the body digest above and retain its exact tag digest.
+    if(!existsSync(join(root,'_deploy/data/history',name)))assert.equal((response.headers.get('ETag')||'').replace(/^W\//,''),'"'+hash(original)+'"',name);
     checked++;
   }));
 }

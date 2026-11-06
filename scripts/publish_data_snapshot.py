@@ -28,6 +28,7 @@ DAILY_NEW_FILES = {'data/update-health.json', 'data/all-cards.json', 'data/cards
     'data/top10-pokemon.json', 'data/top10-onepiece.json',
     'data/price-pokemon-box.json', 'data/price-pokemon-card.json',
     'data/price-onepiece-box.json', 'data/price-onepiece-card.json',
+    'data/manual-boxes-pokemon.json', 'data/manual-boxes-onepiece.json',
     'data/cards-by-set/M6a.json', 'data/cards-by-set/MF.json'}
 REFERENCE_SEARCH_FILES = {'data/all-cards.json', 'data/cards-meta.json', 'data/cards-prices.json'}
 CARD_INFO_MANIFEST = 'data/tcg-card-info.json'

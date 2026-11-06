@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 IDS = ('1096144', '893073', '998016', '998022', '937106', '934334', '508949')
+PARTIAL_FIELDS = ('completed_product_ids', 'failed_product_ids', 'completed_at')
 KST = ZoneInfo('Asia/Seoul')
 SESSION_STORAGE_ORIGINS = ('https://kream.co.kr', 'https://www.kream.co.kr')
 
@@ -262,10 +263,20 @@ def validate_bundle(root):
     health_path=root/'data/korean-promos-health.json'
     if health_path.exists():
         health=json.loads(health_path.read_bytes())
-        if health.get('status') not in ('success','failed') or health.get('last_success_at') != manifest['last_success_at']:
+        if health.get('status') not in ('success','partial','failed') or health.get('last_success_at') != manifest['last_success_at']:
             raise ValueError('Health and history generation differ')
-        if health['status']=='success' and health.get('trades',total) != total:
+        if health['status'] in ('success','partial') and health.get('trades',total) != total:
             raise ValueError('Health and history counts differ')
+        if health['status'] == 'partial':
+            completed, failed = health.get('completed_product_ids'), health.get('failed_product_ids')
+            if (not isinstance(completed, list) or not isinstance(failed, list)
+                    or not completed or not failed
+                    or completed != [ident for ident in IDS if ident in completed]
+                    or failed != [ident for ident in IDS if ident not in completed]
+                    or manifest['refresh'].get('status') != 'partial'
+                    or manifest['refresh'].get('last_attempt_at') != health.get('last_attempt_at')
+                    or any(manifest['refresh'].get(key) != health.get(key) for key in PARTIAL_FIELDS)):
+                raise ValueError('Partial collection status differs from its product partition')
     return manifest
 
 def validate_new_rows(old, rows):
@@ -293,9 +304,25 @@ def replace_file(path, raw):
         name.unlink(missing_ok=True)
 
 def publish_generation(root, original_manifest, staged, attempted):
+    if set(staged) != set(IDS):
+        raise ValueError('A full generation requires all seven products')
+    return _publish_generation(root, original_manifest, staged, attempted, partial=False)
+
+
+def publish_partial_generation(root, original_manifest, staged, attempted):
+    """Publish verified products while preserving every failed product byte-for-byte."""
+    if not staged or not set(staged) < set(IDS):
+        raise ValueError('A partial generation requires a nonempty proper product subset')
+    return _publish_generation(root, original_manifest, staged, attempted, partial=True)
+
+
+def _publish_generation(root, original_manifest, staged, attempted, *, partial):
     manifest=copy.deepcopy(original_manifest)
     payloads={}
     for card in manifest['cards']:
+        if card['id'] not in staged:
+            payloads[card['file'].lstrip('/')]=(root/card['file'].lstrip('/')).read_bytes()
+            continue
         data=validate_history(staged[card['id']],card['id'])
         old=unpack_history(json.loads((root/card['file'].lstrip('/')).read_bytes()))
         validate_new_rows(old,data['rows'])
@@ -307,12 +334,25 @@ def publish_generation(root, original_manifest, staged, attempted):
         card['latest_price_by_option']={}
         for row in data['rows']:
             card['latest_price_by_option'].setdefault(row['option'],{'date':row['date'],'price_krw':row['price_krw']})
-    success=datetime.now(KST).isoformat()
+    success=original_manifest['last_success_at'] if partial else datetime.now(KST).isoformat()
     manifest.update(last_success_at=success,collected_trade_count=sum(c['collected_count'] for c in manifest['cards']))
-    manifest['refresh'].update(status='success',last_attempt_at=attempted)
+    for key in PARTIAL_FIELDS:
+        manifest['refresh'].pop(key, None)
+    status='partial' if partial else 'success'
+    manifest['refresh'].update(status=status,last_attempt_at=attempted)
+    health={'schemaVersion':1,'status':status,'last_attempt_at':attempted,
+            'last_success_at':success,'trades':manifest['collected_trade_count']}
+    if partial:
+        summary={
+            'completed_product_ids':[ident for ident in IDS if ident in staged],
+            'failed_product_ids':[ident for ident in IDS if ident not in staged],
+            'completed_at':max((data['last_observed_at'] for data in staged.values()),
+                              key=lambda value:datetime.fromisoformat(value.replace('Z','+00:00'))),
+        }
+        health.update(summary)
+        manifest['refresh'].update(summary)
     payloads['data/korean-promos.json']=encoded(manifest)
-    payloads['data/korean-promos-health.json']=encoded({'schemaVersion':1,'status':'success',
-        'last_attempt_at':attempted,'last_success_at':success,'trades':manifest['collected_trade_count']})
+    payloads['data/korean-promos-health.json']=encoded(health)
     # Verify the entire candidate before touching any previous file.
     with tempfile.TemporaryDirectory(prefix='kream-generation-') as directory:
         candidate=Path(directory)

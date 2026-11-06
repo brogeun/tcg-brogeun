@@ -14,6 +14,15 @@
   function daily(rows){const map=new Map();for(const r of rows){if(!map.has(r.date))map.set(r.date,[]);map.get(r.date).push(r.price_krw);}return [...map].sort(([a],[b])=>a.localeCompare(b)).map(([date,p])=>({date,count:p.length,median:median(p),min:Math.min(...p),max:Math.max(...p)}));}
   function selectRows(rows,option,days,today=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'})){const cutoff=days?new Date(Date.parse(today+'T00:00:00Z')-(days-1)*86400000).toISOString().slice(0,10):'';return rows.filter(r=>r.option===option&&(!cutoff||r.date>=cutoff));}
   function prepare(data){if(data?.schemaVersion!==1||!Array.isArray(data.cards)||data.cards.length!==7||new Set(data.cards.map(c=>c.id)).size!==7||data.cards.some(c=>!/^\d+$/.test(c.id)||c.id==='937107'||c.file!==ROOT+'/'+c.id+'.json'||!/^\/assets\/korean-promos\/\d+\.webp$/.test(c.image)))throw Error('Invalid Korean promo catalogue');return data;}
+  function freshness(data){
+    const health=data.refreshHealth?.status==='failed'&&data.refresh?.status==='partial'?data.refresh:(data.refreshHealth||data.refresh||{}),date=value=>new Date(value).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    if(health.status==='partial'){
+      const done=health.completed_product_ids||[],failed=new Set(health.failed_product_ids||[]),names=data.cards.filter(c=>failed.has(c.id)).map(c=>c.name).join(' · ');
+      return `${date(health.completed_at)} · ${done.length}/7종 갱신 · ${names} 이전 자료 유지`;
+    }
+    return (health.status==='failed'?'자동 갱신 지연 · 마지막 전체 수집 ':'최근 수집 ')+date(data.last_success_at);
+  }
+  function productFreshness(card,data){const health=data.refreshHealth?.status==='failed'&&data.refresh?.status==='partial'?data.refresh:(data.refreshHealth||data.refresh||{});return `${(health.failed_product_ids||[]).includes(card.id)?'이전 자료 유지 · ':'수집 확인 · '}${new Date(card.last_observed_at).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})}`;}
   function prepareHistory(data,id){if(data?.rowEncoding==='indexed-v1'){const source=data;data={...source,rows:source.rows.map((r,i)=>({date:source.dates[r[0]],option:source.options[r[1]],price_krw:r[2],express_shipping:!!r[3],date_raw:source.dateLabels[r[4]],date_from_relative_label:!!r[5],source_rank:i}))};}if(data?.schemaVersion!==1||data.id!==id||data.complete!==true||data.collected_count!==data.rows?.length)throw Error('Incomplete trade history');let previous='9999';for(const r of data.rows){if(!/^\d{4}-\d{2}-\d{2}$/.test(r.date)||r.date>previous||!Number.isSafeInteger(r.price_krw)||r.price_krw<=0||typeof r.option!=='string'||!r.option)throw Error('Invalid trade');previous=r.date;}return data;}
   let catalogue=null,pending=null,listRequest=0,request=0,active=null,history=null,option='',days=0,page=1,opener=null,observer=null;
   const histories=new Map(),modal=()=>document.getElementById('anyModal'),owns=()=>!!modal()?.classList.contains('open')&&!!modal()?.querySelector('[data-kp-shell]');
@@ -23,8 +32,8 @@
     for(const id of ['encLanguages','rfLanguages','ciLanguageTabs','onepieceCategoryFilters']){const e=document.getElementById(id);if(e)e.hidden=true;}
     list.innerHTML='<p role="status">한국 프로모 불러오는 중…</p>';
     try{const data=await load();if(token!==listRequest||CI_TAB!==BRAND)return;const cards=data.cards.filter(c=>match(c,CI_QUERY));
-      const freshness=(data.refreshHealth?.status==='failed'?'자동 갱신 지연 · ':'최근 수집 ')+new Date(data.last_success_at).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'});
-      list.innerHTML='<div class="kp-list-intro"><strong>한국 프로모</strong><span>한국 한정·국내 배포 카드 · KREAM 체결가</span><small>최신 배포순 · 이브이는 첫 체결일 기준 임시 배치</small><small>'+esc(freshness)+'</small></div>'+cards.map(c=>`<button type="button" class="kp-tile" data-kp-card="${c.id}" aria-label="${esc(c.name)} 전체 체결 차트"><span class="kp-cover"><img src="${esc(c.image)}" alt="${esc(c.name)}" loading="lazy" decoding="async"></span><span class="kp-game">${esc(c.game)} · ${esc(c.badge)}</span><strong>${esc(c.name)}</strong><span>${esc(c.card_number)}</span><small>${esc(c.event)}</small></button>`).join('')+(cards.length?'':'<p>검색 결과가 없습니다.</p>');
+      const freshnessLabel=freshness(data);
+      list.innerHTML='<div class="kp-list-intro"><strong>한국 프로모</strong><span>한국 한정·국내 배포 카드 · KREAM 체결가</span><small>최신 배포순 · 이브이는 첫 체결일 기준 임시 배치</small><small>'+esc(freshnessLabel)+'</small></div>'+cards.map(c=>`<button type="button" class="kp-tile" data-kp-card="${c.id}" aria-label="${esc(c.name)} 전체 체결 차트"><span class="kp-cover"><img src="${esc(c.image)}" alt="${esc(c.name)}" loading="lazy" decoding="async"></span><span class="kp-game">${esc(c.game)} · ${esc(c.badge)}</span><strong>${esc(c.name)}</strong><span>${esc(c.card_number)}</span><small>${esc(c.event)}</small><small>${esc(productFreshness(c,data))}</small></button>`).join('')+(cards.length?'':'<p>검색 결과가 없습니다.</p>');
     }catch{if(token===listRequest&&CI_TAB===BRAND)list.innerHTML='<p>한국 프로모를 불러오지 못했습니다. <button type="button" data-kp-retry>다시 시도</button></p>';}
   }
   const icon=n=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">${n==='close'?'<path d="m6 6 12 12M6 18 18 6"/>':'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>'}</svg>`;
@@ -64,7 +73,7 @@
   document.addEventListener('change',e=>{if(!owns()||!active)return;if(e.target.id==='kpGrade'){const next=Object.keys(active.counts_by_exact_option).find(o=>gradeKey(o)===e.target.value);if(!next)return;option=next;page=1;gradeControls();update();}else if(e.target.id==='kpOption'){if(!Object.hasOwn(active.counts_by_exact_option,e.target.value)||gradeKey(e.target.value)!==gradeKey(option))return;option=e.target.value;page=1;update();}});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&owns()){e.preventDefault();close();}});
   window.addEventListener('hashchange',()=>{if(location.hash!=='#cardinfo')close();});
-  window.KoreanPromos=Object.freeze({open,prepare,prepareHistory,daily,selectRows,match,gradeKey,gradeOptions,variantLabel});
+  window.KoreanPromos=Object.freeze({open,prepare,prepareHistory,daily,selectRows,match,gradeKey,gradeOptions,variantLabel,freshness,productFreshness});
   const tabs=document.getElementById('ciTabs');if(tabs&&!tabs.querySelector('[data-ci="korean_promos"]')){const button=document.createElement('button');button.type='button';button.className='tab';button.dataset.ci=BRAND;button.setAttribute('aria-pressed','false');button.textContent='한국 프로모';tabs.appendChild(button);}
   const params=new URLSearchParams(location.search);if(params.get('brand')===BRAND&&location.hash==='#cardinfo'){CI_TAB=BRAND;document.querySelectorAll('#ciTabs [data-ci]').forEach(b=>{b.classList.toggle('active',b.dataset.ci===BRAND);b.setAttribute('aria-pressed',String(b.dataset.ci===BRAND));});renderCardInfo();if(params.get('card'))open(params.get('card'));}
 })();

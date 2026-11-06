@@ -29,7 +29,7 @@
     cardinfo: {src:local('tcg-card-info.js','20261104-modular1'),ready:()=>!!root.TCGCardInfo},
     codec: {src:local('collection-catalog-codec.js','20261030-collections1'),ready:()=>!!root.CollectionCatalogCodec},
     collections: {src:local('collections.js','20261030-collections1'),ready:()=>!!root.TCGCollections},
-    korean: {src:local('korean-promos.js','20261101-brg1'),ready:()=>!!root.KoreanPromos},
+    korean: {src:local('korean-promos.js','20261106-partial1'),ready:()=>!!root.KoreanPromos},
   };
   const profiles = {
     centering: {styles:['centeringStyle'],scripts:['geometry','resultCache','centering']},

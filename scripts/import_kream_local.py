@@ -15,10 +15,10 @@ import tempfile
 
 try:
     from scripts.collect_kream_promos import (IDS, KST, unpack_history, pack_history, validate_bundle,
-                                             validate_new_rows, replace_file)
+                                             validate_new_rows, replace_file, PARTIAL_FIELDS)
 except ModuleNotFoundError:
     from collect_kream_promos import (IDS, KST, unpack_history, pack_history, validate_bundle,
-                                     validate_new_rows, replace_file)
+                                     validate_new_rows, replace_file, PARTIAL_FIELDS)
 
 FILES = ('data/korean-promos.json', 'data/korean-promos-health.json') + tuple(
     'data/korean-promos/' + ident + '.json' for ident in IDS)
@@ -95,24 +95,40 @@ def validate_candidate(baseline, candidate, now=None):
             manifest, {'cards', 'last_success_at', 'collected_trade_count', 'refresh'}):
         reject()
     health = strict_json((candidate / FILES[1]).read_bytes())
-    if (set(health) != {'schemaVersion', 'status', 'last_attempt_at', 'last_success_at', 'trades'}
-            or health['schemaVersion'] != 1 or health['status'] != 'success'
+    partial = health.get('status') == 'partial'
+    expected_health = {'schemaVersion', 'status', 'last_attempt_at', 'last_success_at', 'trades'}
+    if partial:
+        expected_health.update(PARTIAL_FIELDS)
+    if (set(health) != expected_health
+            or health['schemaVersion'] != 1 or health['status'] not in ('success', 'partial')
             or health['trades'] != manifest['collected_trade_count']):
         reject()
     success = stamp(manifest['last_success_at'])
     attempted = stamp(health['last_attempt_at'])
-    if (not now - timedelta(days=1) <= attempted <= success <= now + timedelta(minutes=5)
-            or success - attempted > timedelta(hours=3)
-            or success <= stamp(old_manifest['last_success_at'])):
+    completed = stamp(health['completed_at']) if partial else success
+    if partial:
+        if success != stamp(old_manifest['last_success_at']) or attempted <= success:
+            reject()
+    elif success <= stamp(old_manifest['last_success_at']):
         reject()
-    expected_refresh = dict(old_manifest['refresh'], status='success',
+    if (not now - timedelta(days=1) <= attempted <= completed <= now + timedelta(minutes=5)
+            or completed - attempted > timedelta(hours=3)):
+        reject()
+    expected_refresh = {key:value for key,value in old_manifest['refresh'].items() if key not in PARTIAL_FIELDS}
+    expected_refresh.update(status=health['status'],
                             last_attempt_at=health['last_attempt_at'])
+    if partial:
+        expected_refresh.update({key:health[key] for key in PARTIAL_FIELDS})
     if manifest['refresh'] != expected_refresh:
         reject()
     for old_card, card in zip(old_manifest['cards'], manifest['cards']):
         if static(old_card, CHANGING_CARD) != static(card, CHANGING_CARD):
             reject()
         name = card['file'].lstrip('/')
+        if partial and card['id'] not in health['completed_product_ids']:
+            if old_card != card or (baseline / name).read_bytes() != (candidate / name).read_bytes():
+                reject('A failed product must retain its previous catalogue and history exactly.')
+            continue
         old = unpack_history(strict_json((baseline / name).read_bytes()))
         packed = strict_json((candidate / name).read_bytes())
         data = unpack_history(packed)
@@ -123,8 +139,10 @@ def validate_candidate(baseline, candidate, now=None):
         if static(old, CHANGING_HISTORY) != static(data, CHANGING_HISTORY):
             reject()
         validate_new_rows(old, data['rows'])
-        if not attempted <= stamp(data['snapshot_started_at']) <= stamp(data['last_observed_at']) <= success:
+        if not attempted <= stamp(data['snapshot_started_at']) <= stamp(data['last_observed_at']) <= completed:
             reject()
+        if partial and stamp(data['last_observed_at']) <= stamp(old['last_observed_at']):
+            reject('A completed product needs a newer verified source observation.')
         if data['target_count'] != len(data['rows']):
             reject()
         latest = {}

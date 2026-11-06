@@ -4,6 +4,12 @@ const root=path.resolve(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p
 const context={window:{addEventListener(){}},document:{getElementById(){return null},addEventListener(){}},renderCardInfo(){},location:{search:'',hash:''},URLSearchParams,Date,Map,Set,console};
 vm.createContext(context);vm.runInContext(read('assets/korean-promos.js'),context);
 const api=context.window.KoreanPromos,manifest=api.prepare(JSON.parse(read('data/korean-promos.json')));
+const partial={...manifest,refresh:{status:'partial',completed_product_ids:manifest.cards.filter(c=>!['893073','998016'].includes(c.id)).map(c=>c.id),failed_product_ids:['893073','998016'],completed_at:'2026-11-06T07:26:01+09:00'}};
+assert.match(api.freshness(partial),/5\/7종 갱신/);
+assert.match(api.freshness(partial),/이전 자료 유지/);
+assert.match(api.productFreshness(manifest.cards.find(c=>c.id==='893073'),partial),/이전 자료 유지/);
+assert.match(api.productFreshness(manifest.cards.find(c=>c.id==='1096144'),partial),/수집 확인/);
+assert.match(api.freshness({...partial,refreshHealth:{status:'failed'}}),/5\/7종 갱신/);
 assert.equal(api.gradeKey('BRG 10 영문'),'BRG 10');
 assert.equal(api.gradeKey('BRG 10 한글'),'BRG 10');
 assert.equal(api.gradeKey('BRG 8 영문'),'BRG 8');

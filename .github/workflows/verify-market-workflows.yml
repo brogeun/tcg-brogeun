@@ -4,11 +4,21 @@ on:
   pull_request:
     paths:
       - '.github/workflows/scrape.yml'
+      - '.github/workflows/psa-pop-daily.yml'
+      - '.github/workflows/pokemon-detect.yml'
+      - '.github/workflows/onepiece-sync.yml'
       - '.github/workflows/market-references-daily.yml'
       - '.github/workflows/verify-market-workflows.yml'
       - 'scripts/collect_yuyutei_market.py'
       - 'scripts/validate_reference_markets.py'
       - 'scripts/prepare_card_index_public_bundle.py'
+      - 'scripts/pack_card_history.py'
+      - 'scripts/test_card_history_bundle.py'
+      - 'scripts/test_card_index_public_bundle_guard.cjs'
+      - 'scripts/audit/card-history-packs.test.mjs'
+      - 'scripts/audit/card-history-roundtrip.test.mjs'
+      - 'scripts/verify_card_history_production.mjs'
+      - '_routes.json'
       - 'scripts/prepare_tcg_card_info_bundle.py'
       - 'scripts/test_prepare_public_bundle.py'
       - 'scripts/test_vintage_image_bundle.py'
@@ -41,6 +51,7 @@ jobs:
             tests
             assets
             functions
+            data/history
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -54,7 +65,10 @@ jobs:
           python -m unittest scripts.test_market_references_workflow
           python -m unittest discover -s scripts -p test_prepare_public_bundle.py
           python -m unittest discover -s scripts -p test_vintage_image_bundle.py
+          python -B -m unittest discover -s scripts -p test_card_history_bundle.py
           python -m unittest discover -s tests -p test_prepare_tcg_card_info_bundle.py
           node --test scripts/audit/card-info-packs.test.mjs
+          node scripts/test_card_index_public_bundle_guard.cjs
           node --test --test-concurrency=1 scripts/audit/vintage-image-packs.test.mjs
+          node --test --test-concurrency=1 scripts/audit/card-history-packs.test.mjs scripts/audit/card-history-roundtrip.test.mjs
 

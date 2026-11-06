@@ -22,7 +22,7 @@ on:
           - all
           - search-only
   workflow_run:
-    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'Chinese Auction Prices Daily', 'KREAM Korean Promos Daily', 'KREAM Local Publish']
+    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'Chinese Auction Prices Daily', 'KREAM Korean Promos Daily', 'KREAM Local Publish', 'PSA Pop Daily Gamble']
     types: [completed]
     branches: [main]
   push:
@@ -384,6 +384,8 @@ jobs:
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: |
           python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data --pack-vintage-images
+          python -B scripts/pack_card_history.py --deploy-dir _deploy
+          python -B scripts/pack_card_history.py --deploy-dir _deploy --verify-only
           python scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data --check-limits
 
       - name: Preserve saved boxes and artwork in the packed deployment
@@ -398,12 +400,6 @@ jobs:
       - name: Verify Japanese catalogue and Korean search before deploy
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: node scripts/test_ja_production_gate.cjs --bundle-dir _deploy
-
-      - name: Verify public home card index before deploy
-        working-directory: ${{ env.DEPLOY_SOURCE }}
-        run: |
-          node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
-          python -c "import json; from pathlib import Path; d=json.loads(Path('_deploy/data/update-health.json').read_text(encoding='utf-8')); assert d.get('status') in ('healthy','incomplete') and isinstance(d.get('datasets'),list); print('Required public update-health JSON:', d['status'])"
 
       - name: Verify account save files and keep Johto development unpublished
         working-directory: ${{ env.DEPLOY_SOURCE }}
@@ -490,6 +486,12 @@ jobs:
           PY
           python "$RUNNER_TEMP/tcghub-centering-runtime-guard.py" snapshot
 
+      - name: Verify public home card index before deploy
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: |
+          node scripts/verify_card_index_public_bundle.cjs --bundle-dir _deploy --functions-source-dir functions
+          python -c "import json; from pathlib import Path; d=json.loads(Path('_deploy/data/update-health.json').read_text(encoding='utf-8')); assert d.get('status') in ('healthy','incomplete') and isinstance(d.get('datasets'),list); print('Required public update-health JSON:', d['status'])"
+
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}
         env:
@@ -554,6 +556,10 @@ jobs:
       - name: Verify official promotions, starter decks and every artwork in production
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: python scripts/verify_onepiece_official_production.py
+
+      - name: Verify exact price history bytes at original production chart URLs
+        working-directory: ${{ env.DEPLOY_SOURCE }}
+        run: node scripts/verify_card_history_production.mjs
 
       - name: Report incomplete daily collection after retaining valid independent updates
         # Deployment-only runs report stale datasets above, but did not request collection.

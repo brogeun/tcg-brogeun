@@ -60,7 +60,14 @@ async function rejected(label,mutate,message){restore();mutate();await assert.re
   fs.copyFileSync(path.join(originalFunctions,'_shared/auth.js'),path.join(bundledFunctions,'_shared/auth.js'));
   fs.appendFileSync(path.join(bundledFunctions,'_shared/auth.js'),'\n// stale deployed helper');
   await assert.rejects(()=>verifyPublicBundle(fixture,functionOptions),/Bundled function differs from source/);checks.push('stale shared helper blocks deployment');
-  for(const [name,bundle,condition]of [['scrape.yml','_deploy',null],['pokemon-detect.yml','.',"steps.changes.outputs.has_changes == 'true'"],['onepiece-sync.yml','.',"steps.changes.outputs.has_changes == 'true'"],['psa-pop-daily.yml','.',null]]){
+  for(const name of ['pokemon-detect.yml','onepiece-sync.yml','psa-pop-daily.yml']){
+   const yaml=fs.readFileSync(path.join(source,'.github/workflows',name),'utf8');
+   assert.ok(!/pages\s+deploy|cloudflare\/wrangler-action/.test(yaml),name+' must not bypass the shared packed publication');
+   checks.push(name+' remains a collection-only workflow');
+  }
+  const sharedPublication=fs.readFileSync(path.join(source,'.github/workflows/scrape.yml'),'utf8');
+  assert.ok(sharedPublication.includes("'PSA Pop Daily Gamble'"),'Manual PSA results must trigger shared publication');
+  for(const [name,bundle,condition]of [['scrape.yml','_deploy',null]]){
    const yaml=fs.readFileSync(path.join(source,'.github/workflows',name),'utf8');
    const guard=yaml.indexOf('      - name: Verify public home card index before deploy');
    const deploy=yaml.indexOf('      - name: Deploy to Cloudflare Pages',guard);
@@ -71,6 +78,11 @@ async function rejected(label,mutate,message){restore();mutate();await assert.re
    if(name==='scrape.yml'){
     assert.ok(!/^\s*if:/m.test(step),'Daily index guard must not be skipped because step credentials are absent');
     assert.ok(step.includes('--functions-source-dir functions'),'Daily bundle must be checked against its complete original functions');
+    const pack=sharedPublication.indexOf('python -B scripts/pack_card_history.py --deploy-dir _deploy');
+    const verifyPack=sharedPublication.indexOf('python -B scripts/pack_card_history.py --deploy-dir _deploy --verify-only');
+    const limit=sharedPublication.indexOf('scripts/prepare_card_index_public_bundle.py --data-dir _deploy/data --check-limits');
+    assert.ok(pack>=0&&verifyPack>pack&&limit>verifyPack&&guard>limit,'History preservation and the complete file budget must pass before deployment');
+    assert.ok(sharedPublication.includes('node scripts/verify_card_history_production.mjs'),'Published original price history URLs must be verified');
     checks.push('daily deployment guard runs unconditionally and checks source function coverage');
    }
    checks.push(name+' full deployment is gated');

@@ -23,62 +23,149 @@ Crawl-delay: 1
 // One visible card still returns one original image. Only the worker reads its
 // small static pack; shared promises avoid repeatedly fetching/parsing a pack
 // when a lazy grid requests several neighboring cards at the same time.
-const vintageImagePacks = new Map();
-const VINTAGE_PACK_MAX_BYTES = 8 * 1024 * 1024;
-const VINTAGE_CACHE_MAX_BYTES = 20 * 1024 * 1024;
+const staticAssetPacks = new Map();
+const STATIC_PACK_MAX_BYTES = 8 * 1024 * 1024;
+const STATIC_CACHE_MAX_BYTES = 20 * 1024 * 1024;
+const staticAssetLoads = new Map();
+let staticAssetLoadTail = Promise.resolve();
+// Read the current deployment identity without retaining a mutable manifest.
+// Pack caches only contain immutable, content-addressed deployment namespaces.
+const CARD_HISTORY_MANIFEST = '/data/card-history-packs-v1/manifest.json';
 
-async function vintageImagePack(context, target, setCode, bucket) {
+async function readStaticJSON(context, target, maxBytes = STATIC_PACK_MAX_BYTES, mutable = false) {
+  const request = new Request(target, mutable ? {headers:{'Cache-Control':'no-cache'}} : undefined);
+  const response = context.env.ASSETS
+    ? await context.env.ASSETS.fetch(request)
+    : await fetch(request, {cf:{cacheTtl:mutable ? 0 : 86400}});
+  if (response.status === 404 || response.ok && !/\bapplication\/json\b/i.test(response.headers.get('Content-Type') || '')) {
+    await response.body?.cancel();
+    return null;
+  }
+  if (!response.ok) throw Error('Static pack unavailable');
+  if (Number(response.headers.get('Content-Length') || 0) > maxBytes) {
+    await response.body?.cancel();
+    throw Error('Static pack exceeds its runtime budget');
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw Error('Static pack body missing');
+  const decoder = new TextDecoder();
+  let text='',bytes=0;
+  for (;;) {
+    const chunk = await reader.read();
+    if (chunk.done) break;
+    bytes += chunk.value.byteLength;
+    if (bytes > maxBytes) {
+      await reader.cancel();
+      throw Error('Static pack exceeds its runtime budget');
+    }
+    text += decoder.decode(chunk.value,{stream:true});
+  }
+  text += decoder.decode();
+  return {data:JSON.parse(text),bytes};
+}
+
+async function staticAssetPack(context, target, validate) {
   const key = target.pathname;
-  const saved = vintageImagePacks.get(key);
+  const saved = staticAssetPacks.get(key);
   if (saved && saved.expires > Date.now()) return saved.promise;
-  if (saved) vintageImagePacks.delete(key);
-  while (vintageImagePacks.size >= 4) vintageImagePacks.delete(vintageImagePacks.keys().next().value);
+  if (saved) staticAssetPacks.delete(key);
+  if (staticAssetLoads.has(key)) return staticAssetLoads.get(key).promise;
+  // Cache hits stay concurrent. Queue cold fetch/parse work so independent
+  // history and image requests cannot multiply the transient pack memory.
+  const previous = staticAssetLoadTail;
+  let release;
+  staticAssetLoadTail = new Promise(resolve => { release = resolve; });
   const entry = {expires:Date.now()+60000,bytes:0};
   entry.promise = (async () => {
-    const response = context.env.ASSETS
-      ? await context.env.ASSETS.fetch(new Request(target))
-      : await fetch(target, {cf:{cacheTtl:86400}});
-    if (response.status === 404 || response.ok && !/\bapplication\/json\b/i.test(response.headers.get('Content-Type') || '')) return null;
-    if (!response.ok) throw Error('Vintage image pack unavailable');
-    if (Number(response.headers.get('Content-Length') || 0) > VINTAGE_PACK_MAX_BYTES) {
-      await response.body?.cancel();
-      throw Error('Vintage image pack exceeds its runtime budget');
-    }
-    const reader = response.body?.getReader();
-    if (!reader) throw Error('Vintage image pack body missing');
-    const decoder = new TextDecoder();
-    let text='',bytes=0;
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      bytes += chunk.value.byteLength;
-      if (bytes > VINTAGE_PACK_MAX_BYTES) {
-        await reader.cancel();
-        throw Error('Vintage image pack exceeds its runtime budget');
-      }
-      text += decoder.decode(chunk.value,{stream:true});
-    }
-    text += decoder.decode();
-    const pack = JSON.parse(text);
-    if (pack.schemaVersion !== 2 || pack.bucketSize !== 64 || pack.setCode !== setCode || pack.bucket !== bucket ||
-        !pack.files || typeof pack.files !== 'object' || Array.isArray(pack.files)) throw Error('Invalid vintage image pack identity');
+    await previous;
+    try {
+    const result = await readStaticJSON(context, target);
+    if (!result) return null;
+    const {data:pack,bytes} = result;
+    validate(pack);
     entry.bytes=bytes;entry.expires=Date.now()+3600000;
-    let total=[...vintageImagePacks.values()].reduce((sum,item)=>sum+item.bytes,0);
-    for (const [oldKey,old] of vintageImagePacks) {
-      if (total <= VINTAGE_CACHE_MAX_BYTES) break;
-      vintageImagePacks.delete(oldKey);total-=old.bytes;
+    while (staticAssetPacks.size >= 4) staticAssetPacks.delete(staticAssetPacks.keys().next().value);
+    staticAssetPacks.set(key,entry);
+    let total=[...staticAssetPacks.values()].reduce((sum,item)=>sum+item.bytes,0);
+    for (const [oldKey,old] of staticAssetPacks) {
+      if (total <= STATIC_CACHE_MAX_BYTES) break;
+      staticAssetPacks.delete(oldKey);total-=old.bytes;
     }
     return pack;
+    } finally {
+      release();
+    }
   })().catch(error => {
-    if (vintageImagePacks.get(key) === entry) vintageImagePacks.delete(key);
+    if (staticAssetPacks.get(key) === entry) staticAssetPacks.delete(key);
     throw error;
+  }).finally(() => {
+    if (staticAssetLoads.get(key) === entry) staticAssetLoads.delete(key);
   });
-  vintageImagePacks.set(key,entry);
+  staticAssetLoads.set(key,entry);
   return entry.promise;
+}
+
+function vintageImagePack(context, target, setCode, bucket) {
+  return staticAssetPack(context, target, pack => {
+    if (pack.schemaVersion !== 2 || pack.bucketSize !== 64 || pack.setCode !== setCode || pack.bucket !== bucket ||
+        !pack.files || typeof pack.files !== 'object' || Array.isArray(pack.files)) throw Error('Invalid vintage image pack identity');
+  });
 }
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
+
+  if (url.pathname.startsWith('/data/history/')) {
+    const match = url.pathname.match(/^\/data\/history\/([1-9][0-9]{0,19})\.json$/);
+    if (!match) return new Response('Not found', {status:404});
+    if (!['GET','HEAD'].includes(context.request.method)) return new Response('Method not allowed', {status:405,headers:{Allow:'GET, HEAD'}});
+    const file = match[1] + '.json';
+    const bucket = (BigInt(match[1]) / 64n).toString();
+    let target;
+    const originalStaticFile = async () => {
+      const response = await context.next();
+      // An absent history must not turn an SPA fallback into JSON price data.
+      if (response.ok && !/\bapplication\/json\b/i.test(response.headers.get('Content-Type') || '')) return new Response('Not found', {status:404});
+      return response;
+    };
+    try {
+      const manifestURL = new URL(CARD_HISTORY_MANIFEST, url);
+      // ASSETS is bound to this deployment. The network fallback also needs a
+      // fresh lookup so an earlier deployment's cached manifest cannot linger.
+      if (!context.env.ASSETS) manifestURL.searchParams.set('v',Date.now()+'-'+Math.random());
+      const current = await readStaticJSON(context, manifestURL, 4096, true);
+      if (!current) return await originalStaticFile();
+      const manifest = current.data;
+      if (manifest.schemaVersion !== 1 || manifest.bucketSize !== 64 ||
+          !/^[0-9a-f]{64}$/.test(manifest.generation || '')) throw Error('Invalid history manifest');
+      target = new URL('/data/card-history-packs-v1/'+manifest.generation+'/'+bucket+'.json', url);
+      const pack = await staticAssetPack(context, target, pack => {
+        if (pack.schemaVersion !== 1 || pack.bucketSize !== 64 || pack.bucket !== bucket ||
+            !pack.files || typeof pack.files !== 'object' || Array.isArray(pack.files) ||
+            !Array.isArray(pack.unpacked) || new Set(pack.unpacked).size !== pack.unpacked.length ||
+            !pack.unpacked.every(name => /^[1-9][0-9]{0,19}\.json$/.test(name) &&
+              (BigInt(name.slice(0,-5))/64n).toString() === bucket && !Object.hasOwn(pack.files,name))) throw Error('Invalid history pack identity');
+      });
+      if (!pack || pack.unpacked.includes(file)) return await originalStaticFile();
+      if (!Object.hasOwn(pack.files,file)) return new Response('Not found', {status:404});
+      const record = pack.files[file];
+      if (!record || typeof record.body !== 'string' || !Number.isInteger(record.bytes) ||
+          record.bytes <= 0 || record.bytes > STATIC_PACK_MAX_BYTES || !/^[0-9a-f]{64}$/.test(record.sha256 || '')) throw Error('Invalid history record');
+      const body = new TextEncoder().encode(record.body);
+      if (body.byteLength !== record.bytes) throw Error('History byte count mismatch');
+      const fingerprint = [...new Uint8Array(await crypto.subtle.digest('SHA-256',body))].map(byte => byte.toString(16).padStart(2,'0')).join('');
+      if (fingerprint !== record.sha256) throw Error('History fingerprint mismatch');
+      const headers = {'Content-Type':'application/json; charset=utf-8','Content-Length':String(body.byteLength),
+        'Cache-Control':'public, max-age=300, must-revalidate','X-Content-Type-Options':'nosniff','ETag':'"'+fingerprint+'"'};
+      const matches = (context.request.headers.get('If-None-Match') || '').split(',').some(value =>
+        value.trim() === '*' || value.trim().replace(/^W\//,'') === headers.ETag);
+      if (matches) return new Response(null,{status:304,headers});
+      return new Response(context.request.method === 'HEAD' ? null : body,{headers});
+    } catch {
+      if (target) staticAssetPacks.delete(target.pathname);
+      return new Response('History unavailable',{status:503,headers:{'Cache-Control':'no-store'}});
+    }
+  }
 
   if (url.pathname.startsWith('/images/pokemon-vintage/') || url.pathname.startsWith('/images/pokemon-contained/')) {
     const contents = url.pathname.match(/^\/images\/pokemon-contained\/([a-z0-9-]+\.(webp|jpg|png))$/);

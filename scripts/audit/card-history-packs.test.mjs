@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHash,webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
+import {posix} from 'node:path';
 import {test} from 'node:test';
 import vm from 'node:vm';
 
@@ -162,4 +163,37 @@ test('cold requests bound transient parsing and keep duplicate pending requests 
   assert.equal(maximum,1);assert.equal(app.calls.length,ids.length);
   for(const response of responses)assert.equal(response.status,200);
   assert.equal(vm.runInContext('staticAssetLoads.size',app.scope),0);
+});
+
+test('the actual production verifier accepts edge-compressed weak ETags and rejects changed bodies or tag digests',async()=>{
+  const program=readFileSync(new URL('../verify_card_history_production.mjs',import.meta.url),'utf8')
+    .replace(/^import .*;$/gm,'').replace(/^const root=.*;$/m,"const root='/fixture';");
+  const originals={'1.json':original,'2.json':Buffer.from('{"id":"2","raw_price":222}'),'64.json':Buffer.from('{"id":"64","history":[]}')};
+  const manifest={sourceFiles:3,generation,fileCountSaved:1,sourceBytesPreserved:Object.values(originals).reduce((sum,body)=>sum+body.length,0)};
+  async function run({weak=true,changedBody=false,changedTag=false}={}) {
+    const output=[];
+    const scope=vm.createContext({assert,createHash,JSON,Buffer,join:posix.join,AbortSignal,setTimeout,process:{env:{}},
+      readFileSync(path,encoding){
+        const raw=path.endsWith('/manifest.json')?Buffer.from(JSON.stringify(manifest)):originals[posix.basename(path)];
+        assert.ok(raw,'Unexpected verification fixture path: '+path);return encoding?raw.toString(encoding):raw;
+      },readdirSync:()=>Object.keys(originals),statSync:path=>({size:originals[posix.basename(path)].length}),
+      existsSync:path=>path==='/fixture/_deploy/data/history/64.json',console:{log:value=>output.push(JSON.parse(value))},
+      fetch:async(url,options={})=>{
+        const name=posix.basename(new URL(url).pathname);
+        if(name==='manifest.json')return Response.json(manifest);
+        const body=changedBody?Buffer.from('{"invented":true}'):originals[name];
+        const digest=changedTag?'0'.repeat(64):record(body).sha256;
+        const headers={'Content-Type':'application/json','ETag':(weak?'W/':'')+'"'+digest+'"'};
+        if(options.headers?.['If-None-Match'])return new Response(null,{status:304,headers});
+        return new Response(options.method==='HEAD'?null:body,{headers});
+      },
+    });
+    await vm.runInContext('(async()=>{'+program+'})()',scope);
+    return output;
+  }
+  for(const weak of [false,true]) {
+    const output=await run({weak});assert.equal(output[0].originalHistoryUrlsVerified,3);assert.equal(output[0].conditionalHistoryVerified,true);
+  }
+  await assert.rejects(run({changedBody:true}),/original history bytes differ/);
+  await assert.rejects(run({changedTag:true}),/1\.json|2\.json/);
 });

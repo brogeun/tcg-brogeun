@@ -10,6 +10,19 @@ test('the exact Scarlet and Violet sets use their real existing product images',
   assert.equal(artwork.image({code:'SV1S',image:'/images/sets/SV1S.jpg'}), '/images/box/SV1S.webp');
   assert.equal(artwork.image({code:'SV1V',image:'images/sets/SV1V.jpg'}), '/images/box/SV1V.webp');
 });
+
+test('missing special product covers resolve without inventing a price or selecting a foreign edition', () => {
+  for(const code of ['SMP2','EBB','SC','DS','SD']) {
+    const entry={code,image:'/images/sets/'+code+'.jpg'};
+    assert.match(artwork.image(entry),/^https:\/\/(?:cdn\.snkrdunk\.com|www\.pokemon-card\.com)\//);
+    assert.equal(entry.image,'/images/sets/'+code+'.jpg');
+    assert.equal(entry.boxId,undefined);
+    assert.equal(artwork.image({code:code+'-EN'}),'');
+    assert.equal(artwork.image({...entry,image:'https://example.test/other-reviewed-edition.webp'}),'https://example.test/other-reviewed-edition.webp');
+  }
+  assert.equal(artwork.kind({code:'SD'}),'deck-group');
+  for(const code of ['EBB','SC','DS'])assert.equal(artwork.recovered[code].edition,'1ED');
+});
 test('Sword and Shield asset case matches deployed filenames exactly', () => {
   assert.equal(artwork.image({code:'S12a'}), '/images/box/s12a.webp');
   assert.equal(artwork.image({code:'S7R'}), '/images/box/s7R.webp');

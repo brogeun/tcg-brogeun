@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const readText = path => readFileSync(join(root, path), 'utf8');
@@ -10,6 +11,26 @@ const readJson = path => JSON.parse(readText(path));
 const html = readText('index.html');
 const overrides = readJson('data/price-box-name-overrides.json');
 const metaIndex = readJson('data/cards-meta-index.json');
+
+// Exercise the actual initial catalogue and both UI lookup directions, without
+// letting a delayed manifest or a network/name fallback hide a missing link.
+const catalogueStart = html.indexOf('const CARDINFO = {');
+assert.notEqual(catalogueStart, -1, 'CARDINFO not found');
+const catalogueEnd = html.indexOf('\n};', catalogueStart);
+assert.notEqual(catalogueEnd, -1, 'CARDINFO end not found');
+let fallbackRequests = 0;
+const lookupContext = vm.createContext({
+  _PRICE_BOX_NAME_OVERRIDES: {},
+  _BOX_ID_BY_CODE_CACHE: null,
+  console: {log() {}},
+  fetch: async () => { fallbackRequests += 1; throw Error('Direct box links must not fetch'); },
+});
+vm.runInContext(html.slice(catalogueStart, catalogueEnd + 3), lookupContext);
+for (const name of ['getBoxKoreanName', 'getBoxIdBySetCode']) {
+  const declaration = html.match(new RegExp(`(?:async )?function ${name}\\([^]*?\\n\\}`));
+  assert(declaration, `${name} not found`);
+  vm.runInContext(declaration[0], lookupContext);
+}
 
 let checkedInlineScripts = 0;
 for (const match of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)) {
@@ -72,6 +93,8 @@ for (const brand of ['pokemon', 'onepiece']) {
     const direct = cardInfo.get(id);
     assert(direct, `${brand} known box ${id} (${product.code}) lacks CARDINFO.boxId`);
     assert.equal(direct.code.toLowerCase(), String(product.code).toLowerCase(), `${brand} box ${id} code mismatch`);
+    assert.equal(lookupContext.getBoxKoreanName({id}, brand), direct.koreanName, `${brand} ${id} direct Korean name`);
+    assert.equal(await lookupContext.getBoxIdBySetCode(direct.code, brand), id, `${brand} ${direct.code} direct price target`);
     expectedDirectByBrand[brand] += 1;
   }
 
@@ -102,6 +125,11 @@ for (const brand of ['pokemon', 'onepiece']) {
 }
 
 const pokemonInfo = cardInfoFor('pokemon');
+assert.equal(pokemonInfo.get('66739')?.code, 'S10P', 'Space Juggler must retain its reviewed exact box ID');
+assert.equal(pokemonInfo.get('66739')?.koreanName, '스페이스 저글러');
+assert.equal(fallbackRequests, 0, 'Known box lookups must work before remote catalogue loading');
+assert.equal(lookupContext.getBoxKoreanName({id:'66739'}, 'onepiece'), null, 'Box IDs must not cross brands');
+assert.equal(lookupContext.getBoxKoreanName({id:'234178'}, 'pokemon'), null, 'Starter IDs must not cross brands');
 assert.equal(pokemonInfo.get('743533')?.koreanName, '무니키스 제로', '743533 must map directly to Korean name');
 assert(pokemonInfo.size >= 17, 'known Pokémon boxes lost direct ID mappings');
 assert(cardInfoFor('onepiece').size >= 5, 'known One Piece boxes lost direct ID mappings');
@@ -117,6 +145,7 @@ console.log(JSON.stringify({
   ok: true,
   checkedInlineScripts,
   directBoxMatches: expectedDirectByBrand,
+  directLookupFallbackRequests: fallbackRequests,
   visibleBoxProducts: visibleByBrand,
   productsWithoutProjectKoreanName: unknownKoreanByBrand,
   filteredIndividualCards: filteredCardsByBrand,

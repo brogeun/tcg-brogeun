@@ -43,6 +43,34 @@
     S10P: {image:'https://www.pokemon-card.com/ex/s10/assets/images/hero-img-3.png', sourceUrl:'https://www.pokemon-card.com/ex/s10/index.html'}
   });
   const recovered = Object.freeze({
+  "SMP2": {
+    "image": "https://cdn.snkrdunk.com/upload_bg_removed/715702d8-8d33-44ac-ae99-43280802ab04.webp?size=l",
+    "kind": "box",
+    "sourceUrl": "https://snkrdunk.com/apparels/15555"
+  },
+  "EBB": {
+    "image": "https://cdn.snkrdunk.com/upload_bg_removed/4d1292bb-7fa5-40a7-b5bf-32ed28775beb.webp?size=l",
+    "kind": "box",
+    "edition": "1ED",
+    "sourceUrl": "https://snkrdunk.com/apparels/480863"
+  },
+  "SC": {
+    "image": "https://cdn.snkrdunk.com/upload_bg_removed/7ed5eae7-239a-47e3-b835-2344b5709b35.webp?size=l",
+    "kind": "box",
+    "edition": "1ED",
+    "sourceUrl": "https://snkrdunk.com/apparels/480865"
+  },
+  "DS": {
+    "image": "https://cdn.snkrdunk.com/upload_bg_removed/dad06e44-e4de-4319-8fa0-fb42080c13b7.webp?size=l",
+    "kind": "box",
+    "edition": "1ED",
+    "sourceUrl": "https://snkrdunk.com/apparels/480861"
+  },
+  "SD": {
+    "image": "https://www.pokemon-card.com/ex/sd/assets/images/hero-mv-550.png",
+    "kind": "deck-group",
+    "sourceUrl": "https://www.pokemon-card.com/ex/sd/index.html"
+  },
   "VS": {
     "image": "/images/japanese-products/VS.webp",
     "kind": "box",

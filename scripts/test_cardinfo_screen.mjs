@@ -20,7 +20,9 @@ for (const brand of ['pokemon','onepiece']) {
   vm.runInContext(`CI_TAB='${brand}'; CI_QUERY=''; renderCardInfo();`,ctx);
   counts[brand] = vm.runInContext(`CARDINFO.${brand}.length`,ctx);
   assert.equal([...list.innerHTML.matchAll(/class="set-tile"/g)].length, counts[brand]);
-  assert.equal([...list.innerHTML.matchAll(/발매일:/g)].length, counts[brand]);
+  const datedSets = vm.runInContext(`CARDINFO.${brand}.filter(set => set.release).length`,ctx);
+  assert.equal([...list.innerHTML.matchAll(/발매일:/g)].length, datedSets);
+  assert(!list.innerHTML.includes('발매일: undefined'), 'Undated official products must not invent a release date');
   assert.equal([...list.innerHTML.matchAll(/class="set-tile-name" title=/g)].length, counts[brand]);
 }
 vm.runInContext("CI_TAB='pokemon'; CI_QUERY='무니키스'; renderCardInfo();",ctx);

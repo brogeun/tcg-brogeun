@@ -133,6 +133,7 @@ jobs:
       - name: Validate bounded search collection and snapshot preservation
         run: |
           python -m unittest discover -s scripts -p test_refresh_search_prices.py
+          python -B -m unittest discover -s scripts -p test_refresh_registered_box_quotes.py
           python -m unittest discover -s scripts -p test_update_health.py
           python -B -m unittest discover -s scripts -p test_daily_cycle.py
           python -B -m unittest discover -s scripts -p 'test_backfill_box_*.py'
@@ -205,6 +206,14 @@ jobs:
         if: env.COLLECT_PRIMARY == 'true' && github.event_name != 'push'
         continue-on-error: true  # 한 사이트 장애가 가격 수집·배포 전체를 막지 않도록 경고 처리
         run: python scripts/scrape_news.py
+        env:
+          PYTHONUNBUFFERED: "1"
+
+      - name: Refresh every registered sealed product beyond the featured thirty
+        if: env.COLLECT_PRIMARY == 'true'
+        id: registered-box-quotes
+        continue-on-error: true
+        run: python -B scripts/refresh_registered_box_quotes.py
         env:
           PYTHONUNBUFFERED: "1"
 
@@ -564,7 +573,7 @@ jobs:
       - name: Report incomplete daily collection after retaining valid independent updates
         # Deployment-only runs report stale datasets above, but did not request collection.
         # Keep real collector failures and the full freshness gate for collection runs.
-        if: always() && (steps.daily-primary.outcome == 'failure' || steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || (env.COLLECT_DATA == 'true' && steps.deployment-health.outputs.status == 'incomplete'))
+        if: always() && (steps.daily-primary.outcome == 'failure' || steps.daily-fx.outcome == 'failure' || steps.search-prices.outcome == 'failure' || steps.registered-box-quotes.outcome == 'failure' || (env.COLLECT_DATA == 'true' && steps.deployment-health.outputs.status == 'incomplete'))
         run: |
           echo '::error::Daily collection is incomplete or a dataset is stale. Valid independent updates were retained; see update-health.json and collector logs.'
           exit 1

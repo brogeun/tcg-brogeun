@@ -18,6 +18,26 @@ Duplicate submissions, expired challenges, arbitrary commands, and more than
 three code attempts are blocked. A pipe acknowledgement is not login proof:
 normal full-history verification must pass before collection resumes.
 
+The current native execution tool closes non-TTY stdin. Keep the no-TTY rule:
+the agent can spawn the existing Python client through the Node runtime with
+three ordinary pipes and call child.stdin.end. No secret belongs in the process
+arguments or any shell script. This transport has reached the real owner
+bridge; KREAM field recognition was the remaining live failure.
+
+The field matcher supports a blank six-digit input, a unique unlabelled field
+beside the phone input, separate one-digit boxes, and same-origin frames.
+The owner screenshot confirms six boxes on /login/phone/verify and a 재발송
+control. The regression checks cover six unlabelled boxes, first-box
+autocomplete, link resend, and the 인증 완료 button.
+Ambiguous candidates and foreign frames are rejected. On a future mismatch the
+owner process records only type/length/boolean classifications, never values,
+raw labels, identifiers, HTML, passwords, cookies or session data. These are
+general supported layouts, not proof of the exact currently unseen KREAM DOM.
+
+The bridge advertises auth_form_version=2. A client refuses an older running
+owner process before transmitting any code; a fresh normal-owner run is needed
+once to load this fix. This avoids asking for codes that old code cannot enter.
+
 Run these checks from the installed kream-local root:
 
     python -B -m unittest discover -s recovery -p test_kream_chat_bridge.py

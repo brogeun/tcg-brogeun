@@ -206,8 +206,12 @@ def main():
             live_status.update(state='submitting_chat_code', requires_owner_action=False,
                                code_request_id=details['request_id'])
         elif code == 'chat_verification_code_submitted':
-            live_status.update(state='verifying_chat_code', requires_owner_action=False,
+            needs_review = details['status'] != 'code_submitted'
+            live_status.update(state='waiting_for_login_form_review' if needs_review else 'verifying_chat_code',
+                               requires_owner_action=needs_review,
                                code_submission_status=details['status'])
+            if needs_review:
+                live_status['chat_code_relay_ready'] = False
         elif code == 'chat_verification_code_rejected':
             live_status.update(state='waiting_for_phone_login', requires_owner_action=True,
                                code_submission_status='code_rejected')

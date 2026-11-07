@@ -118,6 +118,14 @@ class PipeChecks(unittest.TestCase):
             self.send('submit_code', code='not a code')
         self.assertEqual(self.commands, [])
 
+    def test_old_owner_process_requires_restart_before_receiving_a_code(self):
+        record = self.bridge.snapshot()
+        record.pop('auth_form_version')
+        self.bridge.path.write_text(json.dumps(record), encoding='utf-8')
+        with self.assertRaisesRegex(BridgeError, '^owner_bridge_update_required$'):
+            self.send('submit_code', code='123456')
+        self.assertEqual(self.commands, [])
+
     def test_pipe_client_cannot_create_an_extra_server_instance(self):
         import win32security
         descriptor = win32security.GetSecurityInfo(self.bridge.handle,
@@ -248,6 +256,95 @@ class BrowserFormChecks(unittest.TestCase):
         self.assertEqual(phone.request_phone_challenge(self.page, '01000000000', resend=True),
                          'challenge_submitted')
         self.assertEqual(self.page.evaluate('window.requests'), 2)
+
+    def set_code_form(self, fields):
+        self.page.goto(phone.PHONE_URL)
+        self.page.set_content('<meta charset="utf-8">' + fields +
+            '<button id="confirm">로그인하기</button><output id="state">idle</output>'
+            '<script>document.getElementById("confirm").onclick=()=>{'
+            'document.getElementById("state").textContent="authenticated";'
+            'history.replaceState({},"","/");};</script>')
+
+    def test_blank_placeholder_and_six_digit_field_are_supported(self):
+        self.set_code_form('<input type="text" maxlength="11" placeholder="가입한 휴대폰 번호">'
+                           '<input type="tel" maxlength="6" placeholder="">')
+        self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_submitted')
+        self.assertEqual(self.page.locator('#state').text_content(), 'authenticated')
+
+    def test_phone_auth_code_name_is_not_mistaken_for_phone_number(self):
+        self.set_code_form('<input name="phone_auth_code" type="text">')
+        self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_submitted')
+
+    def test_six_separate_digit_fields_are_supported(self):
+        self.set_code_form(''.join('<input type="tel" maxlength="1" id="d%d">' % index
+                                  for index in range(6)))
+        self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_submitted')
+        self.assertEqual(self.page.locator('#state').text_content(), 'authenticated')
+
+    def test_autocomplete_on_first_box_does_not_collapse_six_fields_into_one(self):
+        self.set_code_form(''.join('<input type="tel" maxlength="1" id="d%d"%s>' %
+            (index, ' autocomplete="one-time-code"' if index == 0 else '') for index in range(6)))
+        self.page.evaluate('()=>{document.getElementById("confirm").onclick=()=>{'
+            'const code=Array.from(document.querySelectorAll("input")).map(i=>i.value).join("");'
+            'document.getElementById("state").textContent=code==="123456"?"authenticated":"wrong";};}')
+        self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_submitted')
+        self.assertEqual(self.page.locator('#state').text_content(), 'authenticated')
+
+    def test_observed_verify_page_six_boxes_and_resend_link(self):
+        self.set_code_form('<h1>인증 번호 입력</h1>' +
+            ''.join('<input type="text" id="n%d">' % index for index in range(6)) +
+            '<a id="resend-link" href="#">재발송</a>')
+        self.page.evaluate('()=>{history.replaceState({},"","/login/phone/verify?returnUrl=/");'
+            'window.resends=0;document.getElementById("resend-link").onclick=(e)=>{'
+            'e.preventDefault();window.resends++;};'
+            'document.getElementById("confirm").textContent="인증 완료";'
+            'document.getElementById("confirm").onclick=()=>{'
+            'const code=Array.from(document.querySelectorAll("input")).map(i=>i.value).join("");'
+            'document.getElementById("state").textContent=code==="123456"?"authenticated":"wrong";};}')
+        self.assertEqual(phone.request_phone_challenge(self.page, '01000000000', resend=True),
+                         'challenge_submitted')
+        self.assertEqual(self.page.evaluate('window.resends'), 1)
+        self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_submitted')
+        self.assertEqual(self.page.locator('#state').text_content(), 'authenticated')
+
+    def test_one_blank_field_next_to_phone_is_supported_without_reading_values(self):
+        self.set_code_form('<input maxlength="11" placeholder="가입한 휴대폰 번호">'
+                           '<input type="text">')
+        self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_submitted')
+
+    def test_ambiguous_blank_code_fields_are_not_filled(self):
+        self.set_code_form('<input maxlength="6"><input maxlength="6">')
+        with patch.object(phone, '_wait_for', side_effect=lambda page, find, **kw: find(page)):
+            self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_input_not_found')
+        self.assertEqual(self.page.locator('#state').text_content(), 'idle')
+
+    def test_same_origin_frame_is_supported(self):
+        self.set_code_form('<iframe src="/otp-frame"></iframe>')
+        inner = self.page.frames[1]
+        inner.wait_for_load_state()
+        inner.locator('body').evaluate('(body)=>{body.innerHTML='
+            "'<input maxlength=\"6\"><button id=\"go\">인증하기</button><output>idle</output>';"
+            'document.getElementById("go").onclick=()=>{document.querySelector("output").textContent="submitted";};}')
+        self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_submitted')
+        self.assertEqual(inner.locator('output').text_content(), 'submitted')
+
+    def test_foreign_frame_is_not_a_code_destination(self):
+        self.set_code_form('<iframe src="https://example.org/otp-frame"></iframe>')
+        inner = self.page.frames[1]
+        inner.wait_for_load_state()
+        inner.locator('body').evaluate('(body)=>{body.innerHTML='
+            "'<input maxlength=\"6\"><button>인증하기</button>';}")
+        with patch.object(phone, '_wait_for', side_effect=lambda page, find, **kw: find(page)):
+            self.assertEqual(phone.submit_phone_code(self.page, '123456'), 'code_input_not_found')
+
+    def test_form_summary_omits_values_labels_and_identifiers(self):
+        self.set_code_form('<input maxlength="6" placeholder="private-looking-label" '
+                           'id="private-looking-id" value="123456">')
+        summary = json.dumps(phone.describe_code_form(self.page))
+        self.assertNotIn('123456', summary)
+        self.assertNotIn('private-looking-label', summary)
+        self.assertNotIn('private-looking-id', summary)
+        self.assertIn('max_length', summary)
 
 
 class ControllerChecks(unittest.TestCase):

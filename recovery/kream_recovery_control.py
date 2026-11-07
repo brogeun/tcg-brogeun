@@ -6,7 +6,7 @@ import time
 
 from kream_login_alerts import LoginAlerts
 from kream_phone_login import (is_kream_page, login_form_open, request_phone_challenge,
-                               submit_phone_code, code_rejected)
+                               submit_phone_code, code_rejected, describe_code_form)
 from kream_chat_bridge import AuthBridge
 
 PANEL_SCRIPT = r'''({message, login}) => {
@@ -219,6 +219,12 @@ class RecoveryController:
                     self.bridge.set_state(submission)
                     self.emit('chat_verification_code_submitted', status=submission,
                               request_id=command.request_id)
+                    if submission in ('code_input_not_found', 'code_entered_waiting_for_confirmation'):
+                        try:
+                            summary = describe_code_form(page)
+                        except Exception:
+                            summary = {'unavailable': True}
+                        self.emit('phone_code_form_review_required', form_summary=summary)
                     # Verify only after the login form has completed its own flow.
                     last_check = self.clock() - 13
                 if self.bridge.state in ('code_submitted', 'code_entered_waiting_for_confirmation'):

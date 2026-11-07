@@ -14,6 +14,7 @@ import time
 import uuid
 
 OWNER_ACCOUNT = 'pc'
+AUTH_FORM_VERSION = 2
 PREFIX = '\\\\.\\pipe\\TCGHUB.KreamAuth.'
 MAX_MESSAGE = 1024
 CLIENT_ACCESS = 0x00120183  # read/write, attributes, READ_CONTROL; no create-instance
@@ -119,7 +120,8 @@ class AuthBridge:
         self._save()
 
     def snapshot(self):
-        return {'schemaVersion': 1, 'incident_id': self.incident,
+        return {'schemaVersion': 1, 'auth_form_version': AUTH_FORM_VERSION,
+                'incident_id': self.incident,
                 'challenge_id': self.challenge, 'pipe_name': self.name,
                 'owner_sid': self.owner_sid, 'server_pid': os.getpid(),
                 'state': self.state, 'attempts': self.attempts,
@@ -260,6 +262,8 @@ def send(root, action, *, code=None, owner_sid=None, timeout=8):
         raise BridgeError('invalid_bridge_metadata')
     if record.get('state') in ('closed', 'authenticated'):
         raise BridgeError('owner_bridge_not_waiting')
+    if record.get('auth_form_version') != AUTH_FORM_VERSION:
+        raise BridgeError('owner_bridge_update_required')
     if action not in ('status', 'submit_code', 'resend'):
         raise BridgeError('invalid_action')
     if action == 'submit_code' and (not isinstance(code, str) or not re.fullmatch(r'[0-9]{4,8}', code)):

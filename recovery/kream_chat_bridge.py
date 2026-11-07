@@ -192,6 +192,8 @@ class AuthBridge:
         """One bounded, nonblocking poll from the collector's browser thread."""
         if self.handle is None:
             return None
+        if self.state in ('awaiting_code', 'code_rejected') and self.clock() >= self.deadline:
+            self.set_state('challenge_expired')
         if self.connected and self.clock() > self.connection_deadline:
             self._disconnect()
         if not self.connected:

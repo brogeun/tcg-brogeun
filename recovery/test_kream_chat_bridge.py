@@ -102,6 +102,7 @@ class PipeChecks(unittest.TestCase):
     def test_expired_request_never_consumes_a_code(self):
         self.bridge.deadline = time.time() - 1
         self.assertEqual(self.send('submit_code', code='123456')['result'], 'challenge_expired')
+        self.assertEqual(self.send('status')['state'], 'challenge_expired')
         self.assertEqual(self.commands, [])
 
     def test_changed_server_process_is_rejected_before_transmission(self):

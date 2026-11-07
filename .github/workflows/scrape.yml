@@ -116,7 +116,7 @@ jobs:
 
       - name: Validate security, navigation and price regression boundaries
         run: |
-          node --test scripts/test_english_set_images.cjs scripts/test_japanese_set_artwork.cjs scripts/test_set_artwork_release.cjs
+          node --test scripts/test_english_set_images.cjs scripts/test_japanese_set_artwork.cjs scripts/test_set_artwork_release.cjs scripts/test_unresolved_box_reviews.cjs
           python -B -m unittest discover -s scripts -p test_retailer_printing_covers.py
           node --test scripts/audit/*.test.mjs scripts/audit/*.test.cjs
           node scripts/test_admin_auth.mjs

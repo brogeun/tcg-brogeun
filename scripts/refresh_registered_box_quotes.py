@@ -77,7 +77,7 @@ def collect(client, brand, checkpoint, max_pages=500, resume=False):
     raise RefreshError('Sealed-product page budget exhausted; resume from saved cursor')
 
 
-def merge_manual(document, observed, basis, now, brand, official_codes=(), reviewed_links=()):
+def merge_manual(document, observed, basis, now, brand, official_codes=(), reviewed_links=(), reviewed_variants=()):
     result = copy.deepcopy(document)
     rows = result.setdefault('products', [])
     by_id = {}
@@ -108,6 +108,30 @@ def merge_manual(document, observed, basis, now, brand, official_codes=(), revie
         rows.append(row)
         by_id[identity] = row
         added.append({'code': code, 'id': identity})
+    for link in reviewed_variants:
+        if link.get('brand') != brand:
+            continue
+        identity = str(link.get('id') or '')
+        source = observed.get(identity)
+        if source is None:
+            continue
+        if (link.get('scope') != 'sealed-variant-only' or not identity.isdigit() or
+                source.get('name') != link.get('sourceName') or
+                source.get('productNumber') != link.get('sourceProductNumber') or
+                source.get('releasedAt') != link.get('sourceRelease') or
+                not re.search(r'\b(?:Box|V Start Deck)\b', source['name'], re.I)):
+            raise RefreshError('Reviewed sealed variant evidence changed: ' + identity)
+        if identity in by_id:
+            if by_id[identity].get('marketVariantOf') != link.get('parentCode'):
+                raise RefreshError('Sealed variant already belongs to another identity: ' + identity)
+            continue
+        row = {'id': identity, 'marketVariantOf': link['parentCode'], 'variantLabel': link['label'],
+               'name': source['name'], 'kind': 'box', 'currency': 'USD',
+               'productNumber': source['productNumber'], 'image': source.get('thumbnailUrl'),
+               'url': link['sourceUrl'], 'identityEvidence': copy.deepcopy(link)}
+        rows.append(row)
+        by_id[identity] = row
+        added.append({'parentCode': link['parentCode'], 'id': identity})
     if brand == 'onepiece':
         existing_codes = {row.get('code') for row in rows}
         candidates = {}
@@ -166,11 +190,12 @@ def run(root, checkpoint_dir, client=None, max_pages=500, resume=False):
     official_codes = [s['code'] for s in json.loads((root / 'data/onepiece-official-manifest.json').read_bytes())['sets']
                       if re.fullmatch(r'(OP|EB|PRB|ST)\d{2}', s['code'])]
     review_path = root / 'config/registered-box-market-links.json'
-    reviewed_links = json.loads(review_path.read_bytes()).get('links', []) if review_path.is_file() else []
+    reviews = json.loads(review_path.read_bytes()) if review_path.is_file() else {}
+    reviewed_links, reviewed_variants = reviews.get('links', []), reviews.get('variants', [])
     for brand in ['pokemon', 'onepiece']:
         name = 'manual-boxes-' + brand + '.json'
         originals[name] = (root / 'data' / name).read_bytes()
-        documents[name], counts, added = merge_manual(json.loads(originals[name]), states[brand]['rows'], basis, states[brand]['checkedAt'], brand, official_codes, reviewed_links)
+        documents[name], counts, added = merge_manual(json.loads(originals[name]), states[brand]['rows'], basis, states[brand]['checkedAt'], brand, official_codes, reviewed_links, reviewed_variants)
         report[brand] = {'counts': counts, 'addedLinks': added, 'sourcePages': states[brand]['pages'], 'observedSourceProducts': len(states[brand]['rows'])}
     # Stage the exact original bytes for a recoverable rollback before promotion.
     stage = Path(tempfile.mkdtemp(prefix='registered-box-quotes-', dir=checkpoint_dir))

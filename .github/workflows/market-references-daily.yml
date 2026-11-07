@@ -10,6 +10,7 @@ on:
     # Only collector changes need an additional live-source refresh.
     paths:
       - 'scripts/collect_us_market.py'
+      - 'config/english-trainer-kit-packages.json'
       - 'scripts/collect_yuyutei_market.py'
       - 'scripts/collect_mercari_references.py'
       - 'scripts/collect_snkrdunk_games.py'
@@ -51,7 +52,7 @@ jobs:
           node-version: '20'
       - name: Offline collector, integrity and publication contracts
         run: |
-          python -m unittest scripts.test_collect_us_market
+          python -m unittest scripts.test_collect_us_market scripts.test_shared_trainer_kits
           python -m unittest discover -s tests -p test_yuyutei_market.py
           python scripts/test_collect_mercari_references.py
           python scripts/onepiece_audit/test_discovery.py
@@ -64,6 +65,7 @@ jobs:
           python -m unittest discover -s scripts -p test_validate_reference_markets.py
           python -m unittest scripts.test_market_references_workflow
           node --test scripts/test_market_references.cjs
+          node --test scripts/test_english_set_images.cjs
           node --test scripts/test_reference_integration.cjs
           node --test scripts/test_price_metadata_shards.cjs
           node --test scripts/test_tcg_card_info.cjs
@@ -103,6 +105,11 @@ jobs:
         continue-on-error: true
         timeout-minutes: 35
         run: python scripts/collect_us_market.py --root . --cache-dir .cache/us-market
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Refresh reviewed package photos from current sealed identities
+        run: node scripts/build_english_set_images.cjs
       - name: Record true US refresh outcome
         id: assess
         if: always()

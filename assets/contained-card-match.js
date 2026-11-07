@@ -29,7 +29,8 @@
     'BSTXY':['XY-BEST','XY'], // The Best of XY prints XY; the 171-card fraction stays required.
     'DPT-MRP09':['M'], // Movie cards retain the 022-card printed fraction.
     'ADV4-SEAL':['ADV4'], // Undone Seal prints /083; Magma vs Aqua retains /080.
-    'DP5-TW':['DP5-TW']
+    'DP5-TW':['DP5-TW'],
+    'VS-MANAPHY':['PCG-MVS-M'] // Reviewed 2006 VS /019 movie deck namespace.
   };
   const legacy = card => card.brand === 'pokemon' && !/\d+\/\d+/.test(card.number || '') &&
     (/\bNo\.\s*\d+/i.test(card.name || '') || /^No\./i.test(card.number || ''));
@@ -95,7 +96,10 @@
       const checkedTranslation=proof?.products?.some(p=>String(p.id)===String(product.id)&&p.name===product.name&&p.productNumber===product.productNumber);
       return inSet && (checkedTranslation || new RegExp('^'+escape(title)+'(?=\\s*(?:\\[|\\(|\\*|:|LV\\.?|(?:C|U|R|RR|SR)\\b|$))','i').test(normalized(name)));
     }
-    if (codes.some(c => new RegExp('(?:^|-)' + escape(c) + '-0*' + escape(num) + '$', 'i').test(pn))) return true;
+    // A short set code cannot match a nested namespace. For example,
+    // DP3-SD-0001 is a DP3 card, never SD (V Starter Deck) card 001.
+    const numberedNamespace=card.brand==='pokemon'?'^(?:PKMN-TCG-)?':'(?:^|-)';
+    if (codes.some(c => new RegExp(numberedNamespace + escape(c) + '-0*' + escape(num) + '$', 'i').test(pn))) return true;
     if (codes.some(c => new RegExp('\\[' + escape(c) + '(?:\\s+|-)0*' + escape(num) + '(?:/|\\]|\\s)', 'i').test(name))) return true;
     // Old Japanese sets use No. instead of collection numbers. Require exact title,
     // not just the Pokémon's name or a generic national Pokédex number.

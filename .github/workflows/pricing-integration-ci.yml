@@ -30,6 +30,11 @@ on:
       - 'data/history/897035.json'
       - 'data/history/897036.json'
       - 'data/cards-by-set/**'
+      - 'config/registered-box-market-links.json'
+      - 'config/english-trainer-kit-packages.json'
+      - 'scripts/collect_us_market.py'
+      - 'scripts/test_shared_trainer_kits.py'
+      - 'scripts/test_unresolved_box_reviews.cjs'
       - '.github/workflows/pricing-integration-ci.yml'
       - '.github/workflows/scrape.yml'
       - '.github/workflows/market-references-daily.yml'
@@ -75,9 +80,14 @@ jobs:
             /data/history/897035.json
             /data/history/897036.json
             /data/cards-by-set/
+            /config/
+            /data/english-catalog.json
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
       - name: Check card clicks and exact deployed asset URLs
         run: |
           node --test --test-concurrency=1 scripts/test_card_info_pricing_integration.cjs
@@ -85,3 +95,6 @@ jobs:
           node scripts/test_futuristic_market.mjs
           node scripts/test_price_box_names.mjs
           node --test --test-concurrency=1 scripts/test_search_snapshot.cjs
+          node --test --test-concurrency=1 scripts/test_unresolved_box_reviews.cjs scripts/test_english_set_images.cjs scripts/test_contained_artwork_bindings.cjs
+          python -m unittest scripts.test_collect_us_market scripts.test_shared_trainer_kits
+          python scripts/test_refresh_registered_box_quotes.py

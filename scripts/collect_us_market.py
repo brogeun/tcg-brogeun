@@ -167,7 +167,7 @@ def trusted_product_url(product):
     return url if pid.isdigit() and re.fullmatch(r"https://www\.tcgplayer\.com/product/" + pid + r"(?:/[A-Za-z0-9%._~-]+)?", url) else None
 
 
-def map_sets(sets, groups):
+def map_sets(sets, groups, shared_packages=None):
     by_signature = defaultdict(list)
     for group in groups:
         if group.get("categoryId") != 3 or not isinstance(group.get("groupId"), int):
@@ -196,7 +196,51 @@ def map_sets(sets, groups):
         if len(codes) > 1:
             for code in codes:
                 result[code] = {"status": "ambiguous", "reason": "provider-group-shared-by-multiple-catalog-sets"}
+    # A trainer kit contains two separately catalogued half decks. This mapping
+    # authorizes only the complete sealed package, never either deck's cards.
+    reviewed = shared_packages or {}
+    if reviewed.get('schemaVersion') == 1:
+        catalog_by_code = {entry['code']: entry for entry in sets}
+        used = set()
+        for package in reviewed.get('packages', []):
+            members = package.get('members', [])
+            codes = [member.get('code') for member in members]
+            if len(codes) != 2 or len(set(codes)) != 2 or used.intersection(codes):
+                raise ValueError('Invalid or duplicate shared trainer-kit membership')
+            used.update(codes)
+            actual_groups = [group for group in groups if group.get('categoryId') == 3 and group.get('groupId') == package.get('groupId') and group.get('name') == package.get('groupName')]
+            if len(actual_groups) != 1 or any(code not in catalog_by_code for code in codes):
+                continue
+            if any(any(catalog_by_code[member['code']].get(key) != member.get(key) for key in ['name', 'release', 'cardCount']) for member in members):
+                continue
+            if any(result[code]['status'] == 'mapped' for code in codes):
+                raise ValueError('Shared package conflicts with an ordinary set mapping')
+            for code in codes:
+                result[code] = {'status': 'mapped', 'group': actual_groups[0], 'method': 'reviewed-shared-trainer-kit-sealed-only', 'sharedPackage': package}
     return result
+
+
+def build_shared_kit_shard(catalog, group, products, prices, source_as_of, captured_at, package):
+    if group.get('groupId') != package.get('groupId') or group.get('name') != package.get('groupName'):
+        raise ValueError('Shared package group mismatch')
+    members = package.get('members', [])
+    member = next((row for row in members if row.get('code') == catalog.get('code')), None)
+    if len(members) != 2 or not member or any(catalog.get(key) != member.get(key) for key in ['name', 'release', 'cardCount']):
+        raise ValueError('Shared package catalog identity mismatch')
+    selected = [product for product in products if str(product.get('productId')) == str(package.get('productId')) and product.get('name') == package.get('productName')]
+    if len(selected) != 1:
+        raise ValueError('Reviewed shared sealed product disappeared or changed')
+    product = selected[0]
+    if product.get('categoryId') != 3 or product.get('groupId') != group['groupId'] or not trusted_product_url(product) or field(product, 'Number') or field(product, 'Rarity') or not re.search(r'\btrainer kit\b', product['name'], re.I) or re.search(r'\b(?:code|display|case)\b', product['name'], re.I):
+        raise ValueError('Wrong shared trainer-kit product kind')
+    shard = build_shard({**catalog, 'cards': []}, group, [], [], source_as_of, captured_at)
+    identity = {'productId': str(product['productId']), 'name': product['name'], 'sourceUrl': product['url'], 'kind': 'sealed', 'scope': 'shared-trainer-kit-package'}
+    quotes, rejected = printing_quotes(prices, product['productId'])
+    shard['sealedCatalogue'] = [identity]
+    shard['sealed'] = [{**identity, 'printings': quotes}] if quotes else []
+    shard['sharedPackage'] = {'scope': 'shared-trainer-kit-package', 'productId': str(product['productId']), 'memberCodes': [row['code'] for row in members], 'note': '두 하프덱이 함께 들어 있는 전체 트레이너 키트의 사진과 참고가입니다.'}
+    shard['coverage'].update(catalogCards=len(catalog['cards']), unmatchedCards=len(catalog['cards']), sealedCount=len(shard['sealed']), rejectedPrices=dict(rejected))
+    return shard
 
 
 def positive(value):
@@ -373,6 +417,9 @@ def sync(root=ROOT, cache_dir=None, offline=False, force=False, max_groups=220):
     for entry in sets:
         path = root / "data/english-sets" / (entry["code"] + ".json")
         fingerprint.update(path.read_bytes())
+    shared_review_path = root / 'config/english-trainer-kit-packages.json'
+    if shared_review_path.exists():
+        fingerprint.update(shared_review_path.read_bytes())
     catalog_hash = fingerprint.hexdigest()
     run = {"startedAt": now(), "status": "running", "policyVersion": POLICY_VERSION, "networkRequests": 0, "failures": []}
     try:
@@ -385,7 +432,7 @@ def sync(root=ROOT, cache_dir=None, offline=False, force=False, max_groups=220):
                 atomic_json(cache_dir / "last-run.json", run)
                 return run
         groups = provider.json("groups", BASE + "/tcgplayer/3/groups", version)["results"]
-        mappings = map_sets(sets, groups)
+        mappings = map_sets(sets, groups, read_json(root / 'config/english-trainer-kit-packages.json', {}))
         mapped_ids = {value["group"]["groupId"] for value in mappings.values() if value["status"] == "mapped"}
         if len(mapped_ids) > max_groups:
             raise ValueError("Mapped group count exceeds the bounded request budget")
@@ -415,7 +462,7 @@ def sync(root=ROOT, cache_dir=None, offline=False, force=False, max_groups=220):
                     prices = provider.json(f"prices-{gid}", f"{BASE}/tcgplayer/3/{gid}/prices", version)["results"]
                     if not products or not prices:
                         raise ValueError("Empty provider catalog or prices; previous data retained")
-                    shard = build_shard(source, group, products, prices, source_as_of, captured_at)
+                    shard = build_shared_kit_shard(source, group, products, prices, source_as_of, captured_at, mapping['sharedPackage']) if mapping.get('sharedPackage') else build_shard(source, group, products, prices, source_as_of, captured_at)
                     if mapping.get("override") and shard["coverage"]["matchedCards"] < mapping["override"]["minimumMatchedCards"]:
                         raise ValueError("Reviewed date override lost its exact card-identity anchor minimum")
                     shard["sourceUrls"] = [f"{BASE}/tcgplayer/3/{gid}/products", f"{BASE}/tcgplayer/3/{gid}/prices"]

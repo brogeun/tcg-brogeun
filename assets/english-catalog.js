@@ -1,7 +1,7 @@
 /* English data uses the Japanese catalog panel and price-detail styles. */
 (() => {
   'use strict';
-  const VERSION='20261104-en5',cache=new Map(),size=24,cardsPerPage=18;
+  const VERSION='20261107-en-kit1',cache=new Map(),size=24,cardsPerPage=18;
   let setImageManifest=null;
   let catalog=null,names={},language=window.ChineseCatalog?.initialLanguage||'ja',page=1,active=null,currentCard=null,cardPage=1,cardQuery='',cardRarities=[],cardScroll=0,request=0,opener=null;
   const routeRun=()=>typeof _FEATURE_ROUTE_RUN==='undefined'?null:_FEATURE_ROUTE_RUN;
@@ -28,7 +28,7 @@
     if(row?.code===set.code&&Array.isArray(row.sources))for(const source of row.sources){
       if(!trustedSetImage(source.image,source.kind,source.productId))continue;
       if(source.kind!=='logo'&&(!source.name||!new RegExp('^https://www\\.tcgplayer\\.com/product/'+source.productId+'(?:/[A-Za-z0-9%._~-]+)?$').test(source.sourceUrl||'')))continue;
-      if(!sources.some(item=>item.image===source.image))sources.push({...source,label:SET_IMAGE_LABELS[source.kind]});
+      if(!sources.some(item=>item.image===source.image))sources.push({...source,label:source.kind==='theme-deck'&&source.scope==='shared-trainer-kit-package'&&source.memberCodes?.includes(set.code)?'트레이너 키트 · 공용 패키지':SET_IMAGE_LABELS[source.kind]});
     }
     if(row?.originalImageStatus!=='broken'&&trustedSetImage(set.image,'logo')&&!sources.some(item=>item.image===set.image))sources.push({image:set.image,kind:'logo',label:SET_IMAGE_LABELS.logo});
     return sources;

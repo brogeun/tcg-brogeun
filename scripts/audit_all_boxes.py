@@ -84,6 +84,7 @@ class Audit:
                'release': entry.get('officialReleaseDate') or entry.get('release') or entry.get('releasedAt'),
                'image': cover if cover is not None else entry.get('boxImage') or entry.get('image'),
                'priceProductId': str(entry.get('boxId') or entry.get('coverProductId') or ''),
+               'priceVariants': entry.get('boxVariants', []),
                'sourceUrl': entry.get('officialSourceUrl') or entry.get('sourceUrl') or entry.get('url')}
         row['imageStatus'] = self.image(row['image'])
         row['cardImageStatus'] = dict(collections.Counter(self.image(c.get('localImage') or c.get('image') or c.get('thumbnailUrl')) for c in cards))
@@ -234,6 +235,20 @@ class Audit:
                         market_by_code[(brand, product['code'])] = key
         for row in self.rows:
             brand = {'pokemon-ja': 'pokemon', 'onepiece-ja': 'onepiece'}.get(row['group'])
+            if row.get('priceVariants'):
+                checked = []
+                for variant in row['priceVariants']:
+                    product = markets.get(str(variant['id']))
+                    linked = product is not None and product.get('marketVariantOf') == row['code']
+                    status = 'unlinked-market-product'
+                    if linked:
+                        status = 'source-confirms-no-listings' if product.get('priceStatus') == 'no-listings' else 'snapshot-quote' if isinstance(product.get('lastPrice'), (int, float)) and product['lastPrice'] > 0 else 'linked-no-snapshot-quote'
+                    checked.append({**variant, 'status': status, 'observedAt': product.get('priceCheckedAt') if product else None})
+                row['priceVariants'] = checked
+                row['boxPriceStatus'] = 'linked-variant-products' if all(v['status'] != 'unlinked-market-product' for v in checked) else 'unlinked-market-product'
+                if row['boxPriceStatus'] == 'unlinked-market-product':
+                    self.problem(row, 'box-price-unlinked-market-variant', checked, 'review')
+                continue
             key = row['priceProductId'] or market_by_code.get((brand, row['code']), '')
             row['priceProductId'] = key
             product = markets.get(key)

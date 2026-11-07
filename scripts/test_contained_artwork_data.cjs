@@ -10,7 +10,9 @@ test('every published artwork proof resolves its actual source card and market p
  for(const row of doc.links){
   assert(!/\b(?:1ED|1ST|FIRST EDITION|NO RARITY|UNLIMITED|SERIAL|SIGNED)\b/i.test(row.marketName),'Edition requires separate verification');
   const calibrated=row.method==='op17-calibrated-artwork-comparison';
-  assert(row.distance<=(calibrated?14:8)&&row.detailDistance<=(calibrated?18:14)&&row.artDistance<=(calibrated?18:12)&&row.margin>=10,'Unsupported image confidence');
+  const unique=row.method==='strict-unique-source-artwork-comparison-and-visual-review';
+  if(unique)assert(row.candidateCount===1&&row.distance<=4&&row.detailDistance<=6&&row.artDistance<=4&&row.meanPixelDifference<=25&&row.reviewedBy==='assistant-vision','Unsupported unique-image confidence');
+  else assert(row.distance<=(calibrated?14:8)&&row.detailDistance<=(calibrated?18:14)&&row.artDistance<=(calibrated?18:12)&&row.margin>=10,'Unsupported image confidence');
   if(calibrated)assert.equal(row.brand,'onepiece');
   const filename='data/cards-by-set/'+row.boxCode+'.json';if(!setCache.has(filename))setCache.set(filename,repairs.setCards(read(filename),row.boxCode).cards);
   const card=setCache.get(filename).find(c=>c.image===row.image&&String(c.number||'')===String(row.number||'')&&String(c.fullId||'')===String(row.fullId||''));assert(card,'Source artwork missing: '+row.boxCode+' '+row.number);

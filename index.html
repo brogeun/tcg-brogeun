@@ -2508,11 +2508,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/market-price-index.css?v=20261013-index19-restore1">
 <script src="/assets/market-price-index.js?v=20261103-startup1"></script>
 <link rel="stylesheet" href="/assets/market-references.css?v=20261029-reference1">
-<script src="/assets/market-references.js?v=20261029-reference1"></script>
+<script src="/assets/market-references.js?v=20261107-unresolved1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261030-sidebar1">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/card-catalog-repairs.js?v=20261030-reprint-prices1"></script>
-<script src="/assets/contained-card-match.js?v=20261104-vintage1"></script>
+<script src="/assets/contained-card-match.js?v=20261107-unresolved1"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261101-picker1">
 <script src="/assets/card-rarity-filters.js?v=20261104-vintage-neo1"></script>
@@ -2529,7 +2529,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
 <script src="/assets/card-search-client.js?v=20261104-search3"></script>
-<script src="/assets/app-route-loader.js?v=20261108-card-boundary1"></script>
+<script src="/assets/app-route-loader.js?v=20261108-box-review1"></script>
 <script src="/assets/portfolio-summary-client.js?v=20261104-modular1"></script>
 <script src="/assets/card-thumbnails.js?v=20261104-modular1"></script>
 <script>
@@ -6696,14 +6696,14 @@ const CARDINFO = {
     {code:"S8a", name:"25주년 애니버서리 컬렉션", release:"2021.10.22", url:"https://www.tcgcollector.com/sets/11441/25th-anniversary-collection", language:"ja", nameEn:"25th Anniversary Collection", boxId:"14025"},
     {code:"SMP2", name:"명탐정 피카츄", release:"2019.04.26", url:"https://www.tcgcollector.com/sets/11279/great-detective-pikachu", language:"ja", nameEn:"Great Detective Pikachu", boxId:"15555"},
     {code:"BSTXY", name:"THE BEST OF XY", release:"2017.04.21", url:"https://www.tcgcollector.com/sets/11190/the-best-of-xy", language:"ja", nameEn:"The Best of XY", printedSetCode:"XY", boxId:"14125"},
-    {"code":"EBB","name":"EX 배틀부스트","release":"2013.07.13","url":"https://www.tcgcollector.com/sets/11246/ex-battle-boost","language":"ja","nameEn":"EX Battle Boost"},
-    {"code":"SC","name":"샤이니 컬렉션","release":"2013.02.01","url":"https://www.tcgcollector.com/sets/11263/shiny-collection","language":"ja","nameEn":"Shiny Collection"},
-    {"code":"DS","name":"드래곤 셀렉션","release":"2012.01.27","url":"https://www.tcgcollector.com/sets/11304/dragon-selection","language":"ja","nameEn":"Dragon Selection"},
+    {"code":"EBB","name":"EX 배틀부스트","release":"2013.07.13","url":"https://www.tcgcollector.com/sets/11246/ex-battle-boost","language":"ja","nameEn":"EX Battle Boost",boxVariants:[{"id":"480863","label":"초판 · 1ED 박스"},{"id":"86178","label":"재판 박스"}]},
+    {"code":"SC","name":"샤이니 컬렉션","release":"2013.02.01","url":"https://www.tcgcollector.com/sets/11263/shiny-collection","language":"ja","nameEn":"Shiny Collection",boxVariants:[{"id":"480865","label":"초판 · 1ED 박스"},{"id":"86176","label":"재판 박스"}]},
+    {"code":"DS","name":"드래곤 셀렉션","release":"2012.01.27","url":"https://www.tcgcollector.com/sets/11304/dragon-selection","language":"ja","nameEn":"Dragon Selection",boxVariants:[{"id":"480861","label":"초판 · 1ED 박스"},{"id":"86007","label":"재판 박스"}]},
     {code:"LL", name:"로스트링크", release:"2010.04.16", url:"https://www.tcgcollector.com/sets/11282/lost-link", language:"ja", nameEn:"Lost Link", boxId:"86000"},
     {code:"DPt-MRP09", name:"영화 공개 기념 랜덤팩", release:"2009.07.18", url:"https://www.tcgcollector.com/sets/11303/movie-commemoration-random-pack", language:"ja", nameEn:"Movie Commemoration Random Pack", boxId:"879241"},
-    {"code":"DP5-TW","name":"분노의 신전","release":"2008.03.14","url":"https://www.tcgcollector.com/sets/11200/temple-of-anger","language":"ja","nameEn":"Temple of Anger"},
+    {"code":"DP5-TW","name":"분노의 신전","release":"2008.03.14","url":"https://www.tcgcollector.com/sets/11200/temple-of-anger","language":"ja","nameEn":"Temple of Anger",boxVariants:[{"id":"490308","label":"초판 · 1ED 박스"},{"id":"85939","label":"재판 박스"}]},
     {"code":"WCP","name":"월드 챔피언즈 팩","release":"2007.07.05","url":"https://www.tcgcollector.com/sets/11271/world-champions-pack","language":"ja","nameEn":"World Champions Pack"},
-    {"code":"ADV4-SEAL","name":"풀린 봉인","release":"2004.01.16","url":"https://www.tcgcollector.com/sets/11248/undone-seal","language":"ja","nameEn":"Undone Seal"},
+    {"code":"ADV4-SEAL","name":"풀린 봉인","release":"2004.01.16","url":"https://www.tcgcollector.com/sets/11248/undone-seal","language":"ja","nameEn":"Undone Seal",boxVariants:[{"id":"491684","label":"초판 · 1ED 박스"},{"id":"85814","label":"재판 박스"}]},
     {"code":"WEB","name":"포켓몬 웹","release":"2001.10.20","url":"https://www.tcgcollector.com/sets/11168/pokemon-web","language":"ja","nameEn":"Pokémon Web"},
     {code:"S10D", name:"타임 게이저", release:"2022.04.08", url:"https://www.tcgcollector.com/sets/11462/time-gazer", language:"ja", nameEn:"Time Gazer", boxId:"66738"},
     {code:"S9a", name:"배틀 리전 (Battle Region)", release:"2022.03.11", boxId:"55866", url:"https://www.tcgcollector.com/sets/11456/battle-region?setCardCountMode=anyCardVariant"},
@@ -6722,7 +6722,7 @@ const CARDINFO = {
     {code:"S4a", name:"샤이니스타 V (Shiny Star V)", release:"2020.11.20", boxId:"12875", url:""},
     {code:"S4", name:"앙천의 볼트태클 (Amazing Volt Tackle)", release:"2020.09.18", boxId:"12879", url:""},
     {code:"S3a", name:"전설의 고동 (Legendary Heartbeat)", release:"2020.07.10", boxId:"14668", url:""},
-    {"code":"SD","name":"V 스타트 덱","release":"2020.07.10","url":"https://www.tcgcollector.com/sets/11378/v-starter-decks","language":"ja","nameEn":"V Starter Decks"},
+    {"code":"SD","name":"V 스타트 덱","release":"2020.07.10","url":"https://www.tcgcollector.com/sets/11378/v-starter-decks","language":"ja","nameEn":"V Starter Decks",boxVariants:[{"id":"21454","label":"풀 · 이상해꽃 V 덱"},{"id":"21455","label":"불꽃 · 어흥염 V 덱"},{"id":"21456","label":"물 · 고래왕 V 덱"},{"id":"21457","label":"번개 · 피카츄 V 덱"},{"id":"21458","label":"초 · 뮤 V 덱"},{"id":"21459","label":"격투 · 루카리오 V 덱"},{"id":"21460","label":"악 · 가라르 야도란 V 덱"},{"id":"21461","label":"강철 · 두랄루돈 V 덱"},{"id":"21462","label":"무색 · 이브이 V 덱"}]},
     {code:"S3", name:"무한존 (Infinity Zone)", release:"2020.06.05", boxId:"14669", url:""},
     {code:"S2a", name:"폭염워커 (Explosive Walker)", release:"2020.04.24", boxId:"14670", url:""},
     {code:"S2", name:"반역크래시 (Rebellion Crash)", release:"2020.03.06", boxId:"12890", url:""},
@@ -6770,14 +6770,14 @@ const CARDINFO = {
     {code:"XY11-Bb", name:"타오르는 투사 (Fever-Burst Fighter)", release:"2016.06.17", boxId:"15243", url:""},
     {code:"CP4", name:"프리미엄 챔피언 팩 EX × M × BREAK", release:"2016.04.16", url:"https://www.tcgcollector.com/sets/11293/ex-m-break-premium-champion-pack", language:"ja", nameEn:"Premium Champion Pack", boxId:"20486"},
     {code:"XY10", name:"초능력의 제왕 (Awakening Psychic King)", release:"2016.03.18", boxId:"14475", url:""},
-    {"code":"CP3","name":"포켓큥 컬렉션","release":"2016.01.29","url":"https://www.tcgcollector.com/sets/11280/pokekyun-collection","language":"ja","nameEn":"PokéKyun Collection"},
+    {"code":"CP3","name":"포켓큥 컬렉션","release":"2016.01.29","url":"https://www.tcgcollector.com/sets/11280/pokekyun-collection","language":"ja","nameEn":"PokéKyun Collection",boxVariants:[{"id":"610572","label":"초판 · 1ED 박스"},{"id":"13950","label":"재판 박스"}]},
     {code:"XY9", name:"천공의 분노 (Rage of the Broken Heavens)", release:"2015.12.11", boxId:"14646", url:""},
     {code:"XY8-Br", name:"붉은 섬광 (Red Flash)", release:"2015.09.26", boxId:"14645", url:""},
     {code:"XY8-Bb", name:"푸른 충격 (Blue Shock)", release:"2015.09.26", boxId:"14640", url:""},
     {code:"CP2", name:"전설의 샤인 컬렉션", release:"2015.07.18", url:"https://www.tcgcollector.com/sets/11286/legendary-shine-collection", language:"ja", nameEn:"Legendary Shine Collection", boxId:"14126"},
     {code:"XY7", name:"밴디트링 (Bandit Ring)", release:"2015.06.20", boxId:"480208", url:""},
     {code:"XY6", name:"에메랄드 브레이크 (Emerald Break)", release:"2015.03.14", boxId:"14639", url:""},
-    {"code":"CP1","name":"마그마단 VS 아쿠아단 더블 크라이시스","release":"2015.01.30","url":"https://www.tcgcollector.com/sets/11292/team-magma-vs-team-aqua-double-crisis","language":"ja","nameEn":"Magma Gang vs Aqua Gang: Double Crisis"},
+    {"code":"CP1","name":"마그마단 VS 아쿠아단 더블 크라이시스","release":"2015.01.30","url":"https://www.tcgcollector.com/sets/11292/team-magma-vs-team-aqua-double-crisis","language":"ja","nameEn":"Magma Gang vs Aqua Gang: Double Crisis",boxVariants:[{"id":"480204","label":"초판 · 1ED 박스"},{"id":"14123","label":"재판 박스"}]},
     {code:"XY5-Bt", name:"타이달 스톰 (Tidal Storm)", release:"2014.12.13", boxId:"14469", url:""},
     {code:"XY5-Bg", name:"가이아 볼케이노 (Gaia Volcano)", release:"2014.12.13", boxId:"14466", url:""},
     {code:"XY4", name:"팬텀게이트 (Phantom Gate)", release:"2014.09.13", boxId:"14239", url:""},
@@ -7223,6 +7223,8 @@ async function getBoxIdBySetCode(code, brand) {
   const t = Math.floor(Date.now() / 3600000);
   // CARDINFO 에서 영문 이름 추출 — "메가 드림 ex (MEGA Dream ex)" → "MEGA Dream ex"
   const set = (CARDINFO[brand] || []).find(s => s.code === code);
+  // A catalogue containing multiple sealed editions has no single box quote.
+  if (Array.isArray(set?.boxVariants) && set.boxVariants.length) return null;
   // ★ 0순위 — CARDINFO 에 boxId 명시되어 있으면 즉시 사용 (자동 매칭 fragile 한 박스용)
   if (set?.boxId) {
     console.log(`[boxMap] ✓ CARDINFO.boxId 직접 매칭 → ${set.boxId}`);
@@ -7308,6 +7310,19 @@ document.addEventListener('click', e => {
 // 모달 안 "박스 시세 보기" 버튼 핸들러 — 매핑된 박스의 시세 페이지로 이동
 window.gotoBoxPriceFromSet = async function(code) {
   const brand = CARDINFO.onepiece.some(s => s.code === code) ? 'onepiece' : 'pokemon';
+  const set = (CARDINFO[brand] || []).find(s => s.code === code);
+  const variants = (set?.boxVariants || []).filter(row => /^\d+$/.test(String(row.id)) && typeof row.label === 'string');
+  if (variants.length) {
+    openAnyModal(`<div style="padding:20px"><h3>${escapeHtml(set.name)} · 상품 선택</h3><p>판본·구성을 선택하면 해당 상품의 시세로 이동합니다.</p><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:16px 0">${variants.map(row => `<button type="button" class="px-btn" style="min-height:48px;white-space:normal" data-box-variant-id="${row.id}">${escapeHtml(row.label)}</button>`).join('')}</div><button type="button" class="px-btn" data-box-variant-back>수록 카드로 돌아가기</button></div>`, 'wide');
+    const modal = document.getElementById('anyModal');
+    modal?.querySelectorAll('[data-box-variant-id]').forEach(button => button.addEventListener('click', () => {
+      closeAnyModal();
+      location.hash = '#price/' + button.dataset.boxVariantId;
+    }));
+    modal?.querySelector('[data-box-variant-back]')?.addEventListener('click', () => openSetGrid(code, set.name, set.url || ''));
+    modal?.querySelector('[data-box-variant-id]')?.focus({preventScroll:true});
+    return;
+  }
   const btn = document.getElementById('setGridBoxPriceBtn');
   if (btn) { btn.disabled = true; btn.textContent = '시세 확인 중...'; }
   const boxId = await getBoxIdBySetCode(code, brand);
@@ -11223,7 +11238,7 @@ if(window.CardThumbnails){
 <!-- TCGHUB_CHIIKAWA_START -->
 <!-- TCGHUB_CHIIKAWA_END -->
 <script src="/assets/card-price-fallback.js?v=20261101-artwork-review1"></script>
-<script src="/assets/contained-card-prices.js?v=20261104-vintage1"></script>
+<script src="/assets/contained-card-prices.js?v=20261107-unresolved1"></script>
 <script src="/assets/contained-card-candidates.js?v=20261104-vintage1"></script>
 <!-- Collections stay within Card info; private records are never cached by this module. -->
 </body>

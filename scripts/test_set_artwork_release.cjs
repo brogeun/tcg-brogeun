@@ -6,7 +6,7 @@ test('published artwork reproduces the exact reviewed English set and sealed ide
  const catalog=read('data/english-catalog.json'),review=read('config/english-set-image-sources.json'),provider=read('config/pokemon-tcg-english-sets.json');
  const shards=Object.fromEntries(review.sets.filter(r=>r.products?.length).map(r=>[r.code,read('data/us-market/'+r.code+'.json')]));
  const before=JSON.stringify({catalog,shards}),rebuilt=build(catalog,review,shards,provider);
- assert.deepEqual(read('data/english-set-images.json'),rebuilt);assert.equal(rebuilt.coverage.productPhotos,95);assert.equal(rebuilt.coverage.rejectedProducts,0);assert.equal(rebuilt.coverage.missingImages,31);assert.equal(JSON.stringify({catalog,shards}),before);
+ assert.deepEqual(read('data/english-set-images.json'),rebuilt);assert.equal(rebuilt.coverage.productPhotos,117);assert.equal(rebuilt.coverage.rejectedProducts,0);assert.equal(rebuilt.coverage.missingImages,12);assert.equal(JSON.stringify({catalog,shards}),before);
 });
 test('Japanese packaging uses exact reviewed official URLs and all shared local assets exist',()=>{
  const review=read('config/japanese-packaging-images.json');assert.equal(review.entries.length,10);

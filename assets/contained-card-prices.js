@@ -61,8 +61,8 @@
     const stamp=Date.parse(quote?.fetchedAt||'');
     if(!quote?.ok||String(quote.id)!==String(product.id)||!Number.isFinite(stamp)||stamp>now+300000||now-stamp>4200000)throw Error('Invalid live EB05 quote');
     const raw=quote.grades?.raw,absent=quote.noListingGrades?.includes('raw');
-    if(raw&&raw.currency==='JPY'&&Number.isFinite(raw.lowest_ask)&&raw.lowest_ask>0&&raw.active_count!==0&&!absent)return {...product,grades:quote.grades,gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:raw.lowest_ask,currency:'JPY',listingCount:raw.active_count||1,priceStatus:'priced',catalogAsk:null};
-    if(absent&&!raw)return {...product,grades:quote.grades||{},gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:null,currency:'JPY',listingCount:0,priceStatus:'no-listings',catalogAsk:null};
+    if(raw&&raw.currency==='JPY'&&Number.isFinite(raw.lowest_ask)&&raw.lowest_ask>0&&raw.active_count!==0&&!absent)return {...product,grades:quote.grades,gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:raw.lowest_ask,currency:'JPY',listingCount:raw.active_count||1,priceStatus:'priced',catalogAsk:null,quoteUnavailable:false};
+    if(absent&&!raw)return {...product,grades:quote.grades||{},gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:null,currency:'JPY',listingCount:0,priceStatus:'no-listings',catalogAsk:null,quoteUnavailable:false};
     throw Error('Unconfirmed live EB05 availability');
   }
   function mergeSetProducts(products,extra){
@@ -71,7 +71,11 @@
       if(p.brand!=='onepiece'||p.kind!=='card'||!/^\d+$/.test(String(p.id))||!/Extra Booster "Heroines Edition Vol\.2"/.test(p.name||''))continue;
       const old=rows.get(String(p.id)),stamp=row=>Date.parse(row?.priceCheckedAt||row?.fetchedAt||'')||0;
       const selected=old&&stamp(old)>=stamp(p)?old:p;
-      rows.set(String(p.id),{...selected,setSnapshot:'EB05',...(p.fullId?{fullId:p.fullId,boxCode:p.boxCode,setCode:p.setCode,language:p.language}:{})});
+      const identity=p.fullId?{fullId:p.fullId,boxCode:p.boxCode,setCode:p.setCode,language:p.language,productNumber:p.productNumber,name:p.name,thumbnailUrl:p.thumbnailUrl}:{};
+      const conflict=!!p.fullId&&selected===old&&old.productNumber!==p.productNumber;
+      // New prices cannot replace an independently reviewed printed identity.
+      // A conflicting international record must obtain a fresh Japanese quote.
+      rows.set(String(p.id),{...selected,setSnapshot:'EB05',...identity,...(conflict?{minPrice:null,lastPrice:null,price:null,grades:{},noListingGrades:[],catalogAsk:null,priceStatus:'identity-conflict',quoteUnavailable:true,catalogMetadataConflict:true}:{})});
     }
     return [...rows.values()];
   }

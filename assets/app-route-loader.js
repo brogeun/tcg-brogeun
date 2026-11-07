@@ -6,9 +6,9 @@
   const local = (file, version) => '/assets/' + file + '?v=' + version;
   const assets = {
     centeringStyle: {href:local('centering-tool.css','20261025-grade-range-v1')},
-    geometry: {src:local('centering-geometry.js','20261025-evidence-v1'),ready:()=>!!root.CenteringGeometry},
+    geometry: {src:local('centering-geometry.js','20261108-card-boundary1'),ready:()=>!!root.CenteringGeometry},
     resultCache: {src:local('centering-result-cache.js','20261025-grade-range-v1'),ready:()=>!!root.CenteringResultCache},
-    centering: {src:local('centering-tool.js','20261025-grade-range-v1'),ready:()=>typeof root.CenteringTool?.setup==='function'},
+    centering: {src:local('centering-tool.js','20261108-card-boundary1'),ready:()=>typeof root.CenteringTool?.setup==='function'},
     adminStyle: {href:local('admin-editor.css','20260907-admin2')},
     quillStyle: {href:'https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css'},
     sortable: {src:'https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js',ready:()=>typeof root.Sortable?.create==='function'},

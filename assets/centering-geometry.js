@@ -1,3 +1,120 @@
+(function(root){
+  'use strict';
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const polygonArea=q=>Math.abs(q.reduce((s,p,i)=>{const n=q[(i+1)%4];return s+p.x*n.y-n.x*p.y;},0))/2;
+  // A small, local detector. It does not load recognition/OCR models or identify
+  // a card. Separate side proposals prevent text, slabs and bright backgrounds
+  // from being treated as one foreground component.
+  function detect(image,{maxCandidates=4}={}){
+    const scale=Math.min(1,360/Math.max(image.width,image.height)),w=Math.max(3,Math.round(image.width*scale)),h=Math.max(3,Math.round(image.height*scale));
+    const gray=new Float32Array(w*h),smooth=new Float32Array(w*h),mag=new Float32Array(w*h),gx=new Float32Array(w*h),gy=new Float32Array(w*h);
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      const i=(Math.min(image.height-1,Math.round(y/scale))*image.width+Math.min(image.width-1,Math.round(x/scale)))*4;
+      gray[y*w+x]=image.data[i]*.299+image.data[i+1]*.587+image.data[i+2]*.114;
+    }
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;smooth[i]=(gray[i]*4+(gray[i-1]+gray[i+1]+gray[i-w]+gray[i+w])*2+gray[i-w-1]+gray[i-w+1]+gray[i+w-1]+gray[i+w+1])/16;}
+    const strengths=[];
+    for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){
+      const i=y*w+x,a=smooth[i+1]-smooth[i-1],b=smooth[i+w]-smooth[i-w];gx[i]=a;gy[i]=b;mag[i]=Math.hypot(a,b);if(mag[i]>8)strengths.push(mag[i]);
+    }
+    strengths.sort((a,b)=>a-b);const threshold=Math.max(10,strengths[Math.floor(strengths.length*.55)]||10);
+    const slopes=41,step=.02,offset=Math.ceil(Math.max(w,h)*.45)+3,stride=Math.max(w,h)+offset*2+4;
+    const votes=[new Float32Array(slopes*stride),new Float32Array(slopes*stride)];
+    for(let y=2;y<h-2;y++)for(let x=2;x<w-2;x++){
+      const i=y*w+x,m=mag[i];if(m<threshold)continue;
+      for(let axis=0;axis<2;axis++){
+        const normal=axis?gy[i]:gx[i],tangent=axis?gx[i]:gy[i];if(Math.abs(normal)<Math.abs(tangent)*1.5)continue;
+        const expected=-tangent/normal;if(Math.abs(expected)>.52)continue;
+        const center=Math.round((expected+.4)/step),weight=Math.sqrt(m);
+        for(let s=Math.max(0,center-4);s<=Math.min(slopes-1,center+4);s++){
+          const a=s*step-.4,b=(axis?y:x)-a*(axis?x:y),bi=Math.round(b)+offset;
+          if(bi>1&&bi<stride-2)votes[axis][s*stride+bi]+=weight;
+        }
+      }
+    }
+    function lines(axis){
+      const peaks=[],v=votes[axis],dim=axis?h:w;
+      for(let s=0;s<slopes;s++)for(let b=2;b<stride-2;b++){
+        const i=s*stride+b,score=v[i-1]+v[i]*2+v[i+1];if(score<40)continue;
+        if(score<(v[i-2]+v[i-1]*2+v[i])||score<(v[i]+v[i+1]*2+v[i+2]))continue;
+        const a=s*step-.4,intercept=b-offset,mid=intercept+a*(axis?w:h)/2;if(mid<0||mid>=dim)continue;
+        peaks.push({a,b:intercept,mid,score});
+      }
+      const kept=[];for(const p of peaks.sort((a,b)=>b.score-a.score)){
+        if(kept.some(k=>Math.abs(k.mid-p.mid)<4&&Math.abs(k.a-p.a)<.07))continue;
+        kept.push(p);if(kept.length===20)break;
+      }return kept.sort((a,b)=>a.mid-b.mid);
+    }
+    const vs=lines(0),hs=lines(1),meet=(v,l)=>{const y=(l.a*v.b+l.b)/(1-l.a*v.a);return{x:v.a*y+v.b,y};};
+    function edgeSupport(a,b){
+      const n=Math.max(20,Math.round(Math.hypot(a.x-b.x,a.y-b.y)/2)),dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);let sum=0,signal=0;
+      for(let k=2;k<n-2;k++){
+        const x=Math.round(a.x+dx*k/n),y=Math.round(a.y+dy*k/n);let best=0;
+        for(let oy=-2;oy<=2;oy++)for(let ox=-2;ox<=2;ox++){
+          const xx=x+ox,yy=y+oy;if(xx<2||xx>=w-2||yy<2||yy>=h-2)continue;
+          const i=yy*w+xx,alignment=Math.abs(gx[i]*dy-gy[i]*dx)/Math.max(1,mag[i]*len);
+          best=Math.max(best,mag[i]*Math.pow(alignment,3));
+        }
+        sum+=Math.min(1,best/Math.max(12,threshold*.7));signal+=Math.min(100,best);
+      }return{coverage:sum/Math.max(1,n-4),strength:signal/Math.max(1,n-4)};
+    }
+    // Compute edge evidence once per line. Thousands of quadrilaterals can then
+    // share prefix sums instead of resampling every candidate side.
+    function prepare(line,axis){
+      const size=axis?w:h,cover=new Float32Array(size+1),strength=new Float32Array(size+1),length=Math.hypot(1,line.a);
+      for(let at=0;at<size;at++){
+        const x=Math.round(axis?at:line.a*at+line.b),y=Math.round(axis?line.a*at+line.b:at);let best=0;
+        for(let oy=-2;oy<=2;oy++)for(let ox=-2;ox<=2;ox++){
+          const xx=x+ox,yy=y+oy;if(xx<2||xx>=w-2||yy<2||yy>=h-2)continue;const i=yy*w+xx;
+          const normal=axis?gy[i]-gx[i]*line.a:gx[i]-gy[i]*line.a,alignment=Math.abs(normal)/Math.max(1,mag[i]*length);
+          best=Math.max(best,mag[i]*Math.pow(alignment,3));
+        }
+        cover[at+1]=cover[at]+Math.min(1,best/Math.max(12,threshold*.7));strength[at+1]=strength[at]+Math.min(100,best);
+      }line.profile={cover,strength,size};
+    }
+    vs.forEach(l=>prepare(l,0));hs.forEach(l=>prepare(l,1));
+    function supported(line,a,b,axis){
+      const p=line.profile,lo=clamp(Math.ceil(Math.min(axis?a.x:a.y,axis?b.x:b.y))+3,0,p.size-1),hi=clamp(Math.floor(Math.max(axis?a.x:a.y,axis?b.x:b.y))-2,lo+1,p.size),n=hi-lo;
+      return{coverage:(p.cover[hi]-p.cover[lo])/n,strength:(p.strength[hi]-p.strength[lo])/n};
+    }
+    const proposals=[],dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+    for(let l=0;l<vs.length;l++)for(let r=l+1;r<vs.length;r++){
+      if(vs[r].mid-vs[l].mid<w*.12)continue;
+      for(let t=0;t<hs.length;t++)for(let b=t+1;b<hs.length;b++){
+        if(hs[b].mid-hs[t].mid<h*.12)continue;
+        const q=[meet(vs[l],hs[t]),meet(vs[r],hs[t]),meet(vs[r],hs[b]),meet(vs[l],hs[b])];
+        if(q.some(p=>p.x<0||p.y<0||p.x>=w||p.y>=h))continue;
+        const a=polygonArea(q)/(w*h);if(a<.045||a>.997)continue;
+        const widths=[dist(q[0],q[1]),dist(q[2],q[3])],heights=[dist(q[0],q[3]),dist(q[1],q[2])];
+        if(Math.max(...widths)/Math.min(...widths)>1.7||Math.max(...heights)/Math.min(...heights)>1.7)continue;
+        const ratio=(widths[0]+widths[1])/(heights[0]+heights[1]),portrait=Math.abs(Math.log(ratio/(63/88))),landscape=Math.abs(Math.log(ratio/(88/63))),error=Math.min(portrait,landscape);
+        if(error>.27)continue;
+        const sides=[supported(hs[t],q[0],q[1],1),supported(vs[r],q[1],q[2],0),supported(hs[b],q[2],q[3],1),supported(vs[l],q[3],q[0],0)],minimum=Math.min(...sides.map(s=>s.coverage)),mean=sides.reduce((s,v)=>s+v.coverage/4,0);
+        if(minimum<.42||mean<.68)continue;
+        const shape=Math.exp(-error*5),parallel=Math.exp(-(Math.abs(vs[l].a-vs[r].a)+Math.abs(hs[t].a-hs[b].a))*.6),strength=sides.reduce((s,v)=>s+v.strength/4,0);
+        const score=(mean*.65+minimum*.35)*shape*parallel*Math.pow(a,.10)*(1+Math.min(.12,strength/400));
+        proposals.push({quad:q,score,confidence:Math.min(.95,mean*shape),coverage:a,method:'four-supported-edges',edgeSupport:minimum});
+      }
+    }
+    // Image-edge card scans need their missing outside edge represented explicitly.
+    const ratio=w/h,frameShape=Math.min(Math.abs(Math.log(ratio/(63/88))),Math.abs(Math.log(ratio/(88/63))));
+    if(frameShape<.075){
+      const q=[{x:2,y:2},{x:w-3,y:2},{x:w-3,y:h-3},{x:2,y:h-3}],edge=q.map((p,i)=>edgeSupport(p,q[(i+1)%4]));
+      const mean=edge.reduce((s,v)=>s+v.coverage/4,0);
+      if(mean>.45)proposals.push({quad:[{x:0,y:0},{x:w-1,y:0},{x:w-1,y:h-1},{x:0,y:h-1}],score:.64*Math.exp(-frameShape*4)+mean*.16,confidence:.7,coverage:1,method:'card-at-image-edges'});
+
+    }
+    const selected=[];for(const c of proposals.sort((a,b)=>b.score-a.score)){
+      if(selected.some(other=>c.quad.reduce((s,p,i)=>s+dist(p,other.quad[i])/4,0)<Math.min(w,h)*.025))continue;
+      selected.push(c);if(selected.length>=maxCandidates)break;
+    }
+    if(!selected.length)return null;
+    const mapped=selected.map(c=>({...c,quad:c.quad.map(p=>({x:clamp(p.x*image.width/w,0,image.width-1),y:clamp(p.y*image.height/h,0,image.height-1)}))}));
+    return{...mapped[0],alternatives:mapped.slice(1)};
+  }
+  const api={detect};if(typeof module!=='undefined'&&module.exports)module.exports=api;root.CardBoundary=api;
+})(typeof window==='undefined'?globalThis:window);
+
 (function (root) {
   'use strict';
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -24,7 +141,15 @@
     const width=Math.max(64,Math.round(Math.min(1466,horizontal,vertical))),height=Math.min(2048,Math.round(width*88/63));
     return {crop,processing,quad:mapped,width,height,scaleX,scaleY};
   }
-  function detectOuter({data,width:w,height:h}) {
+  function detectOuter(image) {
+    const edge=root.CardBoundary.detect(image),contrast=detectOuterContrast(image);
+    if(contrast&&edge&&area(contrast.quad)<area(edge.quad)*.97)return edge;
+    if(contrast){const q=contrast.quad,dist=(a,b)=>Math.hypot(q[a].x-q[b].x,q[a].y-q[b].y),ratio=(dist(0,1)+dist(2,3))/(dist(0,3)+dist(1,2)),shape=Math.min(Math.abs(Math.log(ratio/(63/88))),Math.abs(Math.log(ratio/(88/63))));
+      if(shape<.075&&contrast.confidence>=.75){return {...contrast,method:'background-and-card-shape',alternatives:edge?[edge,...(edge.alternatives||[])]:[]};}
+    }
+    return edge||contrast;
+  }
+  function detectOuterContrast({data,width:w,height:h}) {
     // Background contrast proposes a boundary; the user must confirm all four corners.
     const samples=[];
     for(const [cx,cy] of [[0,0],[w-1,0],[w-1,h-1],[0,h-1]]) for(let a=0;a<5;a++)for(let b=0;b<5;b++) {
@@ -48,7 +173,9 @@
         for(const next of [x>0?at-1:-1,x<w-1?at+1:-1,y>0?at-w:-1,y<h-1?at+w:-1])if(next>=0&&mask[next]&&!seen[next]){seen[next]=1;queue[tail++]=next;}
       }
       const q=extrema.map(({x,y})=>({x,y})),qa=area(q);
-      if(tail<w*h*0.12||tail>w*h*0.92||touches>4||!validQuad(q,w,h)||tail/qa<0.72)continue;
+      if(tail<w*h*0.12||tail>w*h*.995||!validQuad(q,w,h)||tail/qa<0.72)continue;
+      const distance=(a,b)=>Math.hypot(q[a].x-q[b].x,q[a].y-q[b].y),ratio=(distance(0,1)+distance(2,3))/(distance(0,3)+distance(1,2)),shapeError=Math.min(Math.abs(Math.log(ratio/(63/88))),Math.abs(Math.log(ratio/(88/63))));
+      if(touches>4&&(tail<w*h*.84||shapeError>.1))continue;
       if(!best||tail>best.pixels)best={quad:q,pixels:tail,confidence:Math.min(0.9,tail/qa)};
     }
     return best;
@@ -135,3 +262,4 @@
   const api={clamp,area,validQuad,planRectification,planCornerDetails,detectOuter,homography,project,warp,detectInner,measure};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.CenteringGeometry=api;
 })(typeof window==='undefined'?globalThis:window);
+

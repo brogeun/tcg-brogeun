@@ -200,10 +200,10 @@
       if(generation!==state[side].generation){URL.revokeObjectURL(url);return;}
       const w=image.naturalWidth,h=image.naturalHeight;
       if(w<200||h<200||w*h>50000000)throw new Error('200픽셀 이상, 5천만 화소 이하의 선명한 사진을 선택해 주세요.');
-      const sample=canvasFor(image,480),found=G.detectOuter(sample.getContext('2d').getImageData(0,0,sample.width,sample.height));
+      const boundaryStart=performance.now(),sample=canvasFor(image,640),found=G.detectOuter(sample.getContext('2d').getImageData(0,0,sample.width,sample.height));
       const quad=found?found.quad.map(p=>({x:p.x*w/sample.width,y:p.y*h/sample.height})):[{x:w*.12,y:h*.1},{x:w*.88,y:h*.1},{x:w*.88,y:h*.9},{x:w*.12,y:h*.9}];
       if(state[side].url)URL.revokeObjectURL(state[side].url);
-      state[side]={...empty(),image,url,file,quad,generation};url=null;invalidate();
+      state[side]={...empty(),image,url,file,quad,generation,boundaryDetection:{method:found?.method||'background-contrast-or-manual',milliseconds:performance.now()-boundaryStart,confidence:found?.confidence||0}};url=null;invalidate();
       if(!found&&active===side)notice('카드 바깥선을 찾기 어려워요. 네 점을 실제 모서리에 맞춰 주세요.');
     }catch(e){if(url)URL.revokeObjectURL(url);if(generation===state[side].generation)notice(e.message||'사진을 준비하지 못했어요. 다른 사진을 선택해 주세요.');}
     finally{if(generation===state[side].generation){state[side].loading=false;render();}}
@@ -454,3 +454,4 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup);else setup();
   window.addEventListener('hashchange',()=>{if(location.hash.includes('centering'))setup();});
 })();
+

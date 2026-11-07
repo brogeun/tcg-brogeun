@@ -200,11 +200,20 @@ class GhApi:
                 request = urlrequest.Request('https://api.github.com/' + PREFIX + endpoint,
                     headers={'Accept': 'application/vnd.github+json',
                              'User-Agent': 'TCGHUB-KREAM-local', 'X-GitHub-Api-Version': '2022-11-28'})
-                with urlrequest.urlopen(request, timeout=self.timeout()) as response:
+                request_timeout = self.timeout()
+                read_deadline = time.monotonic() + request_timeout
+                with urlrequest.urlopen(request, timeout=request_timeout) as response:
                     if not response.geturl().startswith('https://api.github.com/' + PREFIX):
                         raise LocalError('invalid_github_response')
-                    raw = response.read(4 * 1024 * 1024 + 1)
-                    if len(raw) > 4 * 1024 * 1024: raise LocalError('invalid_github_response')
+                    chunks, size = [], 0
+                    while True:
+                        if time.monotonic() >= read_deadline:
+                            raise LocalError('github_timeout', timeout_seconds=GITHUB_TIMEOUT_SECONDS)
+                        chunk = response.read1(min(65536, 4 * 1024 * 1024 + 1 - size))
+                        if not chunk: break
+                        chunks.append(chunk); size += len(chunk)
+                        if size > 4 * 1024 * 1024: raise LocalError('invalid_github_response')
+                    raw = b''.join(chunks)
                 return json.loads(raw)
             except HTTPError as error:
                 failure = self.http_error(error.code, error.headers)
@@ -220,6 +229,8 @@ class GhApi:
                 failure = LocalError('invalid_github_response')
             except OSError:
                 failure = LocalError('github_network_failed')
+            except LocalError as error:
+                failure = error
             failure.details.update(transport='public_https', endpoint_kind=endpoint_kind(endpoint), attempt=attempt)
             self.emit('github_request_failed_detail', failure_code=failure.code, **failure.details)
             if failure.code not in TRANSIENT_GITHUB_ERRORS or attempt == 3:

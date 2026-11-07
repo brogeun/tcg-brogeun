@@ -133,12 +133,26 @@ class GithubTransportTests(unittest.TestCase):
     def test_shared_read_budget_stops_before_another_network_request(self):
         api = local.GhApi('gh')
         api.public_reads = True
-        with mock.patch.object(local.time, 'monotonic', side_effect=[0, 100]), \
+        clock = iter((0, 100))
+        with mock.patch.object(local.time, 'monotonic', side_effect=lambda: next(clock, 100)), \
              mock.patch.object(local.urlrequest, 'urlopen') as http:
             with api.read_budget(), self.assertRaises(local.LocalError) as caught:
                 api('git/ref/heads/main')
         self.assertEqual(caught.exception.code, 'github_timeout')
         http.assert_not_called()
+
+    def test_slow_response_body_cannot_extend_each_attempt_indefinitely(self):
+        clock=[0]
+        class SlowResponse(Response):
+            def read1(self,_size):clock[0]+=21;return b'PRIVATE-INCOMPLETE'
+        api=local.GhApi('gh');api.public_reads=True
+        with mock.patch.object(local.time,'monotonic',side_effect=lambda:clock[0]), \
+             mock.patch.object(local.time,'sleep'), \
+             mock.patch.object(local.urlrequest,'urlopen',side_effect=lambda *_a,**_k:SlowResponse()) as http:
+            with api.read_budget(),self.assertRaises(local.LocalError) as caught:api('git/ref/heads/main')
+        self.assertEqual(caught.exception.code,'github_timeout')
+        self.assertEqual(http.call_count,3)
+        self.assertLess(clock[0],90)
 
     def test_cli_is_bounded_noninteractive_and_keeps_request_body_on_stdin(self):
         with mock.patch.object(local, 'run_github_command', return_value=SimpleNamespace(returncode=0, stdout=b'{}')) as run:

@@ -108,6 +108,15 @@ test('EB05 uses the newest observation, including a newer no-listings result',()
  assert.equal(bridge.mergeSetProducts([later],[seed])[0].minPrice,null);
  assert.equal(bridge.withRawDetail({...seed,setSnapshot:'EB05'},{cards:{911901:{fetchedAt:'2026-10-29T00:00:00Z',grades:{raw:{lowest_ask:99999,currency:'JPY'}}}}}).grades,undefined);
 });
+
+test('a newer EB05 number typo cannot erase reviewed artwork or leak its cached ask',()=>{
+ const reviewed={...product,id:'911901',brand:'onepiece',kind:'card',language:'ja',fullId:'EB05-006_SNKR911901',boxCode:'EB05',setCode:'EB05',name:'Miss Buckingham Stussy SR-P [EB05-006](Extra Booster "Heroines Edition Vol.2")',productNumber:'EB05-006',thumbnailUrl:'https://cdn.snkrdunk.com/reviewed-eb05-006.webp',priceCheckedAt:'2026-10-30T00:00:00Z',minPrice:55};
+ const typo={...reviewed,name:reviewed.name.replace('006','008'),productNumber:'EB05-008',thumbnailUrl:'https://cdn.snkrdunk.com/unreviewed-eb05-008.webp',priceCheckedAt:'2026-11-06T00:00:00Z',minPrice:17,grades:{raw:{lowest_ask:17,currency:'USD'}}};
+ const merged=bridge.mergeSetProducts([typo],[reviewed])[0];
+ assert.equal(merged.productNumber,'EB05-006');assert.equal(merged.name,reviewed.name);assert.equal(merged.thumbnailUrl,reviewed.thumbnailUrl);assert.equal(merged.minPrice,null);assert.deepEqual(merged.grades,{});assert.equal(merged.quoteUnavailable,true);
+ const now=Date.now(),live=bridge.withLiveQuote(merged,{ok:true,id:'911901',fetchedAt:new Date(now).toISOString(),grades:{raw:{lowest_ask:2400,currency:'JPY',active_count:1}},noListingGrades:[]},now);
+ assert.equal(live.minPrice,2400);assert.equal(live.quoteUnavailable,false);assert.equal(live.productNumber,'EB05-006');
+});
 test('EB05 DON reviewed links cannot cross designs, languages, editions, or boxes',()=>{
  const don={brand:'onepiece',boxCode:'EB05',setCode:'EB05',fullId:'EB05-DON_SNKR932711',marketProductId:'932711',productNumber:'OPC-TCG-EB-05-DON',unprintedNumber:true,number:'DON!! 01'};
  const row={id:'932711',brand:'onepiece',kind:'card',productNumber:'OPC-TCG-EB-05-DON',name:'DON!! Card (Nami & Robin)(Extra Booster "Heroines Edition Vol.2")'};

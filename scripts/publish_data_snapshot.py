@@ -37,7 +37,7 @@ KOREAN_PROMO_FILES = {KOREAN_PROMO_MANIFEST, 'data/korean-promos-health.json'} |
     f'data/korean-promos/{ident}.json' for ident in
     ('1096144', '893073', '998016', '998022', '937106', '934334', '508949')}
 CARD_INFO_GAMES = ('nikke', 'weiss_schwarz', 'union_arena', 'dragon_ball_fusion_world', 'yugioh', 'digimon')
-REFERENCE_FILES = {'data/us-market.json', 'data/yuyutei-market.json',
+REFERENCE_FILES = {'data/us-market.json', 'data/english-set-images.json', 'data/yuyutei-market.json',
                    'data/mercari-references.json', 'data/snkrdunk-games.json',
                    'data/cards-detail.json', 'data/cards-meta-index.json',
                    'data/reference-market-health.json', CARD_INFO_MANIFEST} | REFERENCE_SEARCH_FILES | {

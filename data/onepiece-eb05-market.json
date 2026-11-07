@@ -390,10 +390,10 @@
       "productNumber": "EB05-006",
       "thumbnailUrl": "https://cdn.snkrdunk.com/upload_bg_removed/OPC-TCG-2026-10-05-EB05-008P-of.webp?size=m",
       "currency": "JPY",
-      "minPrice": null,
+      "minPrice": 1000,
       "listingCount": 0,
-      "priceStatus": "no-listings",
-      "priceCheckedAt": "2026-10-30T08:18:40.607Z",
+      "priceStatus": "priced",
+      "priceCheckedAt": "2026-11-06T18:16:29.103Z",
       "url": "https://snkrdunk.com/apparels/911901",
       "priceSource": {
         "type": "lowest_listing_ask",
@@ -406,18 +406,25 @@
         "currency": "USD",
         "observedAt": "2026-10-29T23:47:28.533Z"
       },
-      "gradeCheckedAt": "2026-10-30T08:18:40.607Z",
+      "gradeCheckedAt": "2026-11-06T18:16:29.103Z",
       "language": "ja",
-      "grades": {},
+      "grades": {
+        "raw": {
+          "lowest_ask": 1000,
+          "currency": "JPY",
+          "live": true,
+          "source": "snkrdunk usedMinPrice"
+        }
+      },
       "noListingGrades": [
-        "raw",
         "psa10",
         "psa9"
       ],
       "sourceTitleJP": "ミス・バッキンガム・ステューシー SR-P [EB05-006](エクストラブースター「ヒロインズエディション Vol.2」)通販・買取・相場｜スニダン",
       "fullId": "EB05-006_SNKR911901",
       "boxCode": "EB05",
-      "setCode": "EB05"
+      "setCode": "EB05",
+      "sourceIdentityRecheckedAt": "2026-11-06T18:16:29.103Z"
     },
     {
       "id": "911915",
@@ -3845,5 +3852,12 @@
     "rawPriced": 19,
     "rawNoListings": 81,
     "checkedAt": "2026-10-30T08:19:24.694Z"
+  },
+  "partialRefresh": {
+    "checkedAt": "2026-11-06T18:16:29.103Z",
+    "productIds": [
+      "911901"
+    ],
+    "scope": "Exact Japanese source recheck; all other observation dates retained"
   }
 }

@@ -35,6 +35,14 @@ test('cases and multiple editions never silently become a single box cover',()=>
 test('an ETB, bundle, pack and deck retain their actual product labels',()=>{
   assert.equal(kind('Test Elite Trainer Box'),'elite-trainer-box');assert.equal(kind('Test Booster Bundle'),'booster-bundle');assert.equal(kind('Test Booster Pack'),'booster-pack');assert.equal(kind('Test Theme Deck'),'theme-deck');assert.equal(kind('Promo Card'),null);assert(trustedProduct(picture.image,'12345'));
 });
+
+test('a reviewed unpriced trainer-kit package is shared explicitly without inventing a quote',async()=>{
+  const kit={...box,name:'Test Trainer Kit',scope:'shared-trainer-kit-package'},pictureKit={...picture,name:kit.name},review={schemaVersion:1,sets:[{code:entry.code,products:[pictureKit]}]},kitShard={...shard,sealed:[],sealedCatalogue:[kit],sharedPackage:{scope:kit.scope,productId:String(kit.productId),memberCodes:[entry.code,'EN-OTHER']}};
+  const result=build(catalog,review,{[entry.code]:kitShard}),source=result.sets[entry.code].sources[0];
+  assert.equal(source.scope,'shared-trainer-kit-package');assert.equal(source.label,'트레이너 키트 · 공용 패키지');assert.equal(source.kind,'theme-deck');assert.equal(source.price,undefined);
+  const {api}=await load(result);assert.match(api.setImage(entry),/공용 패키지/);
+  const wrong={...kitShard,sharedPackage:{...kitShard.sharedPackage,memberCodes:['EN-OTHER']}};assert.equal(build(catalog,review,{[entry.code]:wrong}).coverage.productPhotos,0);
+});
 test('frontend displays exact product and logo labels without exposing arbitrary image URLs',async()=>{
   const manifest=build(catalog,sources,{[entry.code]:shard}),{api}=await load(manifest);assert.deepEqual(plain(api.imageSources(entry)).map(row=>row.kind),['booster-box','logo']);const html=api.setImage(entry);assert.match(html,/부스터 박스/);assert.match(html,/Test Set Booster Box/);assert(!api.trustedSetImage('javascript:alert(1)','logo'));assert(!api.trustedSetImage('https://tcgplayer-cdn.tcgplayer.com.evil.test/product/12345_400w.jpg','booster-box','12345'));
 });

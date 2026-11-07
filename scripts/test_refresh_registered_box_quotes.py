@@ -18,6 +18,19 @@ class Client:
 
 
 class RegisteredBoxesTests(unittest.TestCase):
+    def test_reviewed_editions_have_independent_prices_and_no_default_catalogue_code(self):
+        first = self.row(name='Pokemon EX Battle Boost 1ED Box', productNumber='pkmn-tcg-EBB', releasedAt='2013-07-12T15:00:00Z')
+        resale = self.row(12, name='Pokemon EX Battle Boost Resale Box', productNumber='pkmn-tcg-EBB', releasedAt='2013-07-12T15:00:00Z', minPrice=0, minPriceFormat='US $ -', listingCount='0')
+        proofs = [{'brand': 'pokemon', 'parentCode': 'EBB', 'id': str(row['id']), 'label': label, 'scope': 'sealed-variant-only', 'sourceName': row['name'], 'sourceProductNumber': row['productNumber'], 'sourceRelease': row['releasedAt'], 'sourceUrl': 'https://snkrdunk.com/en/trading-cards/'+str(row['id'])} for row, label in [(first, '1ED'), (resale, 'Resale')]]
+        result, counts, _ = merge_manual({'products': []}, {'11': first, '12': resale}, {}, 'observed', 'pokemon', reviewed_variants=proofs)
+        self.assertEqual([row.get('code') for row in result['products']], [None, None])
+        self.assertEqual([row['marketVariantOf'] for row in result['products']], ['EBB', 'EBB'])
+        self.assertEqual([row['lastPrice'] for row in result['products']], [10, None])
+        retained, _, _ = merge_manual(result, {}, {}, 'later', 'pokemon', reviewed_variants=proofs)
+        self.assertEqual(retained['products'], result['products'])
+        with self.assertRaises(RefreshError):
+            merge_manual(result, {'11': {**first, 'name': 'Another Edition Box'}}, {}, 'later', 'pokemon', reviewed_variants=proofs)
+
     def row(self, identity=11, **extra):
         return {'id': identity, 'name': 'ONE PIECE Card Game Starter Deck Test',
                 'productNumber': 'OPC-TCG-ST-01', 'minPrice': 10,

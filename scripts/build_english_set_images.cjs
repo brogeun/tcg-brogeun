@@ -35,10 +35,12 @@ function build(catalog,review,shards={},pokemonSets=[]){
     if(entry.language!=='en'||!/^EN-[A-Z0-9-]+$/.test(entry.code))throw Error('Invalid English set identity');
     const source=byCode.get(entry.code)||{},shard=shards[entry.code],candidates=[];let sources=[];
     for(const product of source.products||[]){
-      const match=shard?.setCode===entry.code&&shard?.language==='en'&&Array.isArray(shard.sealed)&&shard.sealed.find(row=>String(row.productId)===String(product.productId)&&row.name===product.name&&row.sourceUrl===product.sourceUrl);
+      const match=shard?.setCode===entry.code&&shard?.language==='en'&&Array.isArray(shard.sealed)&&[...shard.sealed,...(shard.sealedCatalogue||[])].find(row=>String(row.productId)===String(product.productId)&&row.name===product.name&&row.sourceUrl===product.sourceUrl);
       const imageKind=kind(product.name);
       if(!match||!imageKind||product.verified!==true||!trustedProduct(product.image,product.productId)||!new RegExp('^https://www\\.tcgplayer\\.com/product/'+product.productId+'(?:/[A-Za-z0-9%._~-]+)?$').test(product.sourceUrl||'')){coverage.rejectedProducts++;continue;}
-      candidates.push({kind:imageKind,label:LABELS[imageKind],image:product.image,productId:String(product.productId),name:product.name,sourceUrl:product.sourceUrl});
+      const shared=match.scope==='shared-trainer-kit-package'&&shard.sharedPackage?.scope===match.scope&&shard.sharedPackage.memberCodes?.includes(entry.code)&&shard.sharedPackage.productId===String(product.productId)&&imageKind==='theme-deck';
+      if(match.scope==='shared-trainer-kit-package'&&!shared){coverage.rejectedProducts++;continue;}
+      candidates.push({kind:imageKind,label:shared?'트레이너 키트 · 공용 패키지':LABELS[imageKind],image:product.image,productId:String(product.productId),name:product.name,sourceUrl:product.sourceUrl,...(shared?{scope:match.scope,memberCodes:shard.sharedPackage.memberCodes}:{})});
     }
     if(candidates.length){
       const priority=Math.min(...candidates.map(row=>RANK[row.kind])),top=candidates.filter(row=>RANK[row.kind]===priority);

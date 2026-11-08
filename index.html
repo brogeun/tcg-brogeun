@@ -2517,7 +2517,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261101-picker1">
 <script src="/assets/card-rarity-filters.js?v=20261104-vintage-neo1"></script>
 <script src="/assets/japanese-set-artwork.js?v=20261106-vintage-contents1"></script>
-<script src="/assets/japanese-catalog.js?v=20261106-vintage-contents1"></script>
+<script src="/assets/japanese-catalog.js?v=20261108-image4041"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20261104-modular1"></script>
@@ -7047,7 +7047,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
     async function fetchSet(code) {
       const t = Math.floor(Date.now() / 3600000);
       const tryFetch = async (c) => {
-        const version = brand === 'pokemon' ? 'v=japanese-vintage-20261104-1&' : 'v=onepiece-official-20261031-1&';
+        const version = brand === 'pokemon' ? 'v=japanese-images-20261108-1&' : 'v=onepiece-official-20261031-1&';
         const r = await fetch(`/data/cards-by-set/${c}.json?${version}t=${t}`);
         if (!r.ok) return null;
         const text = await r.text();

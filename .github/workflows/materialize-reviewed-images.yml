@@ -1,0 +1,68 @@
+name: Materialize reviewed card images
+
+on:
+  create:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: materialize-reviewed-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.ref == 'refs/heads/fix/image-404-20261108' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply exact reviewed URLs and validate identities
+        run: |
+          python scripts/apply_verified_image_repairs.py --root .
+          python scripts/apply_verified_image_repairs.py --root . --verify-only
+          python scripts/reviewed_market_card_images.py --root .
+          python scripts/reviewed_market_card_images.py --root . --verify-only
+          python -m unittest scripts.test_verified_image_repairs scripts.test_reviewed_market_card_images
+      - name: Publish the verified catalogue to the review branch
+        shell: python
+        run: |
+          import json
+          import subprocess
+          from pathlib import Path
+
+          path = Path('data/japanese-catalog.json')
+          data = json.loads(path.read_bytes())
+          path.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+          plan = json.loads(Path('config/reviewed-image-publication.json').read_bytes())
+          if plan.get('schemaVersion') != 1:
+              raise SystemExit('Invalid reviewed publication plan')
+          expected = plan['expectedDataBlobs']
+          allowed = set()
+          for config in ['config/verified-image-url-repairs.json', 'config/reviewed-market-card-images.json']:
+              allowed.update(json.loads(Path(config).read_bytes())['targetFiles'])
+          if set(expected) != allowed or any(not name.startswith('data/') or '..' in Path(name).parts for name in allowed):
+              raise SystemExit('Publication plan exceeds reviewed data paths')
+          changed = subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
+          if not set(changed).issubset(allowed):
+              raise SystemExit('Unexpected file changes; publication stopped: ' + repr(changed))
+          subprocess.run(['git', 'add', '--', *sorted(allowed)], check=True)
+          for name, sha in expected.items():
+              actual = subprocess.check_output(['git', 'rev-parse', ':' + name], text=True).strip()
+              if actual != sha:
+                  raise SystemExit('Data differs from locally reviewed bytes; publication stopped: ' + name)
+          if not changed:
+              print('Reviewed image data is already materialized')
+          else:
+              subprocess.run(['git', '-c', 'user.name=github-actions[bot]',
+                              '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
+                              'commit', '-m', 'Materialize 1074 exact reviewed card artwork repairs'], check=True)
+              subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/fix/image-404-20261108'], check=True)

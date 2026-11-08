@@ -61,21 +61,25 @@ async function run(){
  assert.deepEqual(bindings,read('data/contained-card-market-links.json'),'Deployed artwork bindings differ');
  assert.deepEqual(overrides,read('data/onepiece-card-overrides.json'),'Deployed OP17 bindings differ');
  repairs.configure(await get('/data/card-catalog-repairs.json',true));
- const products=repairs.products(read('data/all-cards.json').details),byId=new Map(products.map(p=>[String(p.id),p]));
- const codes=[...new Set(['OP16','OP17',...bindings.links.map(r=>r.boxCode)])],sets=new Map();
+ const products=bridge.reviewedJapaneseProducts(repairs.products(read('data/all-cards.json').details),bindings),byId=new Map(products.map(p=>[String(p.id),p]));
+ const setKey=row=>row.brand+'|'+row.boxCode;
+ const codes=[...new Map([{brand:'onepiece',boxCode:'OP16'},{brand:'onepiece',boxCode:'OP17'},...bindings.links].map(row=>[setKey(row),{brand:row.brand,boxCode:row.boxCode}])).values()],sets=new Map();
  let next=0;
- await Promise.all(Array.from({length:6},async()=>{while(next<codes.length){const code=codes[next++];sets.set(code,repairs.setCards(await get('/data/cards-by-set/'+code+'.json',true),code).cards);}}));
+ await Promise.all(Array.from({length:6},async()=>{while(next<codes.length){const source=codes[next++],code=source.boxCode,file=source.brand==='onepiece'&&['PROMO','LIMITED'].includes(code)?'ONEPIECE-'+code:code;sets.set(setKey(source),repairs.setCards(await get('/data/cards-by-set/'+file+'.json',true),code).cards);}}));
+ const reviewedTargets=bindings.links.map(row=>{
+  const card=sets.get(setKey(row)).find(c=>c.image===row.image&&String(c.number||'')===String(row.number||'')&&String(c.fullId||'')===String(row.fullId||''));assert(card,row.boxCode+' '+row.number);
+  return bridge.targetFor({...card,brand:row.brand,language:'ja',boxCode:row.boxCode,setCode:card.setCode||row.boxCode});
+ });
+ const links={...bridge.reviewedLinks(reviewedTargets,products,overrides,match),...bridge.reviewedArtworkLinks(reviewedTargets,products,bindings,match)},resolve=match.createResolver(products,links);
  let resolved=0,priced=0;
- for(const row of bindings.links){
-  const card=sets.get(row.boxCode).find(c=>c.image===row.image&&String(c.number||'')===String(row.number||'')&&String(c.fullId||'')===String(row.fullId||''));assert(card,row.boxCode+' '+row.number);
-  const target=bridge.targetFor({...card,brand:row.brand,language:'ja',boxCode:row.boxCode,setCode:card.setCode||row.boxCode}),p=byId.get(row.id);
-  const links={...bridge.reviewedLinks([target],products,overrides,match),...bridge.reviewedArtworkLinks([target],products,bindings,match)},result=match.createResolver(products,links)(target);
+ for(let index=0;index<bindings.links.length;index++){
+  const row=bindings.links[index],target=reviewedTargets[index],p=byId.get(row.id),result=resolve(target);
   assert.equal(result.status,'matched',[row.brand,row.boxCode,row.fullId||row.number||row.image,row.id].join(' '));assert.equal(result.id,row.id);resolved++;
   const q=fallback.resolve({...target,snkrdunkId:row.id,snkrProduct:p});
   if(q.status==='priced'){priced++;const html=fallback.render(q,{convert:n=>Math.round(n*8.5)});assert(html.includes('₩'));assert(!/JPY|USD|[$¥]/.test(html));}
  }
  for(const [code,count] of [['OP16',149],['OP17',158]]){
-  const cards=sets.get(code).filter(c=>new RegExp('^'+code+'-\\d+(?:_p\\d+)?$').test(c.fullId));assert.equal(cards.length,count);
+  const cards=sets.get('onepiece|'+code).filter(c=>new RegExp('^'+code+'-\\d+(?:_p\\d+)?$').test(c.fullId));assert.equal(cards.length,count);
   const services={match,loadProducts:async()=>products,loadOverrides:async()=>overrides,loadDetails:async()=>({cards:{}}),loadArtworkBindings:async()=>bindings};
   const targets=await Promise.all(cards.map(c=>bridge.prepareTarget({...c,brand:'onepiece',language:'ja',boxCode:code,setCode:c.setCode||code},{services})));
   assert(targets.every(t=>t.snkrdunkStatus==='matched'),code+' contains unresolved printing');assert.equal(new Set(targets.map(t=>t.snkrdunkId)).size,count);

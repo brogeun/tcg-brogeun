@@ -22,6 +22,7 @@ on:
       - 'data/all-cards.json'
       - 'data/card-catalog-repairs.json'
       - 'data/contained-card-market-links.json'
+      - 'data/pokemon-reviewed-fallback-links.json'
       - 'data/onepiece-card-overrides.json'
       - 'data/futuristic-market.json'
       - 'data/anniversary-market.json'
@@ -46,6 +47,10 @@ on:
       - 'scripts/collect_us_market.py'
       - 'scripts/test_shared_trainer_kits.py'
       - 'scripts/test_unresolved_box_reviews.cjs'
+      - 'scripts/test_contained_market_versions.cjs'
+      - 'scripts/verify_contained_market_versions.cjs'
+      - 'scripts/test_remaining_market_links.cjs'
+      - 'scripts/verify_reviewed_pokemon_fallbacks.cjs'
       - '.github/workflows/pricing-integration-ci.yml'
       - '.github/workflows/scrape.yml'
       - '.github/workflows/market-references-daily.yml'
@@ -81,8 +86,11 @@ jobs:
             /assets/
             /scripts/
             /data/all-cards.json
+            /data/cards-detail.json
             /data/card-catalog-repairs.json
             /data/contained-card-market-links.json
+            /data/pokemon-reviewed-fallback-links.json
+            /data/yuyutei-market/pokemon.json
             /data/onepiece-card-overrides.json
             /data/futuristic-market.json
             /data/anniversary-market.json
@@ -118,5 +126,9 @@ jobs:
           node scripts/test_price_box_names.mjs
           node --test --test-concurrency=1 scripts/test_search_snapshot.cjs
           node --test --test-concurrency=1 scripts/test_unresolved_box_reviews.cjs scripts/test_english_set_images.cjs scripts/test_contained_artwork_bindings.cjs
+          node --test scripts/test_contained_market_versions.cjs
+          node scripts/verify_contained_market_versions.cjs
+          node --test scripts/test_remaining_market_links.cjs
+          node scripts/verify_reviewed_pokemon_fallbacks.cjs
           python -m unittest scripts.test_collect_us_market scripts.test_shared_trainer_kits
           python scripts/test_refresh_registered_box_quotes.py

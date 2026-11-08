@@ -72,6 +72,10 @@ test('production verification exercises every stored artwork and the complete OP
  // Exercise every current reviewed binding as the registry grows.
  const reviewed=JSON.parse(fs.readFileSync(path.join(root,'data/contained-card-market-links.json'),'utf8')).links;
  assert(reviewed.length>=1129,'Previously reviewed artwork coverage regressed');
+ for(const code of ['PROMO','LIMITED'])if(reviewed.some(row=>row.brand==='onepiece'&&row.boxCode===code)){
+  assert(calls.includes('/data/cards-by-set/ONEPIECE-'+code+'.json'),'One Piece special categories use their published inventory namespace');
+  if(!reviewed.some(row=>row.brand==='pokemon'&&row.boxCode===code))assert(!calls.includes('/data/cards-by-set/'+code+'.json'),'A One Piece special category must not fetch a Pokemon or nonexistent inventory');
+ }
  const report=JSON.parse(output.at(-1));assert.equal(report.artworkBindings,reviewed.length);assert.equal(report.completeSets.OP16,149);assert.equal(report.completeSets.OP17,158);assert.equal(report.liveRocks.length,3);
  assert.equal(calls.filter(p=>p==='/api/card-grades').length,3);
 });

@@ -28,6 +28,7 @@
     'GYM1':['PMCG-G1'], 'GYM2':['PMCG-G2'],
     'BSTXY':['XY-BEST','XY'], // The Best of XY prints XY; the 171-card fraction stays required.
     'DPT-MRP09':['M'], // Movie cards retain the 022-card printed fraction.
+    'WCP':['PCG-WCP','PCG-WC'], // Same /108 World Champions Pack namespace on the original market.
     'ADV4-SEAL':['ADV4'], // Undone Seal prints /083; Magma vs Aqua retains /080.
     'DP5-TW':['DP5-TW'],
     'VS-MANAPHY':['PCG-MVS-M'] // Reviewed 2006 VS /019 movie deck namespace.
@@ -44,7 +45,7 @@
     return (language && !['ja', 'jp', 'japanese', '日本語'].includes(language)) ||
       /(?:^|-)(?:tcg|pkmn)-(?:en|eng|cn|zh|kr|ko|fr|de|it|es|pt|th|id)(?:-|$)/i.test(product.productNumber || '') ||
       /(?:pkmn|pokemon)-tcg-(?:en|eng|cn|zh(?:-tw)?|tc|kr|ko|fr|de|it|es|pt|th|id)-/i.test([product.thumbnailUrl,product.image,product.imageUrl].filter(Boolean).join(' ')) ||
-      /\((?:Sword & Shield|Sun & Moon|Scarlet & Violet|Black & White|XY)\s*["“]/i.test(product.name || '') ||
+      (product.originalJapaneseSourceVerified!==true&&/\((?:Sword & Shield|Sun & Moon|Scarlet & Violet|Black & White|XY)\s*["“]/i.test(product.name || '')) ||
       /\[[^\]]*\b(?:EN|ENG|CHN|ZH|CN|KR|KOR|KO|FR|DE|IT|ES|PT|TH|ID)\b[^\]]*\]|\b(?:English|Chinese|Korean|French|German)\s+(?:Ver|Version|Edition)|(?:英語|韓国語|中国語|フランス語|ドイツ語|イタリア語|スペイン語|タイ語|ポルトガル語|インドネシア語)版/i.test(product.name || '');
   }
   function sameIdentity(card, product, candidateProofs = {}) {
@@ -77,6 +78,12 @@
       return codes.some(c=>new RegExp('(?:^|-)'+escape(c)+'-(?:0*'+escape(num)+'-\\d+|\\d+-0*'+escape(num)+')$','i').test(pn));
     }
     if(sourceFraction&&listedFraction&&(Number(sourceFraction[1])!==Number(listedFraction[1])||Number(sourceFraction[2])!==Number(listedFraction[2])))return false;
+    // Some 2009 movie products have a generic market SKU and omit M from the
+    // number bracket. The complete fraction AND acquisition title are required;
+    // 042/DPt-P and the other two Pichu artworks must never become candidates.
+    if(card.brand==='pokemon'&&code==='DPT-MRP09'&&sourceFraction&&listedFraction&&
+       Number(sourceFraction[2])===22&&/^PKMN-TCG-\d+$/.test(pn)&&
+       /(?:Movie Release Commemorative Random Pack\s*2009|映画公開記念ランダムパック\s*2009)/i.test(name))return true;
     if (legacy(card)) {
       // TCG Collector's No. is an inventory position, NOT a printed card number.
       // Limit to the actual set namespace + exact character/title, then require

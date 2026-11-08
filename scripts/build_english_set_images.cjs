@@ -23,8 +23,21 @@ function kind(name){
   if(/\bbooster bundle\b/i.test(name))return 'booster-bundle';
   if(/\bbooster pack\b/i.test(name)&&!/\bart bundle\b|\bset of\b/i.test(name))return 'booster-pack';
   if(/\b(?:theme deck|trainer kit|starter set)\b/i.test(name))return 'theme-deck';
+  if(/\b(?:world championship deck|battle academy|my first battle)\b/i.test(name))return 'theme-deck';
+  if(/\b(?:poke card creator pack|POP Series [1-9] Pack|Prize Pack Series\s+\w+)\b/i.test(name))return 'booster-pack';
+  if(/\b(?:Pikachu World Collection Promo Set|Pokemon Trading Card Game Classic)\b/i.test(name))return 'collection';
   if(/\b(?:premium collection|collection box|poster collection|binder collection|mini tin)\b/i.test(name))return 'collection';
   return null;
+}
+function cataloguePackage(entry,source,product){
+  const proof=source.packageCover;
+  return product.catalogueCoverOnly===true&&proof?.scope==='catalogue-package-image-only'&&proof.language==='en'&&
+    proof.catalogName===entry.name&&proof.catalogRelease===entry.release&&proof.catalogUrl===entry.url&&
+    String(proof.productId)===String(product.productId)&&proof.productName===product.name&&proof.productUrl===product.sourceUrl&&
+    Number.isInteger(proof.providerGroupId)&&proof.providerGroupId>0&&proof.provider==='TCGCSV'&&
+    proof.providerSourceUrl===`https://tcgcsv.com/tcgplayer/3/${proof.providerGroupId}/products`&&
+    Array.isArray(proof.memberCodes)&&proof.memberCodes.includes(entry.code)&&new Set(proof.memberCodes).size===proof.memberCodes.length&&proof.memberCodes.every(code=>/^EN-[A-Z0-9-]+$/.test(code))&&
+    /^[a-f0-9]{64}$/.test(proof.providerSHA256||'')&&/^[a-f0-9]{64}$/.test(proof.imageSHA256||'');
 }
 function build(catalog,review,shards={},pokemonSets=[]){
   if(catalog?.schemaVersion!==1||!Array.isArray(catalog.sets)||new Set(catalog.sets.map(row=>row.code)).size!==catalog.sets.length)throw Error('Invalid English catalog');
@@ -35,12 +48,13 @@ function build(catalog,review,shards={},pokemonSets=[]){
     if(entry.language!=='en'||!/^EN-[A-Z0-9-]+$/.test(entry.code))throw Error('Invalid English set identity');
     const source=byCode.get(entry.code)||{},shard=shards[entry.code],candidates=[];let sources=[];
     for(const product of source.products||[]){
-      const match=shard?.setCode===entry.code&&shard?.language==='en'&&Array.isArray(shard.sealed)&&[...shard.sealed,...(shard.sealedCatalogue||[])].find(row=>String(row.productId)===String(product.productId)&&row.name===product.name&&row.sourceUrl===product.sourceUrl);
+      const match=(shard?.setCode===entry.code&&shard?.language==='en'&&Array.isArray(shard.sealed)&&[...shard.sealed,...(shard.sealedCatalogue||[])].find(row=>String(row.productId)===String(product.productId)&&row.name===product.name&&row.sourceUrl===product.sourceUrl))||cataloguePackage(entry,source,product);
       const imageKind=kind(product.name);
       if(!match||!imageKind||product.verified!==true||!trustedProduct(product.image,product.productId)||!new RegExp('^https://www\\.tcgplayer\\.com/product/'+product.productId+'(?:/[A-Za-z0-9%._~-]+)?$').test(product.sourceUrl||'')){coverage.rejectedProducts++;continue;}
       const shared=match.scope==='shared-trainer-kit-package'&&shard.sharedPackage?.scope===match.scope&&shard.sharedPackage.memberCodes?.includes(entry.code)&&shard.sharedPackage.productId===String(product.productId)&&imageKind==='theme-deck';
       if(match.scope==='shared-trainer-kit-package'&&!shared){coverage.rejectedProducts++;continue;}
-      candidates.push({kind:imageKind,label:shared?'트레이너 키트 · 공용 패키지':LABELS[imageKind],image:product.image,productId:String(product.productId),name:product.name,sourceUrl:product.sourceUrl,...(shared?{scope:match.scope,memberCodes:shard.sharedPackage.memberCodes}:{})});
+      const coverOnly=cataloguePackage(entry,source,product),coverShared=coverOnly&&source.packageCover.memberCodes?.length>1;
+      candidates.push({kind:imageKind,label:shared?'트레이너 키트 · 공용 패키지':coverShared?'공용 패키지 · 구성 덱':LABELS[imageKind],image:product.image,productId:String(product.productId),name:product.name,sourceUrl:product.sourceUrl,...(shared?{scope:match.scope,memberCodes:shard.sharedPackage.memberCodes}:{}),...(coverOnly?{scope:source.packageCover.scope,...(coverShared?{memberCodes:source.packageCover.memberCodes}:{})}:{})});
     }
     if(candidates.length){
       const priority=Math.min(...candidates.map(row=>RANK[row.kind])),top=candidates.filter(row=>RANK[row.kind]===priority);

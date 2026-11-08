@@ -26,7 +26,7 @@
   }
   async function ensureData(){
     if(data)return data;
-    if(!ready)ready=fetch('/data/card-catalog-repairs.json?v=20261030-reprint-prices1',{signal:AbortSignal.timeout(12000)}).then(r=>{
+    if(!ready)ready=fetch('/data/card-catalog-repairs.json?v=20261108-source-images1',{signal:AbortSignal.timeout(12000)}).then(r=>{
       if(!r.ok)throw Error('Card catalogue repairs HTTP '+r.status);
       return r.json();
     }).then(next=>{configure(next);return data;}).catch(error=>{
@@ -180,4 +180,3 @@
   }
   const api={configure,ensureData,printed,setCards,products,hydratePrices,liveQuote,reviewedProduct,quoteProduct,catalogueRows,verifiedLinks};return api;
 });
-

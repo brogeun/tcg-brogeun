@@ -21,7 +21,7 @@
     collectionsStyle: {href:local('collections.css','20261030-collections1')},
     koreanStyle: {href:local('korean-promos.css','20261101-responsive-image1')},
     chinese: {src:local('chinese-catalog.js','20261104-modular1'),ready:()=>!!root.ChineseCatalog},
-    english: {src:local('english-catalog.js','20261107-unresolved1'),ready:()=>!!root.EnglishCatalog},
+    english: {src:local('english-catalog.js','20261108-photo2'),ready:()=>!!root.EnglishCatalog},
     englishSearch: {src:local('english-search.js','20260908-search1'),ready:()=>!!root.EnglishSearch},
     riftbound: {src:local('riftbound-catalog.js','20261030-rarity1'),ready:()=>!!root.RiftboundCatalog},
     chiikawa: {src:local('chiikawa-catalog.js','20261030-rarity1'),ready:()=>!!root.ChiikawaCatalog},

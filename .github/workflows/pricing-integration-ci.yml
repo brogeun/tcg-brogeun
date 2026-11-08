@@ -15,6 +15,7 @@ on:
       - 'scripts/helpers/**'
       - 'scripts/test_card_info_pricing_integration.cjs'
       - 'scripts/test_verify_card_info_prices.cjs'
+      - 'scripts/audit/catalogue-repairs.test.cjs'
       - 'scripts/verify_card_info_prices_production.cjs'
       - 'scripts/test_futuristic_market.mjs'
       - 'scripts/sync_futuristic_market.py'
@@ -76,6 +77,10 @@ jobs:
             /index.html
             /data/price-box-name-overrides.json
             /data/cards-meta-index.json
+            /data/cards-meta.json
+            /data/japanese-card-names-ko.json
+            /data/search-aliases.json
+            /data/pokemon-vintage-image-repairs.json
             /data/manual-boxes-pokemon.json
             /data/manual-boxes-onepiece.json
             /data/price-pokemon-box.json
@@ -102,6 +107,12 @@ jobs:
             /config/
             /data/english-catalog.json
             /data/japanese-catalog.json
+            /images/onepiece/OP17-DON-*.webp
+            /images/pokemon/tcgcollector-*.webp
+            /images/pokemon-vintage/L3/tcg-26021.webp
+            /images/pokemon-vintage/L2/tcg-26093.webp
+            /images/pokemon-vintage/Pt3/tcg-26543.webp
+            /images/pokemon-vintage/DP6/tcg-26832.webp
             /data/tcg-card-info.json
             /data/tcg-card-info/yugioh/e6a43433954cfbf9.json
             /data/tcg-card-info/yugioh/11f0dd1b569bc58a.json
@@ -122,6 +133,7 @@ jobs:
           python -m unittest scripts.test_reviewed_market_card_images
           node --test --test-concurrency=1 scripts/test_card_info_pricing_integration.cjs
           node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs
+          node --test scripts/audit/catalogue-repairs.test.cjs
           node scripts/test_futuristic_market.mjs
           node scripts/test_price_box_names.mjs
           node --test --test-concurrency=1 scripts/test_search_snapshot.cjs

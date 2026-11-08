@@ -15,6 +15,7 @@ on:
       - 'scripts/helpers/**'
       - 'scripts/test_card_info_pricing_integration.cjs'
       - 'scripts/test_verify_card_info_prices.cjs'
+      - 'scripts/test_contained_artwork_data.cjs'
       - 'scripts/audit/catalogue-repairs.test.cjs'
       - 'scripts/verify_card_info_prices_production.cjs'
       - 'scripts/test_futuristic_market.mjs'
@@ -133,6 +134,7 @@ jobs:
           python -m unittest scripts.test_reviewed_market_card_images
           node --test --test-concurrency=1 scripts/test_card_info_pricing_integration.cjs
           node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs
+          node --test scripts/test_contained_artwork_data.cjs
           node --test scripts/audit/catalogue-repairs.test.cjs
           node scripts/test_futuristic_market.mjs
           node scripts/test_price_box_names.mjs

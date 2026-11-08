@@ -28,6 +28,18 @@ test('cross-set, mismatched product image and unreviewed photos cannot bind to a
   const modified=plain(sources);modified.sets[0].products[0].image='https://tcgplayer-cdn.tcgplayer.com/product/99999_400w.jpg';assert.equal(build(catalog,modified,{[entry.code]:shard}).coverage.productPhotos,0);
   modified.sets[0].products[0]={...picture,verified:false};assert.equal(build(catalog,modified,{[entry.code]:shard}).coverage.productPhotos,0);
 });
+
+test('a reviewed package cover survives absent quotes and retains its own catalogue identity',async()=>{
+ const review=plain(sources),row=review.sets[0];row.products[0].catalogueCoverOnly=true;
+ row.packageCover={scope:'catalogue-package-image-only',language:'en',catalogName:entry.name,catalogRelease:entry.release,catalogUrl:entry.url,productId:box.productId,productName:box.name,productUrl:box.sourceUrl,provider:'TCGCSV',providerGroupId:42,providerSourceUrl:'https://tcgcsv.com/tcgplayer/3/42/products',providerSHA256:'a'.repeat(64),imageSHA256:'b'.repeat(64),memberCodes:[entry.code,'EN-SECOND']};
+ const before=JSON.stringify(catalog),result=build(catalog,review,{});
+ assert.equal(result.coverage.productPhotos,1);assert.equal(JSON.stringify(catalog),before);
+ assert.equal(result.sets[entry.code].sources[0].scope,'catalogue-package-image-only');
+ const {api}=await load(result);assert.equal(api.imageSources(entry)[0].label,'공용 패키지 · 구성 덱');
+ for(const patch of [{language:'ja'},{catalogName:'Different edition'},{catalogRelease:'2025.01.01'},{productId:'99999'},{productName:'Different product'},{providerSourceUrl:'https://example.com/products'},{providerSHA256:''},{imageSHA256:''},{memberCodes:['EN-OTHER']}]){
+  const wrong=plain(review);Object.assign(wrong.sets[0].packageCover,patch);assert.equal(build(catalog,wrong,{}).coverage.productPhotos,0,JSON.stringify(patch));
+ }
+});
 test('cases and multiple editions never silently become a single box cover',()=>{
   assert.equal(kind('Test Booster Box Case'),null);assert.equal(kind('Test Booster Pack Art Bundle [Set of 4]'),null);
   const other={...box,productId:'12346',sourceUrl:'https://www.tcgplayer.com/product/12346/pokemon-test-box-first-edition',name:'Test Set Booster Box [1st Edition]'},review=plain(sources);review.sets[0].products.push({...other,image:'https://tcgplayer-cdn.tcgplayer.com/product/12346_400w.jpg',verified:true});const result=build(catalog,review,{[entry.code]:{...shard,sealed:[box,other]}});assert.equal(result.coverage.productPhotos,0);assert.equal(result.coverage.ambiguousProducts,1);assert.equal(result.sets[entry.code].sources[0].kind,'logo');

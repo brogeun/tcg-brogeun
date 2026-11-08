@@ -10,6 +10,10 @@
   function render(target){
     if(!target||!['pokemon','onepiece'].includes(target.brand)||target.language!=='ja')return '';
     const source=sourceURL(target),sourceLink=source?`<a class="ci-source-card-link" href="${esc(source)}" target="_blank" rel="noopener noreferrer">원본 카드 보기</a>`:'';
+    if(target.snkrdunkStatus==='variant-linked'&&Array.isArray(target.snkrVariants)){
+      const buttons=target.snkrVariants.filter(v=>/^\d+$/.test(String(v?.id))&&v.label).slice(0,4).map(v=>`<button class="btn" type="button" data-contained-market-id="${esc(v.id)}" data-contained-market-image="${esc(marketImage(v.product?.thumbnailUrl||v.product?.image))}" style="font-size:12px;padding:9px 12px;cursor:pointer">${esc(v.label)} 시세·거래내역</button>`).join('');
+      return `<section class="ci-market-versions" aria-label="판본별 시세 선택" style="margin:18px auto 0;max-width:680px"><div style="display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">${buttons}</div>${sourceLink}</section>`;
+    }
     if(!['ambiguous','artwork-pending','unlinked'].includes(target.snkrdunkStatus))return sourceLink;
     const products=[...new Map((Array.isArray(target.marketCandidates)?target.marketCandidates:[]).filter(product=>/^\d+$/.test(String(product?.id)))
       .map(product=>[String(product.id),{id:String(product.id),name:String(product.name||''),thumbnailUrl:marketImage(product.thumbnailUrl),productNumber:String(product.productNumber||'')}])).values()].slice(0,12);

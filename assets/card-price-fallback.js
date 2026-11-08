@@ -95,7 +95,7 @@
   }
   function verifiedYuyuBinding(target,row,binding){
     if(binding?.verification!=='original-image-and-acquisition'||binding.language!=='ja')return false;
-    const artwork=norm(target.officialId||target.fullId),sourceImages=[target.sourceImage,target.officialImage,target.image].filter(Boolean);
+    const artwork=norm(target.officialId||target.fullId||(game(target.game||target.brand)==='pokemon'?(target.sourceId||target.url):'')),sourceImages=[target.sourceImage,target.officialImage,target.image].filter(Boolean);
     return !!artwork&&norm(binding.officialId)===artwork&&String(binding.yuyuteiId)===String(row.id)&&
       [binding.officialImage,binding.canonicalOfficialImage].filter(Boolean).some(image=>sourceImages.includes(image))&&
       norm(binding.cardNumber)===fullNumber(target)&&norm(binding.cardNumber)===norm(row.cardNumber)&&
@@ -153,6 +153,9 @@
   function resolve(target,{snkrProducts=[],yuyuRows=[],mercariReferences=[],bindings={}}={}){
     const g=game(target?.game||target?.brand);
     if(!target||!games.has(g)||!['ja','unknown'].includes(language(target.language))||!['RAW','UNGRADED'].includes(norm(target.grade||'raw')))return empty(['일본판 미감정 카드만 지원']);
+    if(target.snkrdunkStatus==='variant-linked'&&Array.isArray(target.snkrVariants)&&target.snkrVariants.length>=1){
+      return {...empty(),status:'variants',source:'snkrdunk',variants:target.snkrVariants.map(v=>({id:v.id,label:v.label,quote:resolve({...target,snkrdunkStatus:'matched',snkrVariants:undefined,snkrdunkId:v.id,snkrProduct:v.product},{bindings})}))};
+    }
     if(['ambiguous','artwork-pending','conflict','verified-link'].includes(target.snkrdunkStatus)&&!target.snkrProduct)return {...empty(),status:'unknown',source:'snkrdunk',reason:'unlinked-artwork'};
     const own=target.snkrProduct,products=own?[own,...snkrProducts.filter(row=>String(row.id)!==String(own.id))]:snkrProducts;
     if(target.sourceUnavailable||own?.quoteUnavailable)return {...empty(),status:'unknown',source:'snkrdunk'};
@@ -205,6 +208,18 @@
   async function lookup(target,options={}){
     const snkrProducts=options.snkrProducts||[];let bindings=options.bindings||{},provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
     let result=resolve(provided,{snkrProducts,bindings});
+    if(result.status==='variants'){
+      const current=options.isCurrent||(()=>true);
+      const variants=await Promise.all(provided.snkrVariants.map(async v=>{
+        let own={...provided,snkrdunkStatus:'matched',snkrVariants:undefined,snkrdunkId:v.id,snkrProduct:v.product},quote=resolve(own,{bindings});
+        if(quote.status!=='priced'&&exactSnkrTarget(own)&&(root.document||options.loadSnkrQuote)){
+          try{own=await confirmSnkrAbsence(own,options.loadSnkrQuote||currentSnkrQuote);quote=current()?resolve(own,{bindings}):empty(['조회 취소']);}
+          catch{quote={...empty(),status:'unknown',source:'snkrdunk',reason:'source-unavailable'};}
+        }
+        return {id:v.id,label:v.label,quote};
+      }));
+      return {...result,variants};
+    }
     if(result.status==='priced'||(result.status==='unknown'&&result.reason!=='catalog-unlinked')||(!japanese(provided,provided.snkrProduct)&&!exactSnkrTarget(provided))||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
     const current=options.isCurrent||(()=>true),load=options.fetchJson||json,g=game(provided.game||provided.brand);
     if(exactSnkrTarget(provided)&&(root.document||options.loadSnkrQuote)){
@@ -216,11 +231,11 @@
     let rows=options.yuyuRows||[];
     if(options.yuyuRows===undefined&&yuyuGames.has(g)){try{const data=await load(`/data/yuyutei-market/${g}.json`);if(!current())return empty(['조회 취소']);if(game(data.game)!==g)throw Error('Wrong source game');rows=decodeYuyu(data);}catch{rows=[];}}
     result=resolve(provided,{snkrProducts,yuyuRows:rows,bindings});if(result.status==='priced'||!current())return result;
-    if(g==='onepiece'&&options.bindings===undefined){
+    if(['onepiece','pokemon'].includes(g)&&options.bindings===undefined){
       try{
-        const proof=await load('/data/onepiece-reviewed-fallback-links.json');
+        const proof=await load(`/data/${g}-reviewed-fallback-links.json`);
         if(!current())return empty(['조회 취소']);
-        if(proof?.schemaVersion===1&&proof.source==='onepiece-original-image-audit')bindings=proof.bindings||{};
+        if(proof?.schemaVersion===1&&proof.source===`${g}-original-image-audit`)bindings=proof.bindings||{};
       }catch{}
     }
     result=resolve(provided,{snkrProducts,yuyuRows:rows,bindings});if(result.status==='priced'||!current())return result;
@@ -241,6 +256,7 @@
     }
   });
   function render(result,{compact=false,convert=root.TCGFX?.convert}={}){
+    if(result?.status==='variants')return '<span class="card-price-fallback cpf-variants" aria-label="판본별 시세" style="display:flex;flex-direction:column;gap:6px">'+result.variants.map(v=>'<span class="cpf-variant" style="display:block"><small>'+esc(v.label)+'</small> '+render(v.quote,{compact,convert})+'</span>').join('')+'</span>';
     if(!result||result.status==='none')return '<span class="card-price-fallback cpf-none">확인된 가격 없음</span>';
     if(result.status==='unknown')return '<span class="card-price-fallback cpf-none">'+(['unlinked-artwork','catalog-unlinked'].includes(result.reason)?'카드별 가격 연결 확인 필요':'SNKRDUNK 가격 확인 불가')+'</span>';
     const labels={snkrdunk:'SNKRDUNK',yuyutei:'유유테이',mercari:'메루카리'},label=result.status==='candidate'?(result.verification==='exact_printing'?'참고 매물 · 실물 상태 확인 필요':'참고 매물 · 판본 확인 필요'):result.source==='snkrdunk'&&result.condition==='unspecified'?'상태 미지정 상품 호가':result.source==='yuyutei'&&result.stockState==='out_of_stock'?'품절 표시가':result.source==='yuyutei'?'판매가':'미감정 최저 호가';

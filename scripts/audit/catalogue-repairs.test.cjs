@@ -74,7 +74,9 @@ test('reviewed DON metadata preserves current quotes and never reassigns product
 });
 test('four reported Pokemon images are repaired in both search and source grids without identity changes',()=>{
   const b=searchContext();
-  for(const repair of manifest.pokemonImages){
+  const localRepairs=manifest.pokemonImages.filter(row=>row.image.startsWith('/images/'));
+  assert.deepEqual(localRepairs.map(row=>row.catalogueId),['JP:L3:078/080','JP:L2:029/080','JP:Pt3:050/100','JP:DP6:045/092']);
+  for(const repair of localRepairs){
     const original=catalogue.cards.find(card=>card.id===repair.catalogueId),before=JSON.stringify(original);
     const row=b.JapaneseCatalog.find(repair.catalogueId);
     let displayImage=repair.image;
@@ -98,8 +100,27 @@ test('four reported Pokemon images are repaired in both search and source grids 
     assert.equal(repairs.printed(unrelated),unrelated);
   }
 });
+test('recovered original-source fronts bind by exact source, set and number without replacing card or product identities',()=>{
+  const b=searchContext(),remote=manifest.pokemonImages.filter(row=>row.image.startsWith('https://'));
+  assert(remote.length>=120,'Reviewed original-front recovery coverage regressed');
+  for(const repair of remote){
+    assert.match(repair.image,/^https:\/\/static\.tcgcollector\.com\/content\/images\/[a-f0-9]{2}\/[a-f0-9]{2}\/[a-f0-9]{2}\/[a-f0-9]{64}\.(?:webp|png|jpg)$/);
+    assert.equal(repair.image,repair.sourceImage);assert.equal(new URL(repair.sourceUrl).pathname.match(/^\/cards\/(\d+)\//)?.[1],new URL(repair.currentSourceUrl).pathname.match(/^\/cards\/(\d+)\//)?.[1],'A renamed canonical slug must retain the exact source card ID');
+    assert.match(repair.sourceUrl,/^https:\/\/www\.tcgcollector\.com\/cards\/\d+\/[A-Za-z0-9-]+$/);
+    assert.match(repair.sha256,/^[a-f0-9]{64}$/);assert.match(repair.sourcePageSHA256,/^[a-f0-9]{64}$/);
+    const exact=card=>card.number===repair.number&&String(card.setCode).toUpperCase()===repair.setCode.toUpperCase()&&[card.sourceUrl,card.url].includes(repair.sourceUrl);
+    const originals=catalogue.cards.filter(exact);assert.equal(originals.length,1,repair.sourceUrl);
+    const original=originals[0],before=JSON.stringify(original),row=b.JapaneseCatalog.find(original.id);
+    assert.equal(row.image,repair.image);assert.equal(row.thumbnailUrl,repair.image);
+    assert.equal(row.id,original.id);assert.equal(row.number,original.number);assert.equal(row.productId,original.productId);assert.deepEqual(Array.from(row.productIds),original.productIds);
+    const source=read('data/cards-by-set/'+repair.setCode+'.json'),sourceCard=source.cards.find(card=>card.number===repair.number&&[card.sourceUrl,card.url].includes(repair.sourceUrl));
+    assert(sourceCard,repair.sourceUrl);const patched=repairs.setCards({cards:[sourceCard]},repair.setCode).cards[0];assert.equal(patched.image,repair.image);assert.equal(patched.sourceId,sourceCard.sourceId);
+    assert.equal(JSON.stringify(original),before);
+    for(const wrong of [{...original,id:'JP:wrong',sourceUrl:'https://example.invalid',url:''},{...original,number:'wrong'}])assert.equal(repairs.printed(wrong),wrong);
+  }
+});
 test('all replacement image files match their reviewed hashes and are included in deployment assets',()=>{
-  for(const card of [...manifest.onepieceDon,...manifest.pokemonImages]){
+  for(const card of [...manifest.onepieceDon,...manifest.pokemonImages.filter(row=>row.image.startsWith('/images/'))]){
     const bytes=fs.readFileSync(path.join(root,card.image));assert(bytes.length>1000);
     assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),card.sha256);
     assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');

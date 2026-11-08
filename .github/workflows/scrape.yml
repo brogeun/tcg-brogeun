@@ -289,6 +289,10 @@ jobs:
       - name: Build and verify the compact search snapshot from this deployment
         working-directory: ${{ env.DEPLOY_SOURCE }}
         run: |
+          python scripts/apply_verified_image_repairs.py --root .
+          python scripts/apply_verified_image_repairs.py --root . --verify-only
+          python scripts/reviewed_market_card_images.py --root .
+          python scripts/reviewed_market_card_images.py --root . --verify-only
           node scripts/build_english_set_images.cjs
           node scripts/build_search_snapshot.cjs
           node scripts/build_search_fastpath.cjs

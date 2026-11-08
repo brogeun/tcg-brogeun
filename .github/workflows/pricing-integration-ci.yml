@@ -31,6 +31,17 @@ on:
       - 'data/history/897036.json'
       - 'data/cards-by-set/**'
       - 'config/registered-box-market-links.json'
+      - 'config/verified-image-url-repairs.json'
+      - 'scripts/apply_verified_image_repairs.py'
+      - 'scripts/test_verified_image_repairs.py'
+      - 'scripts/reviewed_market_card_images.py'
+      - 'scripts/test_reviewed_market_card_images.py'
+      - 'config/reviewed-market-card-images.json'
+      - 'data/tcg-card-info/**'
+      - 'data/snkrdunk-games/**'
+      - 'scripts/build_tcg_card_info.py'
+      - 'scripts/collect_snkrdunk_games.py'
+      - 'data/japanese-catalog.json'
       - 'config/english-trainer-kit-packages.json'
       - 'scripts/collect_us_market.py'
       - 'scripts/test_shared_trainer_kits.py'
@@ -82,6 +93,13 @@ jobs:
             /data/cards-by-set/
             /config/
             /data/english-catalog.json
+            /data/japanese-catalog.json
+            /data/tcg-card-info.json
+            /data/tcg-card-info/yugioh/e6a43433954cfbf9.json
+            /data/tcg-card-info/yugioh/11f0dd1b569bc58a.json
+            /data/tcg-card-info/weiss_schwarz/cfb041b5d62e675d.json
+            /data/snkrdunk-games/weiss_schwarz-card-0106.json
+            /data/snkrdunk-games/yugioh-card-0006.json
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -90,6 +108,10 @@ jobs:
           python-version: '3.11'
       - name: Check card clicks and exact deployed asset URLs
         run: |
+          python scripts/apply_verified_image_repairs.py --root . --verify-only
+          python -m unittest scripts.test_verified_image_repairs
+          python scripts/reviewed_market_card_images.py --root . --verify-only
+          python -m unittest scripts.test_reviewed_market_card_images
           node --test --test-concurrency=1 scripts/test_card_info_pricing_integration.cjs
           node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs
           node scripts/test_futuristic_market.mjs

@@ -180,7 +180,7 @@ def normalize_product(item, brand, kind, checked_at, basis):
     if not native and count not in (0, None):
         status = 'price-unavailable'
     code = str(item.get('productNumber') or '')
-    return {
+    product = {
         'id': cid, 'name': str(item['name']).strip(), 'brand': brand, 'kind': kind,
         'recognitionGameId': RECOGNITION_GAME_IDS[brand],
         'language': declared_language(item),
@@ -195,6 +195,12 @@ def normalize_product(item, brand, kind, checked_at, basis):
         'priceSource': {'source': 'SNKRDUNK', 'type': 'listing-ask',
                         'condition': 'unspecified', 'sourceCurrency': native['currency'] if native else None},
     }
+    try:
+        from reviewed_market_card_images import load_bindings, repair_record
+    except ModuleNotFoundError:
+        from scripts.reviewed_market_card_images import load_bindings, repair_record
+    repair_record(product, load_bindings(Path(__file__).resolve().parents[1]), brand)
+    return product
 
 def declared_language(item):
     language = str(item.get('language') or item.get('lang') or '').lower()

@@ -467,6 +467,14 @@ def build(root):
     except ModuleNotFoundError:
         from scripts.retailer_card_printings import augment_retailer
     augment_retailer(root, manifest, outputs)
+    try:
+        from reviewed_market_card_images import load_bindings, repair_payload
+    except ModuleNotFoundError:
+        from scripts.reviewed_market_card_images import load_bindings, repair_payload
+    reviewed_images = load_bindings(root)
+    repair_payload(manifest, reviewed_images)
+    for _, payload in outputs:
+        repair_payload(payload, reviewed_images)
     # Full per-set payloads retain source metadata. The navigation manifest
     # needs only one copy of a title and can omit empty optional values.
     for game in manifest['games']:

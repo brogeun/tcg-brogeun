@@ -7,6 +7,9 @@ on:
       - 'assets/*catalog*'
       - 'assets/card-rarity-filters*'
       - 'data/collections/**'
+      - 'data/cards-by-set/**'
+      - 'data/japanese-catalog.json'
+      - 'config/verified-image-url-repairs.json'
       - 'images/collections/**'
       - 'scripts/fixtures/**'
       - 'functions/**'
@@ -43,6 +46,7 @@ jobs:
             /functions/
             /scripts/
             /data/
+            /config/verified-image-url-repairs.json
             /.github/
             /index.html
             /sw.js

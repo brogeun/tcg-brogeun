@@ -353,10 +353,22 @@ test('actual runtime enrichment accounts for all 3381 original rows and preserve
     if(!rawHashes.has(row.rawFile)){
       const digest=body=>crypto.createHash('sha256').update(body).digest('hex');
       const bytes=fs.readFileSync(path.resolve(root,row.rawFile)),current=digest(bytes);
-      let identityHash=current;
-      if(current!==row.rawFileSha256){
-        assert.match(row.rawFile,/^data\/cards-by-set\/[A-Za-z0-9+_-]+\.json$/,'Only the separately reviewed vintage display migration may change snapshot bytes');
-        const source=JSON.parse(bytes),review=read('data/pokemon-vintage-image-repairs.json');
+      let identityHash=current,identityBytes=bytes;
+      if(identityHash!==row.rawFileSha256){
+        const repairs=read('config/verified-image-url-repairs.json');
+        if(repairs.targetFiles.includes(row.rawFile)){
+          const originalUrls=new Map();
+          for(const proof of repairs.bindings){
+            assert(!originalUrls.has(proof.image)||originalUrls.get(proof.image)===proof.oldImage,'Reviewed URL reversal must be unambiguous');
+            originalUrls.set(proof.image,proof.oldImage);
+          }
+          identityBytes=Buffer.from(bytes.toString('utf8').replace(/https:\/\/static\.tcgcollector\.com\/content\/images\/[^"\s\\<>]+/g,url=>originalUrls.get(url)||url));
+          identityHash=digest(identityBytes);
+        }
+      }
+      if(identityHash!==row.rawFileSha256){
+        assert.match(row.rawFile,/^data\/cards-by-set\/[A-Za-z0-9+_-]+\.json$/,'Only separately reviewed image migrations may change snapshot bytes');
+        const source=JSON.parse(identityBytes),review=read('data/pokemon-vintage-image-repairs.json');
         const identities=new Map(review.images.filter(proof=>proof.setCode===source.code).map(proof=>[proof.sourceUrl,proof]));
         assert.equal(identities.size,source.cards.length,'Display migration proves the complete original inventory');
         const projected={...source,cards:source.cards.map(card=>{

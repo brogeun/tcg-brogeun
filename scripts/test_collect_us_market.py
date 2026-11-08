@@ -132,6 +132,17 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(self.build(products=[{**product(), "url": "https://example.com/product/10"}])["cards"], {})
         self.assertEqual(self.build(products=[{**product(), "url": "https://www.tcgplayer.com/product/11/wrong-id"}])["cards"], {})
 
+    def test_sealed_artwork_identity_survives_absent_quotes_without_inventing_price(self):
+        sealed = {"productId": 20, "name": "Test Set Booster Pack", "categoryId": 3,
+                  "groupId": 100, "url": "https://www.tcgplayer.com/product/20/test-booster-pack",
+                  "extendedData": []}
+        result = self.build(products=[product(), sealed], prices=[PRICE])
+        self.assertEqual(result["sealed"], [])
+        self.assertEqual(result["sealedCatalogue"], [{"productId": "20", "name": sealed["name"],
+                         "sourceUrl": sealed["url"], "kind": "sealed"}])
+        bad = {**sealed, "url": "https://www.tcgplayer.com/product/21/wrong-id"}
+        self.assertEqual(self.build(products=[product(), bad], prices=[PRICE])["sealedCatalogue"], [])
+
 
 class SetMappingTests(unittest.TestCase):
     def setUp(self):

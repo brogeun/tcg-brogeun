@@ -319,15 +319,18 @@ def build_shard(catalog, group, products, prices, source_as_of, captured_at):
             statuses["matched-no-positive-price"] += 1
             continue
         output[source_id] = {"productId": str(product["productId"]), "sourceUrl": product["url"], "number": card["number"], "name": card["name"], "rarity": card.get("rarity"), "sourcePrinting": "unspecified", "printings": quotes}
-    sealed = []
+    sealed, sealed_catalogue = [], []
     for product in products:
         if kind(product) != "sealed" or not trusted_product_url(product):
             continue
+        identity = {"productId": str(product["productId"]), "name": product["name"],
+                    "sourceUrl": product["url"], "kind": "sealed"}
+        sealed_catalogue.append(identity)
         quotes, failures = printing_quotes(prices_by_id[str(product["productId"])], product["productId"])
         rejected.update(failures)
         if quotes:
-            sealed.append({"productId": str(product["productId"]), "name": product["name"], "sourceUrl": product["url"], "kind": "sealed", "printings": quotes})
-    return {"schemaVersion": 1, "policyVersion": POLICY_VERSION, "source": "TCGCSV", "upstreamMarket": "TCGplayer", "currency": "USD", "language": "en", "setCode": code, "sourceAsOf": source_as_of, "generatedAt": captured_at, "providerGroupId": group["groupId"], "providerGroupName": group["name"], "cards": output, "sealed": sorted(sealed, key=lambda product: product["productId"]), "coverage": {"catalogCards": len(catalog["cards"]), "matchedCards": statuses["matched"], "pricedCards": len(output), "unmatchedCards": statuses["unmatched"], "ambiguousCards": statuses["ambiguous"], "matchedWithoutPrice": statuses["matched-no-positive-price"], "printingQuotes": sum(len(card["printings"]) for card in output.values()), "sealedCount": len(sealed), "rejectedPrices": dict(rejected), "unmatchedSample": unmatched}}
+            sealed.append({**identity, "printings": quotes})
+    return {"schemaVersion": 1, "policyVersion": POLICY_VERSION, "source": "TCGCSV", "upstreamMarket": "TCGplayer", "currency": "USD", "language": "en", "setCode": code, "sourceAsOf": source_as_of, "generatedAt": captured_at, "providerGroupId": group["groupId"], "providerGroupName": group["name"], "cards": output, "sealed": sorted(sealed, key=lambda product: product["productId"]), "sealedCatalogue": sorted(sealed_catalogue, key=lambda product: product["productId"]), "coverage": {"catalogCards": len(catalog["cards"]), "matchedCards": statuses["matched"], "pricedCards": len(output), "unmatchedCards": statuses["unmatched"], "ambiguousCards": statuses["ambiguous"], "matchedWithoutPrice": statuses["matched-no-positive-price"], "printingQuotes": sum(len(card["printings"]) for card in output.values()), "sealedCount": len(sealed), "rejectedPrices": dict(rejected), "unmatchedSample": unmatched}}
 
 
 class Provider:

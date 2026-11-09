@@ -139,6 +139,36 @@ class ChineseDailyTests(unittest.TestCase):
             archive.addfile(member, io.BytesIO(b'{}'))
         with self.assertRaises(ValueError): daily.bootstrap(self.root)
 
+    def test_budget_continuation_keeps_one_run_and_skips_completed_work(self):
+        identities = []
+        def refresh(*args, **kwargs):
+            identities.append(args[2])
+            self.assertEqual(kwargs['delay'], 0)
+            if len(identities) == 1:
+                raise daily.SliceExhausted('saved after query 91 of 93')
+            return {'complete': True, 'newUniqueListingIds': 8}
+        with mock.patch.object(daily, 'bootstrap', return_value=self.root / 'archive'), \
+             mock.patch.object(daily.collector, 'PriceCatalog'), \
+             mock.patch.object(daily.head, 'refresh', side_effect=refresh), \
+             mock.patch.object(daily, 'fill_attributes', return_value={'listingDetailsPending': 0}), \
+             mock.patch.object(daily, 'promote', return_value={'coverage': {}}) as promote:
+            result = daily.run_slices(self.root)
+        self.assertEqual(result['workSlices'], 2)
+        self.assertEqual(identities[0], identities[1])
+        promote.assert_called_once()
+
+    def test_only_budget_exhaustion_continues_and_three_slices_is_a_hard_limit(self):
+        from urllib.error import HTTPError
+        for error in [HTTPError('https://example.invalid', 429, 'rate limited', {}, None),
+                      ValueError('invalid source identity'), daily.RequestLimit('100-page bound')]:
+            with mock.patch.object(daily, 'run', side_effect=error) as run:
+                with self.assertRaises(type(error)): daily.run_slices(self.root)
+                self.assertEqual(run.call_count, 1)
+        with mock.patch.object(daily, 'run', side_effect=daily.SliceExhausted('saved')) as run:
+            with self.assertRaises(daily.SliceExhausted): daily.run_slices(self.root)
+            self.assertEqual(run.call_count, 3)
+        self.assertEqual((self.root / 'data/chinese-market.json').read_bytes(), self.original)
+
 
 if __name__ == '__main__':
     unittest.main()

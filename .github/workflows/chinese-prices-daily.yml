@@ -20,7 +20,7 @@ jobs:
   refresh:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,7 +47,7 @@ jobs:
             chinese-auctions-v1-${{ runner.os }}-${{ hashFiles('automation-sources/chinese-bootstrap-*.tar.gz') }}-
       - name: Refresh with strict public request limits
         id: refresh
-        timeout-minutes: 12
+        timeout-minutes: 35
         run: python scripts/run_chinese_daily.py
       - name: Preserve complete or interrupted archive progress
         if: always() && steps.cache.outcome == 'success'

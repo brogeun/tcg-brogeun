@@ -16,6 +16,26 @@ function indexed(rows, key, label) {
 function hasAll(current, saved, label) {
   for (const item of saved) assert(current.has(item), label + ': removed ' + item);
 }
+function sourceCoverUpdate(saved, current, io) {
+  // A vendor may replace the photo URL of the same sealed SKU. Preserve local
+  // reviewed covers strictly; accept remote changes only from that SKU's saved
+  // source snapshot, never from another box, a card, a logo or the derived UI.
+  const cdn = value => {
+    try { const u = new URL(value); return u.protocol === 'https:' &&
+      u.hostname === 'cdn.snkrdunk.com' && !u.username && !u.password &&
+      u.pathname.startsWith('/upload_bg_removed/'); } catch { return false; }
+  };
+  if (!cdn(saved.image) || !cdn(current.image) || typeof io.boxProduct !== 'function') return false;
+  const source = io.boxProduct(saved.sourceGame, saved.id.slice(4));
+  if (!source || source.source !== 'SNKRDUNK' || source.brand !== saved.sourceGame || source.kind !== 'box') return false;
+  const p = source.product;
+  if (!p || 'BOX:' + String(p.id) !== saved.id || p.brand !== saved.sourceGame || p.kind !== 'box' ||
+      p.url !== 'https://snkrdunk.com/apparels/' + String(p.id) || p.name !== current.name ||
+      !/(?:\bBox\b|ボックス)/i.test(p.name || '') || (p.image || p.thumbnailUrl) !== current.image) return false;
+  const code = String(p.productNumber || p.code || '').toUpperCase().replace(
+    /^(?:WS-TCG-|UATCG-|DBSC-TCG-|DBSCG-|DBFW-|YGO-OCG-TCG-|YGO-OCG-|YGO-TCG-|DGCG-TCG-|DGCG-)/, '');
+  return code === String(saved.code).toUpperCase();
+}
 function checkSnapshot(baseline, io) {
   assert.equal(baseline.schemaVersion, 1, 'Unsupported preservation baseline');
   const load = name => io.json(name);
@@ -37,13 +57,18 @@ function checkSnapshot(baseline, io) {
   const catalog = load('data/tcg-card-info.json');
   const games = indexed(catalog.games, g => g.id, 'Game');
   let linkedFiles = 0;
+  const sourceCoverUpdates = [];
   for (const saved of baseline.boxes) {
     const game = games.get(saved.game);
     assert(game, 'Game removed: ' + saved.game);
     const boxes = indexed(game.boxes || [], b => b.id, saved.game + ' box');
     const current = boxes.get(saved.id);
     assert(current, 'Box removed: ' + saved.game + '/' + saved.id);
-    for (const key of ['code','sourceGame','image','coverType']) assert.equal(current[key], saved[key], saved.id + ': ' + key + ' changed');
+    for (const key of ['code','sourceGame','coverType']) assert.equal(current[key], saved[key], saved.id + ': ' + key + ' changed');
+    if (current.image !== saved.image) {
+      assert(sourceCoverUpdate(saved,current,io), saved.id + ': image changed without matching sealed-product source');
+      sourceCoverUpdates.push({id:saved.id,sourceGame:saved.sourceGame,previous:saved.image,current:current.image});
+    }
     assert(current.cardCount >= saved.minCards, saved.id + ': inventory shrank');
     localCover(current.image, saved.id);
     const sets = indexed(game.sets || [], s => s.id, saved.game + ' set');
@@ -69,7 +94,7 @@ function checkSnapshot(baseline, io) {
     assert(io.vintage(saved), 'Reviewed artwork missing from output: ' + saved.localImage);
   }
   return {passed:true,englishSets:baseline.english.length,boxes:baseline.boxes.length,
-    vintageArtworks:baseline.vintage.length,linkedInventoryReferences:linkedFiles,networkRequests:0};
+    vintageArtworks:baseline.vintage.length,linkedInventoryReferences:linkedFiles,sourceCoverUpdates,networkRequests:0};
 }
 function diskIO(root) {
   root = path.resolve(root);
@@ -85,7 +110,29 @@ function diskIO(root) {
     if (!cache.has(name)) cache.set(name, JSON.parse(fs.readFileSync(file(name),'utf8').replace(/^\uFEFF/,'')));
     return cache.get(name);
   };
-  return {exists,json,cardInfo(name) {
+  const boxCache = new Map();
+  return {exists,json,boxProduct(game,id) {
+    assert(/^[a-z_]+$/.test(game), 'Unsafe box source game');
+    if (!boxCache.has(game)) {
+      const doc = json('data/price-' + game + '-box.json');
+      const products = [...(doc.products || [])];
+      for (const part of doc.shards || []) {
+        const name = typeof part === 'string' ? part : part.file || part.url;
+        assert(typeof name === 'string' && /^\/data\/snkrdunk-games\/[A-Za-z0-9_-]+\.json$/.test(name), 'Unsafe box source shard');
+        const shard = json(name.slice(1));
+        if (!Array.isArray(shard)) {
+          for (const [key,value] of [['source','SNKRDUNK'],['brand',game],['kind','box']])
+            assert(shard[key] === undefined || shard[key] === value, 'Box source shard identity changed');
+        }
+        const rows = Array.isArray(shard) ? shard : shard.products;
+        assert(Array.isArray(rows), 'Invalid box source shard');
+        products.push(...rows);
+      }
+      boxCache.set(game,{doc,products:indexed(products,p=>String(p.id),'Box source')});
+    }
+    const {doc,products} = boxCache.get(game);
+    return {source:doc.source,brand:doc.brand,kind:doc.kind,product:products.get(String(id))};
+  },cardInfo(name) {
     if (exists(name)) return json(name);
     const match = name.match(/^data\/tcg-card-info\/([a-z_]+)\/([0-9a-f]{16}(?:-part[0-9]{2,6})?\.json)$/);
     assert(match, 'Unexpected Card Info source path: ' + name);
@@ -130,7 +177,7 @@ function loadBaseline(filename) {
   }
   return result;
 }
-module.exports = {checkSnapshot,diskIO,loadBaseline};
+module.exports = {checkSnapshot,diskIO,loadBaseline,sourceCoverUpdate};
 if (require.main === module) {
   const args = process.argv.slice(2);
   assert(args.length === 0 || args.length === 2 && args[0] === '--bundle-dir', 'Usage: node scripts/verify_box_preservation.cjs [--bundle-dir DIRECTORY]');

@@ -45,6 +45,43 @@ test('same-count box identity replacement is rejected',()=>{
   d['data/tcg-card-info.json'].games[0].boxes[0].id='BOX:999';
   assert.throws(()=>checkSnapshot(baseline,io),/Box removed/);
 });
+function migratedCover() {
+  const f=fixture(),b=f.baseline.boxes[0],c=f.documents['data/tcg-card-info.json'].games[0].boxes[0];
+  b.image='https://cdn.snkrdunk.com/upload_bg_removed/old.webp?size=m';
+  c.image='https://cdn.snkrdunk.com/upload_bg_removed/current.webp?size=m';
+  c.name='NIKKE Booster Box';
+  f.source={source:'SNKRDUNK',brand:'weiss_schwarz',kind:'box',product:{id:'123',brand:'weiss_schwarz',kind:'box',name:c.name,
+    productNumber:'WS-TCG-TEST',image:c.image,url:'https://snkrdunk.com/apparels/123'}};
+  f.io.boxProduct=(game,id)=>{assert.equal(game,'weiss_schwarz');assert.equal(id,'123');return f.source;};
+  return f;
+}
+test('same sealed SKU may refresh its remote cover from the independent source snapshot',()=>{
+  const {baseline,io}=migratedCover();
+  const result=checkSnapshot(baseline,io);
+  assert.equal(result.sourceCoverUpdates.length,1);
+  assert.equal(result.sourceCoverUpdates[0].id,'BOX:123');
+  assert.equal(result.networkRequests,0);
+});
+test('remote cover refresh rejects wrong SKU, game, kind, code, URL, name and unobserved image',()=>{
+  for(const patch of [{id:'999'},{brand:'digimon'},{kind:'card'},{productNumber:'WS-TCG-OTHER'},
+      {url:'https://snkrdunk.com/apparels/999'},{name:'Other Booster Box'},
+      {image:'https://cdn.snkrdunk.com/upload_bg_removed/other.webp'}]) {
+    const {baseline,io,source}=migratedCover();Object.assign(source.product,patch);
+    assert.throws(()=>checkSnapshot(baseline,io),/image changed/);
+  }
+  for(const patch of [{source:'OTHER'},{brand:'digimon'},{kind:'card'}]) {
+    const {baseline,io,source}=migratedCover();Object.assign(source,patch);
+    assert.throws(()=>checkSnapshot(baseline,io),/image changed/);
+  }
+});
+test('source cover updates cannot replace a reviewed local image or use an untrusted host',()=>{
+  for(const field of ['old','new']) {
+    const {baseline,io,documents:d}=migratedCover();
+    if(field==='old')baseline.boxes[0].image='/images/reviewed.webp';
+    else d['data/tcg-card-info.json'].games[0].boxes[0].image='https://example.test/wrong.webp';
+    assert.throws(()=>checkSnapshot(baseline,io),/image changed/);
+  }
+});
 test('required product cover cannot be replaced by a logo or wrong product',()=>{
   const {baseline,documents:d,io}=fixture();
   d['data/english-set-images.json'].sets['EN-TEST'].sources[0].kind='logo';

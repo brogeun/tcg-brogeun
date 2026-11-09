@@ -27,6 +27,10 @@ class RequestLimit(RuntimeError):
     pass
 
 
+class SliceExhausted(RequestLimit):
+    """A bounded work slice ended; saved work can continue with a fresh budget."""
+
+
 class Budget:
     """One sequential request gate shared by search, attributes and retries."""
     def __init__(self, delay=1.5, seconds=600, clock=time.monotonic, sleep=time.sleep):
@@ -43,10 +47,10 @@ class Budget:
 
     def perform(self, kind, request):
         if self.counts[kind] >= self.limits[kind]:
-            raise RequestLimit(f'{kind} HTTP attempt limit reached; cached progress retained')
+            raise SliceExhausted(f'{kind} HTTP attempt limit reached; cached progress retained')
         wait = 0 if self.last is None else max(0, self.delay - (self.clock() - self.last))
         if self.remaining() <= wait:
-            raise RequestLimit('600-second refresh deadline reached; cached progress retained')
+            raise SliceExhausted('600-second refresh deadline reached; cached progress retained')
         self.sleep(wait)
         self.counts[kind] += 1
         self.last = self.clock()
@@ -54,7 +58,7 @@ class Budget:
 
     def pause(self, seconds):
         if self.remaining() <= seconds:
-            raise RequestLimit('600-second refresh deadline reached; cached progress retained')
+            raise SliceExhausted('600-second refresh deadline reached; cached progress retained')
         self.sleep(seconds)
 
 
@@ -203,30 +207,51 @@ def run(root=ROOT, budget=None):
     budget = budget or Budget()
     report = {'complete': False, 'published': False, 'runId': pointer['id']}
     try:
-        state = head.refresh(catalog, archive, run_dir, delay=1.5, max_pages=100,
+        # The shared HTTP budget already spaces every request, including retries
+        # and detail lookups. A second per-page sleep wastes the bounded slice.
+        state = head.refresh(catalog, archive, run_dir, delay=0, max_pages=100,
                              fetcher=search_fetcher(budget), sleeper=budget.pause, attempts=3)
         if not state['complete']:
             raise RequestLimit('Per-query 100-page bound reached; previous website file preserved')
         attributes = fill_attributes(archive, catalog, budget)
         if budget.remaining() <= 0:
-            raise RequestLimit('Refresh deadline reached; previous website file preserved')
+            raise SliceExhausted('Refresh deadline reached; previous website file preserved')
         result = promote(root, archive, state_root / 'reports' / pointer['id'])
         pointer['published'] = True
         base.save_json(pointer_path, pointer)
         report.update(complete=True, published=True, newUniqueListingIds=state['newUniqueListingIds'],
                       coverage=result['coverage'], listingDetailsPending=attributes['listingDetailsPending'])
         return report
+    except Exception as error:
+        report.update(errorType=type(error).__name__, reason=str(error),
+                      resumable=isinstance(error, SliceExhausted))
+        raise
     finally:
         report.update(httpAttempts=budget.counts, checkedAt=datetime.now(timezone.utc).isoformat())
         base.save_json(state_root / 'last-run.json', report)
 
 
-def main():
+def run_slices(root, max_slices=3):
+    """Continue only budget exhaustion; source and validation failures stop once."""
+    if type(max_slices) is not int or not 1 <= max_slices <= 3:
+        raise ValueError('Use between one and three bounded work slices')
+    for number in range(1, max_slices + 1):
+        try:
+            result = run(root)
+            return {**result, 'workSlices': number}
+        except SliceExhausted:
+            if number == max_slices:
+                raise
+            print(f'CN work slice {number}/{max_slices} retained; continuing saved progress.', flush=True)
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=ROOT)
-    args = parser.parse_args()
+    parser.add_argument('--max-slices', type=int, choices=(1, 2, 3), default=3)
+    args = parser.parse_args(argv)
     try:
-        print(json.dumps(run(args.root), ensure_ascii=False))
+        print(json.dumps(run_slices(args.root, args.max_slices), ensure_ascii=False))
     except Exception as error:
         print(f'CN refresh incomplete: {error}; existing website data retained.')
         return 1

@@ -149,6 +149,14 @@ class LastGoodAndRotationTests(unittest.TestCase):
         chosen = collector.choose_sets(discovered, ["0"], previous, 3)
         self.assertEqual([row["sourceSetCode"] for row in chosen], ["0", "2", "3"])
 
+    def test_reviewed_printings_refresh_without_displacing_pending_rotation(self):
+        found = [{"sourceSetCode": str(i), "name": str(i)} for i in range(20)]
+        previous = {"sets": [{"sourceSetCode": str(i), "lastSuccessAt": NOW} for i in range(10, 20)]}
+        chosen = collector.choose_sets(found, ["10"], previous, 8, reviewed_counts={"19": 120})
+        codes = [row["sourceSetCode"] for row in chosen]
+        self.assertIn("19", codes)
+        self.assertGreaterEqual(sum(int(code) < 10 for code in codes), 5)
+
     def test_empty_source_page_keeps_last_good_price_and_original_timestamp(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -195,9 +203,37 @@ class LastGoodAndRotationTests(unittest.TestCase):
                 with self.assertRaises(collector.SourceDeferred):
                     collector.fetch_html(url, 5, limiter=limiter)
         self.assertEqual(request.call_count, 1)
-        self.assertEqual(limiter.cooldown["httpStatus"], 403)
-        self.assertEqual(limiter.cooldown["blockReason"], "access_denied")
-        self.assertEqual(limiter.cooldown["retryAfterSeconds"], 86400)
+        self.assertIsNone(limiter.cooldown)
+        self.assertEqual(limiter.discovery_cooldown["httpStatus"], 403)
+        self.assertEqual(limiter.discovery_cooldown["retryAfterSeconds"], 86400)
+        legacy = collector.RateLimiter(2, cooldown=limiter.discovery_cooldown)
+        legacy.wait("https://yuyu-tei.jp/sell/ua/s/nik1")
+        with self.assertRaises(collector.SourceDeferred):
+            legacy.wait("https://yuyu-tei.jp/top/ua")
+
+    def test_listing_denial_and_explicit_retry_after_still_block_all_requests(self):
+        for url, retry in [("https://yuyu-tei.jp/sell/ua/s/nik1", None),
+                           ("https://yuyu-tei.jp/top/ua", "3600")]:
+            limiter = collector.RateLimiter(2)
+            limiter.record_rate_limit(url, retry, http_status=403)
+            with self.assertRaises(collector.SourceDeferred):
+                limiter.wait("https://yuyu-tei.jp/sell/poc/s/sd")
+
+    def test_existing_set_page_supplies_discovery_and_prices_with_one_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            args = argparse.Namespace(output_dir=out, max_sets_per_game=1, workers=1, timeout=5,
+                                      history_days=90, resume_hours=0, limiter=None, requests_per_second=1)
+            collector.atomic_json(out / "yuyutei-market/onepiece.json", {"sets": [
+                {"sourceSetCode": "op17", "lastSuccessAt": NOW}, {"sourceSetCode": "old-promo"}]})
+            body = '<input name="vers[]" value="op17" id="a">' + listing(product())
+            with patch.object(collector, "fetch_html", return_value=body) as request:
+                result = collector.collect_game("onepiece", args)
+            request.assert_called_once_with("https://yuyu-tei.jp/sell/opc/s/op17", 5, limiter=None)
+            self.assertEqual(result["coverage"]["recordsFetchedThisRun"], 1)
+            self.assertEqual(result["coverage"]["discoveredSets"], 2)
+            row = json.loads((out / "yuyutei-market/onepiece/op17.json").read_text(encoding="utf-8"))["records"][0]
+            self.assertEqual((row["cardNumber"], row["price"]), ("OP17-118", 3980))
 
     def test_valid_retained_data_is_never_reported_as_a_successful_refresh(self):
         with tempfile.TemporaryDirectory() as directory:

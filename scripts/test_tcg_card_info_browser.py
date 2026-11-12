@@ -17,6 +17,23 @@ args.add_argument('--output-dir',type=Path,default=Path('.cache/tcg-card-info-br
 a=args.parse_args();CACHE=a.output_dir;CACHE.mkdir(parents=True,exist_ok=True);TAG='verified'
 opt=webdriver.ChromeOptions();opt.add_experimental_option('debuggerAddress',a.debugger_address)
 d=webdriver.Chrome(service=Service(a.driver,log_output=str(CACHE/'driver.log')),options=opt)
+def captions_fit(driver, item_selector, picture_selector, caption_selector):
+    return driver.execute_script("""
+        const [items, picture, caption] = arguments;
+        const cards = [...document.querySelectorAll(items)];
+        return cards.length > 0 && cards.every(card => {
+            const frame = card.querySelector(picture), label = card.querySelector(caption);
+            if (!frame || !label) return false;
+            const art = frame.getBoundingClientRect(), box = label.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(label);
+            const lines = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 0);
+            return lines.length > 0 && lines.every(r =>
+                r.top >= art.bottom - 1 && r.bottom <= box.bottom + 1 &&
+                r.left >= box.left - 1 && r.right <= box.right + 1);
+        });
+    """, item_selector, picture_selector, caption_selector)
+
 w=WebDriverWait(d,35); report=[]
 try:
  d.get(a.url.split('#')[0]+('&' if '?' in a.url else '?')+'qa='+uuid.uuid4().hex[:6]+'#cardinfo');w.until(lambda d:d.execute_script('return !!window.TCGCardInfo'))
@@ -27,9 +44,11 @@ try:
   for game in ['nikke','dragon_ball_fusion_world','yugioh','digimon','weiss_schwarz','union_arena']:
    d.execute_script('document.querySelector(arguments[0]).click()',f'#ciTabs [data-ci="{game}"]')
    w.until(lambda d:d.find_elements(By.CSS_SELECTOR,'.tci-set'))
+   box_captions = not mobile or captions_fit(d, '.tci-set', '.tci-cover', '.set-tile-name')
    box=d.execute_async_script('var done=arguments[arguments.length-1];TCGCardInfo.ensureManifest().then(m=>{let g=m.games.find(g=>g.id===arguments[0]);done(g.boxes.find(b=>b.cardCount>30))})',game)
    d.execute_script('TCGCardInfo.open(arguments[0],arguments[1])',game,box['id'])
    w.until(lambda d:len(d.find_elements(By.CSS_SELECTOR,'.tci-card'))>3)
+   card_captions = not mobile or captions_fit(d, '.tci-card', '.tci-art', '.tci-card-open > strong')
    area=d.find_element(By.CSS_SELECTOR,'.tci-scroll');time.sleep(.2)
    before=d.execute_script('var s=arguments[0],r=s.getBoundingClientRect();return {top:s.scrollTop,h:s.clientHeight,sh:s.scrollHeight,y:r.y,bottom:r.bottom,viewport:innerHeight}',area)
    if mobile:
@@ -38,6 +57,7 @@ try:
    else:ActionChains(d).scroll_from_origin(ScrollOrigin.from_element(area,0,0),0,550).perform()
    time.sleep(.35);after=d.execute_script('return arguments[0].scrollTop',area)
    row={'game':game,'mobile':mobile,'box':box['id'],'cards':len(d.find_elements(By.CSS_SELECTOR,'.tci-card')),'before':before,'after':after,'scrollPass':after>before['top'] and before['bottom']<=before['viewport']+1}
+   row.update(boxCaptionsFit=box_captions, cardCaptionsFit=card_captions)
    if game=='nikke' and not mobile:d.save_screenshot(str(CACHE/(TAG+'-desktop.png')))
    if game=='digimon' and mobile:d.save_screenshot(str(CACHE/(TAG+'-mobile.png')))
    d.execute_script('document.querySelector(arguments[0]).click()','[data-tci-page="2"]');row['pagePass']=d.execute_script('return TCGCardInfo.state().page===2')
@@ -47,5 +67,5 @@ try:
    d.execute_script('document.querySelector("[data-tci-close]").click()');row['closePass']=d.execute_script('return document.body.style.overflow!=="hidden" && !document.querySelector("#anyModal.open")')
    report.append(row);(CACHE/(TAG+'-browser.json')).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
  print(json.dumps(report,ensure_ascii=True));(CACHE/(TAG+'-browser.json')).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf8')
- assert len(report)==12 and all(all(row[key] for key in ['scrollPass','pagePass','detailPass','closePass']) for row in report), 'Catalogue interaction regression'
+ assert len(report)==12 and all(all(row[key] for key in ['scrollPass','pagePass','detailPass','closePass','boxCaptionsFit','cardCaptionsFit']) for row in report), 'Catalogue interaction regression'
 finally:d.quit()

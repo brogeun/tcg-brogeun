@@ -25,6 +25,8 @@ on:
       - 'data/all-cards.json'
       - 'data/card-catalog-repairs.json'
       - 'data/contained-card-market-links.json'
+      - 'data/contained-printing-reviews.json'
+      - 'scripts/test_reviewed_printing_quotes.cjs'
       - 'data/pokemon-reviewed-fallback-links.json'
       - 'data/onepiece-card-overrides.json'
       - 'data/futuristic-market.json'
@@ -96,6 +98,9 @@ jobs:
             /data/cards-detail.json
             /data/card-catalog-repairs.json
             /data/contained-card-market-links.json
+            /data/contained-printing-reviews.json
+            /data/yuyutei-market/onepiece.json
+            /data/onepiece-reviewed-fallback-links.json
             /data/pokemon-reviewed-fallback-links.json
             /data/yuyutei-market/pokemon.json
             /data/onepiece-card-overrides.json
@@ -142,7 +147,7 @@ jobs:
           node scripts/test_price_box_names.mjs
           node --test --test-concurrency=1 scripts/test_search_snapshot.cjs
           node --test --test-concurrency=1 scripts/test_unresolved_box_reviews.cjs scripts/test_english_set_images.cjs scripts/test_contained_artwork_bindings.cjs
-          node --test scripts/test_contained_market_versions.cjs
+          node --test scripts/test_contained_market_versions.cjs scripts/test_reviewed_printing_quotes.cjs
           node scripts/verify_contained_market_versions.cjs
           node --test scripts/test_remaining_market_links.cjs
           node scripts/verify_reviewed_pokemon_fallbacks.cjs

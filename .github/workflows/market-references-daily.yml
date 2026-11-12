@@ -159,7 +159,10 @@ jobs:
       - name: Record the exact collection base
         run: |
           actual="$(git rev-parse HEAD)"
-          git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json
+          # This stdlib-only importer/collector does not execute the card UI,
+          # other providers, or their tests. Concurrent changes there must not
+          # prevent publishing verified original Yuyutei observations.
+          git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts/collect_yuyutei_market.py scripts/yuyutei_observations.py scripts/publish_data_snapshot.py scripts/validate_reference_markets.py .github/workflows/market-references-daily.yml
           echo "COLLECTION_COMMIT=$actual" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:

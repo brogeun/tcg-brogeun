@@ -3,6 +3,9 @@ import ast
 from datetime import datetime, timezone
 from pathlib import Path
 import re
+import shlex
+import subprocess
+import tempfile
 import textwrap
 import unittest
 
@@ -78,13 +81,60 @@ class WorkflowContractTests(unittest.TestCase):
         for source in SOURCES:
             body = self.jobs[source]
             self.assertIn("ref: main", body)
-            self.assertIn('git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json', body)
+            if source != 'yuyutei':
+                self.assertIn('git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- scripts config tests .github package.json package-lock.json', body)
+            else:
+                self.assertIn('git diff --exit-code "${{ needs.verify.outputs.code_commit }}" HEAD -- ', body)
             self.assertIn('COLLECTION_COMMIT=$actual', body)
             self.assertIn("python-version: '3.11'", body)
             self.assertIn("fetch-depth: 0", body)
         self.assertIn("ref: main", self.jobs["health"])
         self.assertNotIn("ref: ${{ github.sha }}", self.jobs["health"])
         self.assertIn("COLLECTION_COMMIT=$actual", self.jobs["health"])
+
+    def test_yuyutei_accepts_unrelated_commits_but_rejects_changed_executable_dependencies(self):
+        # Execute the workflow's actual Git pathspec against real concurrent
+        # commits, including the unrelated regression-test edit that stopped a
+        # production refresh before any source collection began.
+        guard = re.search(r'git diff --exit-code "\$\{\{ needs.verify.outputs.code_commit \}\}" HEAD -- (.+)', self.jobs['yuyutei'])
+        self.assertIsNotNone(guard)
+        paths = shlex.split(guard[1])
+        dependencies = (
+            'scripts/collect_yuyutei_market.py',
+            'scripts/yuyutei_observations.py',
+            'scripts/publish_data_snapshot.py',
+            'scripts/validate_reference_markets.py',
+            '.github/workflows/market-references-daily.yml',
+        )
+        unrelated = ('scripts/test_fx_cache_policy.cjs', 'assets/contained-card-prices.js',
+                     'scripts/collect_us_market.py', 'tests/test_card_ui.py',
+                     'data/yuyutei-market.json')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args):
+                return subprocess.run(['git', '-C', str(root), *args],
+                                      capture_output=True, text=True, check=True).stdout.strip()
+
+            git('init', '--quiet')
+            git('config', 'user.name', 'Workflow Regression Test')
+            git('config', 'user.email', 'workflow-test@example.invalid')
+            git('config', 'core.autocrlf', 'false')
+            for name in (*dependencies, *unrelated):
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text('baseline\n', encoding='utf-8')
+            git('add', '.')
+            git('commit', '--quiet', '-m', 'Verified source and initial data')
+            for index, name in enumerate((*dependencies, *unrelated)):
+                with self.subTest(changed=name):
+                    base = git('rev-parse', 'HEAD')
+                    (root / name).write_text('concurrent change ' + str(index) + '\n', encoding='utf-8')
+                    git('add', name)
+                    git('commit', '--quiet', '-m', 'Concurrent change')
+                    result = subprocess.run(['git', '-C', str(root), 'diff', '--exit-code', base, 'HEAD', '--', *paths],
+                                            capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 1 if name in dependencies else 0, name)
 
     def test_offline_verify_contracts_run_before_collection(self):
         commands = (

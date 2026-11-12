@@ -97,3 +97,30 @@ restored.setAttribute('data-original-src', base + '?size=l&fixture=first');
 assert.equal(thumbnails.original(restored), base + '?size=l&fixture=first', 'preserved data attribute is sufficient after a helper reload');
 
 console.log('PASS: explicit scoped thumbnails, exact provider query preservation, detail/atlas exclusions, original artwork identity, one-shot original fallback, existing error chain, bounded reverse lookup, no automatic work');
+
+// Legacy Japanese set markup uses this list hook before the user opens a detail.
+const gridPhoto = new ImageFixture(base + '?size=m');
+gridPhoto.parentElement = {classList:{contains:name=>name==='set-card-img'},closest:selector=>selector==='.set-card-grid'};
+const gridProxy='/api/img?u='+encodeURIComponent(gridPhoto.src);
+context.window.CardArtwork={
+  gridURL:url=>url===base+'?size=m'?gridProxy:url,
+  proxyOriginal:img=>img?.src===gridProxy?img.getAttribute('data-artwork-original'):''
+};
+assert.equal(thumbnails.apply(scope(gridPhoto)),1);
+assert.equal(gridPhoto.src,gridProxy);
+assert.equal(thumbnails.original(gridPhoto),base+'?size=m');
+assert.equal(thumbnails.apply(scope(gridPhoto)),0);
+gridPhoto.setAttribute('src',base+'?size=m');gridPhoto.setAttribute('data-artwork-direct',gridPhoto.src);
+assert.equal(thumbnails.apply(scope(gridPhoto)),0,'a failed proxy must not be selected again on rescans');
+
+const largeGridSource=base+'?size=l';
+const preselectedGrid=new ImageFixture(base+'?size=m');
+preselectedGrid.parentElement=gridPhoto.parentElement;
+preselectedGrid.setAttribute('data-original-src',largeGridSource);
+context.window.CardArtwork={
+  gridURL:url=>url===largeGridSource?gridProxy:url,
+  proxyOriginal:img=>img?.src===gridProxy?img.getAttribute('data-artwork-original'):''
+};
+assert.equal(thumbnails.apply(scope(preselectedGrid)),1);
+assert.equal(preselectedGrid.src,gridProxy);
+assert.equal(thumbnails.original(preselectedGrid),largeGridSource,'preselected catalogue thumbnails keep full-resolution details');

@@ -17,7 +17,7 @@
   const name=c=>c.nameKo||c.name;
   const cardId=c=>String(c.id||c.sourceId||'');
   const variantName=c=>c.variantLabel||c.variant||'';
-  const art=c=>image(c.image,name(c));
+  const art=c=>image(c.image,name(c),'',c.alternateImage);
   function prepare(data){
     if(data?.schemaVersion!==1||data.language!=='zh-CN'||!Array.isArray(data.sets))throw Error('Invalid Chinese catalog');
     const codes=new Set();

@@ -17,3 +17,22 @@
 
 /* Reuse the common Card Info pager and keep rarity controls outside search. */
 .tci-filters{grid-template-columns:minmax(0,1fr);margin-bottom:14px}.tci-rarity-panel{display:grid;gap:8px;margin:0 0 22px;min-width:0}.tci-rarity-panel>span{font-size:11px;color:#6d8282}.tci-rarity-panel .ci-rarity-filters{justify-content:flex-start}.tci-list-pager{grid-column:1/-1}
+
+/* Keep the visible cards and the reserved slots consistent in every box roster. */
+.ci-panel .set-card-grid .set-card-img,
+.ci-panel .tci-grid .tci-art,
+.ci-panel .ck-card-grid .ck-art {
+  display:grid; place-items:center; position:relative; overflow:hidden; box-sizing:border-box;
+  width:100%; height:auto; aspect-ratio:63/88; padding:0; min-height:0; flex:none;
+}
+.ci-panel .set-card-grid .set-card-img > img,
+.ci-panel .tci-grid .tci-art > img,
+.ci-panel .ck-card-grid .ck-art > img {
+  position:absolute; inset:2%; width:96%; height:96%; padding:0; margin:0; object-fit:contain;
+}
+.ci-panel [data-artwork-failed] { visibility:hidden; }
+.ci-panel [data-artwork-empty] { color:var(--ink-sub); font-size:12px; text-align:center; }
+.ci-panel .set-card-grid .enc-card-image > .enc-art { width:96%; }
+.ci-panel .set-card-grid > button.enc-card { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; }
+.ci-panel .tci-grid .tci-card-open { padding:0 0 10px; }
+.ci-panel .tci-grid .tci-card-open > :not(.tci-art) { margin-inline:10px; }

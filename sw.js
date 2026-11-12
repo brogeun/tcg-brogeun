@@ -146,7 +146,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(networkFirst(req, DATA_CACHE, event));
     return;
   }
-  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/tcg-search-aliases.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js', '/assets/chinese-catalog.js'].includes(url.pathname)) {
+  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/card-artwork.js', '/assets/card-thumbnails.js', '/assets/app-route-loader.js', '/assets/tcg-search-aliases.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js', '/assets/chinese-catalog.js'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, STATIC_CACHE, event));
     return;
   }
@@ -232,9 +232,9 @@ async function networkFirst(req, cacheName, event) {
   const cache = await caches.open(cacheName);
   const key = publicCacheKey(req);
   try {
-    // The shared picker also loads the versioned manufacturer rarity index.
-    const freshRarity = ['/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/assets/chinese-catalog.js','/assets/tcg-card-info.js','/data/chinese-sets/CN-30TH.json','/data/tcg-card-info/weiss_schwarz/32641ea2ce38d16d.json'].includes(new URL(req.url).pathname);
-    const res = await fetch(req, freshRarity ? {cache:'no-cache'} : undefined);
+    // Revalidate shared roster helpers and exact-print artwork even on a previously cached shell.
+    const revalidate = ['/data/card-catalog-repairs.json','/assets/card-artwork.js','/assets/card-thumbnails.js','/assets/app-route-loader.js','/assets/tcg-card-info.css','/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/assets/chinese-catalog.js','/assets/tcg-card-info.js','/data/chinese-sets/CN-30TH.json','/data/tcg-card-info/weiss_schwarz/32641ea2ce38d16d.json'].includes(new URL(req.url).pathname);
+    const res = await fetch(req, revalidate ? {cache:'no-cache'} : undefined);
     if (res && res.ok) storePublicResponse(cacheName, cache, key, res, event);
     return res;
   } catch {

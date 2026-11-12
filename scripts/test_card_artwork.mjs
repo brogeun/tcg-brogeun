@@ -66,3 +66,61 @@ img.src=img.currentSrc='/unmeasured-fallback.png';mutationCallback([{type:'attri
 assert.equal(declarations.get('padding')[0],'4px','Restore original sizing on unmeasured fallback');
 assert.equal(declarations.get('position')[0],'');
 console.log('PASS: DOM image fitting, viewport resize, safe original-image fallback');
+
+// A square marketplace photo in a regular box can hold a portrait or landscape card.
+// Feed real canvas-style RGBA into the grid load path, also exercising its direct fallback.
+const direct='https://cdn.snkrdunk.com/upload_bg_removed/grid-card.webp?size=m';
+const proxy='/api/img?u='+encodeURIComponent(direct);
+const listeners={},attrs=new Map([['src',proxy],['data-artwork-original',direct]]);
+const props=new Map();
+let landscape=false,opaque=false,reads=0,gridMutation;
+const frame={style:{},clientWidth:180,clientHeight:252,matches:()=>true,querySelectorAll:()=>[photo]};
+const photo={parentElement:frame,complete:true,naturalWidth:400,naturalHeight:400,
+  get src(){return new URL(attrs.get('src'),'https://tcghub.kr').href;},
+  set src(value){attrs.set('src',value);},get currentSrc(){return this.src;},
+  style:{getPropertyValue:k=>props.get(k)||'',getPropertyPriority:()=>'',setProperty:(k,v)=>props.set(k,v)},
+  getAttribute:k=>attrs.get(k),setAttribute:(k,v)=>attrs.set(k,v),removeAttribute:k=>attrs.delete(k),matches:()=>true,addEventListener(){}};
+const canvas={getContext:()=>({drawImage(){},getImageData(){
+  reads++;
+  const w=canvas.width,h=canvas.height,data=new Uint8ClampedArray(w*h*4);
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const mx=landscape?.1:.21,my=landscape?.21:.1;
+    const inside=x>=w*mx && x<w*(1-mx) && y>=h*my && y<h*(1-my);
+    const i=(y*w+x)*4;
+    if(opaque && !inside)data.fill(255,i,i+3);
+    data[i+3]=opaque || inside?255:0;
+  }
+  return {data};
+}})};
+const gridContext=vm.createContext({window:{},URL,URLSearchParams,
+  location:{origin:'https://tcghub.kr',href:'https://tcghub.kr/'},
+  document:{readyState:'complete',body:{},querySelectorAll:()=>[photo],createElement:()=>canvas,
+    addEventListener:(name,fn)=>{listeners[name]=fn;}},
+  fetch:async()=>({ok:false}),
+  ResizeObserver:class{observe(){}unobserve(){}},
+  MutationObserver:class{constructor(fn){gridMutation=fn;}observe(){}}});
+vm.runInContext(read('assets/card-artwork.js'),gridContext);
+const gridArt=gridContext.window.CardArtwork;
+assert.equal(gridArt.original(photo),direct);
+assert.equal(gridArt.gridURL(direct),direct,'reuse measured bounds without proxying a subsequent view');
+assert.equal(gridArt.gridURL('https://cdn.snkrdunk.com/upload_bg_removed/other.webp'),
+  '/api/img?u='+encodeURIComponent('https://cdn.snkrdunk.com/upload_bg_removed/other.webp'));
+assert.equal(gridArt.gridURL('https://static.tcgcollector.com/image.jpg'),'https://static.tcgcollector.com/image.jpg');
+function checkEdges(w,h){
+  const scaled=parseFloat(props.get('width'));
+  const x=parseFloat(props.get('left'))+scaled*(1-w)/2,y=parseFloat(props.get('top'))+scaled*(1-h)/2;
+  assert.ok(x>=0 && y>=0 && x+scaled*w<=frame.clientWidth && y+scaled*h<=frame.clientHeight,'all edges visible');
+  assert.ok(Math.max(scaled*w/frame.clientWidth,scaled*h/frame.clientHeight)>.93,'actual card fills the frame');
+}
+checkEdges(.58,.80);
+gridMutation([{type:'attributes',target:photo}]);assert.equal(reads,1,'loaded source measured once');
+landscape=true;opaque=true;
+attrs.delete('data-artwork-original');attrs.set('src','/landscape.webp');
+gridMutation([{type:'attributes',target:photo}]);checkEdges(.80,.58);
+let stopped=false;
+attrs.set('src',proxy);attrs.set('data-artwork-original',direct);
+listeners.error({target:photo,stopImmediatePropagation:()=>{stopped=true;}});
+assert.ok(stopped);assert.equal(attrs.get('src'),direct);assert.ok(!attrs.has('data-artwork-original'));
+stopped=false;listeners.error({target:photo,stopImmediatePropagation:()=>{stopped=true;}});
+assert.equal(stopped,false,'subsequent errors reach the original catalogue fallback');
+console.log('PASS: transparent portraits, white-padded landscapes, cached bounds, proxy failures and original detail sources');

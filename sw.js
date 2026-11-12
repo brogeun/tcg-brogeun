@@ -98,7 +98,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(networkFirst(req, DATA_CACHE));
     return;
   }
-  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/tcg-search-aliases.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js', '/assets/chinese-catalog.js'].includes(url.pathname)) {
+  if (url.origin === location.origin && ['/assets/tcg-card-info.js', '/assets/tcg-card-info.css', '/assets/card-artwork.js', '/assets/card-thumbnails.js', '/assets/app-route-loader.js', '/assets/tcg-search-aliases.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js', '/assets/game-registry.js', '/assets/market-references.js', '/assets/market-references.css', '/assets/english-catalog.js', '/assets/chinese-catalog.js'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }

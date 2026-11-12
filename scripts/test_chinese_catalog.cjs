@@ -257,6 +257,15 @@ async function test(name, run) {
     assert.equal(api.isImage('https://www.pokemon.cn/images/box.png'), true);
     for(const url of ['javascript:alert(1)','https://pokemon.cn.evil.test/image.png','https://evil.test/image.png']) assert.equal(api.isImage(url), false);
   });
+  await test('a contained card can retry only its own approved alternate photo', () => {
+    const api = harness().api;
+    const card = {name:'Pineco',image:'https://images.pikaqian.com/originals/csv1c/f3ac63a3-507a-405f-b51a-2fea94b44549.png'};
+    const alternateImage='https://cdn.pokemon-tcg.cn/cards/437C2C49175B4E1F96672FACA1039615.png';
+    assert.ok(api.art({...card,alternateImage}).includes('data-fallback="'+alternateImage+'"'));
+    assert.ok(!api.art({...card,alternateImage:card.image}).includes('data-fallback='));
+    assert.ok(!api.art({...card,alternateImage:'https://unrelated.example/art.png'}).includes('data-fallback='));
+  });
+
   await test('local Chinese product images are allowed while unsafe paths and URLs are rejected', () => {
     const api = harness().api;
     for(const image of ['/images/pokemon-cn/CN-TEST.webp', 'images/pokemon-cn/CN-TEST.png', '/images/pokemon-cn/CN-TEST.jpg', 'images/pokemon-cn/CN-TEST.jpeg']) {

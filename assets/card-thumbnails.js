@@ -41,6 +41,8 @@
   const source = image => image?.getAttribute?.('src') || image?.src || '';
   function original(value) {
     if (typeof value === 'string') return originals.get(value) || value;
+    const displayed = window.CardArtwork?.proxyOriginal?.(value);
+    if (displayed) return displayed;
     const current = source(value), saved = value?.getAttribute?.('data-original-src');
     const state = states.get(value);
     if (state && (current === state.thumbnail || current === state.original)) return state.original;
@@ -59,6 +61,16 @@
           image.hasAttribute?.('srcset')) continue;
       const current = source(image), prior = states.get(image);
       if (prior && (current === prior.thumbnail || current === prior.original)) continue;
+      if (image.parentElement?.classList?.contains('set-card-img') && image.parentElement.closest('.set-card-grid') &&
+          current !== image.getAttribute('data-artwork-direct')) {
+        const gridURL = window.CardArtwork?.gridURL?.(current);
+        if (gridURL && gridURL !== current) {
+          image.setAttribute('data-artwork-original', current);
+          image.setAttribute('src', gridURL);
+          changed++;
+          continue;
+        }
+      }
       const thumbnail = smaller(current);
       if (!thumbnail) continue;
       const previous = prior && image.onerror === prior.handler ? prior.previous : image.onerror;
@@ -83,5 +95,5 @@
   }
 
   // No initial scan, observer, timer, image prefetch or route listener is installed.
-  window.CardThumbnails = Object.freeze({apply, original, selector});
+  window.CardThumbnails = Object.freeze({apply, original, selector, smaller});
 })();

@@ -29,6 +29,7 @@ after(async () => {
 test('one complete ESM materially reduces the module request graph and payload', async () => {
   assert.equal(ESBUILD_VERSION, '0.28.2');
   assert.equal(report.requestsAfter, 1);
+  assert.equal(report.initialRuntimeRequests, 0);
   assert(report.requestsBefore > 80);
   assert(report.bundleBytes < report.sourceBytes * .75);
   assert(report.bundleGzipBytes < report.sourceGzipBytes * .85);
@@ -36,6 +37,17 @@ test('one complete ESM materially reduces the module request graph and payload',
   assert.equal(digest(bundle), report.sha256);
   assert.match(report.entry, /^\.\/src\/runtime-[a-f0-9]{20}\.mjs$/);
   assert(bundle.toString('utf8').includes('Copyright 2010-2025 Three.js Authors'), 'retains vendored license attribution');
+});
+
+
+test('deployment leaves the heavy runtime inert until the classic title activates it', async () => {
+  const html = await readFile(path.join(deployRoot, 'games/kanto151/index.html'), 'utf8');
+  const tag = [...html.matchAll(/<script\b[^>]*>/g)].map(row => row[0]).find(row => /id=["']kanto-runtime["']/.test(row));
+  assert.ok(tag, 'the title retains an explicit deferred runtime descriptor');
+  assert.match(tag, /data-runtime-src=["']\.\/src\/runtime-[a-f0-9]{20}\.mjs["']/);
+  assert.doesNotMatch(tag, /\ssrc\s*=/, 'no eager module URL can begin downloading the game');
+  assert.doesNotMatch(html, /<link\b[^>]*as=["']fetch["']/, 'game JSON is not requested by the title');
+  assert.match(html, /id=["']title["'][^>]*class=["']full-screen title startup["']/);
 });
 
 test('source data, save modules, and original HTML remain byte-identical', async () => {
@@ -48,11 +60,11 @@ test('source data, save modules, and original HTML remain byte-identical', async
   }
   const html = await readFile(path.join(deployRoot, 'games/kanto151/index.html'), 'utf8');
   assert.equal(html.replace(report.entry, './src/main.mjs'), htmlBefore.toString('utf8'));
-  assert(html.includes('./boot.js?v=20261103-startup1'), 'classic watchdog remains outside module graph');
+  assert(html.includes('./boot.js?v=20261112-light-start-r1'), 'light title and watchdog remain outside the heavy module graph');
   assert(html.includes('type="importmap"'), 'unbundled original source retains its import map fallback');
 });
 
-test('the generated runtime requests the same thirteen JSON paths before any save access', async () => {
+test('the activated runtime requests the same thirteen JSON paths before any save access', async () => {
   const original = new Map(['window', 'document', 'fetch', 'localStorage', 'CustomEvent'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const requests = [], events = [];
   const previousError = console.error;

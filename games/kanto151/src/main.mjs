@@ -21,9 +21,9 @@ try{
  const ui=new UI(game);world.setQuality(game.save.settings.quality);
  const account=qaMode?null:new AccountSaveUI(game,ui);
  await startRuntime(game,ui,account);
- window.__kantoStartupState='ready';window.dispatchEvent(new CustomEvent('kanto151-ready'));
  // Read-only diagnostics and explicit developer room, without save mutation shortcuts.
  window.kanto151={game,world,resources,ui,diagnostics:()=>({phase:game.phase,region:game.save.region,actors:game.wild.length,renderer:world.renderer.info,assetCount:manifest.length})};
+ window.__kantoStartupState='ready';window.dispatchEvent(new CustomEvent('kanto151-ready'));
  if(new URLSearchParams(location.search).has('asset-test'))game.openPanel('assets');
 }catch(error){console.error(error);const message=`탐험을 시작할 수 없습니다: ${error.message}`;window.__kantoStartupState='failed';window.__kantoStartupError=message;document.querySelector('#load-message').textContent=message;window.dispatchEvent(new CustomEvent('kanto151-startup-error',{detail:message}));}
 

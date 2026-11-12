@@ -71,7 +71,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  if (url.origin === location.origin && ['/assets/app-route-loader.js','/assets/portfolio-summary-client.js','/assets/card-thumbnails.js'].includes(url.pathname)) {
+  if (url.origin === location.origin && ['/assets/app-route-loader.js','/assets/portfolio-screen.js','/assets/portfolio-screen.css','/assets/portfolio-summary-client.js','/assets/card-thumbnails.js'].includes(url.pathname)) {
     event.respondWith(networkFirst(req, STATIC_CACHE));
     return;
   }

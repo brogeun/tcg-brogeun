@@ -16,12 +16,13 @@ const exported={
   'centering-geometry.js':['CenteringGeometry',{}],'centering-result-cache.js':['CenteringResultCache',{}],
   'centering-tool.js':['CenteringTool',{setup(){}}],'admin-editor.js':['AdminEditorUI',{enter(){},access(){}}],
   'Sortable.min.js':['Sortable',{create(){}}],'chinese-catalog.js':['ChineseCatalog',{}],'english-catalog.js':['EnglishCatalog',{}],
+  'market-references.js':['MarketReferences',{mountEnglishCard(){}}],'portfolio-screen.js':['PortfolioScreen',{holdings(){},status(){},cancelChart(){}}],
   'english-search.js':['EnglishSearch',{}],'riftbound-catalog.js':['RiftboundCatalog',{}],'chiikawa-catalog.js':['ChiikawaCatalog',{}],
   'tcg-search-aliases.js':['TCGSearchAliases',{}],'tcg-card-info.js':['TCGCardInfo',{}],
   'collection-catalog-codec.js':['CollectionCatalogCodec',{}],'collections.js':['TCGCollections',{}],'korean-promos.js':['KoreanPromos',{}],
 };
 function routing(){
-  const h=routingHarness(),ctx=h.ctx,nodes=[],timers=[],calls={home:0,cardinfo:0,centering:0,admin:0},events=[];
+  const h=routingHarness(),ctx=h.ctx,nodes=[],timers=[],mounted=new Map(),calls={home:0,cardinfo:0,centering:0,admin:0,portfolio:0},events=[];
   class Element{
     constructor(tag){this.tagName=tag.toUpperCase();this.dataset={};this.style={};this.children=[];this.listeners=new Map();}
     set textContent(value){this.text=String(value);this.children=[];}get textContent(){return this.text||'';}
@@ -35,10 +36,13 @@ function routing(){
   }
   for(const page of h.pages){page.children=[];for(const name of ['prepend','append','querySelector'])page[name]=Element.prototype[name];}
   const originalQueries=ctx.document.querySelectorAll;
+  const originalElement=ctx.document.getElementById;
+  ctx.document.getElementById=id=>mounted.get(id)||originalElement(id);
   ctx.document.querySelectorAll=selector=>selector==='script[src]'?nodes.filter(n=>n.src&&!n.removed):selector==='link[rel="stylesheet"]'?nodes.filter(n=>n.href&&!n.removed):originalQueries(selector);
   ctx.document.createElement=tag=>new Element(tag);ctx.document.head={appendChild:node=>nodes.push(node)};
   ctx.document.hidden=false;ctx.location.href='https://tcghub.kr/#home';ctx.URL=URL;ctx.CURRENT_USER={id:'fixture',isAdmin:true};ctx.isAdminAccount=()=>ctx.CURRENT_USER?.isAdmin===true;
   ctx.initHome2=()=>calls.home++;ctx.initCardInfoScreen=()=>calls.cardinfo++;ctx.ensureAdminOriginals=async()=>{};ctx.renderAdminList=()=>calls.admin++;
+  ctx.refreshPortfolio=()=>calls.portfolio++;
   const actualTimer=setTimeout;
   ctx.setTimeout=(fn,ms)=>ms?actualTimer(fn,ms):(timers.push(fn),{fixtureTimer:true});ctx.clearTimeout=timer=>{if(!timer?.fixtureTimer)clearTimeout(timer);};
   Object.assign(ctx,ctx.window);ctx.window=ctx;
@@ -46,6 +50,7 @@ function routing(){
   function complete(node){
     if(node.src){const file=new URL(node.src,'https://tcghub.kr').pathname.split('/').pop();const [name,value]=exported[file];
       ctx[name]=name==='CenteringTool'?{setup:()=>calls.centering++}:value;events.push(file);
+      if(file==='portfolio-screen.js')mounted.set('pfxStatus',new Element('div'));
     }else node.sheet={};node.emit('load');
   }
   async function finish(){for(let i=0;i<60;i++){await tick();const pending=nodes.filter(n=>!n.done&&!n.removed);if(!pending.length){await tick();if(!nodes.some(n=>!n.done&&!n.removed))return;}pending.forEach(complete);}throw Error('Route assets did not settle');}
@@ -61,6 +66,37 @@ function cardInfoSetup(h,{pokemon=[],onepiece=[],registered=onepiece,manifest=Pr
   vm.runInContext(html.slice(start,end),h.ctx,{filename:'index.html initial card-info setup'});
   return {opened,rendered};
 }
+
+test('the initial home route does not request portfolio or reference modules',async()=>{
+  const h=routing();h.ctx.go('home');await h.finish();
+  assert.equal(h.calls.home,1);assert.equal(h.calls.portfolio,0);assert.equal(h.nodes.length,0);
+  assert(!/<script\b[^>]*\bsrc=["'][^"']*\/(?:portfolio-screen|market-references)\.js[?"']/i.test(html),'Feature scripts must not remain in the eager HTML path');
+  assert(!/<link\b[^>]*\bhref=["'][^"']*\/(?:portfolio-screen|market-references)\.css[?"']/i.test(html),'Feature styles must not remain in the eager HTML path');
+});
+test('portfolio refresh waits for its presentation and duplicate navigation loads it once',async()=>{
+  const h=routing(),one=h.ctx.go('portfolio'),two=h.ctx.go('portfolio');await tick();
+  assert.equal(h.calls.portfolio,0);assert.equal(h.nodes.length,1);assert(h.nodes[0].href.includes('portfolio-screen.css'));
+  h.complete(h.nodes[0]);await tick();assert.equal(h.calls.portfolio,0);
+  assert.equal(h.nodes.length,2);assert(h.nodes[1].src.includes('portfolio-screen.js'));
+  h.complete(h.nodes[1]);await Promise.all([one,two]);
+  assert.equal(h.calls.portfolio,1,'Only the latest route intent may refresh after the shared load');
+  assert.equal(h.events.filter(file=>file==='portfolio-screen.js').length,1);
+});
+test('departing a loading portfolio never refreshes it when its presentation arrives',async()=>{
+  const h=routing(),work=h.ctx.go('portfolio');await tick();h.ctx.go('home');
+  await h.finish();const result=await work;
+  assert.equal(result.cancelled,true);assert.equal(h.calls.portfolio,0);assert.equal(h.calls.home,1);
+});
+test('portfolio network failure retains route recovery controls and a retry refreshes once',async()=>{
+  const h=routing(),work=h.ctx.go('portfolio');await tick();h.complete(h.nodes[0]);await tick();
+  h.nodes.find(node=>node.src?.includes('portfolio-screen.js')).emit('error');
+  assert.equal((await work).ready,false);assert.equal(h.calls.portfolio,0);
+  const page=h.pages.find(p=>p.name==='portfolio'),state=page.children[0];assert.equal(state.children.length,2);
+  const retry=state.children[0].onclick();await h.finish();await retry;
+  assert.equal(h.calls.portfolio,1);assert.equal(page.children.length,0);
+  assert.equal(h.nodes.filter(node=>node.href?.includes('portfolio-screen.css')).length,1,'The successfully loaded stylesheet stays shared during recovery');
+  assert.equal(h.nodes.filter(node=>node.src?.includes('portfolio-screen.js')).length,2);
+});
 
 test('initial feature navigation waits for DOMContentLoaded and then initializes dependencies in order',async()=>{
   const h=routing(),listeners=[];h.ctx.document.readyState='loading';

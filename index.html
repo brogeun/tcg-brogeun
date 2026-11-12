@@ -2507,8 +2507,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 <link rel="stylesheet" href="/assets/market-price-index.css?v=20261013-index19-restore1">
 <script src="/assets/market-price-index.js?v=20261103-startup1"></script>
-<link rel="stylesheet" href="/assets/market-references.css?v=20261029-reference1">
-<script src="/assets/market-references.js?v=20261107-unresolved1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261030-sidebar1">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/card-catalog-repairs.js?v=20261108-source-images1"></script>
@@ -2525,11 +2523,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/card-favorites.js?v=20261104-modular1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
-<link rel="stylesheet" href="/assets/portfolio-screen.css?v=20261030-sidebar1">
-<script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
 <script src="/assets/card-search-client.js?v=20261104-search3"></script>
-<script src="/assets/app-route-loader.js?v=20261108-photo-price1"></script>
+<script src="/assets/app-route-loader.js?v=20261113-hubperf1"></script>
 <script src="/assets/portfolio-summary-client.js?v=20261104-modular1"></script>
 <script src="/assets/card-thumbnails.js?v=20261104-modular1"></script>
 <script>
@@ -2597,7 +2593,7 @@ let _FEATURE_ROUTE_RUN = 0;
 function preparePage(page, route) {
   const run=++_FEATURE_ROUTE_RUN;
   const current=()=>run===_FEATURE_ROUTE_RUN&&document.body.dataset.page===page;
-  const feature=['admin','centering','cardinfo'].includes(page);
+  const feature=['admin','centering','cardinfo','portfolio'].includes(page);
   if (!feature || !window.AppRouteLoader) return activatePage(page,route);
   const host=document.querySelector(`.page[data-page="${page}"]`);
   let state=host?.querySelector?.('[data-feature-load]');
@@ -9365,7 +9361,7 @@ async function fetchCardMeta(cardId) {
     },
   };
   // Reuse the price screen's existing Korean-name and catalog-ID lookups.
-  if (window.PortfolioScreen && window.PriceProductInfo) {
+  if (window.PriceProductInfo) {
     try {
       const product = { ...meta, ...detailProduct, id: String(cardId), name: result.name };
       const box = meta?.kind === 'box' || BOX_ID_SET?.has(String(cardId));
@@ -9400,6 +9396,18 @@ function syncPortfolioOwner() {
 }
 function refreshPortfolio({force = false} = {}) {
   syncPortfolioOwner();
+  // Auth/hash notifications can arrive before the route's shared screen load.
+  if (document.body.dataset.page === 'portfolio' && window.AppRouteLoader &&
+      (typeof window.PortfolioScreen?.status !== 'function' || !document.getElementById('pfxStatus'))) {
+    const owner = CURRENT_USER;
+    const current = () => document.body.dataset.page === 'portfolio' && CURRENT_USER === owner;
+    const coreReady = document.readyState === 'loading'
+      ? new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once:true})) : Promise.resolve();
+    return coreReady.then(() => window.AppRouteLoader.ensure('portfolio', {isCurrent:current}))
+      .then(result => { if (result.ready && current()) return refreshPortfolio({force}); })
+      // Route preparation owns the visible retry/reload controls.
+      .catch(() => {});
+  }
   const userAtStart = CURRENT_USER;
   const gate = document.getElementById('pfLoginGate');
   const main = document.getElementById('pfMain');

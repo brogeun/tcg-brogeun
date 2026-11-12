@@ -11,9 +11,10 @@ test('registry and reference helpers load before their detail consumers', () => 
   const html = read('index.html');
   const assets=assetGraph(root,{html});
   assets.assertScript('game-registry.js');
-  assets.assertOrder('game-registry.js','market-references.js');
-  assets.assertOrder('market-references.js','price-expanded.js');
+  assert(!/<script\b[^>]*src=["']\/assets\/market-references\.js/.test(html),'Home does not evaluate the optional reference module');
+  assets.assertOrder('game-registry.js','market-references.js','cardinfo');
   assets.assertOrder('market-references.js','english-catalog.js','cardinfo');
+  assets.assertOrder('market-references.js','english-catalog.js','search-en');
   assert(!html.includes('href="/market-references"'));
   assert(!html.includes('mr-game-shortcuts'));
   assert.match(html, /data-ci="nikke"/);
@@ -58,6 +59,7 @@ test('reference snapshots prefer live data and retain last-good offline snapshot
     '/data/tcg-card-info.json', '/data/tcg-card-info/nikke/0123456789abcdef.json',
     '/assets/tcg-card-info.js', '/assets/card-price-fallback.js', '/assets/contained-card-prices.js',
     '/assets/game-registry.js', '/assets/market-references.js',
+    '/assets/portfolio-screen.js', '/assets/portfolio-screen.css',
     '/market-references',
   ]) {
     const req = {url: context.location.origin + pathname, method: 'GET'};

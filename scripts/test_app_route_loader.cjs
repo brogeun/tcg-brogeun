@@ -12,6 +12,8 @@ const exportsByFile={
   'centering-tool.js':['CenteringTool',{setup(){}}],
   'admin-editor.js':['AdminEditorUI',{enter(){}}],
   'Sortable.min.js':['Sortable',{create(){}}],
+  'market-references.js':['MarketReferences',{mountEnglishCard(){}}],
+  'portfolio-screen.js':['PortfolioScreen',{holdings(){},status(){}}],
   'chinese-catalog.js':['ChineseCatalog',{}],
   'english-catalog.js':['EnglishCatalog',{}],
   'english-search.js':['EnglishSearch',{}],
@@ -23,8 +25,8 @@ const exportsByFile={
   'collections.js':['TCGCollections',{}],
   'korean-promos.js':['KoreanPromos',{}],
 };
-function fixture({missingExports}={}){
-  const nodes=[],loaded=[],context={URL,location:{href:'https://tcghub.kr/#home'},setTimeout,clearTimeout};
+function fixture({missingExports,missingPortfolioMount=false}={}){
+  const nodes=[],loaded=[],elements=new Map(),context={URL,location:{href:'https://tcghub.kr/#home'},setTimeout,clearTimeout};
   class Node{
     constructor(tag){this.tagName=tag.toUpperCase();this.dataset={};this.listeners=new Map();this.done=false;}
     getAttribute(name){return this[name]??null;}
@@ -35,6 +37,7 @@ function fixture({missingExports}={}){
   }
   context.document={
     body:{dataset:{page:'home'}},
+    getElementById:id=>elements.get(id)||null,
     createElement:tag=>new Node(tag),
     querySelectorAll:selector=>nodes.filter(node=>!node.removed&&(selector.startsWith('script')?node.tagName==='SCRIPT':node.tagName==='LINK')),
     head:{appendChild:node=>nodes.push(node)},
@@ -46,6 +49,7 @@ function fixture({missingExports}={}){
       const file=new URL(node.src,context.location.href).pathname.split('/').pop();
       const entry=exportsByFile[file];assert(entry,'Every inserted script is a declared application feature');
       if(!missingExports?.test(file))context[entry[0]]=entry[1];
+      if(file==='portfolio-screen.js'&&!missingPortfolioMount)elements.set('pfxStatus',new Node('div'));
       loaded.push(file);
     }else node.sheet={};
     node.emit('load');
@@ -72,11 +76,30 @@ test('double navigation shares one ordered centering dependency chain',async()=>
   assert.equal(f.nodes.length,4);assert(f.nodes.filter(n=>n.src).every(n=>n.async===false));
   await f.api.ensure('centering');assert.equal(f.nodes.length,4,'Revisit must not evaluate feature bindings again');
 });
+test('portfolio loads its stylesheet before its mounted presentation and shares repeat visits',async()=>{
+  const f=fixture(),one=f.api.ensure('portfolio'),two=f.api.ensure('portfolio');
+  assert.equal(f.nodes.length,1);assert(f.nodes[0].href.includes('portfolio-screen.css'));
+  assert.equal(f.context.PortfolioScreen,undefined);f.complete(f.nodes[0]);await tick();
+  assert.equal(f.nodes.length,2);assert(f.nodes[1].src.includes('portfolio-screen.js'));
+  f.complete(f.nodes[1]);assert.equal((await one).ready,true);assert.equal((await two).ready,true);
+  assert(f.context.document.getElementById('pfxStatus'));
+  await f.api.ensure('portfolio');assert.equal(f.nodes.length,2,'Revisiting must preserve the mounted portfolio and its event bindings');
+  assert.deepEqual(f.loaded,['portfolio-screen.js']);
+});
+test('an exported portfolio API without its mounted DOM is not ready',async()=>{
+  const f=fixture({missingPortfolioMount:true}),work=f.api.ensure('portfolio');
+  const rejected=assert.rejects(work,error=>error.code==='FEATURE_INIT'&&error.requiresReload===true);
+  await f.finish();await rejected;
+  assert.equal(typeof f.context.PortfolioScreen.holdings,'function','The early API export alone cannot prove mount succeeded');
+  assert.equal(f.context.document.getElementById('pfxStatus'),null);
+  const before=f.nodes.length;await assert.rejects(f.api.ensure('portfolio'),error=>error.requiresReload===true);
+  assert.equal(f.nodes.length,before,'A partially mounted portfolio cannot safely run again');
+});
 test('card-info and foreign search share adapters in the original wrapping order',async()=>{
   const f=fixture(),cardinfo=f.api.ensure('cardinfo'),english=f.api.ensureSearch('en'),chinese=f.api.ensureSearch('zh-CN');
   await f.finish();await Promise.all([cardinfo,english,chinese]);
-  for(const file of ['chinese-catalog.js','english-catalog.js'])assert.equal(f.loaded.filter(name=>name===file).length,1);
-  const original=['chinese-catalog.js','english-catalog.js','riftbound-catalog.js','chiikawa-catalog.js','tcg-search-aliases.js','tcg-card-info.js','collection-catalog-codec.js','collections.js','korean-promos.js'];
+  for(const file of ['market-references.js','chinese-catalog.js','english-catalog.js'])assert.equal(f.loaded.filter(name=>name===file).length,1);
+  const original=['market-references.js','chinese-catalog.js','english-catalog.js','riftbound-catalog.js','chiikawa-catalog.js','tcg-search-aliases.js','tcg-card-info.js','collection-catalog-codec.js','collections.js','korean-promos.js'];
   assert.deepEqual(f.loaded.filter(name=>name!=='english-search.js'),original);
   const stylesheetURLs=f.nodes.filter(n=>n.href).map(n=>n.href);assert.equal(new Set(stylesheetURLs).size,stylesheetURLs.length);
 });

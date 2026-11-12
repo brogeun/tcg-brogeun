@@ -5,6 +5,10 @@
   if (root.AppRouteLoader) return;
   const local = (file, version) => '/assets/' + file + '?v=' + version;
   const assets = {
+    referencesStyle: {href:local('market-references.css','20261113-hubperf1')},
+    references: {src:local('market-references.js','20261113-hubperf1'),ready:()=>typeof root.MarketReferences?.mountEnglishCard==='function'},
+    portfolioStyle: {href:local('portfolio-screen.css','20261113-hubperf1')},
+    portfolio: {src:local('portfolio-screen.js','20261113-hubperf1'),ready:()=>typeof root.PortfolioScreen?.holdings==='function'&&typeof root.PortfolioScreen?.status==='function'&&!!document.getElementById('pfxStatus')},
     centeringStyle: {href:local('centering-tool.css','20261025-grade-range-v1')},
     geometry: {src:local('centering-geometry.js','20261108-card-boundary1'),ready:()=>!!root.CenteringGeometry},
     resultCache: {src:local('centering-result-cache.js','20261025-grade-range-v1'),ready:()=>!!root.CenteringResultCache},
@@ -32,14 +36,15 @@
     korean: {src:local('korean-promos.js','20261106-partial1'),ready:()=>!!root.KoreanPromos},
   };
   const profiles = {
+    portfolio: {styles:['portfolioStyle'],scripts:['portfolio']},
     centering: {styles:['centeringStyle'],scripts:['geometry','resultCache','centering']},
     admin: {styles:['adminStyle','quillStyle'],scripts:['admin'],background:['sortable']},
     cardinfo: {
-      styles:['englishStyle','chineseStyle','riftboundStyle','chiikawaStyle','cardinfoStyle','collectionsStyle','koreanStyle'],
+      styles:['referencesStyle','englishStyle','chineseStyle','riftboundStyle','chiikawaStyle','cardinfoStyle','collectionsStyle','koreanStyle'],
       // These adapters wrap shared functions, so their existing order is significant.
-      scripts:['chinese','english','riftbound','chiikawa','aliases','cardinfo','codec','collections','korean'],
+      scripts:['references','chinese','english','riftbound','chiikawa','aliases','cardinfo','codec','collections','korean'],
     },
-    'search-en': {styles:['englishStyle','chineseStyle'],scripts:['chinese','english','englishSearch']},
+    'search-en': {styles:['referencesStyle','englishStyle','chineseStyle'],scripts:['references','chinese','english','englishSearch']},
     'search-zh': {styles:['chineseStyle'],scripts:['chinese']},
   };
   const requests = new Map(), profileRequests = new Map();

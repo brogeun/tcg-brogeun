@@ -7,14 +7,25 @@ const info=require('../assets/price-product-info.js');
 const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const html=read('index.html');
 const start=html.indexOf('const CARDINFO = {');
-const ctx=vm.createContext({});
-vm.runInContext(html.slice(start,html.indexOf('\n};',start)+3)+';globalThis.catalog=CARDINFO;',ctx);
+const list={innerHTML:''},filters={};
+const ctx=vm.createContext({
+  window:{JapaneseSetArtwork:require('../assets/japanese-set-artwork.js')},
+  document:{getElementById:id=>id==='cardInfoList'?list:filters},
+  escapeHtml:String,
+});
+const end=html.indexOf('let CI_PANEL_REQUEST',start);
+assert.ok(start>=0&&end>start,'The catalogue and set tile renderer must be available');
+vm.runInContext(html.slice(start,end)+';globalThis.catalog=CARDINFO;',ctx);
 for(const [code,count,boxId,numbered,pending] of [['M6a',176,'881421',165,8],['MF',49,'881423',44,0]]){
   const data=JSON.parse(read('data/cards-by-set/'+code+'.json'));
   const set=ctx.catalog.pokemon.find(s=>s.code===code);
   assert.equal(set.boxId,boxId);
   assert.equal(set.release,'2026.09.16');
   assert.ok(set.image.startsWith('https://cdn.snkrdunk.com/'));
+  ctx.requestedSet=code;
+  vm.runInContext('CI_QUERY=requestedSet;renderCardInfo();',ctx);
+  const photo=set.imageVersion?`${set.image}?v=${set.imageVersion}`:set.image;
+  assert.ok(list.innerHTML.includes(`src="${photo}"`),code+' must display its reviewed box photo');
   assert.equal(info.resolve({id:boxId},'pokemon',true,ctx.catalog).sets[0].code,code);
   const original=data.cards.filter(c=>!c.marketSupplement);
   assert.equal(original.length,count);
@@ -34,6 +45,5 @@ for(const [code,count,boxId,numbered,pending] of [['M6a',176,'881421',165,8],['M
   if(code==='M6a')for(const color of ['R','G','B'])assert.ok(data.cards.some(c=>c.number===color+'/RGB'));
 }
 assert.match(html,/이미지 준비 중/);
-assert.match(html,/const imgSrcBase = s.image/);
 assert.match(html,/c.unprintedNumber \? ''/);
 console.log('PASS: M6a 176 + MF 49 entries, every numbered card, RGB Mew, unnumbered energies, pending images, unique source IDs, exact box-price links');

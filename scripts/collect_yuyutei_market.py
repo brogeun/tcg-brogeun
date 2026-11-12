@@ -49,7 +49,7 @@ class SourceDeferred(Exception):
 
 
 class RateLimiter:
-    def __init__(self, requests_per_second, max_requests=250, cooldown=None, discovery_cooldown=None):
+    def __init__(self, requests_per_second, max_requests=250, cooldown=None, discovery_cooldown=None, listing_cooldowns=None):
         self.interval = 1 / requests_per_second
         self.next_request = 0.0
         self.lock = threading.Lock()
@@ -58,18 +58,38 @@ class RateLimiter:
         self.cooldown = cooldown if cooldown and cooldown.get("nextEligibleAt", "") > utc_now() else None
         self.discovery_cooldown = discovery_cooldown if discovery_cooldown and discovery_cooldown.get("nextEligibleAt", "") > utc_now() else None
         self.discovery_deferred = False
+        self.listing_cooldowns = {b["sourceUrl"]: b for b in (listing_cooldowns or [])
+                                  if self.listing_only(b) and b.get("nextEligibleAt", "") > utc_now()}
+        self.denied_since_success = set()
+        self.listing_deferred = None
         if self.cooldown and self.top_only(self.cooldown):
             self.discovery_cooldown, self.cooldown = self.cooldown, None
+        elif self.cooldown and self.listing_only(self.cooldown):
+            self.listing_cooldowns[self.cooldown["sourceUrl"]] = self.cooldown
+            self.cooldown = None
 
     @staticmethod
     def top_only(block):
         return (block.get("httpStatus") == 403 and block.get("retryAfterPolicy") == "conservative_default"
                 and re.fullmatch(r"https://yuyu-tei\.jp/top/[a-z0-9]+", block.get("sourceUrl", "")) is not None)
 
+    @staticmethod
+    def listing_only(block):
+        return (block.get("httpStatus") == 403 and block.get("retryAfterPolicy") == "conservative_default"
+                and block.get("scope") != "provider"
+                and re.fullmatch(r"https://yuyu-tei\.jp/sell/[a-z0-9]+/s/[a-z0-9.-]+", block.get("sourceUrl", "")) is not None)
+
+    def succeeded(self):
+        with self.lock:
+            self.denied_since_success.clear()
+
     def wait(self, url=""):
         with self.lock:
             if self.cooldown:
                 raise SourceDeferred("source_cooldown_until:" + self.cooldown["nextEligibleAt"])
+            if url in self.listing_cooldowns:
+                self.listing_deferred = self.listing_cooldowns[url]
+                raise SourceDeferred("set_cooldown_until:" + self.listing_deferred["nextEligibleAt"])
             if self.discovery_cooldown and url.startswith(BASE + "/top/"):
                 self.discovery_deferred = True
                 raise SourceDeferred("top_page_cooldown_until:" + self.discovery_cooldown["nextEligibleAt"])
@@ -105,8 +125,14 @@ class RateLimiter:
             if self.top_only(block):
                 self.discovery_cooldown = block
                 self.discovery_deferred = True
+            elif self.listing_only(block) and not retry_after:
+                self.listing_cooldowns[url] = block
+                self.listing_deferred = block
+                self.denied_since_success.add(url)
+                if len(self.denied_since_success) >= 2:
+                    self.cooldown = {**block, "scope": "provider"}
             else:
-                self.cooldown = block
+                self.cooldown = {**block, "scope": "provider"}
 
 
 class Node:
@@ -414,7 +440,7 @@ def fetch_html(url, timeout, retries=1, limiter=None):
         try:
             if limiter is not None:
                 limiter.wait(url)
-            request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Accept": "text/html"})
+            request = urllib.request.Request(url, headers={"User-Agent": "TCGHUB-market-reference/1.0 (+https://tcghub.kr)", "Accept": "text/html"})
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 final = urllib.parse.urlparse(response.url)
                 if final.netloc != "yuyu-tei.jp":
@@ -422,7 +448,10 @@ def fetch_html(url, timeout, retries=1, limiter=None):
                 body = response.read(4_000_001)
                 if len(body) > 4_000_000:
                     raise ValueError("Original listing exceeds 4 MB safety limit; partial HTML is not a complete snapshot")
-                return body.decode("utf-8")
+                text = body.decode("utf-8")
+                if limiter is not None:
+                    limiter.succeeded()
+                return text
         except urllib.error.HTTPError as error:
             if error.code in (403, 429) and limiter is not None:
                 limiter.record_rate_limit(url, error.headers.get("Retry-After"),
@@ -470,7 +499,7 @@ def publish_manifest(args, summary):
     cooldown = getattr(limiter, "cooldown", None)
     fresh = sum(getattr(args, "_run_fresh_records", {}).values())
     discovery_cooldown = getattr(limiter, "discovery_cooldown", None)
-    block = cooldown or (discovery_cooldown if getattr(limiter, "discovery_deferred", False) else None)
+    block = cooldown or getattr(limiter, "listing_deferred", None) or (discovery_cooldown if getattr(limiter, "discovery_deferred", False) else None)
     run_outcome = "partial" if block and fresh else "blocked" if block else "refreshed" if fresh else "retained_last_good" if any(row["recordCount"] for row in rows) else "failed"
     manifest = {"schemaVersion": 1, "source": "yuyutei", "priceKind": "asking", "currency": "JPY",
                 "generatedAt": utc_now(), "sourceAsOf": max((row.get("sourceAsOf") or "" for row in rows), default=None) or None,
@@ -481,8 +510,9 @@ def publish_manifest(args, summary):
                                    "maxSetsPerGame": args.max_sets_per_game, "historyDays": args.history_days,
                                    "resumeHours": args.resume_hours, "requestsPerSecond": args.requests_per_second,
                                    "maxRequests": getattr(args, "max_requests", 250)},
-                "cooldown": cooldown if fresh else block,
+                "cooldown": cooldown,
                 "discoveryCooldown": discovery_cooldown,
+                "listingCooldowns": list(getattr(limiter, "listing_cooldowns", {}).values()),
                 "requestsThisRun": getattr(limiter, "request_count", 0),
                 "lastRun": {"outcome": run_outcome, "recordsFetched": fresh,
                             "providerRequests": getattr(limiter, "request_count", 0),
@@ -502,6 +532,8 @@ def collect_game(game, args):
         rows_by_set.setdefault(row[0], []).append(row)
     prior_sets = {row["sourceSetCode"]: row for row in previous.get("sets", [])}
     known = [row for row in prior_sets.values() if SET_RE.fullmatch(row["sourceSetCode"])]
+    held = getattr(args.limiter, "listing_cooldowns", {})
+    known = [row for row in known if safe_set_url(source_game, row["sourceSetCode"]) not in held]
     # The original set listing contains both products and the full set selector.
     # Prefer a previously successful listing, rotating older observations first.
     anchor = min(known, key=lambda row: (not bool(row.get("lastSuccessAt")), row.get("lastAttemptAt") or "",
@@ -533,7 +565,8 @@ def collect_game(game, args):
     reviewed = Counter(row["sourceSetCode"] for row in proof.get("bindings", {}).values()
                        if row.get("verification") == "original-image-and-acquisition" and row.get("yuyuteiId")
                        and row.get("sourceSetCode"))
-    selected = choose_sets(discovered, highlights, previous, args.max_sets_per_game, args.resume_hours, reviewed)
+    eligible = [row for row in discovered if safe_set_url(source_game, row["sourceSetCode"]) not in held]
+    selected = choose_sets(eligible, highlights, previous, args.max_sets_per_game, args.resume_hours, reviewed)
     if anchor_html is not None:
         anchor_set = {"sourceSetCode": anchor["sourceSetCode"], "name": anchor.get("name", anchor["sourceSetCode"]),
                       "url": discovery_url}
@@ -849,7 +882,7 @@ def main(argv=None):
         parser.error("Invalid collection limits")
     old_manifest = read_json(args.output_dir / "yuyutei-market.json", {})
     args.limiter = RateLimiter(args.requests_per_second, args.max_requests, old_manifest.get("cooldown"),
-                               old_manifest.get("discoveryCooldown"))
+                               old_manifest.get("discoveryCooldown"), old_manifest.get("listingCooldowns"))
     if args.record_cooldown_seconds:
         args.limiter.record_rate_limit(BASE, fallback_seconds=args.record_cooldown_seconds)
     if args.seed_original_html_dir:

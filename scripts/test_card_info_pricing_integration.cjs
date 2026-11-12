@@ -37,8 +37,16 @@ test('new categories live in Card Info and source page shortcuts are removed',()
   const price=html.slice(html.indexOf('data-page="price"'),html.indexOf('data-page="hub"'));
   assert(!price.includes('mr-game-shortcuts'));
   assert(!price.includes('/market-references'));
-  const tabs=html.match(/id="ciTabs"[\s\S]*?<\/div>/)[0];
-  for(const game of ['pokemon','onepiece','nikke','dragon_ball_fusion_world','yugioh','digimon','weiss_schwarz','union_arena','riftbound']) assert(tabs.includes('data-ci="'+game+'"'),game);
+  const primary=html.match(/id="ciMainTabs"[\s\S]*?<\/div>/)?.[0];
+  const secondary=html.match(/id="ciOtherTabs"[\s\S]*?<\/div>/)?.[0];
+  assert(primary && secondary, 'Card Info keeps distinct primary and secondary menus');
+  const games=markup=>[...markup.matchAll(/data-ci="([^"]+)"/g)].map(match=>match[1]);
+  assert.deepEqual(games(primary), ['pokemon','onepiece','riftbound','korean_promos','collections']);
+  assert.match(primary, /id="ciOtherToggle"[^>]*aria-controls="ciOtherTabs"/);
+  assert.match(secondary, /id="ciOtherTabs"[^>]*\shidden/);
+  assert.deepEqual(games(secondary), ['dragon_ball_fusion_world','yugioh','digimon','nikke','union_arena','weiss_schwarz']);
+  assert.equal((primary.match(/<button\b/g)||[]).length, 6, 'Exactly six primary categories');
+  assert.match(html, /#ciMainTabs\s*\{[^}]*flex-wrap:nowrap[^}]*overflow-x:auto/);
   const assets=assetGraph(root,{html});
   assets.assertOrder('chiikawa-catalog.js','tcg-card-info.js','cardinfo');
   assets.assertOrder('card-price-fallback.js','tcg-card-info.js','cardinfo');

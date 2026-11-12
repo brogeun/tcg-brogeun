@@ -20,6 +20,8 @@ on:
       - 'scripts/audit/catalogue-repairs.test.cjs'
       - 'scripts/verify_card_info_prices_production.cjs'
       - 'scripts/test_futuristic_market.mjs'
+      - 'scripts/test_anniversary_sets.mjs'
+      - 'scripts/test_fx_display.cjs'
       - 'scripts/sync_futuristic_market.py'
       - 'scripts/backfill_history.py'
       - 'data/all-cards.json'
@@ -143,6 +145,8 @@ jobs:
           node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs
           node --test scripts/test_contained_artwork_data.cjs
           node --test scripts/audit/catalogue-repairs.test.cjs
+          node scripts/test_fx_display.cjs
+          node scripts/test_anniversary_sets.mjs
           node scripts/test_futuristic_market.mjs
           node scripts/test_price_box_names.mjs
           node --test --test-concurrency=1 scripts/test_search_snapshot.cjs

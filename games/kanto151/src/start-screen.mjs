@@ -90,23 +90,26 @@ export class StartScreen {
   this.resume();
  }
  suspend() {
-  this.previewTicket++;
+  this.previewTicket++;this.previewId=null;this.previewCanvas=null;this.previewPromise=null;
   this.ui.cleanupPreviews();
   $('#starter-preview').classList.remove('model-ready');
  }
  resume() {
   if(this.game.phase!=='starter'||this.game.panel||$('#starter').classList.contains('hidden'))return;
-  this.suspend();const ticket=this.previewTicket,id=this.selected;
+  if(this.previewId===this.selected&&this.previewCanvas===$('#starter-model')&&this.previewPromise)return this.previewPromise;
+  this.suspend();const ticket=this.previewTicket,id=this.selected,epoch=this.game.regionEpoch;
   // A fresh canvas avoids reusing a deliberately disposed WebGL context after changing partners.
   const old=$('#starter-model'),canvas=document.createElement('canvas');
   canvas.id='starter-model';canvas.setAttribute('aria-hidden','true');old.replaceWith(canvas);
-  this.ui.preview(canvas,id,false,{interactive:false,modelSize:2.35}).then(preview=>{
-   if(ticket!==this.previewTicket||this.game.phase!=='starter'||this.game.panel||!preview?.model)return;
+  this.previewId=id;this.previewCanvas=canvas;
+  this.previewPromise=this.ui.preview(canvas,id,false,{interactive:false,modelSize:2.35}).then(preview=>{
+   if(ticket!==this.previewTicket||epoch!==this.game.regionEpoch||this.game.phase!=='starter'||this.game.panel||!preview?.model)return;
    canvas.dataset.species=String(id);$('#starter-preview').classList.add('model-ready');this.fitPreview();
   }).catch(()=>{
    // The existing local portrait remains visible if this device cannot create another 3D context.
    if(ticket===this.previewTicket)$('#starter-preview').classList.remove('model-ready');
   });
+  return this.previewPromise;
  }
  fitPreview() {
   for(const preview of this.ui.previews) {

@@ -58,10 +58,11 @@ test('module load failure exposes an immediate retry instead of an endless loadi
  const fixture=bootFixture();fixture.events.error({target:{tagName:'SCRIPT',type:'module'}});
  assert(fixture.nodes.has('startup-recovery'));
 });
-test('HTML preloads JSON without speculatively linking import-map modules',async()=>{
+test('HTML defers game JSON and the runtime behind the light title',async()=>{
  const html=await readFile(new URL('../games/kanto151/index.html',import.meta.url),'utf8');
  assert.doesNotMatch(html,/<link\b[^>]*rel=["']modulepreload["']/i);
- assert.equal((html.match(/<link\b[^>]*as="fetch"/g)||[]).length,13);
+ assert.equal((html.match(/<link\b[^>]*as="fetch"/g)||[]).length,0);
+ assert.match(html, /data-runtime-src="\.\/src\/main\.mjs"/);
  assert.ok(html.indexOf('type="importmap"')<html.indexOf('type="module"'));
 });
 const source=await readFile(new URL('../games/kanto151/src/game.mjs',import.meta.url),'utf8');

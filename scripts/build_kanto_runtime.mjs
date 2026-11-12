@@ -8,7 +8,7 @@ import {gzipSync} from 'node:zlib';
 export const ESBUILD_VERSION = '0.28.2';
 const require = createRequire(import.meta.url);
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
-const moduleTag = /<script\b(?=[^>]*\btype=["']module["'])(?=[^>]*\bsrc=["']\.\/src\/(?:main\.mjs|runtime-[a-f0-9]{20}\.mjs)["'])[^>]*><\/script>/gi;
+const moduleTag = /<script\b(?=[^>]*\btype=["']module["'])(?=[^>]*\b(?:data-runtime-src|src)=["']\.\/src\/(?:main\.mjs|runtime-[a-f0-9]{20}\.mjs)["'])[^>]*><\/script>/gi;
 const inside = (root, filename) => {
   const relative = path.relative(root, filename);
   return relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
@@ -71,9 +71,9 @@ export async function buildKantoRuntime({sourceRoot = process.cwd(), deployRoot,
   const bundlePath = path.join(deploymentGame, 'src', filename);
   const sourceBytes = inputs.reduce((total, input) => total + input.bytes, 0);
   if (bytes.byteLength >= sourceBytes) throw new Error('Runtime bundling did not reduce the source payload');
-  const patched = html.replace(moduleTag, tag => tag.replace(/\bsrc=(["'])[^"']+\1/i, `src="./src/${filename}"`));
+  const patched = html.replace(moduleTag, tag => tag.replace(/\b(data-runtime-src|src)=(["'])[^"']+\2/i, (_match, attribute) => `${attribute}="./src/${filename}"`));
   const report = {schemaVersion: 1, esbuildVersion: esbuild.version, entry: `./src/${filename}`, sha256: digest,
-    requestsBefore: inputs.length, requestsAfter: 1, sourceBytes,
+    requestsBefore: inputs.length, requestsAfter: 1, initialRuntimeRequests: /\bdata-runtime-src=/.test(patched)?0:1, sourceBytes,
     sourceGzipBytes: inputs.reduce((total, input) => total + input.gzipBytes, 0),
     bundleBytes: bytes.byteLength, bundleGzipBytes: gzipSync(bytes).byteLength, inputs};
   await mkdir(path.dirname(bundlePath), {recursive: true});

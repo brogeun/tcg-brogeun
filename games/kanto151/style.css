@@ -691,8 +691,8 @@ body:has(#toast-stack) #hud.hud-compact:not(.in-combat) #tutorial-hint.first-swi
 @media(pointer:coarse) and (max-height:480px){#save-note{left:auto;right:80px;bottom:var(--edge-bottom);width:160px}}
 
 /* Approved Pokédex device startup. Every rule is scoped away from the field HUD. */
-@font-face{font-family:"Kanto Startup";src:url("./assets/fonts/PretendardVariable.woff2") format("woff2");font-weight:45 920;font-style:normal;font-display:swap}
-.startup,.startup :is(h1,h2,p,button,span,strong,small,b){font-family:"Kanto Startup","Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-synthesis:none;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;text-shadow:none}
+/* Startup and HUD use installed fonts; no full CJK font download is needed. */
+.startup,.startup :is(h1,h2,p,button,span,strong,small,b){font-family:"Malgun Gothic","Apple SD Gothic Neo","Segoe UI",system-ui,sans-serif;font-synthesis:none;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;text-shadow:none}
 #title.startup,#starter.startup,#loading.startup{background:#e7e7df;color:#20302b;display:flex;align-items:safe center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));pointer-events:auto;overflow-y:auto;overscroll-behavior:contain;text-align:left;gap:0;isolation:isolate;letter-spacing:-.012em}
 #title.startup{z-index:10}#starter.startup{z-index:11}#loading.startup{z-index:100}
 .startup .start-device{width:min(640px,100%);background:#c43e36;border:2px solid #872c26;border-radius:23px 23px 38px 23px;padding:18px 22px 20px;box-shadow:inset 0 -5px 0 #0002,0 14px 22px #0002;flex:none}
@@ -863,9 +863,9 @@ body:has(#title.startup:not(.hidden),#starter.startup:not(.hidden)):has(#modal-b
 }
 @media(prefers-reduced-motion:reduce){#hud .navigation-dock .minimap-chevron{transition:none}}
 
-/* Mobile navigation uses the bundled Korean font and leaves camera distance out. */
+/* Mobile navigation uses installed Korean fonts and leaves camera distance out. */
 @media(max-width:700px),(pointer:coarse),(max-width:1000px) and (max-height:500px) and (orientation:landscape){
- #hud,#hud :is(button,input,select,kbd,output,h1,h2,h3){font-family:"Kanto Startup","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-synthesis:none;-webkit-font-smoothing:antialiased}
+ #hud,#hud :is(button,input,select,kbd,output,h1,h2,h3){font-family:"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",system-ui,sans-serif;font-synthesis:none;-webkit-font-smoothing:antialiased}
  #hud{font-weight:500;letter-spacing:0;line-height:1.5}
  #hud.hud-compact .navigation-dock #field-camera-controls{display:none}
  #hud.hud-compact #hud-details{font-size:14px;font-weight:600;letter-spacing:0}
@@ -957,3 +957,8 @@ body:has(#title.startup:not(.hidden),#starter.startup:not(.hidden)):has(#modal-b
 .field-label.selected-target .target-label-tell{display:block;font-size:11px;font-weight:400;color:#ffdfb2;margin-top:4px;max-width:190px}
 .field-label.selected-target .tiny-hp{width:100%;min-width:76px;height:4px;margin-top:5px}
 @media(max-width:700px),(pointer:coarse){.field-label.selected-target{font-size:12px;padding:6px 8px;max-width:min(190px,calc(100vw - 16px))}.field-label.selected-target .target-label-kicker{font-size:11px}.field-label.selected-target .target-label-detail{font-size:11px}}
+
+/* The light title keeps account access available before the engine is loaded. */
+#startup-account-open{flex:none;min-width:116px;min-height:44px;padding:10px 16px;font-size:14px;background:transparent;color:#fff1de;border:1px solid #efc7b4;border-radius:5px}
+#startup-account-open:hover{background:#ae332c}
+#startup-account-status{flex:1;min-width:0;font-size:12px;line-height:1.6;color:#fff1de;text-align:left;word-break:keep-all;overflow-wrap:anywhere}

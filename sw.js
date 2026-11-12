@@ -182,9 +182,9 @@ async function staleWhileRevalidate(req, cacheName) {
 async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
-    // The shared picker also loads the versioned manufacturer rarity index.
-    const freshRarity = ['/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/assets/chinese-catalog.js','/assets/tcg-card-info.js','/data/chinese-sets/CN-30TH.json','/data/tcg-card-info/weiss_schwarz/32641ea2ce38d16d.json'].includes(new URL(req.url).pathname);
-    const res = await fetch(req, freshRarity ? {cache:'no-cache'} : undefined);
+    // Revalidate shared roster helpers and exact-print artwork even on a previously cached shell.
+    const revalidate = ['/assets/card-artwork.js','/assets/card-thumbnails.js','/assets/app-route-loader.js','/assets/tcg-card-info.css','/assets/card-rarity-filters.js','/assets/card-rarity-filters.css','/assets/english-catalog.js','/assets/chinese-catalog.js','/assets/tcg-card-info.js','/data/chinese-sets/CN-30TH.json','/data/tcg-card-info/weiss_schwarz/32641ea2ce38d16d.json'].includes(new URL(req.url).pathname);
+    const res = await fetch(req, revalidate ? {cache:'no-cache'} : undefined);
     if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
     return res;
   } catch {

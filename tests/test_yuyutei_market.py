@@ -211,13 +211,24 @@ class LastGoodAndRotationTests(unittest.TestCase):
         with self.assertRaises(collector.SourceDeferred):
             legacy.wait("https://yuyu-tei.jp/top/ua")
 
-    def test_listing_denial_and_explicit_retry_after_still_block_all_requests(self):
-        for url, retry in [("https://yuyu-tei.jp/sell/ua/s/nik1", None),
-                           ("https://yuyu-tei.jp/top/ua", "3600")]:
+    def test_retry_after_and_repeated_listing_denials_block_all_requests(self):
+        for url in ["https://yuyu-tei.jp/sell/ua/s/nik1", "https://yuyu-tei.jp/top/ua"]:
             limiter = collector.RateLimiter(2)
-            limiter.record_rate_limit(url, retry, http_status=403)
+            limiter.record_rate_limit(url, "3600", http_status=403)
             with self.assertRaises(collector.SourceDeferred):
                 limiter.wait("https://yuyu-tei.jp/sell/poc/s/sd")
+        first = "https://yuyu-tei.jp/sell/poc/s/bkc"
+        second = "https://yuyu-tei.jp/sell/opc/s/op16"
+        limiter = collector.RateLimiter(2)
+        limiter.record_rate_limit(first, http_status=403)
+        restarted = collector.RateLimiter(2, cooldown=limiter.listing_cooldowns[first])
+        with self.assertRaises(collector.SourceDeferred):
+            restarted.wait(first)
+        restarted.wait(second)
+        limiter.record_rate_limit(second, http_status=403)
+        self.assertEqual(limiter.cooldown["scope"], "provider")
+        with self.assertRaises(collector.SourceDeferred):
+            collector.RateLimiter(2, cooldown=limiter.cooldown).wait("https://yuyu-tei.jp/sell/ws/s/nik")
 
     def test_existing_set_page_supplies_discovery_and_prices_with_one_request(self):
         with tempfile.TemporaryDirectory() as directory:

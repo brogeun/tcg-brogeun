@@ -86,6 +86,7 @@
       return finish(quote('snkrdunk',raw.lowest_ask,raw.currency,row,{priceKind:'lowest_listing_ask',condition:'raw',observedAt:row.gradeCheckedAt||raw.checkedAt||row.priceCheckedAt||row.fetchedAt||null,stale:row.gradeStatus==='previous-retained-after-error',verification:'same_product'}));
     }
     const ask=row.catalogAsk;
+    if(row.requiresRaw)return null;
     if(row.priceStatus==='no-listings'||row.listingCount===0)return null;
     if(ask&&positive(ask.amount)&&currency(ask.currency)&&ask.kind==='lowest_listing_ask')return finish(quote('snkrdunk',ask.amount,ask.currency,row,{priceKind:'lowest_listing_ask',condition:'unspecified',observedAt:ask.checkedAt||row.priceCheckedAt||null,verification:'same_product',fxBasis:row.priceSource||null}));
     // Legacy snapshots expose current catalogue asks through minPrice. lastPrice
@@ -153,6 +154,7 @@
   function resolve(target,{snkrProducts=[],yuyuRows=[],mercariReferences=[],bindings={}}={}){
     const g=game(target?.game||target?.brand);
     if(!target||!games.has(g)||!['ja','unknown'].includes(language(target.language))||!['RAW','UNGRADED'].includes(norm(target.grade||'raw')))return empty(['일본판 미감정 카드만 지원']);
+    if(target.snkrdunkStatus==='legend-offers'&&target.legendOffers?.length)return {...empty(),status:'legend-offers',offers:target.legendOffers,bundleOnly:!!(target.bundle||target.isBundle)};
     if(target.snkrdunkStatus==='variant-linked'&&Array.isArray(target.snkrVariants)&&target.snkrVariants.length>=1){
       return {...empty(),status:'variants',source:'snkrdunk',variants:target.snkrVariants.map(v=>({id:v.id,label:v.label,quote:resolve({...target,snkrdunkStatus:'matched',snkrVariants:undefined,snkrdunkId:v.id,snkrProduct:v.product},{bindings})}))};
     }
@@ -208,6 +210,7 @@
   async function lookup(target,options={}){
     const snkrProducts=options.snkrProducts||[];let bindings=options.bindings||{},provided=options.snkrProduct?{...target,snkrProduct:options.snkrProduct}:target;
     let result=resolve(provided,{snkrProducts,bindings});
+    if(result.status==='legend-offers')return result;
     if(result.status==='variants'){
       const current=options.isCurrent||(()=>true);
       const variants=await Promise.all(provided.snkrVariants.map(async v=>{
@@ -222,7 +225,9 @@
     }
     if(result.status==='priced'||(result.status==='unknown'&&result.reason!=='catalog-unlinked')||(!japanese(provided,provided.snkrProduct)&&!exactSnkrTarget(provided))||!['RAW','UNGRADED'].includes(norm(provided.grade||'raw'))||!['ja','unknown'].includes(language(provided.language)))return result;
     const current=options.isCurrent||(()=>true),load=options.fetchJson||json,g=game(provided.game||provided.brand);
-    if(exactSnkrTarget(provided)&&(root.document||options.loadSnkrQuote)){
+    const checkedAt=Date.parse(provided.snkrProduct?.rawVerifiedAt||'');
+    const alreadyChecked=Date.now()-checkedAt<=4200000&&checkedAt<=Date.now()+300000&&provided.snkrProduct?.noListingGrades?.includes('raw');
+    if(!alreadyChecked&&exactSnkrTarget(provided)&&(root.document||options.loadSnkrQuote)){
       try{provided=await confirmSnkrAbsence(provided,options.loadSnkrQuote||currentSnkrQuote);root.ContainedCardPrices?.cacheProduct?.(provided.snkrProduct);if(!current())return empty(['조회 취소']);}
       catch{return {...empty(),status:'unknown',source:'snkrdunk',reason:'source-unavailable'};}
       result=resolve(provided,{snkrProducts,bindings});if(result.status==='priced'||result.status==='unknown')return result;
@@ -256,6 +261,17 @@
     }
   });
   function render(result,{compact=false,convert=root.TCGFX?.convert}={}){
+    if(result?.status==='legend-offers'){
+      const section=(kind,title)=>{
+        const entries=result.offers.filter(o=>o.kind===kind);
+        if(!entries.length)return kind==='single'?'<div><strong>단품</strong><p>연결된 단품 상품 없음</p></div>':'';
+        return '<div><strong>'+title+'</strong>'+entries.map(o=>{
+          const quote=o.quote?.status==='none'?'스니덩 A급 매물 없음':render(o.quote,{compact,convert});
+          return '<p>'+esc(o.edition||'')+(o.edition?' · ':'')+quote+' <a href="https://snkrdunk.com/apparels/'+esc(o.id)+'" target="_blank" rel="noopener noreferrer">상품 보기</a></p>';
+        }).join('')+'</div>';
+      };
+      return '<section class="card-price-fallback cpf-legend">'+(result.bundleOnly?'':section('single','단품'))+section('set','두 장 세트 가격')+'</section>';
+    }
     if(result?.status==='variants')return '<span class="card-price-fallback cpf-variants" aria-label="판본별 시세" style="display:flex;flex-direction:column;gap:6px">'+result.variants.map(v=>'<span class="cpf-variant" style="display:block"><small>'+esc(v.label)+'</small> '+render(v.quote,{compact,convert})+'</span>').join('')+'</span>';
     if(!result||result.status==='none')return '<span class="card-price-fallback cpf-none">확인된 가격 없음</span>';
     if(result.status==='unknown')return '<span class="card-price-fallback cpf-none">'+(['unlinked-artwork','catalog-unlinked'].includes(result.reason)?'카드별 가격 연결 확인 필요':'SNKRDUNK 가격 확인 불가')+'</span>';

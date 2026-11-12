@@ -1,0 +1,44 @@
+name: Publish verified Yuyutei observations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'automation-sources/yuyutei/latest.json.gz'
+      - '.github/workflows/yuyutei-observations.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yuyutei-original-observations
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/
+            /tests/test_yuyutei*.py
+            /automation-sources/yuyutei/latest.json.gz
+            /data/yuyutei-market.json
+            /data/yuyutei-market/
+      - name: Verify the original-price importer
+        run: python -m unittest discover -s tests -p 'test_yuyutei_observations.py'
+      - name: Apply newer observations and publish with concurrent-data checks
+        run: |
+          base=$(git rev-parse HEAD)
+          python scripts/yuyutei_observations.py import
+          python scripts/collect_yuyutei_market.py --validate-only
+          python scripts/publish_data_snapshot.py --references --base "$base" --message 'Publish verified original Yuyutei selling prices'

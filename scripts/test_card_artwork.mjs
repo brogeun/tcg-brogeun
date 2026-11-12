@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {fileURLToPath} from 'node:url';
+import assetGraphTools from './helpers/app_asset_graph.cjs';
 const read=file=>readFileSync(new URL('../'+file,import.meta.url),'utf8');
 const manifest=JSON.parse(read('data/anniversary-artwork.json'));
 const ctx=vm.createContext({window:{},URL,document:{readyState:'loading',addEventListener(){}}});
@@ -31,7 +33,7 @@ for(const number of ['128/103','129/103','131/103','R/RGB','G/RGB','B/RGB']){
   const fit=geometry(art,165,213);
   assert.ok((art.bounds[3]-art.bounds[1])*fit.height/art.height>200,'Reported cards fill the normal card area');
 }
-assert.match(read('index.html'), /<script src="\/assets\/card-artwork\.js\?v=[^"]+"/);
+assetGraphTools.assetGraph(fileURLToPath(new URL('../',import.meta.url))).assertScript('card-artwork.js');
 const artwork=ctx.window.CardArtwork,official='https://www.onepiece-cardgame.com/images/cardlist/card/OP01-016_p9.png';
 assert.equal(artwork.source({image:official}),'/api/img?u='+encodeURIComponent(official));
 assert.equal(artwork.source({thumbnailUrl:'https://cdn.snkrdunk.com/card.webp'}),'https://cdn.snkrdunk.com/card.webp');

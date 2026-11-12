@@ -12,6 +12,7 @@ on:
       - 'scripts/collect_us_market.py'
       - 'config/english-trainer-kit-packages.json'
       - 'scripts/collect_yuyutei_market.py'
+      - 'scripts/yuyutei_observations.py'
       - 'scripts/collect_mercari_references.py'
       - 'scripts/collect_snkrdunk_games.py'
       - 'scripts/game_registry.py'
@@ -54,6 +55,7 @@ jobs:
         run: |
           python -m unittest scripts.test_collect_us_market scripts.test_shared_trainer_kits
           python -m unittest discover -s tests -p test_yuyutei_market.py
+          python -m unittest discover -s tests -p test_yuyutei_observations.py
           python scripts/test_collect_mercari_references.py
           python scripts/onepiece_audit/test_discovery.py
           python -m unittest discover -s scripts -p test_snkrdunk_games.py
@@ -164,24 +166,35 @@ jobs:
           python-version: '3.11'
       # Published data/yuyutei-market* is the canonical resume/cooldown state.
       # Restoring an older cache over tracked shards would regress observations.
-      - name: Collect bounded Yuyutei references with global cooldown
+      - name: Import current original Yuyutei observations or collect eligible sets
         id: collect
         continue-on-error: true
         timeout-minutes: 30
-        run: python -u scripts/collect_yuyutei_market.py --max-sets-per-game 45 --max-requests 250 --workers 2 --requests-per-second 0.5 --resume-hours 20
+        run: |
+          if test -s automation-sources/yuyutei/latest.json.gz; then
+            python scripts/yuyutei_observations.py import
+            if python scripts/yuyutei_observations.py fresh; then
+              echo "source_mode=original-observations" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          python -u scripts/collect_yuyutei_market.py --max-sets-per-game 45 --max-requests 250 --workers 2 --requests-per-second 0.5 --resume-hours 20
       - name: Record true Yuyutei refresh outcome
         id: assess
         if: always()
         env:
           STEP_OUTCOME: ${{ steps.collect.outcome }}
+          SOURCE_MODE: ${{ steps.collect.outputs.source_mode }}
         run: |
           python - <<'PY'
           import json, os
           from datetime import datetime, timezone
           from pathlib import Path
-          def classify(outcome, record):
+          def classify(outcome, record, source_mode=None):
               if outcome != 'success' or record.get('status') == 'failed':
                   return 'failure'
+              if source_mode == 'original-observations' and record.get('lastImport', {}).get('observationsApplied', 0) > 0:
+                  return 'success' if record.get('status') == 'ok' else 'partial'
               cooldown = record.get('cooldown') or {}
               try:
                   waiting = datetime.fromisoformat(cooldown.get('nextEligibleAt', '').replace('Z', '+00:00')) > datetime.now(timezone.utc)
@@ -202,7 +215,7 @@ jobs:
               record = json.loads(Path('data/yuyutei-market.json').read_text(encoding='utf-8'))
           except (OSError, ValueError):
               record = {'status': 'failed'}
-          outcome = classify(os.environ.get('STEP_OUTCOME'), record)
+          outcome = classify(os.environ.get('STEP_OUTCOME'), record, os.environ.get('SOURCE_MODE'))
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
               output.write('outcome=' + outcome + '\n')
           print('Yuyutei refresh outcome:', outcome)

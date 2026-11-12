@@ -22,12 +22,14 @@ on:
           - all
           - search-only
   workflow_run:
-    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'Chinese Auction Prices Daily', 'KREAM Korean Promos Daily', 'KREAM Local Publish', 'PSA Pop Daily Gamble']
+    workflows: ['Refresh Verified Home Card Index Daily', 'Market Reference Prices Daily', 'Publish verified Yuyutei observations', 'Chinese Auction Prices Daily', 'KREAM Korean Promos Daily', 'KREAM Local Publish', 'PSA Pop Daily Gamble']
     types: [completed]
     branches: [main]
   push:
     branches: [main]
-    # paths-ignore 제거 — 사용자 push 는 항상 trigger.
+    # A price-only delivery deploys when its validated import finishes.
+    paths-ignore:
+      - 'automation-sources/yuyutei/latest.json.gz'
     # bot 자동 commit 은 아래 jobs 의 if 조건으로 막아 무한루프 방지.
 
 permissions:
@@ -150,6 +152,7 @@ jobs:
           node scripts/build_onepiece_search.cjs
           node --test scripts/test_onepiece_official.cjs
           node scripts/test_cardinfo_screen.mjs
+          node --test scripts/test_cardinfo_list_budget.cjs
           node --test scripts/test_search_modal_catalog_rows.cjs scripts/test_catalogue_card_navigation.cjs scripts/test_japanese_candidate_visibility.cjs
           python -m unittest scripts.test_yuyutei_index_migration
 
@@ -299,6 +302,7 @@ jobs:
           node scripts/build_portfolio_quotes.cjs
           node --test scripts/test_card_search_engine.cjs scripts/test_fast_price_search.cjs
           node scripts/test_search_snapshot.cjs
+          node --test scripts/test_japanese_set_metadata.cjs
 
       - name: Record freshness of the exact deployment data
         id: deployment-health

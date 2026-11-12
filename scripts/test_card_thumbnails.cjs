@@ -112,3 +112,15 @@ assert.equal(thumbnails.original(gridPhoto),base+'?size=m');
 assert.equal(thumbnails.apply(scope(gridPhoto)),0);
 gridPhoto.setAttribute('src',base+'?size=m');gridPhoto.setAttribute('data-artwork-direct',gridPhoto.src);
 assert.equal(thumbnails.apply(scope(gridPhoto)),0,'a failed proxy must not be selected again on rescans');
+
+const largeGridSource=base+'?size=l';
+const preselectedGrid=new ImageFixture(base+'?size=m');
+preselectedGrid.parentElement=gridPhoto.parentElement;
+preselectedGrid.setAttribute('data-original-src',largeGridSource);
+context.window.CardArtwork={
+  gridURL:url=>url===largeGridSource?gridProxy:url,
+  proxyOriginal:img=>img?.src===gridProxy?img.getAttribute('data-artwork-original'):''
+};
+assert.equal(thumbnails.apply(scope(preselectedGrid)),1);
+assert.equal(preselectedGrid.src,gridProxy);
+assert.equal(thumbnails.original(preselectedGrid),largeGridSource,'preselected catalogue thumbnails keep full-resolution details');

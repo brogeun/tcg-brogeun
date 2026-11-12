@@ -13,7 +13,10 @@ async function load(manifest,mode='ok'){
     if(url.startsWith('/data/english-set-images.json')){if(mode==='reject')throw Error('Network');if(mode==='pending')return new Promise(()=>{});return {ok:mode!=='404',json:async()=>manifest};}
     return {ok:true,json:async()=>url.startsWith('/data/english-catalog.json')?catalog:{schemaVersion:1,names:{}}};
   }};
-  vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(root,'assets/english-catalog.js'),'utf8'),ctx);await flush();await flush();return {api:ctx.window.EnglishCatalog,ctx,wrappers};
+  vm.createContext(ctx);vm.runInContext(fs.readFileSync(path.join(root,'assets/english-catalog.js'),'utf8'),ctx);
+  const api=ctx.window.EnglishCatalog;await api.ensureData();
+  if(mode!=='pending')await api.ensureImages().catch(()=>{});
+  await flush();return {api,ctx,wrappers};
 }
 test('all catalog set identities have an explicit image outcome without changing catalog data',()=>{
   const real=JSON.parse(fs.readFileSync(path.join(root,'data/english-catalog.json'),'utf8')),before=JSON.stringify(real),result=build(real,{schemaVersion:1,sets:[]});

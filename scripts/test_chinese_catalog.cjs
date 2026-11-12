@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..');
 const chineseSource = fs.readFileSync(path.join(root, 'assets/chinese-catalog.js'), 'utf8');
 const englishSource = fs.readFileSync(path.join(root, 'assets/english-catalog.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const rendererStart = html.indexOf('function renderCardInfo()');
+const rendererStart = html.indexOf('const CI_SET_PAGE_SIZE =');
 const rendererEnd = html.indexOf('/* ─────────── 세트 카드 그리드 모달', rendererStart);
 assert(rendererStart >= 0 && rendererEnd > rendererStart, 'Locate the actual card-info renderer');
 const originalRenderer = html.slice(rendererStart, rendererEnd);
@@ -163,7 +163,7 @@ function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGa
     const event = {target: {closest(selector){
       const isChinese = selector.includes('[data-cn-set]'), isEnglish = selector.includes('[data-enc-language]');
       if(isChinese && (b.dataset.cnSet || b.dataset.cnPage || b.dataset.cnCard || b.dataset.cnCardPage || attrs.attributes?.some(v=>v.startsWith('data-cn-'))))return b;
-      if(isEnglish && b.dataset.encLanguage)return b;
+      if(isEnglish && (b.dataset.encLanguage||b.dataset.encRetrySet||attrs.attributes?.some(value=>value.startsWith('data-enc-'))))return b;
       return null;
     }}, preventDefault(){}, stopPropagation(){}};
     for(const handler of handlers)handler(event);

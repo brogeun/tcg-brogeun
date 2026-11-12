@@ -90,7 +90,37 @@ function setup(first = snapshot()) {
   await app.window.TCGFX.refresh();
   assert.equal(app.window.TCGFX.convert(3, 'CNY'), 606);
 
-  const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-  assert.match(sw, /url\.pathname === '\/data\/fx-rates\.json'[\s\S]*?networkFirst\(req, DATA_CACHE\)/);
+  const origin = 'https://tcghub.kr', handlers = new Map(), stored = new Map();
+  let online = true;
+  const worker = {
+    URL, Request, Response, location: new URL(origin),
+    self: {addEventListener: (name, fn) => handlers.set(name, fn)},
+    fetch: async req => {
+      if (!online) throw Error('Offline');
+      return new Response('fresh ' + req.url);
+    },
+    caches: {open: async () => ({
+      match: async req => stored.get(req.url)?.clone(),
+      put: async (req, res) => stored.set(req.url, res),
+      keys: async () => [...stored.keys()].map(url => new Request(url)),
+    })},
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'sw.js'), 'utf8'), worker);
+  async function readPublicData(url) {
+    let response;
+    const pending = [];
+    handlers.get('fetch')({request: new Request(url), respondWith: p => { response = p; }, waitUntil: p => pending.push(p)});
+    const value = await (await response).text();
+    await Promise.all(pending);
+    return value;
+  }
+  for (const file of ['fx-rates.json', 'contained-printing-reviews.json', 'yuyutei-market.json', 'yuyutei-market/digimon.json']) {
+    const url = origin + '/data/' + file;
+    stored.set(url, new Response('older cached value'));
+    online = true;
+    assert.equal(await readPublicData(url), 'fresh ' + url, file + ' must refresh its cached value online');
+    online = false;
+    assert.equal(await readPublicData(url), 'fresh ' + url, file + ' must retain the last successful response offline');
+  }
   console.log('PASS: common JPY/USD/CNY conversion, daily refresh, failure retention, no invented CNY rate, FX cache policy');
 })().catch(error => {console.error(error); process.exitCode = 1;});

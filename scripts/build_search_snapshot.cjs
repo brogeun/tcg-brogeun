@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
+const {writeSetMetadata} = require('./build_japanese_set_metadata.cjs');
 
 const FIELDS = [
   'id','name','displayName','kind','brand','language','thumbnailUrl','setName',
@@ -90,7 +91,7 @@ function rowTitle(row, names) {
   return String(row.displayName || row.name || '').replace(/\s*\((?:Enhanced|High Class|Booster|Expansion|Promotional|Starter)\b.*$/i,'').trim();
 }
 
-async function compileSnapshot(root) {
+async function compileSnapshot(root, {onJapaneseRows} = {}) {
   const state = createContext(root);
   await state.run('buildCardSearchData()', 'load-search-data.js');
   await state.run('JapaneseCardNames.ensureData()', 'load-search-names.js');
@@ -98,6 +99,7 @@ async function compileSnapshot(root) {
   // limited-product labels must use the same reviewed manifest as the dialog.
   await state.run('OnePieceCatalog.ensureManifest()', 'load-onepiece-manifest.js');
   const onepieceSets = state.run('OnePieceCatalog.registerSets(CARDINFO.onepiece || [])', 'official-box-labels.js');
+  if (onJapaneseRows) onJapaneseRows(state.run('JapaneseCatalog.getSearchRows() || _ALL_CARDS_INDEX', 'set-metadata-source-rows.js'));
   const rawRows = state.run('OnePieceCatalog.mergeSearch(JapaneseCatalog.getSearchRows() || _ALL_CARDS_INDEX)', 'search-rows.js');
   const boxes = rawRows.filter(row => row.kind === 'box' && !row._catalogue).map(row => ({...row}));
   state.context.searchCompilerBoxes = boxes;
@@ -163,6 +165,7 @@ async function compileSnapshot(root) {
   const sourceHash = crypto.createHash('sha256');
   sourceHash.update(fs.readFileSync(path.join(root,'index.html')));
   sourceHash.update(fs.readFileSync(__filename));
+  sourceHash.update(fs.readFileSync(path.join(__dirname,'build_japanese_set_metadata.cjs')));
   for (const name of MODULES) sourceHash.update(name).update(fs.readFileSync(path.join(root,'assets',name+'.js')));
   for (const name of inputFiles) sourceHash.update(name).update(fs.readFileSync(path.join(root,name)));
   return {
@@ -179,9 +182,11 @@ async function main() {
   const outArg = process.argv.indexOf('--out');
   const root = path.resolve(rootArg >= 0 ? process.argv[rootArg+1] : path.join(__dirname,'..'));
   const output = path.resolve(outArg >= 0 ? process.argv[outArg+1] : path.join(root,'data/search-index-ja.json'));
-  const snapshot = await compileSnapshot(root);
+  let setMetadataRows;
+  const snapshot = await compileSnapshot(root, {onJapaneseRows: rows => {setMetadataRows=rows;}});
+  const setMetadata = writeSetMetadata(setMetadataRows,path.join(path.dirname(output),'japanese-set-metadata.json'));
   const result = writeSnapshot(snapshot,output);
-  console.log(JSON.stringify({output,...result,...snapshot.counts,sourceHash:snapshot.sourceHash}));
+  console.log(JSON.stringify({output,...result,...snapshot.counts,sourceHash:snapshot.sourceHash,setMetadata:{files:setMetadata.files,sets:setMetadata.manifest.setCount,bytes:setMetadata.totalBytes,maximumBucketBytes:setMetadata.maximumBucketBytes}}));
 }
 function writeSnapshot(snapshot,output,{maxShardBytes=8*1024*1024,publicPrefix='/data/search-index-ja/'}={}) {
   const serialize = value => JSON.stringify(value)+'\n';

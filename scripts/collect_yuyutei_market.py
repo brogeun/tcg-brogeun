@@ -518,6 +518,8 @@ def publish_manifest(args, summary):
                             "providerRequests": getattr(limiter, "request_count", 0),
                             "httpStatus": block.get("httpStatus") if block else None,
                             "startedAt": getattr(args, "run_started_at", None), "reportedAt": utc_now()}}
+    if existing.get("lastImport"):
+        manifest["lastImport"] = existing["lastImport"]
     atomic_json(path, manifest)
     return manifest
 

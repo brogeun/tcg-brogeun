@@ -35,7 +35,34 @@
   };
   const legacy = card => card.brand === 'pokemon' && !/\d+\/\d+/.test(card.number || '') &&
     (/\bNo\.\s*\d+/i.test(card.name || '') || /^No\./i.test(card.number || ''));
-  const paired = product => /\bLEGEND\b/i.test(product.name||'') && /\d{3}-\d{3}/.test((product.name||'')+' '+(product.productNumber||''));
+  const paired = product => /\bLEGEND\b/i.test(product.name||'') && /\[\S+\s+\d{3}-\d{3}\/\d+\]|\b2\s*piece\s*set\b/i.test(product.name||'');
+  function legendOffers(card,products){
+    if(card.brand!=='pokemon'||card.language!=='ja'||! /\bLEGEND\b/i.test(card.name||''))return [];
+    const printed=String(card.number||'').match(/^(\d{3})(?:-(\d{3}))?\/(\d+)$/);
+    if(!printed)return [];
+    const code=upper(card.setCode||card.boxCode),codes=[code,...(aliases[code]||[])];
+    const numbered=[],withoutNumber=[];
+    for(const p of products){
+      if(p.brand!=='pokemon'||p.kind!=='card'||!/^\d+$/.test(String(p.id))||! /\bLEGEND\b/i.test(p.name||'')||foreign(p))continue;
+      const bracket=p.name.match(/\[([\w-]+)(?:\s+(\d{3})(?:-(\d{3}))?\/(\d+))?\]/);
+      if(!bracket||!codes.includes(upper(bracket[1])))continue;
+      const kind=paired(p)?'set':'single';
+      const edition=/\b(?:1ED|1ST(?:\s+EDITION)?)\b/i.test(p.name)?'1st Edition':/\b(?:RESALE|REPRINT|UNLIMITED)\b/i.test(p.name)?'재판':'';
+      const entry={kind,edition,id:String(p.id),product:p};
+      if(!bracket[2]){
+        if(kind==='set')withoutNumber.push(entry);
+        continue;
+      }
+      if(bracket[4]!==printed[3])continue;
+      if(printed[2]?(bracket[2]!==printed[1]||bracket[3]!==printed[2]):![bracket[2],bracket[3]].includes(printed[1]))continue;
+      numbered.push(entry);
+    }
+    // Some first-edition sets print only [L3] in the title and share a SKU
+    // with a half. Require a numbered set of the same characters and release.
+    const characters=p=>upper(p.name.split(/\bLEGEND\b/i)[0]).trim();
+    const sameRelease=withoutNumber.filter(e=>numbered.some(n=>n.kind==='set'&&characters(n.product)===characters(e.product)));
+    return [...new Map([...numbered,...sameRelease].map(e=>[e.id,e])).values()];
+  }
   function numberOf(card) {
     return String(card.baseNumber || card.number || (String(card.name || '').match(/\bNo\.\s*(\d+)/i) || [])[1] || '')
       .replace(/^No\.\s*/i, '').split(/[\/_]/)[0].replace(/^0+(?=\d)/, '');
@@ -157,7 +184,7 @@
     // Removing a misleading set title cannot turn a lone 1ED product into the
     // generic card's quote. An exact reviewed artwork proof still wins above.
     if(vintageNamespace(card)&&candidates.some(editionSpecific))return {status:candidates.length>1?'ambiguous':'artwork-pending',id:null};
-    const plain = candidates.filter(p => !special(p));
+    const plain = candidates.filter(p => !special(p) && !paired(p));
     return plain.length === 1 ? {status: 'matched', id: String(plain[0].id)} :
       {status: plain.length > 1 ? 'ambiguous' : 'unlinked', id: null};
   }
@@ -183,5 +210,5 @@
     find.candidates = card => [...new Map(poolFor(card).filter(p=>sameIdentity(card,p,candidateProofs)).map(p=>[String(p.id),p])).values()];
     return find;
   }
-  return {resolve, createResolver, sameIdentity, numberOf, foreign, aliases, legacy, paired, artworkKey};
+  return {resolve, createResolver, sameIdentity, numberOf, foreign, aliases, legacy, paired, legendOffers, artworkKey};
 });

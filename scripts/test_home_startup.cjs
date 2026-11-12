@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
-const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
+const deferred=()=>{let resolve,reject;const promise=new Promise((done,fail)=>{resolve=done;reject=fail;});return {promise,resolve,reject};};
 function homeHarness(){
   const tops={pokemon:deferred(),onepiece:deferred()},renders=[],histories=[],optional=deferred();
   let news=0,assets=0,optionalLoads=0;
@@ -73,4 +73,77 @@ test('cached portfolio value waits for daily FX while other home widgets remain 
   vm.runInContext(html.slice(start,html.indexOf('window.openPortfolioOrLogin',start)),ctx);
   const work=ctx.renderHomeAsset();await Promise.resolve();assert.equal(elements.homeAssetValue.textContent,'','fallback FX must not produce a settled value');
   ctx.JPY_KRW=10;fx.resolve();await work;assert.equal(elements.homeAssetValue.textContent,'₩3,000');
+});
+
+function portfolioRefreshHarness({page='portfolio',loading=false}={}){
+  const screen=deferred(),listeners=[],requests=[],counts={reads:0,forced:0,renders:0,home:0,sync:0};
+  const elements={pfLoginGate:{style:{}},pfMain:{style:{}},pfHoldCount:{},pfWatchCount:{}};
+  const owner={id:'fixture'};
+  const ctx={Promise,Set,CURRENT_USER:owner,console,
+    document:{readyState:loading?'loading':'complete',body:{dataset:{page}},getElementById:id=>elements[id],
+      addEventListener:(type,fn)=>{assert.equal(type,'DOMContentLoaded');listeners.push(fn);}},
+    _PF_OWNER_ID:null,_PF_REFRESH_RUN:0,_PF_REFRESH_WORK:null,_PF_REFRESH_USER:null,_HOME_ASSET_RUN:0,
+    HOLDINGS:[],WATCHLIST:[],PSA_CERTS:[],_PORTFOLIO_READY:null,_PORTFOLIO_USER:null,
+    syncPortfolioOwner:()=>counts.sync++,
+    loadPortfolio:async()=>{counts.reads++;return {holdings:[],watchlists:[]};},
+    fetchPortfolio:async()=>{counts.forced++;return {holdings:[],watchlists:[]};},
+    ensureBoxIdSet:async()=>{},loadCardMeta:async()=>{},renderHomeAsset:()=>counts.home++,
+    renderHoldings:()=>counts.renders++,renderWatchlist(){},renderDistributionCharts(){},renderAggChart(){},
+  };
+  ctx.window=ctx;
+  ctx.AppRouteLoader={ensure(profile,options){
+    assert.equal(profile,'portfolio');requests.push(options);
+    return screen.promise.then(()=>({ready:options.isCurrent(),cancelled:!options.isCurrent()}));
+  }};
+  vm.createContext(ctx);
+  const start=html.indexOf('function refreshPortfolio('),end=html.indexOf('\nfunction renderHoldings(',start);
+  vm.runInContext(html.slice(start,end),ctx);
+  return {ctx,owner,counts,requests,listeners,screen,elements,
+    domReady(){ctx.document.readyState='interactive';listeners.splice(0).forEach(fn=>fn());},
+    mount(){elements.pfxStatus={};ctx.PortfolioScreen={status(){},cancelChart(){}};screen.resolve();},
+  };
+}
+
+test('portfolio auth and hash refreshes wait for the screen and share one data refresh',async()=>{
+  const h=portfolioRefreshHarness({loading:true}),one=h.ctx.refreshPortfolio(),two=h.ctx.refreshPortfolio();
+  await Promise.resolve();assert.equal(h.requests.length,0,'Mount waits for core DOM setup');assert.equal(h.counts.reads,0);
+  h.domReady();await Promise.resolve();assert.equal(h.requests.length,2,'Route loader owns the shared asset request');
+  assert.equal(h.counts.reads,0);h.mount();await Promise.all([one,two]);
+  assert.equal(h.counts.reads,1);assert.equal(h.counts.renders,2,'Initial empty view and one settled render');
+});
+
+test('a departed portfolio or changed account cannot replay an earlier pending refresh',async()=>{
+  for(const change of ['page','owner']){
+    const h=portfolioRefreshHarness(),work=h.ctx.refreshPortfolio();await Promise.resolve();
+    if(change==='page')h.ctx.document.body.dataset.page='home';else h.ctx.CURRENT_USER={id:'another-owner'};
+    h.mount();await work;assert.equal(h.counts.reads,0,change);assert.equal(h.counts.renders,0,change);
+  }
+});
+
+test('portfolio screen failure leaves route recovery in control and force survives screen loading',async()=>{
+  const h=portfolioRefreshHarness(),work=h.ctx.refreshPortfolio();await Promise.resolve();
+  h.screen.reject(new Error('network'));await work;assert.equal(h.counts.reads,0);assert.equal(h.counts.renders,0);
+  const forced=portfolioRefreshHarness(),refresh=forced.ctx.refreshPortfolio({force:true});await Promise.resolve();
+  forced.mount();await refresh;assert.equal(forced.counts.forced,1);assert.equal(forced.counts.reads,0);
+});
+
+test('background home portfolio refresh does not request the optional screen',async()=>{
+  const h=portfolioRefreshHarness({page:'home'});await h.ctx.refreshPortfolio();
+  assert.equal(h.requests.length,0);assert.equal(h.counts.reads,1);assert.equal(h.counts.home,1);assert.equal(h.counts.renders,0);
+});
+
+test('home fallback keeps card metadata localization without loading the portfolio screen',async()=>{
+  const product={id:'101',name:'Original',brand:'pokemon',kind:'card',thumbnailUrl:'card.png'};
+  let catalogCalls=0;
+  const ctx={console,Date,AbortSignal,Promise,_PF_PRICE_CACHE:{},BOX_ID_SET:new Set(),JPY_KRW:10,USD_KRW:1500,HOME_TOP_KO_NAMES:{},
+    loadCardProductData:async()=>[product],loadCardsDetail:async()=>({cards:{101:{grades:{raw:{lowest_ask:100,currency:'JPY'}}}}}),
+    fetch:async()=>({ok:true,json:async()=>({history:[]})}),
+    PriceProductInfo:{get:async()=>{catalogCalls++;return {sets:[{code:'TEST',name:'Fixture set'}]};},label:s=>s.name},
+    JapaneseCardNames:{ensureDisplayData:async()=>true,title:()=> '한글 카드명'},
+  };
+  ctx.window=ctx;vm.createContext(ctx);
+  const start=html.indexOf('async function fetchCardMeta('),end=html.indexOf('\nlet _PF_OWNER_ID',start);
+  vm.runInContext(html.slice(start,end),ctx);
+  const result=await ctx.fetchCardMeta('101');assert.equal(catalogCalls,1);assert.equal(result.koName,'한글 카드명');
+  assert.equal(result.pack,'Fixture set');assert.equal(result.latestPrices.raw,100);assert.equal(ctx.PortfolioScreen,undefined);
 });

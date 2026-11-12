@@ -53,6 +53,13 @@
   }
   function stockLabel(record){return ({in_stock:typeof record.stock==='number'?`재고 ${record.stock}개`:'재고 있음',out_of_stock:'품절',in_stock_quantity_unknown:'재고 있음 · 수량 미확인',unknown:'재고 미확인'})[record.stockState]||'재고 미확인';}
   function yuyuRefreshDelayed(manifest){const games=manifest.games||[];return manifest.lastRun?.outcome==='blocked'||(!manifest.lastRun&&Number(manifest.requestsThisRun)>0&&games.length>0&&games.every(game=>game.coverage?.recordsFetchedThisRun===0)&&games.some(game=>game.coverage?.failedSets>0));}
+  function yuyuRefreshNote(manifest,game){
+    if(!yuyuRefreshDelayed(manifest))return '';
+    const receipt=manifest.lastImport, observations=receipt?.games?.[game]?.observationsApplied;
+    if(receipt?.outcome!=='imported'||!Number.isInteger(observations)||observations<1||!receipt.importedAt)return ' · 갱신 지연 · 이전 확인 가격 유지';
+    const status=manifest.lastRun?.httpStatus===403?' (HTTP 403)':'';
+    return ` · 직접 수집 지연${status} · 이 게임의 판매가 확인 ${observations.toLocaleString('ko-KR')}건 반영 (${timestamp(receipt.importedAt)})`;
+  }
   function yuyuRows(data){
     if(Array.isArray(data.records))return data.records;
     return (data.rows||[]).map(row=>{const record=Object.fromEntries((data.columns||[]).map((column,index)=>[column,row[index]]));return {...record,id:`yuyutei:${data.sourceGame}:${record.sourceSetCode}:${record.sourceProductId}`,game:data.game,language:'ja',variant:[record.rarity,record.name].filter(Boolean).join(' '),sourceUrl:`https://yuyu-tei.jp/sell/${data.sourceGame}/card/${record.sourceSetCode}/${record.sourceProductId}`,currency:'JPY',priceKind:'asking'};});
@@ -103,7 +110,7 @@
           el('mrSet').innerHTML=options([['','전체 세트'],...sets.map(set=>[set.sourceSetCode,set.name||set.sourceSetCode])],state.set);
           const selected=sets.find(set=>set.sourceSetCode===state.set),loadedRows=selected?.shard?(await json(selected.shard)).records||[]:compact;if(token!==state.token)return;state.rows=loadedRows;
           const setNames=new Map(sets.map(set=>[set.sourceSetCode,set.name]));state.rows=state.rows.map(row=>({...row,_setName:setNames.get(row.sourceSetCode)||''}));
-          const coverage=game?.coverage||data.coverage;el('mrCoverage').textContent=`${state.rows.length.toLocaleString()}개 상품${coverage?` · ${coverage.collectedSets||0}/${coverage.discoveredSets||0}세트 확인`:''} · 기준 ${timestamp(data.sourceAsOf||game?.sourceAsOf||manifest.sourceAsOf)}${game?.status==='partial'?' · 일부 세트 확인 중':''}${yuyuRefreshDelayed(manifest)?' · 갱신 지연 · 이전 확인 가격 유지':''}`;
+          const coverage=game?.coverage||data.coverage;el('mrCoverage').textContent=`${state.rows.length.toLocaleString()}개 상품${coverage?` · ${coverage.collectedSets||0}/${coverage.discoveredSets||0}세트 확인`:''} · 기준 ${timestamp(selected?.sourceAsOf||data.sourceAsOf||game?.sourceAsOf||manifest.sourceAsOf)}${game?.status==='partial'?' · 일부 세트 확인 중':''}${yuyuRefreshNote(manifest,state.game)}`;
         }else if(state.source==='mercari'){
           const manifest=await json('/data/mercari-references.json');if(token!==state.token)return;state.manifest=manifest;state.rows=(manifest.references||[]).filter(row=>row.price?.amount>0||row.fetchStatus!=='error');const games=[...new Set(state.rows.map(row=>gameKey(row.identity?.game||row.matchHints?.game)).filter(Boolean))];if(!games.includes(state.game))state.game='';el('mrGame').innerHTML=options([['','전체 종목'],...games.map(game=>[game,GAMES[game]||game])],state.game);el('mrCoverage').textContent=`추적 매물 ${state.rows.length.toLocaleString()}개 · 확인 ${timestamp(manifest.updatedAt||manifest.generatedAt)} · 신규 매물 전체 검색 아님`;
         }else{

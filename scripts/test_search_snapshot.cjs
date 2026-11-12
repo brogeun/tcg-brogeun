@@ -65,7 +65,10 @@ function unpack(snapshot) {return snapshot.rows.map(values=>Object.fromEntries(s
 test('snapshot preserves reviewed printed, market, promo and DON identities without candidate price leakage',async()=>{
   const root=fixture();
   try {
-    const result=await compileSnapshot(root), rows=unpack(result), byId=new Map(rows.map(row=>[row.id,row]));
+    let japaneseRows;
+    const result=await compileSnapshot(root,{onJapaneseRows:rows=>{japaneseRows=rows;}}), rows=unpack(result), byId=new Map(rows.map(row=>[row.id,row]));
+    assert(Array.isArray(japaneseRows)&&japaneseRows.some(row=>row.id==='JP:SV4K:001/066'),'metadata callback receives existing Japanese rows before search projection');
+    assert.equal(japaneseRows.find(row=>row.id==='JP:SV4K:001/066').image,'/images/printed.png');
     assert.deepEqual(result.fields,FIELDS);
     assert.equal(new Set(rows.map(row=>row.id)).size,rows.length);
     assert.equal(byId.has('101'),false,'Reviewed duplicate market product remains suppressed');

@@ -14,16 +14,21 @@ on:
       - 'assets/**'
       - 'scripts/helpers/**'
       - 'scripts/test_card_info_pricing_integration.cjs'
+      - 'scripts/test_cardinfo_list_budget.cjs'
       - 'scripts/test_verify_card_info_prices.cjs'
       - 'scripts/test_contained_artwork_data.cjs'
       - 'scripts/audit/catalogue-repairs.test.cjs'
       - 'scripts/verify_card_info_prices_production.cjs'
       - 'scripts/test_futuristic_market.mjs'
+      - 'scripts/test_anniversary_sets.mjs'
+      - 'scripts/test_fx_display.cjs'
       - 'scripts/sync_futuristic_market.py'
       - 'scripts/backfill_history.py'
       - 'data/all-cards.json'
       - 'data/card-catalog-repairs.json'
       - 'data/contained-card-market-links.json'
+      - 'data/contained-printing-reviews.json'
+      - 'scripts/test_reviewed_printing_quotes.cjs'
       - 'data/pokemon-reviewed-fallback-links.json'
       - 'data/onepiece-card-overrides.json'
       - 'data/futuristic-market.json'
@@ -95,6 +100,9 @@ jobs:
             /data/cards-detail.json
             /data/card-catalog-repairs.json
             /data/contained-card-market-links.json
+            /data/contained-printing-reviews.json
+            /data/yuyutei-market/onepiece.json
+            /data/onepiece-reviewed-fallback-links.json
             /data/pokemon-reviewed-fallback-links.json
             /data/yuyutei-market/pokemon.json
             /data/onepiece-card-overrides.json
@@ -128,6 +136,7 @@ jobs:
           python-version: '3.11'
       - name: Check card clicks and exact deployed asset URLs
         run: |
+          node --test scripts/test_cardinfo_list_budget.cjs
           python scripts/apply_verified_image_repairs.py --root . --verify-only
           python -m unittest scripts.test_verified_image_repairs
           python scripts/reviewed_market_card_images.py --root . --verify-only
@@ -136,11 +145,13 @@ jobs:
           node --test --test-concurrency=1 scripts/test_verify_card_info_prices.cjs
           node --test scripts/test_contained_artwork_data.cjs
           node --test scripts/audit/catalogue-repairs.test.cjs
+          node scripts/test_fx_display.cjs
+          node scripts/test_anniversary_sets.mjs
           node scripts/test_futuristic_market.mjs
           node scripts/test_price_box_names.mjs
           node --test --test-concurrency=1 scripts/test_search_snapshot.cjs
           node --test --test-concurrency=1 scripts/test_unresolved_box_reviews.cjs scripts/test_english_set_images.cjs scripts/test_contained_artwork_bindings.cjs
-          node --test scripts/test_contained_market_versions.cjs
+          node --test scripts/test_contained_market_versions.cjs scripts/test_reviewed_printing_quotes.cjs
           node scripts/verify_contained_market_versions.cjs
           node --test scripts/test_remaining_market_links.cjs
           node scripts/verify_reviewed_pokemon_fallbacks.cjs

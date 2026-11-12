@@ -8,7 +8,7 @@ const old=JSON.parse(fs.readFileSync(path.resolve(options['inventory-audit']||pa
 const match=require(path.join(root,'assets/contained-card-match.js')),fallback=require(path.join(root,'assets/card-price-fallback.js'));
 const repairs=require(path.join(root,'assets/card-catalog-repairs.js'));repairs.configure(read('data/card-catalog-repairs.json'));
 const products=repairs.products(read('data/all-cards.json').details),base=read('data/contained-card-market-links.json'),promo=read('data/onepiece-reviewed-promo-links.json');
-const artwork={schemaVersion:1,links:[...base.links,...(promo.links||[])],variants:base.variants||[],japaneseProducts:base.japaneseProducts||[]};
+const artwork=require(path.join(root,'assets/contained-card-prices.js')).mergeArtworkBindings(base,promo,read('data/contained-printing-reviews.json'));
 const pokemonFallbackPath=path.join(root,'data/pokemon-reviewed-fallback-links.json'),pokemonFallback=fs.existsSync(pokemonFallbackPath)?read('data/pokemon-reviewed-fallback-links.json'):{},pokemonBindings=pokemonFallback.schemaVersion===1&&pokemonFallback.source==='pokemon-original-image-audit'?pokemonFallback.bindings||{}:{};
 const yuyuPath=path.join(root,'data/yuyutei-market/pokemon.json'),pokemonRows=fs.existsSync(yuyuPath)?fallback.decodeYuyu(read('data/yuyutei-market/pokemon.json')):[];
 const candidateResolver=match.createResolver(products),savedDetails=read('data/cards-detail.json'),savedOverrides=read('data/onepiece-card-overrides.json');

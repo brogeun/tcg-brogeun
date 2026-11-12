@@ -21,7 +21,7 @@
     chineseStyle: {href:local('chinese-catalog.css','20261012-cn-release1')},
     riftboundStyle: {href:local('riftbound-catalog.css','20260909-rb1')},
     chiikawaStyle: {href:local('chiikawa-catalog.css','38b07b90dbdf')},
-    cardinfoStyle: {href:local('tcg-card-info.css','20261112-roster-size1')},
+    cardinfoStyle: {href:local('tcg-card-info.css','20261113-mobile-captions1')},
     collectionsStyle: {href:local('collections.css','20261030-collections1')},
     koreanStyle: {href:local('korean-promos.css','20261101-responsive-image1')},
     chinese: {src:local('chinese-catalog.js','20261112-roster-size1'),ready:()=>!!root.ChineseCatalog},

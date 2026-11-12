@@ -36,3 +36,36 @@
 .ci-panel .set-card-grid > button.enc-card { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; }
 .ci-panel .tci-grid .tci-card-open { padding:0 0 10px; }
 .ci-panel .tci-grid .tci-card-open > :not(.tci-art) { margin-inline:10px; }
+
+@media (max-width:768px) {
+  #cardInfoList > .set-tile {
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    justify-content:flex-start;
+  }
+  #cardInfoList > .set-tile > .set-tile-img,
+  #cardInfoList > .set-tile > .tci-cover {
+    flex:none;
+    overflow:hidden;
+  }
+  #cardInfoList .set-tile-body,
+  .ci-panel .tci-card-open > :not(.tci-art) {
+    flex-shrink:0;
+    min-width:0;
+  }
+  /* Names can wrap to any number of lines below the picture, including with enlarged text. */
+  #cardInfoList .set-tile-name,
+  .ci-panel .tci-card-open > strong {
+    display:block;
+    height:auto;
+    -webkit-line-clamp:unset;
+    white-space:normal;
+    overflow:visible;
+    overflow-wrap:anywhere;
+  }
+  /* The legacy detail template sets a 280px inline maximum even in narrower dialogs. */
+  #anyModal .ci-card-detail > img {
+    max-width:min(100%,280px) !important;
+  }
+}

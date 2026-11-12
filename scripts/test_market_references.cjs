@@ -113,6 +113,22 @@ test('retained shop prices show refresh-delay label and preserve original observ
     ['/data/yuyutei-market/onepiece.json',{game:'onepiece',sourceGame:'opc',sourceAsOf:observed,generatedAt:'2026-10-30T00:00:00Z',columns:['sourceSetCode','sourceProductId','cardNumber','name','price','sourceAsOf'],rows:[['op13','10001','OP13-001','Retained Shop Card',1200,observed]],sets:[{sourceSetCode:'op13',name:'OP13'}]}]
   ]);const page=pageRuntime(files,'?source=yuyu&game=onepiece&q=OP13-001');await new Promise(setImmediate);assert.match(page.element('mrCoverage').textContent,/갱신 지연 · 이전 확인 가격 유지/);assert.match(page.element('mrCoverage').textContent,/2026.*10.*19/);assert.match(page.element('mrResults').innerHTML,/Retained Shop Card/);assert.equal(files.get('/data/yuyutei-market/onepiece.json').sourceAsOf,observed);assert.doesNotMatch(page.element('mrCoverage').textContent,/2026.*10.*30/);
 });
+test('a direct 403 and a verified original shop delivery are shown separately for the affected game',async()=>{
+  const shop='/data/yuyutei-market/onepiece.json',observed='2026-11-12T15:26:15Z',older='2026-10-19T00:00:00Z';
+  const manifest={lastRun:{outcome:'blocked',httpStatus:403},lastImport:{outcome:'imported',importedAt:'2026-11-12T16:24:09Z',games:{onepiece:{observationsApplied:482}}},games:[{game:'onepiece',shard:shop}]};
+  const files=new Map([['/data/yuyutei-market.json',manifest],[shop,{game:'onepiece',sourceGame:'opc',sourceAsOf:observed,sets:[{sourceSetCode:'op13',sourceAsOf:older,recordCount:1}],records:[{sourceSetCode:'op13',cardNumber:'OP13-001',name:'Correct printing',price:1200}]}]]);
+  const page=pageRuntime(files,'?source=yuyu&game=onepiece');
+  await new Promise(setImmediate);
+  const status=page.element('mrCoverage').textContent;
+  assert.match(status,/기준 2026.*10.*19/);
+  assert.match(status,/직접 수집 지연 \(HTTP 403\).*482건 반영.*2026.*11.*13/);
+  assert.doesNotMatch(status,/이전 확인 가격 유지/);
+  assert.match(page.element('mrResults').innerHTML,/Correct printing/);
+  manifest.lastImport.games={digimon:{observationsApplied:826}};
+  const unaffected=pageRuntime(files,'?source=yuyu&game=onepiece');
+  await new Promise(setImmediate);
+  assert.match(unaffected.element('mrCoverage').textContent,/갱신 지연 · 이전 확인 가격 유지/);
+});
 test('large SNKRDUNK snapshots merge every shard and deduplicate exact product IDs',async()=>{
   const meta={source:'SNKRDUNK',brand:'weiss_schwarz',kind:'card'},files=new Map([
     ['/data/price-weiss_schwarz-card.json',{...meta,totalCount:2,products:[{id:'1',name:'Base'}],shards:['/data/snkrdunk-games/weiss_schwarz-card-0001.json']}],

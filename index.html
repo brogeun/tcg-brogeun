@@ -1810,9 +1810,17 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .ci-search input { min-width:0; flex:1; border:0; outline:0; background:transparent; font:400 14px/20px Pretendard,sans-serif; }
         .ci-search button { border:0; background:transparent; color:#666560; min-width:32px; min-height:32px; cursor:pointer; }
         .ci-search svg { width:20px; height:20px; flex-shrink:0; color:#888780; }
-        #ciTabs { display:flex; gap:24px; border-bottom:1px solid #D9D8D3; margin-bottom:24px; }
-        #ciTabs .tab { border:0; border-bottom:2px solid transparent; border-radius:0; padding:12px 0; background:transparent; color:#888780; font-size:16px; font-weight:400; cursor:pointer; }
-        #ciTabs .tab.active { color:#066666; font-weight:600; border-bottom-color:#066666; }
+        #ciTabs { min-width:0; margin-bottom:24px; }
+        #ciMainTabs { display:flex; flex-wrap:nowrap; gap:24px; width:100%; margin:0; border-bottom:1px solid #D9D8D3; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; }
+        #ciTabs .tab, #ciOtherToggle { flex:0 0 auto; white-space:nowrap; border:0; border-bottom:2px solid transparent; border-radius:0; padding:12px 0; background:transparent; color:#888780; font:400 16px/24px Pretendard,sans-serif; cursor:pointer; }
+        #ciTabs .tab.active, #ciOtherToggle.active { color:#066666; font-weight:600; border-bottom-color:#066666; }
+        #ciOtherToggle { display:inline-flex; align-items:center; gap:8px; }
+        #ciOtherToggle::after { content:''; width:6px; height:6px; margin-top:-3px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(45deg); }
+        #ciOtherToggle[aria-expanded="true"]::after { margin-top:3px; transform:rotate(225deg); }
+        #ciOtherTabs { display:flex; flex-wrap:nowrap; gap:8px; padding-top:12px; overflow-x:auto; overscroll-behavior-x:contain; scrollbar-width:thin; }
+        #ciOtherTabs[hidden] { display:none; }
+        #ciOtherTabs .tab { padding:8px 12px; border:1px solid #D9D8D3; border-radius:9999px; background:#fff; font-size:14px; line-height:20px; }
+        #ciOtherTabs .tab.active { border-color:#066666; background:#E6F7F7; }
         #cardInfoList { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:20px; }
         .ci-redesign .set-tile { min-width:0; border:1px solid #EDECE8; border-radius:12px; box-shadow:0 1px 3px #0000000f; }
         .ci-redesign .set-tile:hover { border-color:#19DFDF; box-shadow:0 4px 12px #00000014; }
@@ -1860,6 +1868,8 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         @media(max-width:1600px) { #cardInfoList { grid-template-columns:repeat(4,minmax(0,1fr)); } }
         @media(max-width:1200px) { #cardInfoList { grid-template-columns:repeat(3,minmax(0,1fr)); } #cardInfoSearchWrap { width:100%; margin:0 0 20px; } }
         @media(max-width:640px) {
+          #ciMainTabs { gap:18px; }
+          #ciMainTabs .tab, #ciOtherToggle { font-size:14px; }
           #cardInfoList { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
           .ci-redesign .set-tile-img { height:180px; }
           .ci-redesign .set-tile-body { padding:12px; }
@@ -1887,16 +1897,23 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       </div>
 
       <div>
-        <div class="tabs" id="ciTabs" aria-label="카드정보 브랜드">
-          <button type="button" class="tab active" data-ci="pokemon" aria-pressed="true">포켓몬</button>
-          <button type="button" class="tab" data-ci="onepiece" aria-pressed="false">원피스</button>
-          <button type="button" class="tab" data-ci="nikke" aria-pressed="false">니케</button>
-          <button type="button" class="tab" data-ci="dragon_ball_fusion_world" aria-pressed="false">드래곤볼</button>
-          <button type="button" class="tab" data-ci="yugioh" aria-pressed="false">유희왕</button>
-          <button type="button" class="tab" data-ci="digimon" aria-pressed="false">디지몬</button>
-          <button type="button" class="tab" data-ci="weiss_schwarz" aria-pressed="false">바이스슈발츠</button>
-          <button type="button" class="tab" data-ci="union_arena" aria-pressed="false">유니온아레나</button>
-          <button type="button" class="tab" data-ci="riftbound" aria-pressed="false">리프트바운드</button>
+        <div id="ciTabs" aria-label="카드정보 브랜드">
+          <div class="tabs" id="ciMainTabs" aria-label="카드정보 분류">
+            <button type="button" class="tab active" data-ci="pokemon" aria-pressed="true">포켓몬</button>
+            <button type="button" class="tab" data-ci="onepiece" aria-pressed="false">원피스</button>
+            <button type="button" class="tab" data-ci="riftbound" aria-pressed="false">리프트바운드</button>
+            <button type="button" class="tab" data-ci="korean_promos" aria-pressed="false">한국 프로모</button>
+            <button type="button" class="tab" data-ci="collections" aria-pressed="false">컬렉션</button>
+            <button type="button" id="ciOtherToggle" aria-expanded="false" aria-controls="ciOtherTabs" aria-pressed="false">기타</button>
+          </div>
+          <div id="ciOtherTabs" aria-label="기타 카드정보 종목" hidden>
+            <button type="button" class="tab" data-ci="dragon_ball_fusion_world" aria-pressed="false">드래곤볼</button>
+            <button type="button" class="tab" data-ci="yugioh" aria-pressed="false">유희왕</button>
+            <button type="button" class="tab" data-ci="digimon" aria-pressed="false">디지몬</button>
+            <button type="button" class="tab" data-ci="nikke" aria-pressed="false">니케</button>
+            <button type="button" class="tab" data-ci="union_arena" aria-pressed="false">유니온아레나</button>
+            <button type="button" class="tab" data-ci="weiss_schwarz" aria-pressed="false">바이스슈발츠</button>
+          </div>
         </div>
         <div style="display:flex; align-items:center; gap:10px; margin-left:auto">
           <div id="cardInfoSrc" style="font-size:11px; color:var(--ink-sub)"></div>
@@ -2529,7 +2546,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
 <script src="/assets/card-search-client.js?v=20261104-search3"></script>
-<script src="/assets/app-route-loader.js?v=20261108-photo-price1"></script>
+<script src="/assets/app-route-loader.js?v=20261112-menu1"></script>
 <script src="/assets/portfolio-summary-client.js?v=20261104-modular1"></script>
 <script src="/assets/card-thumbnails.js?v=20261104-modular1"></script>
 <script>
@@ -6914,6 +6931,46 @@ CARDINFO.pokemon.sort((a,b)=>String(b.release||'').localeCompare(String(a.releas
 let CI_TAB = 'pokemon';
 let CI_QUERY = '';
 let CI_ONEPIECE_CATEGORY = '';
+
+// Keep the parent menu in sync with every catalogue adapter and shared link.
+(() => {
+  const tabs = document.getElementById('ciTabs');
+  const primary = document.getElementById('ciMainTabs');
+  const secondary = document.getElementById('ciOtherTabs');
+  const toggle = document.getElementById('ciOtherToggle');
+  if (!tabs || !primary || !secondary || !toggle) return;
+  const games = new Set([...secondary.querySelectorAll('[data-ci]')].map(button => button.dataset.ci));
+  let current = CI_TAB;
+  let expanded = games.has(current);
+  function sync() {
+    if (current !== CI_TAB) {
+      current = CI_TAB;
+      expanded = games.has(current);
+    }
+    const selected = games.has(current);
+    toggle.classList.toggle('active', selected);
+    for (const [name, value] of [['aria-pressed', selected], ['aria-expanded', expanded]]) {
+      if (toggle.getAttribute(name) !== String(value)) toggle.setAttribute(name, String(value));
+    }
+    if (secondary.hidden === expanded) secondary.hidden = !expanded;
+  }
+  toggle.addEventListener('click', () => { expanded = !expanded; sync(); });
+  tabs.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !expanded) return;
+    expanded = false;
+    sync();
+    toggle.focus({preventScroll:true});
+  });
+  primary.addEventListener('click', event => {
+    if (!event.target.closest('[data-ci]')) return;
+    expanded = false;
+    sync();
+  });
+  new MutationObserver(sync).observe(tabs, {
+    subtree:true, attributes:true, attributeFilter:['class', 'aria-pressed']
+  });
+  sync();
+})();
 
 function renderCardInfo() {
   const allList = (CARDINFO[CI_TAB] || []).filter(set => CI_TAB!=='onepiece' || !CI_ONEPIECE_CATEGORY || set.category===CI_ONEPIECE_CATEGORY);

@@ -484,7 +484,7 @@
     languageBars(false);
     return previousRender.apply(this, args);
   };
-  if (!tabs.querySelector('[data-ci="chiikawa"]')) {
+  if (!document.getElementById('ciMainTabs') && !tabs.querySelector('[data-ci="chiikawa"]')) {
     const button = document.createElement('button');
     button.type = 'button'; button.className = 'tab'; button.dataset.ci = BRAND;
     button.textContent = '치이카와'; button.setAttribute('aria-pressed', 'false');

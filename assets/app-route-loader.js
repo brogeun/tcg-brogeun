@@ -24,11 +24,11 @@
     english: {src:local('english-catalog.js','20261108-photo2'),ready:()=>!!root.EnglishCatalog},
     englishSearch: {src:local('english-search.js','20260908-search1'),ready:()=>!!root.EnglishSearch},
     riftbound: {src:local('riftbound-catalog.js','20261030-rarity1'),ready:()=>!!root.RiftboundCatalog},
-    chiikawa: {src:local('chiikawa-catalog.js','20261030-rarity1'),ready:()=>!!root.ChiikawaCatalog},
+    chiikawa: {src:local('chiikawa-catalog.js','20261112-menu1'),ready:()=>!!root.ChiikawaCatalog},
     aliases: {src:local('tcg-search-aliases.js','20261101-ko1'),ready:()=>!!root.TCGSearchAliases},
     cardinfo: {src:local('tcg-card-info.js','20261108-image4041'),ready:()=>!!root.TCGCardInfo},
     codec: {src:local('collection-catalog-codec.js','20261030-collections1'),ready:()=>!!root.CollectionCatalogCodec},
-    collections: {src:local('collections.js','20261030-collections1'),ready:()=>!!root.TCGCollections},
+    collections: {src:local('collections.js','20261112-menu1'),ready:()=>!!root.TCGCollections},
     korean: {src:local('korean-promos.js','20261106-partial1'),ready:()=>!!root.KoreanPromos},
   };
   const profiles = {

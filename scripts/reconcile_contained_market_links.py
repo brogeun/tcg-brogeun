@@ -146,8 +146,9 @@ def geometry_for(path):
             IMAGE_FEATURES.move_to_end(name)
     if saved is not None:
         return saved
-    im = geometry.normalize(path.read_bytes())
-    value = (im, geometry.features(im))
+    frame, landscape = geometry.card_frame(path.read_bytes())
+    im = np.asarray(frame.resize((160,224), Image.Resampling.LANCZOS))
+    value = (im, geometry.features(im), landscape)
     with LOCK:
         IMAGE_FEATURES[name] = value
         IMAGE_FEATURES.move_to_end(name)
@@ -157,9 +158,16 @@ def geometry_for(path):
 
 
 def registered_compare(source_path, market_path):
-    a, fa = geometry_for(source_path)
-    b, fb = geometry_for(market_path)
-    return geometry.compare(a, b, fa, fb)
+    a, fa, source_landscape = geometry_for(source_path)
+    b, fb, market_landscape = geometry_for(market_path)
+    result = geometry.compare(a, b, fa, fb)
+    if (source_landscape or market_landscape) and not geometry.passes(result):
+        source, _ = geometry.card_frame(source_path.read_bytes())
+        market, _ = geometry.card_frame(market_path.read_bytes())
+        oriented = geometry.landscape_registration(source, market)
+        if geometry.passes(oriented):
+            return oriented
+    return result
 
 
 def source_image(t, root):
@@ -327,7 +335,7 @@ def main():
             if t.get('brand') == 'onepiece' and t.get('officialId'):
                 sibling_key = (t.get('boxCode'), t.get('setCode'), t.get('baseNumber') or t.get('number'))
                 OFFICIAL_SIBLINGS.setdefault(sibling_key, []).append(t)
-    for name in ['contained-card-market-links.json', 'onepiece-reviewed-promo-links.json']:
+    for name in ['contained-card-market-links.json', 'onepiece-reviewed-promo-links.json', 'contained-printing-reviews.json']:
         doc = json.loads((args.root / 'data' / name).read_text(encoding='utf-8'))
         for link in doc.get('links', []):
             if link.get('brand') == 'onepiece':
@@ -348,7 +356,12 @@ def main():
         done = {k for k, value in db.execute('select key, result from reviews') if json.loads(value)['status'] not in retry_status}
     if not args.retry and not args.retry_status:
         current_fingerprints={key(r):candidate_fingerprint(r) for r in rows}
-        done={k for k,value in db.execute('select key,result from reviews') if json.loads(value).get('candidateFingerprint')==current_fingerprints.get(k)}
+        done=set()
+        for k,value in db.execute('select key,result from reviews'):
+            saved=json.loads(value)
+            old_frame_error=any(c.get('error')=='No usable upright single-card image' for c in saved.get('comparisons',[]))
+            if not old_frame_error and saved.get('candidateFingerprint')==current_fingerprints.get(k):
+                done.add(k)
     chosen = [r for r in rows if key(r) not in done and (not args.codes or r['code'] in args.codes.split(','))]
     if args.limit:
         chosen = chosen[:args.limit]

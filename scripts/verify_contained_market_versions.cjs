@@ -4,7 +4,7 @@ const root=path.resolve(process.argv[2]||path.join(__dirname,'..'));
 const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
 const bridge=require(path.join(root,'assets/contained-card-prices.js')),match=require(path.join(root,'assets/contained-card-match.js')),fallback=require(path.join(root,'assets/card-price-fallback.js'));
 const repairs=require(path.join(root,'assets/card-catalog-repairs.js'));repairs.configure(read('data/card-catalog-repairs.json'));
-const products=repairs.products(read('data/all-cards.json').details),document=read('data/contained-card-market-links.json');
+const products=repairs.products(read('data/all-cards.json').details),document=bridge.mergeArtworkBindings(read('data/contained-card-market-links.json'),null,read('data/contained-printing-reviews.json'));
 const inventory=new Map();
 for(const record of document.variants||[]){
  const code=record.boxCode;if(inventory.has(code))continue;

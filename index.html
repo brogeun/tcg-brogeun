@@ -1559,6 +1559,11 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
       .slide-product-summary { display:flex; align-items:flex-start; gap:16px; padding:20px; border-bottom:1px solid #D9D8D3; }
       .slide-product-summary .slide-card-img { width:74px; height:98px; aspect-ratio:auto; border-radius:8px; background:#EDECE8; }
       .slide-product-summary .slide-card-img img { object-fit:contain; }
+      .ci-break-art { position:relative; overflow:hidden; aspect-ratio:1.4; }
+      .ci-card-detail .ci-break-art { width:min(100%,350px); margin:0 auto 18px; }
+      .slide-product-summary #slideCardImg.ci-break-art { width:100px; height:auto; aspect-ratio:1.4; }
+      .ci-break-art img { position:absolute; left:50%; top:50%; width:100%; height:100%; max-width:none; max-height:none; object-fit:contain; transform:translate(-50%,-50%); }
+      .ci-break-art img.ci-break-portrait { width:71.42857%; height:140%; transform:translate(-50%,-50%) rotate(90deg); }
       .slide-product-summary .slide-info { padding-top:4px; }
       .slide-badge { margin-bottom:8px; padding:2px 8px; border-radius:9999px; font-size:12px; line-height:16px; }
       .slide-name { margin-bottom:4px; font-size:16px; font-weight:600; line-height:24px; }
@@ -2529,7 +2534,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261030-sidebar1">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/card-catalog-repairs.js?v=20261108-source-images1"></script>
-<script src="/assets/contained-card-match.js?v=20261108-price-links2"></script>
+<script src="/assets/contained-card-match.js?v=20261113-printings1"></script>
 <script src="/assets/japanese-card-names.js?v=20261026-display-fallback2"></script>
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261101-picker1">
 <script src="/assets/card-rarity-filters.js?v=20261104-vintage-neo1"></script>
@@ -5709,7 +5714,9 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST, card
   badge.textContent = brand === 'onepiece' ? 'ONE PIECE' : brand === 'pokemon' ? 'POKEMON' : (window.TCGGameRegistry?.label(brand) || 'TCG');
   badge.className = 'slide-badge ' + (brand === 'onepiece' ? 'op' : brand === 'pokemon' ? 'pk' : 'tcg');
   const imgWrap = document.getElementById('slideCardImg');
-  imgWrap.innerHTML = image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
+  const horizontal=window.ContainedCardPrices?.isBreakPrinting?.(cardRarity||product)===true;
+  imgWrap.classList?.toggle('ci-break-art',horizontal);
+  imgWrap.innerHTML = image ? (horizontal?breakDetailImage(image,name):`<img src="${escapeHtml(image)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onerror="this.remove()">`) : '';
 
   // body — 박스 / 카드 구분 렌더
   const fmtChip = (val, grade) => val ? `₩${val.toLocaleString()}` : anniversaryProduct || liveNoListingGrades.has(grade) ? '출품 없음' : '—';
@@ -7391,6 +7398,9 @@ async function openJapaneseCatalogueCard(card) {
 }
 
 // Printed Japanese cards keep one current price source and their original artwork.
+function breakDetailImage(src,name){
+  return `<img src="${escapeHtml(src)}" alt="${escapeHtml(name)}" referrerpolicy="no-referrer" onload="this.classList.toggle('ci-break-portrait',this.naturalWidth<this.naturalHeight)" onerror="this.remove()">`;
+}
 let CI_CARD_DETAIL_REQUEST = 0;
 document.addEventListener('click', async e => {
   const candidate = e.target.closest('[data-contained-market-id]');
@@ -7441,7 +7451,7 @@ document.addEventListener('click', async e => {
     <div class="modal-head"><h3>카드 정보</h3><button class="modal-close" onclick="closeAnyModal()">✕</button></div>
     <div class="modal-body ci-card-detail" style="padding:24px;text-align:center">
       ${backBtn}
-      ${cardImage ? `<img src="${escapeHtml(cardImage)}" alt="${escapeHtml(cardName)}" style="max-width:280px;max-height:380px;width:auto;height:auto;border-radius:8px;margin:0 auto 18px;display:block" referrerpolicy="no-referrer">` : ''}
+      ${cardImage ? (window.ContainedCardPrices?.isBreakPrinting?.(identity)?`<div class="ci-break-art">${breakDetailImage(cardImage,cardName)}</div>`:`<img src="${escapeHtml(cardImage)}" alt="${escapeHtml(cardName)}" style="max-width:280px;max-height:380px;width:auto;height:auto;border-radius:8px;margin:0 auto 18px;display:block" referrerpolicy="no-referrer">`) : ''}
       <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:8px;line-height:1.4">${escapeHtml(cardName)}</div>
       <div style="font-size:12px;color:var(--ink-sub);margin-bottom:14px">${escapeHtml(target?.fullNumber || identity.number || '')} · ${escapeHtml(window.CardRarityFilters?.metadata(identity)?.label || identity.rarity || '')}</div>
       ${window.CardRarityFilters?.evidenceHtml(identity) || ''}
@@ -11295,8 +11305,8 @@ if(window.CardThumbnails){
 
 <!-- TCGHUB_CHIIKAWA_START -->
 <!-- TCGHUB_CHIIKAWA_END -->
-<script src="/assets/card-price-fallback.js?v=20261108-price-links2"></script>
-<script src="/assets/contained-card-prices.js?v=20261108-price-links2"></script>
+<script src="/assets/card-price-fallback.js?v=20261113-printings1"></script>
+<script src="/assets/contained-card-prices.js?v=20261113-printings1"></script>
 <script src="/assets/contained-card-candidates.js?v=20261108-price-links2"></script>
 <!-- Collections stay within Card info; private records are never cached by this module. -->
 </body>

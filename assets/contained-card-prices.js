@@ -3,6 +3,9 @@
   'use strict';
   const tokens=new WeakMap();let overridePromise,eb05Promise,eb05CardsPromise,artworkPromise;
   const upper=value=>String(value||'').normalize('NFKC').trim().toUpperCase();
+  function isBreakPrinting(card){
+    return (card?.brand||card?._brand)==='pokemon'&&/BREAK\s*$/i.test(String(card?.sourceName||card?.name||'').split(/[\[(]/)[0].trim());
+  }
   function targetFor(identity){
     const target={...identity,game:identity.brand,language:identity.language||'ja',grade:'raw'};
     if(identity.brand==='pokemon')target.fullNumber=String(identity.number||'').split('_')[0];
@@ -61,7 +64,8 @@
     const stamp=Date.parse(quote?.fetchedAt||'');
     if(!quote?.ok||String(quote.id)!==String(product.id)||!Number.isFinite(stamp)||stamp>now+300000||now-stamp>4200000)throw Error('Invalid live EB05 quote');
     const raw=quote.grades?.raw,absent=quote.noListingGrades?.includes('raw');
-    if(raw&&raw.currency==='JPY'&&Number.isFinite(raw.lowest_ask)&&raw.lowest_ask>0&&raw.active_count!==0&&!absent)return {...product,grades:quote.grades,gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:raw.lowest_ask,currency:'JPY',listingCount:raw.active_count||1,priceStatus:'priced',catalogAsk:null,quoteUnavailable:false};
+    const validCurrency=product.requiresRaw?['JPY','USD','KRW'].includes(raw?.currency):raw?.currency==='JPY';
+    if(raw&&validCurrency&&Number.isFinite(raw.lowest_ask)&&raw.lowest_ask>0&&raw.active_count!==0&&raw.availability!=='no-listing'&&!absent)return {...product,grades:quote.grades,gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:raw.lowest_ask,currency:raw.currency,listingCount:raw.active_count||1,priceStatus:'priced',catalogAsk:null,quoteUnavailable:false};
     if(absent&&!raw)return {...product,grades:quote.grades||{},gradeCheckedAt:quote.fetchedAt,priceCheckedAt:quote.fetchedAt,minPrice:null,currency:'JPY',listingCount:0,priceStatus:'no-listings',catalogAsk:null,quoteUnavailable:false};
     throw Error('Unconfirmed live EB05 availability');
   }
@@ -96,12 +100,21 @@
     return links;
   }
   const asset=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.hostname==='cdn.snkrdunk.com'&&!u.username&&!u.password&&(!u.port||u.port==='443')?u.origin+u.pathname:'';}catch{return '';}};
+  function mergeArtworkBindings(base,promo,printings){
+    const extra=printings?.schemaVersion===1?printings:{};
+    return {schemaVersion:1,links:[...(base.links||[]),...(promo?.schemaVersion===1?promo.links||[]:[]),...(extra.links||[])],
+      variants:[...(base.variants||[]),...(extra.variants||[])],japaneseProducts:base.japaneseProducts||[]};
+  }
   async function defaultArtworkBindings(){
     if(!root.document)return {schemaVersion:1,links:[]};
     if(!artworkPromise)artworkPromise=Promise.all([
       fetch('/data/contained-card-market-links.json?v=20261108-remaining1',{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>{if(!r.ok)throw Error('Artwork links unavailable');return r.json();}),
-      fetch('/data/onepiece-reviewed-promo-links.json?v=20261031-promo1',{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>r.ok?r.json():{links:[]}).catch(()=>({links:[]}))
-    ]).then(([base,promo])=>({schemaVersion:1,links:[...(base.links||[]),...(promo.schemaVersion===1?promo.links||[]:[])],variants:base.schemaVersion===1?base.variants||[]:[],japaneseProducts:base.schemaVersion===1?base.japaneseProducts||[]:[]})).catch(e=>{artworkPromise=null;throw e;});
+      fetch('/data/onepiece-reviewed-promo-links.json?v=20261031-promo1',{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>r.ok?r.json():{links:[]}).catch(()=>({links:[]})),
+      fetch('/data/contained-printing-reviews.json',{cache:'no-cache',signal:AbortSignal.timeout(12000)}).then(r=>r.ok?r.json():null).catch(()=>null)
+    ]).then(([base,promo,printings])=>{
+      if(printings?.schemaVersion!==1)artworkPromise=null;
+      return mergeArtworkBindings(base,promo,printings);
+    }).catch(e=>{artworkPromise=null;throw e;});
     return artworkPromise;
   }
   function reviewedArtworkLinks(targets,products,document,match){
@@ -120,7 +133,7 @@
         !asset(record.marketImage)||asset(record.marketImage)!==asset(product.thumbnailUrl||product.image)||
         !/^[a-f0-9]{64}$/.test(record.sourceSHA256||'')||!/^[a-f0-9]{64}$/.test(record.marketSHA256||'')||
         !match.sameIdentity(target,product))continue;
-      links[key]={id:String(record.id),brand:target.brand,fullId:upper(target.fullId)};
+      links[key]={id:String(record.id),brand:target.brand,fullId:upper(target.fullId),...(record.priceBasis==='raw'?{requiresRaw:true}:{})};
     }
     return links;
   }
@@ -149,7 +162,7 @@
           !asset(proof.marketImage)||asset(proof.marketImage)!==asset(p.thumbnailUrl||p.image)||
           !/^[a-f0-9]{64}$/.test(proof.marketSHA256||'')||!match.sameIdentity(target,p)) {valid=false;break;}
         ids.add(String(proof.id));labels.add(label);
-        versions.push({id:String(proof.id),label,product:{...p,sourceUrl:'https://snkrdunk.com/apparels/'+proof.id}});
+        versions.push({id:String(proof.id),label,product:{...p,sourceUrl:'https://snkrdunk.com/apparels/'+proof.id,...(record.priceBasis==='raw'?{requiresRaw:true}:{})}});
       }
       if(valid)found[key]=versions;
     }
@@ -166,7 +179,7 @@
       return {...p,language:'ja',originalJapaneseSourceVerified:true};
     });
   }
-  async function prepareTargets(identities,{isCurrent=()=>true,services={}}={}){
+  async function prepareTargets(identities,{isCurrent=()=>true,services={},includeLegendOffers=false}={}){
     const targets=identities.map(targetFor),match=services.match||root.ContainedCardMatch;
     const unavailable=()=>targets.map(target=>({...target,snkrdunkStatus:'unknown',sourceUnavailable:true}));
     if(!match||!isCurrent())return unavailable();
@@ -184,6 +197,12 @@
     products=reviewedJapaneseProducts(products,artworkBindings);
     const links={...eb05Links,...reviewedLinks(targets,products,overrides,match),...(root.CardCatalogRepairs?.verifiedLinks?.(targets,products)||{}),...reviewedArtworkLinks(targets,products,artworkBindings,match)},resolve=match.createResolver(products,links,services.candidateProofs||{}),versions=reviewedArtworkVariants(targets,products,artworkBindings,match);
     for(const target of targets){
+      if(includeLegendOffers){
+        const offers=match.legendOffers?.(target,products);
+        if(offers?.length){
+          target.legendOffers=offers;target.snkrdunkStatus='legend-offers';continue;
+        }
+      }
       if(!['pokemon','onepiece'].includes(target.brand)||target.language!=='ja'||target.bundle===true||target.quantity>1||target.kind==='box'){target.snkrdunkStatus='unlinked';continue;}
       const result=resolve(target);target.snkrdunkStatus=result.status;
       if(!['matched','verified-link','conflict'].includes(result.status)&&typeof match.artworkKey==='function'&&versions[match.artworkKey(target)]){
@@ -201,15 +220,23 @@
       }
       if(result.status==='matched'){
         const product=products.find(row=>String(row.id)===String(result.id));
-        if(product){target.snkrdunkId=String(result.id);target.snkrProduct=product;}
+        if(product){target.snkrdunkId=String(result.id);target.snkrProduct=result.proof?.requiresRaw?{...product,requiresRaw:true}:product;}
       }
     }
     let details={cards:{}},detailsFailed=false;
     if(targets.some(target=>target.snkrProduct||target.snkrVariants))try{details=await(services.loadDetails||defaultDetails)();if(!details?.cards||typeof details.cards!=='object')throw Error('Invalid detail catalogue');}catch{details={cards:{}};detailsFailed=true;}
     if(!isCurrent())return unavailable();
     return await Promise.all(targets.map(async target=>{
-      if(target.snkrVariants)return {...target,snkrVariants:target.snkrVariants.map(v=>({...v,product:withRawDetail(v.product,details)})),detailsStatus:detailsFailed?'unavailable':'available'};
+      if(target.snkrVariants){
+        const variants=await Promise.all(target.snkrVariants.map(async v=>({...v,product:v.product.requiresRaw?
+          await reviewedRawProduct(v.product,services):withRawDetail(v.product,details)})));
+        return {...target,snkrVariants:variants,detailsStatus:detailsFailed?'unavailable':'available'};
+      }
       if(!target.snkrProduct)return target;
+      if(target.snkrProduct.requiresRaw){
+        const product=await reviewedRawProduct(target.snkrProduct,services);
+        return {...target,snkrProduct:product,sourceUnavailable:!!product.quoteUnavailable,detailsStatus:'available'};
+      }
       let product=withRawDetail(target.snkrProduct,details);
       if(upper(target.boxCode)==='EB05'&&links[['onepiece','EB05',upper(target.fullId)].join(':')]){
         try{product=withLiveQuote(product,await(services.loadLiveQuote||defaultLiveQuote)(product.id));
@@ -222,7 +249,41 @@
         detailsStatus:product.reviewedPrice?'available':detailsFailed?'unavailable':'available'};
     }));
   }
-  async function prepareTarget(identity,options={}){return (await prepareTargets([identity],options))[0];}
+  async function reviewedRawProduct(product,services){
+    try{
+      const response=await (services.loadLiveQuote||defaultLiveQuote)(product.id);
+      const raw=withLiveQuote({...product,requiresRaw:true},response);
+      const checked={...raw,reviewedPrice:true,rawVerifiedAt:response.fetchedAt,noListingGrades:response.noListingGrades||[],
+        sourceUrl:'https://snkrdunk.com/apparels/'+product.id};
+      cacheProduct(checked);
+      return checked;
+    }catch{return {...product,quoteUnavailable:true};}
+  }
+  async function prepareTarget(identity,options={}){
+    const target=(await prepareTargets([identity],{...options,includeLegendOffers:true}))[0];
+    if(!target.legendOffers?.length||options.isCurrent?.()===false)return target;
+    const services=options.services||{};
+    await Promise.all(target.legendOffers.map(async offer=>{
+      const p=await reviewedRawProduct(offer.product,services);
+      const raw=p.grades?.raw;
+      if(p.quoteUnavailable){offer.quote={status:'unknown',source:'snkrdunk'};return;}
+      if(raw?.lowest_ask>0){
+        offer.quote={status:'priced',source:'snkrdunk',amount:raw.lowest_ask,currency:raw.currency,condition:'raw',
+          priceKind:'lowest_listing_ask',sourceUrl:p.sourceUrl,observedAt:p.rawVerifiedAt,valuationEligible:false};
+      }else{
+        offer.quote={status:'none'};
+        // A generic shop row cannot price a first edition, reprint or two-card lot.
+        if(offer.kind==='single'&&!offer.edition){
+          const fallback=services.fallback||root.CardPriceFallback;
+          if(fallback?.lookup){
+            const shop=await fallback.lookup({...target,legendOffers:undefined,snkrdunkStatus:'matched',snkrdunkId:offer.id,snkrProduct:p},{...services.fallbackOptions,isCurrent:options.isCurrent});
+            if(shop.status==='priced'&&shop.source==='yuyutei')offer.quote=shop;
+          }
+        }
+      }
+    }));
+    return target;
+  }
   async function hydrate(container,{isCurrent=()=>true,services={}}={}){
     const match=services.match||root.ContainedCardMatch,fallback=services.fallback||root.CardPriceFallback;
     if(!container||!match||!fallback)return [];
@@ -262,5 +323,5 @@
     }
     await Promise.all(Array.from({length:Math.min(4,entries.length)},worker));return results;
   }
-  return {hydrate,prepareTarget,targetFor,reviewedLinks,reviewedArtworkLinks,reviewedArtworkVariants,reviewedJapaneseProducts,withRawDetail,mergeSetProducts,reviewedSetLinks,withLiveQuote,getPreparedProduct,cacheProduct};
+  return {hydrate,prepareTarget,targetFor,reviewedLinks,reviewedArtworkLinks,reviewedArtworkVariants,reviewedJapaneseProducts,mergeArtworkBindings,isBreakPrinting,withRawDetail,mergeSetProducts,reviewedSetLinks,withLiveQuote,getPreparedProduct,cacheProduct};
 });

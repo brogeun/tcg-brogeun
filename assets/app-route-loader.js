@@ -25,14 +25,14 @@
     collectionsStyle: {href:local('collections.css','20261030-collections1')},
     koreanStyle: {href:local('korean-promos.css','20261101-responsive-image1')},
     chinese: {src:local('chinese-catalog.js','20261104-modular1'),ready:()=>!!root.ChineseCatalog},
-    english: {src:local('english-catalog.js','20261108-photo2'),ready:()=>!!root.EnglishCatalog},
+    english: {src:local('english-catalog.js','20261113-hubperf-r1'),ready:()=>typeof root.EnglishCatalog?.ensureData==='function'},
     englishSearch: {src:local('english-search.js','20260908-search1'),ready:()=>!!root.EnglishSearch},
     riftbound: {src:local('riftbound-catalog.js','20261030-rarity1'),ready:()=>!!root.RiftboundCatalog},
-    chiikawa: {src:local('chiikawa-catalog.js','20261030-rarity1'),ready:()=>!!root.ChiikawaCatalog},
+    chiikawa: {src:local('chiikawa-catalog.js','20261112-menu1'),ready:()=>!!root.ChiikawaCatalog},
     aliases: {src:local('tcg-search-aliases.js','20261101-ko1'),ready:()=>!!root.TCGSearchAliases},
     cardinfo: {src:local('tcg-card-info.js','20261108-image4041'),ready:()=>!!root.TCGCardInfo},
     codec: {src:local('collection-catalog-codec.js','20261030-collections1'),ready:()=>!!root.CollectionCatalogCodec},
-    collections: {src:local('collections.js','20261030-collections1'),ready:()=>!!root.TCGCollections},
+    collections: {src:local('collections.js','20261112-menu1'),ready:()=>!!root.TCGCollections},
     korean: {src:local('korean-promos.js','20261106-partial1'),ready:()=>!!root.KoreanPromos},
   };
   const profiles = {
@@ -40,6 +40,7 @@
     centering: {styles:['centeringStyle'],scripts:['geometry','resultCache','centering']},
     admin: {styles:['adminStyle','quillStyle'],scripts:['admin'],background:['sortable']},
     cardinfo: {
+      lookahead:2,
       styles:['referencesStyle','englishStyle','chineseStyle','riftboundStyle','chiikawaStyle','cardinfoStyle','collectionsStyle','koreanStyle'],
       // These adapters wrap shared functions, so their existing order is significant.
       scripts:['references','chinese','english','riftbound','chiikawa','aliases','cardinfo','codec','collections','korean'],
@@ -47,7 +48,7 @@
     'search-en': {styles:['referencesStyle','englishStyle','chineseStyle'],scripts:['references','chinese','english','englishSearch']},
     'search-zh': {styles:['chineseStyle'],scripts:['chinese']},
   };
-  const requests = new Map(), profileRequests = new Map();
+  const requests = new Map(), profileRequests = new Map(), preloads = new Map();
   function failure(message, code, requiresReload=false) {
     const error=new Error(message);error.code=code;error.requiresReload=requiresReload;return error;
   }
@@ -75,14 +76,14 @@
       }
       const cleanup=()=>{node.removeEventListener('load',loaded);node.removeEventListener('error',failed);};
       const loaded=()=>{
-        cleanup();
+        cleanup();clearPreload(key);
         if(descriptor.ready&&!descriptor.ready()){
           // An executed but incomplete adapter must not be evaluated a second time.
           reject(failure('화면을 준비하지 못했습니다. 앱을 다시 열어 주세요.','FEATURE_INIT',true));
         }else resolve();
       };
       const failed=()=>{
-        cleanup();node.remove();
+        cleanup();clearPreload(key);node.remove();
         if(requests.get(key)===pending)requests.delete(key);
         reject(failure('화면을 불러오지 못했습니다. 다시 시도해 주세요.','FEATURE_NETWORK'));
       };
@@ -92,12 +93,40 @@
     requests.set(key,pending);
     return pending;
   }
-  async function loadProfile(profile) {
+  function clearPreload(key) {
+    const node=preloads.get(key);
+    if(node){node.remove();preloads.delete(key);}
+  }
+  function preloadScript(key) {
+    const descriptor=assets[key];
+    if(!descriptor?.src||requests.has(key)||preloads.has(key)||descriptor.ready?.())return;
+    // Older WebViews retain the normal ordered loader. Hints never execute code.
+    const node=document.createElement('link');
+    if(!node.relList?.supports?.('preload'))return;
+    node.rel='preload';node.as='script';node.href=descriptor.src;node.dataset.appRoutePreload=key;
+    node.addEventListener('error',()=>{if(preloads.get(key)===node)clearPreload(key);},{once:true});
+    preloads.set(key,node);document.head.appendChild(node);
+  }
+  function demanded(job) {
+    return [...job.callers].some(caller=>caller.active&&caller.current());
+  }
+  function preloadNext(spec,job,start) {
+    if(!spec.lookahead||!demanded(job))return;
+    for(const key of spec.scripts.slice(start,start+spec.lookahead))preloadScript(key);
+  }
+  async function loadProfile(profile,job) {
     const spec=profiles[profile];
-    if(!spec)return;
+    if(!spec)return true;
+    if(!demanded(job))return false;
     // Insert styles together in their declared cascade order before route rendering.
+    preloadNext(spec,job,0);
     await Promise.all(spec.styles.map(loadAsset));
-    for(const key of spec.scripts)await loadAsset(key);
+    for(const [index,key] of spec.scripts.entries()){
+      if(!demanded(job))return false;
+      preloadNext(spec,job,index+1);
+      await loadAsset(key);
+    }
+    return true;
   }
   function loadBackground(profile) {
     for(const key of profiles[profile]?.background||[])void loadAsset(key).then(()=>{
@@ -115,20 +144,29 @@
     const current=()=>typeof options.isCurrent!=='function'||options.isCurrent();
     const cancelled=()=>({ready:false,cancelled:true,profile});
     if(!current())return cancelled();
-    let pending=profileRequests.get(profile);
-    if(!pending){
-      pending=loadProfile(profile).catch(error=>{
-        if(profileRequests.get(profile)===pending)profileRequests.delete(profile);
+    let job=profileRequests.get(profile);
+    if(!job){job={callers:new Set(),pending:null};profileRequests.set(profile,job);}
+    const caller={current,active:true};job.callers.add(caller);
+    if(!job.pending){
+      job.pending=loadProfile(profile,job).then(complete=>{
+        if(!complete&&profileRequests.get(profile)===job)profileRequests.delete(profile);
+        return complete;
+      }).catch(error=>{
+        if(profileRequests.get(profile)===job)profileRequests.delete(profile);
         throw error;
       });
-      profileRequests.set(profile,pending);
     }
     const milliseconds=Number.isFinite(options.timeoutMs)&&options.timeoutMs>0?Math.min(options.timeoutMs,60000):25000;
-    try{await budget(pending,milliseconds);}catch(error){if(!current())return cancelled();throw error;}
-    if(!current())return cancelled();
-    loadBackground(profile);
-    if(typeof options.activate==='function')await options.activate();
-    return current()?{ready:true,cancelled:false,profile}:cancelled();
+    try{
+      let complete;
+      try{complete=await budget(job.pending,milliseconds);}catch(error){if(!current())return cancelled();throw error;}
+      if(!current())return cancelled();
+      // A new visit can arrive just as the previous unneeded chain pauses.
+      if(!complete)return ensure(profile,options);
+      loadBackground(profile);
+      if(typeof options.activate==='function')await options.activate();
+      return current()?{ready:true,cancelled:false,profile}:cancelled();
+    }finally{caller.active=false;job.callers.delete(caller);}
   }
   const manifest=Object.freeze(Object.fromEntries(Object.entries(profiles).map(([name,spec])=>[name,Object.freeze({
     styles:Object.freeze(spec.styles.map(key=>assets[key].href)),

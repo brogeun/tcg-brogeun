@@ -1,7 +1,7 @@
 /* A single lazy worker shared by search entry points. Compatibility work yields to input. */
 (() => {
   'use strict';
-  const version='20261104-search3';
+  const version='20261113-search-pages1';
   let worker=null,ready=null,engine=null,fallbackReady=null,sequence=0,queryVersion=0,engineScript;
   const pending=new Map(),latest=new Map(),remotePending=new Map();
   let remoteVersion=null,remoteUnavailableUntil=0;
@@ -97,7 +97,7 @@
     const category=['card','box'].includes(options.category)?options.category:'all',brand=options.brand||'all';
     const offset=Math.max(0,Math.floor(Number(options.offset)||0));
     const limit=options.limit===Infinity?Infinity:Math.max(1,Math.min(300,Math.floor(Number(options.limit)||30)));
-    if(brand!=='all'||limit>60||offset+limit>60||String(query).length>200){const error=new Error('Search fastpath miss');error.miss=true;throw error;}
+    if(brand!=='all'||limit>60||String(query).length>200){const error=new Error('Search fastpath miss');error.miss=true;throw error;}
     const controller=new AbortController(),job={controller,requestId};remotePending.set(lane,job);
     const timeout=setTimeout(()=>controller.abort(),3500);
     try{

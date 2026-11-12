@@ -699,6 +699,7 @@
     if (!tabs.querySelector('[data-ci="collections"]')) { const button = document.createElement('button'); button.type = 'button'; button.className = 'tab'; button.dataset.ci = 'collections'; button.textContent = '컬렉션'; button.setAttribute('aria-pressed','false'); tabs.append(button); }
     const collectionTab = tabs.querySelector('[data-ci="collections"]');
     function positionCollectionTab() {
+      if (document.getElementById('ciMainTabs')) return;
       const chiikawa = tabs.querySelector('[data-ci="chiikawa"]');
       if (chiikawa) { if (chiikawa.nextElementSibling !== collectionTab) chiikawa.after(collectionTab); }
       else if (tabs.lastElementChild !== collectionTab) tabs.append(collectionTab);

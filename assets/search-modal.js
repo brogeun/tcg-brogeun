@@ -6,6 +6,7 @@
   const normalized=new Map();
   const normalize=value=>window.JapaneseCardNames?.normalizeQuery(value) || String(value||'').normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu,'');
   const placeholder=()=>(language==='zh-CN'?'중판':language==='en'?'영판':'일판')+' 카드 및 박스 이름 검색';
+  const imageAttributes = value => window.CardThumbnails?.attributes?.(value) || 'src="' + escapeHtml(value) + '"';
   function cardTitle(c) {
     if(c.brand==='pokemon' && window.JapaneseCardNames) return JapaneseCardNames.title(c);
     if(c.brand==='onepiece' && c.nameKo)return c.nameKo;
@@ -175,13 +176,18 @@
         const prepared=await window.AppRouteLoader.ensureSearch(language,{isCurrent:()=>own===version&&!modal.hidden});
         if(prepared.cancelled)return;
       }
-      // Search uses one prepared snapshot; it must not wait for portfolio,
+      // Japanese search uses one prepared snapshot; it must not wait for portfolio,
       // full metadata, grade history or display-name enrichment on this thread.
       const japanese=language==='ja'&&window.CardSearchClient
         ? await CardSearchClient.search(q,{category,limit:30,offset:visible-30}) : null;
       if(japanese?.cancelled)return;
       const chinese=language==='zh-CN' ? await ChineseCatalog.search(q,category) : null;
-      const english=language==='en' ? await EnglishSearch.ensureData() : (language==='ja'&&!japanese ? (await ensureData(),null) : null);
+      let english=null;
+      if(language==='en'){
+        // Metadata is demanded by this English query, never by the Japanese shell.
+        void Promise.resolve(window.EnglishCatalog?.ensureData?.()).catch(()=>{});
+        english=await EnglishSearch.ensureData();
+      }else if(language==='ja'&&!japanese)await ensureData();
       if(own!==version||modal.hidden)return;
       const unique=new Map();
       if(japanese) japanese.results.forEach(c=>unique.set(c.id,c));
@@ -205,15 +211,15 @@
       list.innerHTML=shown.length ? shown.map(c=>{
         const safe=escapeHtml;
         if(c.language==='en') {
-          const image=c.kind==='card' ? '<span class="gs-thumb gs-en-art">'+EnglishCatalog.art(c)+'</span>' : (/^https:\/\//.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>');
+          const image=c.kind==='card' ? '<span class="gs-thumb gs-en-art">'+EnglishCatalog.art(c)+'</span>' : (/^https:\/\//.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" '+imageAttributes(c.thumbnailUrl)+' alt="">' : '<span class="gs-thumb"></span>');
           return '<a class="gs-row" data-id="'+safe(c.id)+'" data-language="en" data-kind="'+c.kind+'" href="'+safe(EnglishSearch.href(c))+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe(c.displayName+' / '+c.name)+'">'+safe(c.name)+'</div><div class="gs-meta">영판 · '+(c.kind==='box'?'박스 · 수록 목록':safe(c.number))+' · '+safe(c.setName)+'</div></div><span class="gs-price">'+(c.kind==='box'?'수록 카드':'상세 보기')+'</span></a>';
         }
         if(c.language==='zh-CN') {
           const thumbnail=String(c.thumbnailUrl||'').replace(/^images\//,'/images/');
-          const image=ChineseCatalog.isImage(c.thumbnailUrl) ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" src="'+safe(thumbnail)+'" alt="">' : '<span class="gs-thumb"></span>';
+          const image=ChineseCatalog.isImage(c.thumbnailUrl) ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" '+imageAttributes(thumbnail)+' alt="">' : '<span class="gs-thumb"></span>';
           return '<a class="gs-row" data-id="'+safe(c.setCode+':'+c.id)+'" data-language="zh-CN" data-kind="'+safe(c.kind)+'" href="'+safe(ChineseCatalog.href(c))+'">'+image+'<div style="min-width:0"><div class="gs-name" title="'+safe((c.displayName||c.nameKo||c.name)+' / '+(c.originalName||c.name))+'">'+safe(c.displayName||c.nameKo||c.name)+'</div><div class="gs-meta">중판 · '+(c.kind==='card'?'카드 · '+safe(c.number)+(c.variantLabel||c.variant?' · '+safe(c.variantLabel||c.variant):''):'박스 · 수록 목록')+' · '+safe(c.setName)+'</div></div><span class="gs-price">'+safe(c.priceLabel||'가격 미확보')+'</span></a>';
         }
-        const image=/^(https?:\/\/|\/)/.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" src="'+safe(c.thumbnailUrl)+'" alt="">' : '<span class="gs-thumb"></span>';
+        const image=/^(https?:\/\/|\/)/.test(c.thumbnailUrl||'') ? '<img class="gs-thumb" loading="lazy" referrerpolicy="no-referrer" '+imageAttributes(c.thumbnailUrl)+' alt="">' : '<span class="gs-thumb"></span>';
         const price=Number(c.minPrice)>0 ? fmtKrw(Number(c.minPrice),c.currency) : '시세 없음';
         const href=c.href||(window.JapaneseCatalog ? JapaneseCatalog.href(c) : '#price/'+encodeURIComponent(c.id));
         const label=c._catalogue && !c.productId ? (c.kind==='box'?'수록 목록':'카드 정보') : price;

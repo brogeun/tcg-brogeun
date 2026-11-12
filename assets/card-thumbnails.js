@@ -50,6 +50,15 @@
     return current;
   }
 
+  const escapeAttribute = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  function attributes(value) {
+    const original = typeof value === 'string' ? value : '';
+    const thumbnail = smaller(original);
+    if (thumbnail) remember(thumbnail, original);
+    return 'src="' + escapeAttribute(thumbnail || original) + '"' +
+      (thumbnail ? ' data-original-src="' + escapeAttribute(original) + '"' : '');
+  }
+
   function apply(root = globalThis.document) {
     if (!root) return 0;
     const images = [...(root.matches?.(selector) ? [root] : []), ...(root.querySelectorAll?.(selector) || [])];
@@ -59,12 +68,17 @@
           image.hasAttribute?.('srcset')) continue;
       const current = source(image), prior = states.get(image);
       if (prior && (current === prior.thumbnail || current === prior.original)) continue;
-      const thumbnail = smaller(current);
+      // Templates may already select size=m before the browser sees an src.
+      // Attach the same original/error state without reassigning that src.
+      const saved = image.getAttribute('data-original-src');
+      const preselected = saved && smaller(saved) === current;
+      const fullSource = preselected ? saved : current;
+      const thumbnail = preselected ? current : smaller(current);
       if (!thumbnail) continue;
       const previous = prior && image.onerror === prior.handler ? prior.previous : image.onerror;
-      const state = {original: current, thumbnail, retried: false, previous};
+      const state = {original: fullSource, thumbnail, retried: false, previous};
       states.set(image, state);
-      image.setAttribute('data-original-src', current);
+      image.setAttribute('data-original-src', fullSource);
       state.handler = function(event) {
         const active = states.get(image);
         if (active === state && !active.retried && source(image) === active.thumbnail) {
@@ -75,13 +89,15 @@
         if (typeof state.previous === 'function') return state.previous.call(image, event);
       };
       image.onerror = state.handler;
-      remember(thumbnail, current);
-      image.setAttribute('src', thumbnail);
-      changed++;
+      remember(thumbnail, fullSource);
+      if (current !== thumbnail) {
+        image.setAttribute('src', thumbnail);
+        changed++;
+      }
     }
     return changed;
   }
 
   // No initial scan, observer, timer, image prefetch or route listener is installed.
-  window.CardThumbnails = Object.freeze({apply, original, selector});
+  window.CardThumbnails = Object.freeze({apply, original, attributes, selector});
 })();

@@ -15,7 +15,7 @@ const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),loader=fs.readFi
 const exported={
   'centering-geometry.js':['CenteringGeometry',{}],'centering-result-cache.js':['CenteringResultCache',{}],
   'centering-tool.js':['CenteringTool',{setup(){}}],'admin-editor.js':['AdminEditorUI',{enter(){},access(){}}],
-  'Sortable.min.js':['Sortable',{create(){}}],'chinese-catalog.js':['ChineseCatalog',{}],'english-catalog.js':['EnglishCatalog',{}],
+  'Sortable.min.js':['Sortable',{create(){}}],'chinese-catalog.js':['ChineseCatalog',{}],'english-catalog.js':['EnglishCatalog',{ensureData(){}}],
   'market-references.js':['MarketReferences',{mountEnglishCard(){}}],'portfolio-screen.js':['PortfolioScreen',{holdings(){},status(){},cancelChart(){}}],
   'english-search.js':['EnglishSearch',{}],'riftbound-catalog.js':['RiftboundCatalog',{}],'chiikawa-catalog.js':['ChiikawaCatalog',{}],
   'tcg-search-aliases.js':['TCGSearchAliases',{}],'tcg-card-info.js':['TCGCardInfo',{}],

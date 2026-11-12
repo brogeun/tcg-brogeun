@@ -47,6 +47,91 @@
     ]).then(([data]) => { configure(data); return catalog; }).catch(error => { ready = null; throw error; });
     return ready;
   }
+  // The contained-card panel needs just three exact-source metadata fields,
+  // never the full catalogue or its search/title/product indexes.
+  const SET_METADATA_VERSION='jp-set-metadata-v1';
+  const SET_METADATA_URL='/data/japanese-set-metadata.json?v=20261113-setmeta1';
+  let setManifestReady;
+  const setPacks=new Map(),setRequests=new Map();
+  function indexSetReferences(source,setCode){
+    const code=String(setCode||'').toUpperCase(),bySource=new Map();
+    for(const reference of source||[]){
+      if(!reference?._catalogue||reference.kind!=='card'||String(reference.boxCode||reference.setCode||'').toUpperCase()!==code)continue;
+      const url=String(reference.sourceUrl||reference.url||'');
+      if(url)bySource.set(url,bySource.has(url)?null:reference);
+    }
+    return bySource;
+  }
+  function enrichSetCards(cards,bySource){
+    return cards.map(card=>{
+      const reference=bySource?.get(String(card.url||card.sourceUrl||''));
+      if(!reference)return card;
+      const enriched={...card};
+      if((!enriched.rarity||!String(enriched.rarity).trim())&&typeof reference.rarity==='string')enriched.rarity=reference.rarity;
+      if(reference.unprintedNumber){enriched.unprintedNumber=true;enriched.inventoryNumber=reference.inventoryNumber;}
+      return enriched;
+    });
+  }
+  function decodeSetManifest(data){
+    if(data?.schemaVersion!==1||data.version!==SET_METADATA_VERSION||!data.sets||typeof data.sets!=='object'||Array.isArray(data.sets)||
+       !Array.isArray(data.buckets)||data.buckets.length<1||data.buckets.length>16)throw Error('Invalid Japanese set metadata manifest');
+    for(const entry of data.buckets)if(!entry||!/^\/data\/japanese-set-metadata\/bucket-\d{2}-[a-f0-9]{20}\.json$/.test(entry.url)||
+       !/^[a-f0-9]{64}$/.test(entry.contentHash||''))throw Error('Invalid Japanese set metadata bucket');
+    for(const [code,bucket] of Object.entries(data.sets))if(!code||code!==code.toUpperCase()||!Number.isInteger(bucket)||bucket<0||bucket>=data.buckets.length)throw Error('Invalid Japanese set metadata identity');
+    return data;
+  }
+  function setManifest(){
+    if(!setManifestReady)setManifestReady=fetch(SET_METADATA_URL,{signal:AbortSignal.timeout(12000)}).then(response=>{
+      if(!response.ok)throw Error('Japanese set metadata HTTP '+response.status);
+      return response.json();
+    }).then(decodeSetManifest).catch(error=>{setManifestReady=null;throw error;});
+    return setManifestReady;
+  }
+  function setPack(entry,bucket,refresh=false){
+    if(!setPacks.has(entry.url)){
+      const pending=fetch(entry.url,{signal:AbortSignal.timeout(12000),cache:refresh?'reload':'default'}).then(response=>{
+        if(!response.ok)throw Error('Japanese set metadata bucket HTTP '+response.status);
+        return response.json();
+      }).then(data=>{
+        if(data?.schemaVersion!==1||data.version!==SET_METADATA_VERSION||data.bucket!==bucket||data.contentHash!==entry.contentHash||
+           !data.sets||typeof data.sets!=='object'||Array.isArray(data.sets))throw Error('Mismatched Japanese set metadata bucket');
+        return data;
+      }).catch(error=>{if(setPacks.get(entry.url)===pending)setPacks.delete(entry.url);throw error;});
+      setPacks.set(entry.url,pending);
+    }
+    return setPacks.get(entry.url);
+  }
+  function decodeSetReferences(encoded){
+    if(!Array.isArray(encoded))throw Error('Missing Japanese set metadata');
+    const result=new Map();
+    for(const row of encoded){
+      if(!Array.isArray(row)||row.length<1||row.length>4||typeof row[0]!=='string'||!row[0]||result.has(row[0])||
+         row.length>1&&row[1]!==null&&typeof row[1]!=='string'||row.length>2&&row[2]!==true)throw Error('Invalid Japanese set metadata reference');
+      result.set(row[0],row.length===1?null:{rarity:row[1],...(row[2]?{unprintedNumber:true,inventoryNumber:row[3]}:{})});
+    }
+    return result;
+  }
+  function ensureSetMetadata(setCode){
+    const code=String(setCode||'').toUpperCase();
+    if(!setRequests.has(code)){
+      const pending=(async()=>{
+        // A cached manifest can outlive a deployment. Retry once against a fresh
+        // manifest if its selected immutable pack is no longer available.
+        for(let attempt=0;attempt<2;attempt++){
+          const manifestPromise=setManifest(),manifest=await manifestPromise;
+          if(!Object.prototype.hasOwnProperty.call(manifest.sets,code))return new Map();
+          const bucket=manifest.sets[code];
+          try{
+            const pack=await setPack(manifest.buckets[bucket],bucket,attempt>0);
+            if(!Object.prototype.hasOwnProperty.call(pack.sets,code))throw Error('Missing selected Japanese set');
+            return decodeSetReferences(pack.sets[code]);
+          }catch(error){setPacks.delete(manifest.buckets[bucket].url);if(attempt)throw error;if(setManifestReady===manifestPromise)setManifestReady=null;}
+        }
+      })().catch(error=>{if(setRequests.get(code)===pending)setRequests.delete(code);throw error;});
+      setRequests.set(code,pending);
+    }
+    return setRequests.get(code);
+  }
   function title(card) { return names()?.title(card) || card.nameKo || card.name || ''; }
   function japanese(product) {
     if (names()) return names().language(product) === 'ja';
@@ -134,5 +219,5 @@
       brand:'pokemon',_brand:'pokemon',kind:'card',_productKind:'card',language:'ja',setCode:card.setCode,
       number:card.number,productNumber:'pkmn-tcg-'+card.setCode+'-'+String(card.number).split('/')[0]} : null;
   }
-  return {ensureData, configure, decode, setProducts, getSearchRows, prepareQuery, acceptsQuery, matches, href, find, title, getProduct};
+  return {ensureData, configure, decode, setProducts, getSearchRows, prepareQuery, acceptsQuery, matches, href, find, title, getProduct, indexSetReferences, enrichSetCards, ensureSetMetadata};
 });

@@ -139,7 +139,7 @@ self.addEventListener('fetch', event => {
   }
 
   // Reference prices retain provider timestamps; prefer current snapshots to stale SW copies.
-  const referenceData = ['/data/us-market.json', '/data/yuyutei-market.json', '/data/mercari-references.json', '/data/snkrdunk-games.json', '/data/tcg-card-info.json', '/data/reference-market-health.json', '/data/cards-meta-index.json'].includes(url.pathname)
+  const referenceData = ['/data/us-market.json', '/data/yuyutei-market.json', '/data/mercari-references.json', '/data/snkrdunk-games.json', '/data/tcg-card-info.json', '/data/reference-market-health.json', '/data/cards-meta-index.json', '/data/contained-printing-reviews.json'].includes(url.pathname)
     || ['/data/us-market/', '/data/yuyutei-market/', '/data/snkrdunk-games/', '/data/cards-meta-index/', '/data/tcg-card-info/'].some(prefix => url.pathname.startsWith(prefix))
     || /^\/data\/price-(weiss_schwarz|union_arena|dragon_ball_fusion_world|yugioh|digimon)-(card|box)\.json$/.test(url.pathname);
   if (url.origin === location.origin && referenceData) {

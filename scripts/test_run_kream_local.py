@@ -19,6 +19,11 @@ from unittest import mock
 from scripts import run_kream_local as local
 
 
+def load_tests(loader, standard_tests, pattern):
+    standard_tests.addTests(loader.loadTestsFromName('scripts.test_github_local_recovery'))
+    return standard_tests
+
+
 class LocalCollectorTests(unittest.TestCase):
     base = '1' * 40
     tree = '2' * 40
@@ -135,7 +140,7 @@ class LocalCollectorTests(unittest.TestCase):
 
     def test_gh_json_bodies_are_stdin_only_and_cli_errors_are_private(self):
         payload = {'content': 'PRIVATE-REQUEST'}
-        with mock.patch.object(local.subprocess, 'run', return_value=SimpleNamespace(
+        with mock.patch.object(local, 'run_github_command', return_value=SimpleNamespace(
                 returncode=0, stdout=b'{"sha":"ok"}')) as run:
             self.assertEqual(local.GhApi('gh.exe')('git/trees', method='POST', payload=payload), {'sha': 'ok'})
         args, kwargs = run.call_args
@@ -143,7 +148,7 @@ class LocalCollectorTests(unittest.TestCase):
         self.assertIn('--input', args[0])
         self.assertEqual(json.loads(kwargs['input']), payload)
         self.assertTrue(kwargs['capture_output'])
-        with mock.patch.object(local.subprocess, 'run', return_value=SimpleNamespace(
+        with mock.patch.object(local, 'run_github_command', return_value=SimpleNamespace(
                 returncode=1, stdout=b'PRIVATE-OUT', stderr=b'PRIVATE-ERROR')):
             with self.assertRaises(local.LocalError) as caught:
                 local.GhApi('gh.exe')('git/trees', method='POST', payload=payload)

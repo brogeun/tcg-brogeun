@@ -6932,45 +6932,6 @@ let CI_TAB = 'pokemon';
 let CI_QUERY = '';
 let CI_ONEPIECE_CATEGORY = '';
 
-// Keep the parent menu in sync with every catalogue adapter and shared link.
-(() => {
-  const tabs = document.getElementById('ciTabs');
-  const primary = document.getElementById('ciMainTabs');
-  const secondary = document.getElementById('ciOtherTabs');
-  const toggle = document.getElementById('ciOtherToggle');
-  if (!tabs || !primary || !secondary || !toggle) return;
-  const games = new Set([...secondary.querySelectorAll('[data-ci]')].map(button => button.dataset.ci));
-  let current = CI_TAB;
-  let expanded = games.has(current);
-  function sync() {
-    if (current !== CI_TAB) {
-      current = CI_TAB;
-      expanded = games.has(current);
-    }
-    const selected = games.has(current);
-    toggle.classList.toggle('active', selected);
-    for (const [name, value] of [['aria-pressed', selected], ['aria-expanded', expanded]]) {
-      if (toggle.getAttribute(name) !== String(value)) toggle.setAttribute(name, String(value));
-    }
-    if (secondary.hidden === expanded) secondary.hidden = !expanded;
-  }
-  toggle.addEventListener('click', () => { expanded = !expanded; sync(); });
-  tabs.addEventListener('keydown', event => {
-    if (event.key !== 'Escape' || !expanded) return;
-    expanded = false;
-    sync();
-    toggle.focus({preventScroll:true});
-  });
-  primary.addEventListener('click', event => {
-    if (!event.target.closest('[data-ci]')) return;
-    expanded = false;
-    sync();
-  });
-  new MutationObserver(sync).observe(tabs, {
-    subtree:true, attributes:true, attributeFilter:['class', 'aria-pressed']
-  });
-  sync();
-})();
 
 function renderCardInfo() {
   const allList = (CARDINFO[CI_TAB] || []).filter(set => CI_TAB!=='onepiece' || !CI_ONEPIECE_CATEGORY || set.category===CI_ONEPIECE_CATEGORY);
@@ -7507,6 +7468,46 @@ document.addEventListener('click', e => {
   CI_TAB = tab.dataset.ci;
   renderCardInfo();
 });
+
+// Keep the parent menu in sync with every catalogue adapter and shared link.
+(() => {
+  const tabs = document.getElementById('ciTabs');
+  const primary = document.getElementById('ciMainTabs');
+  const secondary = document.getElementById('ciOtherTabs');
+  const toggle = document.getElementById('ciOtherToggle');
+  if (!tabs || !primary || !secondary || !toggle) return;
+  const games = new Set([...secondary.querySelectorAll('[data-ci]')].map(button => button.dataset.ci));
+  let current = CI_TAB;
+  let expanded = games.has(current);
+  function sync() {
+    if (current !== CI_TAB) {
+      current = CI_TAB;
+      expanded = games.has(current);
+    }
+    const selected = games.has(current);
+    toggle.classList.toggle('active', selected);
+    for (const [name, value] of [['aria-pressed', selected], ['aria-expanded', expanded]]) {
+      if (toggle.getAttribute(name) !== String(value)) toggle.setAttribute(name, String(value));
+    }
+    if (secondary.hidden === expanded) secondary.hidden = !expanded;
+  }
+  toggle.addEventListener('click', () => { expanded = !expanded; sync(); });
+  tabs.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !expanded) return;
+    expanded = false;
+    sync();
+    toggle.focus({preventScroll:true});
+  });
+  primary.addEventListener('click', event => {
+    if (!event.target.closest('[data-ci]')) return;
+    expanded = false;
+    sync();
+  });
+  new MutationObserver(sync).observe(tabs, {
+    subtree:true, attributes:true, attributeFilter:['class', 'aria-pressed']
+  });
+  sync();
+})();
 
 // 카드 정보 박스 검색
 (function bindCardInfoSearch(){

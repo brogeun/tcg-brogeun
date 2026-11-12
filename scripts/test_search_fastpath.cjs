@@ -26,19 +26,19 @@ const compiled=compileFastpath(snapshot,{queries});
 writeFastpath(compiled,directory);
 test.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
 
-function api({timeout=2500}={}){
+function api({timeout=2500,clock=Date}={}){
   const source=fs.readFileSync(path.join(__dirname,'../functions/api/card-search.js'),'utf8').replace('export async function onRequest','async function onRequest')+'\nmodule.exports={onRequest};';
-  const context={module:{exports:{}},URL,Request,Response,Headers,TextEncoder,TextDecoder,AbortController,crypto:webcrypto,
+  const context={module:{exports:{}},URL,Request,Response,Headers,TextEncoder,TextDecoder,AbortController,crypto:webcrypto,Date:clock,
     setTimeout:(fn,ms)=>setTimeout(fn,Math.min(ms,timeout)),clearTimeout};
   vm.createContext(context);vm.runInContext(source,context);return context.module.exports.onRequest;
 }
-function assets(){
+function assets(base=directory){
   const reads=[];
   const binding={fetch:async request=>{
     assert.equal(request.headers.get('Cookie'),null);assert.equal(request.headers.get('Authorization'),null);
     const pathname=new URL(request.url).pathname;reads.push(pathname);
     assert(pathname.startsWith('/data/search-fastpath/'));
-    const bytes=fs.readFileSync(path.join(directory,path.basename(pathname)));
+    const bytes=fs.readFileSync(path.join(base,path.basename(pathname)));
     return new Response(bytes,{headers:{'Content-Type':'application/json','Content-Length':String(bytes.length)}});
   }};
   return {binding,reads};
@@ -71,9 +71,9 @@ test('API reads a bounded manifest and one result shard, preserves totals/pages 
   const before=reads.length;const repeated=await handle({request:request('피카츄',{offset:'1',limit:'2'}),env:{ASSETS:binding}});assert.equal(repeated.status,200);assert.equal(reads.length,before,'Decoded byte-bounded shard cache reuses exact releases');
 });
 
-test('unknown queries/scopes/deeper pages are explicit misses and release mismatches cannot mix rows',async()=>{
+test('unknown queries and unsupported scopes are explicit misses and release mismatches cannot mix rows',async()=>{
   const handle=api(),{binding,reads}=assets();
-  for(const extra of [{brand:'pokemon'},{language:'en'},{offset:'60',limit:'30'},{limit:'300'}]){
+  for(const extra of [{brand:'pokemon'},{language:'en'},{limit:'300'}]){
     const result=await handle({request:request('피카츄',extra),env:{ASSETS:binding}});assert.equal(result.status,404);assert.equal((await result.json()).code,'fastpath_miss');
   }
   assert.equal(reads.length,0);
@@ -103,12 +103,12 @@ test('hung ASSETS fetches and bodies have real deadlines, release permits, and l
   mode='good';assert.equal((await handle({request:request('피카츄'),env:{ASSETS:binding}})).status,200);
 });
 
-function client({remote,delay=0,timerCap=Infinity}={}){
+function client({remote,delay=0,timerCap=Infinity,fallbackEngine=baseline}={}){
   const handle=api(),data=assets();let workers=0,initializations=0,apiCalls=0;
   class Worker{
     constructor(){workers++;this.stopped=false;}
     terminate(){this.stopped=true;}
-    postMessage(message){if(message.type==='init')initializations++;setTimeout(()=>{if(!this.stopped)this.onmessage({data:{id:message.id,result:message.type==='init'?{size:baseline.size}:baseline.search(message.query,message.options)}});},0);}
+    postMessage(message){if(message.type==='init')initializations++;setTimeout(()=>{if(!this.stopped)this.onmessage({data:{id:message.id,result:message.type==='init'?{size:fallbackEngine.size}:fallbackEngine.search(message.query,message.options)}});},0);}
   }
   const context={window:{},Worker,URLSearchParams,AbortController,setTimeout:(fn,ms)=>setTimeout(fn,Math.min(ms,timerCap)),clearTimeout,Date,
     fetch:async(url,options)=>{
@@ -164,5 +164,85 @@ test('generation has a hard physical-file budget and preserves unknown output fi
     fs.writeFileSync(path.join(out,'keep.txt'),'user file');
     assert.throws(()=>writeFastpath(compiled,out,{maxFiles:1}),/file asset budget/);
     const result=writeFastpath(compiled,out);assert(result.shards+1<=192);assert.equal(fs.readFileSync(path.join(out,'keep.txt'),'utf8'),'user file');
+  }finally{fs.rmSync(out,{recursive:true,force:true});}
+});
+
+const deepDirectory=fs.mkdtempSync(path.join(os.tmpdir(),'tcghub-fastpath-pages-'));
+const deepSnapshot={schemaVersion:1,sourceHash:'b'.repeat(64),aliases:snapshot.aliases,rows:[
+  ...Array.from({length:770},(_,i)=>({id:'deep-'+i,name:'Pikachu '+i,displayName:'피카츄 '+i,kind:'card',brand:'pokemon',language:'ja',href:'#price/deep-'+i,minPrice:i%7?1000+i:null,currency:i%2?'JPY':'USD',listingCount:i%23,number:String(i),rarity:'AR',sourceUrl:'https://original.example/cards/'+i,image:'https://images.example/'+i+'.jpg',searchText:'internal only'})),
+  ...Array.from({length:41},(_,i)=>({id:'box-'+i,name:'Pikachu Box '+i,displayName:'피카츄 박스 '+i,kind:'box',brand:'pokemon',language:'ja',href:'#price/box-'+i,minPrice:5000+i,currency:'JPY'}))]};
+const deepBaseline=engineAPI.create(deepSnapshot),deepCompiled=compileFastpath(deepSnapshot,{queries:['피카츄','Pikachu','피']});
+writeFastpath(deepCompiled,deepDirectory);
+test.after(()=>fs.rmSync(deepDirectory,{recursive:true,force:true}));
+test('first 600 accelerated results retain exact totals, boundary offsets and every original public field',async()=>{
+  const handle=api(),{binding,reads}=assets(deepDirectory);
+  for(const category of ['all','card','box'])for(const [offset,limit]of [[0,30],[30,30],[60,30],[59,60],[120,60],[540,60],[570,30],[599,1]]){
+    const before=reads.length,response=await handle({request:request('피카츄',{category,offset:String(offset),limit:String(limit)}),env:{ASSETS:binding}});
+    assert.equal(response.status,200);const value=await response.json(),expected=deepBaseline.search('피카츄',{category,offset,limit});
+    assert.deepEqual(value.results,expected.results.map(publicRow));assert.equal(value.total,expected.total);
+    assert(reads.length-before<=4,'Only manifest, descriptor and at most two result-page shards may be read');
+    assert(Buffer.byteLength(JSON.stringify(value))<=512*1024);
+  }
+  const descriptor=deepCompiled.entries.find(entry=>entry.key===JSON.stringify(['피카츄','card','all']));
+  assert.equal(descriptor.total,770);assert.equal(descriptor.pageHashes.length,10);
+  assert(deepCompiled.pages.size<deepCompiled.entries.reduce((n,entry)=>n+entry.pageHashes.length,0),'Exact duplicate page payloads are physically shared');
+});
+test('modal and price-grid deeper pages stay on the bounded API and never construct the catalogue worker',async()=>{
+  const handle=api(),{binding}=assets(deepDirectory),c=client({fallbackEngine:deepBaseline,remote:(url)=>handle({request:new Request('https://tcghub.kr'+url),env:{ASSETS:binding}})});
+  for(const [offset,limit]of [[0,30],[30,30],[60,30],[60,60],[540,60]]){
+    const value=await c.api.search('피카츄',{offset,limit}),expected=deepBaseline.search('피카츄',{offset,limit});
+    assert.deepEqual(JSON.parse(JSON.stringify(value.results)),expected.results.map(publicRow));assert.equal(value.total,expected.total);
+  }
+  assert.equal(c.stats().workers,0);assert.equal(c.stats().initializations,0);const fallback=await c.api.search('피카츄',{offset:600,limit:30}),expected=deepBaseline.search('피카츄',{offset:600,limit:30});assert.deepEqual(JSON.parse(JSON.stringify(fallback.results)),expected.results);assert.equal(fallback.total,expected.total);assert.equal(c.stats().workers,1);c.api.reset();
+});
+test('schema 1 first pages remain readable and unavailable legacy deep pages are explicit misses',async()=>{
+  const old=fs.mkdtempSync(path.join(os.tmpdir(),'tcghub-fastpath-v1-'));
+  try{
+    const {createHash}=require('node:crypto'),key=JSON.stringify(['피카츄','all','all']),digest=createHash('sha256').update(key).digest('hex');
+    const result=baseline.search('피카츄',{limit:60}),rows=Object.fromEntries(result.results.map(row=>[row.id,publicRow(row)]));
+    const body=JSON.stringify({schemaVersion:1,sourceHash:compiled.sourceHash,rows,queries:{[digest]:{key,total:result.total,ids:result.results.map(row=>row.id)}}})+'\n';
+    const file='queries-'+digest.slice(0,2)+'-0123456789abcdefabcd.json';
+    fs.writeFileSync(path.join(old,file),body);fs.writeFileSync(path.join(old,'manifest.json'),JSON.stringify({schemaVersion:1,sourceHash:compiled.sourceHash,rowCount:baseline.size,queryCount:1,maxResults:60,shards:{[digest.slice(0,2)]:{path:'/data/search-fastpath/'+file,bytes:Buffer.byteLength(body)}}}));
+    const handle=api(),{binding}=assets(old),response=await handle({request:request('피카츄'),env:{ASSETS:binding}});
+    assert.equal(response.status,200);assert.deepEqual((await response.json()).results,result.results.map(publicRow));
+    const deep=await handle({request:request('피카츄',{offset:'60'}),env:{ASSETS:binding}});assert.equal(deep.status,404);assert.equal((await deep.json()).code,'fastpath_miss');
+  }finally{fs.rmSync(old,{recursive:true,force:true});}
+});
+test('same-length original-field tampering is rejected by the page hash, not by its byte size',async()=>{
+  const original=assets(deepDirectory);let tampered=0;
+  const binding={fetch:async req=>{
+    const response=await original.binding.fetch(req);if(new URL(req.url).pathname.endsWith('/manifest.json'))return response;
+    const data=await response.json();for(const row of Object.values(data.rows))if(row.currency==='JPY'){row.currency='USD';tampered++;}
+    const body=JSON.stringify(data)+'\n';assert.equal(Buffer.byteLength(body),Number(response.headers.get('Content-Length')));
+    return new Response(body,{headers:{'Content-Type':'application/json','Content-Length':String(Buffer.byteLength(body))}});
+  }};
+  const response=await api()({request:request('피카츄',{offset:'60'}),env:{ASSETS:binding}});assert.equal(response.status,503);assert(tampered>0);
+});
+test('the acceleration boundary is explicit: no partial successful page can hide remaining results',async()=>{
+  const handle=api(),{binding}=assets(deepDirectory);
+  for(const extra of [{offset:'590',limit:'30'},{offset:'600',limit:'30'},{offset:'750',limit:'30'}]){const response=await handle({request:request('피카츄',extra),env:{ASSETS:binding}});assert.equal(response.status,404);assert.equal((await response.json()).code,'fastpath_miss');}
+});
+test('page-only wrong releases and out-of-range descriptor file IDs fail closed',async()=>{
+  for(const mode of ['page-release','file-id']){
+    const original=assets(deepDirectory),binding={fetch:async req=>{
+      const response=await original.binding.fetch(req);if(new URL(req.url).pathname.endsWith('/manifest.json'))return response;
+      const data=await response.json();if(mode==='page-release'&&Object.keys(data.pages).length)data.sourceHash='f'.repeat(64);
+      if(mode==='file-id')for(const descriptor of Object.values(data.queries))for(const ref of descriptor.pages)ref[1]=9;
+      const body=JSON.stringify(data)+'\n';assert.equal(Buffer.byteLength(body),Number(response.headers.get('Content-Length')));return new Response(body,{headers:{'Content-Type':'application/json','Content-Length':String(Buffer.byteLength(body))}});
+    }};assert.equal((await api()({request:request('피카츄',{offset:'60'}),env:{ASSETS:binding}})).status,503);
+  }
+});
+test('manifest, descriptor and page stages share a total deadline shorter than the client fallback deadline',async()=>{
+  let now=0;const original=assets(deepDirectory),binding={fetch:req=>{now+=1100;return original.binding.fetch(req);}};
+  const response=await api({clock:{now:()=>now}})({request:request('피카츄',{offset:'60'}),env:{ASSETS:binding}});assert.equal(response.status,503);assert(now<=3300);
+});
+test('byte and file budget failures do not replace an existing manifest or silently reduce query coverage',()=>{
+  const out=fs.mkdtempSync(path.join(os.tmpdir(),'tcghub-fastpath-publication-'));
+  try{
+    fs.writeFileSync(path.join(out,'manifest.json'),'old publication');fs.writeFileSync(path.join(out,'queries-ab-0123456789abcdefabcd.json'),'obsolete generated file');
+    assert.throws(()=>writeFastpath(deepCompiled,out,{maxFiles:1}),/file asset budget/);
+    assert.equal(fs.readFileSync(path.join(out,'manifest.json'),'utf8'),'old publication');
+    assert.throws(()=>compileFastpath(deepSnapshot,{queries:['피카츄','Pikachu'],maxBuildMs:0}),/refusing to reduce/);
+    const result=writeFastpath(deepCompiled,out);assert.equal(result.coverage.complete,true);assert.equal(result.queryCount,3);assert.equal(fs.existsSync(path.join(out,'queries-ab-0123456789abcdefabcd.json')),false);assert(result.shards+1<=192);assert(result.maxShardBytes<=900*1024);assert(result.manifestBytes<=128*1024);
   }finally{fs.rmSync(out,{recursive:true,force:true});}
 });

@@ -20,5 +20,5 @@ assert.equal(rows([{card_id:'1',grade:'psa10',qty:1,buy_price:100}],{'1':{latest
 assert.equal(rows(holdings,cache,new Set(['1']))[0].grade,'box','existing box ID classification');
 assert.equal(rows(holdings,cache)[0].grade,'psa10','pack text never classifies cards as boxes');
 const html=fs.readFileSync('index.html','utf8');
-assert(html.includes('portfolio-screen.js'));assert(html.includes('admin-account-entry'));assert(html.includes('registerPsaCert'));assert(html.includes('registerBgsCert'));assert(html.includes('removeWatchlistApi'));
+require('./helpers/app_asset_graph.cjs').assetGraph(require('node:path').resolve(__dirname,'..'),{html}).assertScript('portfolio-screen.js','portfolio');assert(html.includes('admin-account-entry'));assert(html.includes('registerPsaCert'));assert(html.includes('registerBgsCert'));assert(html.includes('removeWatchlistApi'));
 console.log('PASS: portfolio totals, negative/zero/missing quotes, box classification, sparse history forward fill, date ranges, existing actions');

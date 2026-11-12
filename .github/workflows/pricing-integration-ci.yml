@@ -14,6 +14,7 @@ on:
       - 'assets/**'
       - 'scripts/helpers/**'
       - 'scripts/test_card_info_pricing_integration.cjs'
+      - 'scripts/test_cardinfo_list_budget.cjs'
       - 'scripts/test_verify_card_info_prices.cjs'
       - 'scripts/test_contained_artwork_data.cjs'
       - 'scripts/audit/catalogue-repairs.test.cjs'
@@ -133,6 +134,7 @@ jobs:
           python-version: '3.11'
       - name: Check card clicks and exact deployed asset URLs
         run: |
+          node --test scripts/test_cardinfo_list_budget.cjs
           python scripts/apply_verified_image_repairs.py --root . --verify-only
           python -m unittest scripts.test_verified_image_repairs
           python scripts/reviewed_market_card_images.py --root . --verify-only

@@ -9,6 +9,8 @@ const crypto=require('node:crypto');
 const engineAPI=require('../assets/card-search-engine.js');
 const keyFor=(query,category='all')=>JSON.stringify([String(query).normalize('NFKC').trim().toLowerCase(),category,'all']);
 const sha=value=>crypto.createHash('sha256').update(value).digest('hex');
+// Allow slower CI workers to finish all queries; physical budgets stay fixed.
+const DEFAULT_BUILD_MS=240000;
 const OMIT=new Set(['searchText','_searchText','_opSearch','nameLower','promoKeys']);
 function publicRow(row){return Object.fromEntries(Object.entries(row).filter(([key])=>!OMIT.has(key)));}
 
@@ -71,69 +73,88 @@ function commonQueries(snapshot,{maxQueries=1000}={}){
   return [...chosen.values()];
 }
 
-function compileFastpath(snapshot,{queries,maxQueries=1000,maxResults=60,maxBuildMs=110000}={}){
+function compileFastpath(snapshot,{queries,maxQueries=1000,maxResults=60,maxAcceleratedResults=600,maxBuildMs=DEFAULT_BUILD_MS}={}){
   if(snapshot.schemaVersion!==1||!Array.isArray(snapshot.rows)||!snapshot.rows.length||typeof snapshot.sourceHash!=='string')throw Error('Invalid source search snapshot');
+  if(maxResults!==60)throw Error('Search result page size must remain 60');
+  if(![300,600].includes(maxAcceleratedResults))throw Error('Search acceleration coverage must be explicitly 300 or 600 results');
   const started=Date.now(),engine=engineAPI.create(snapshot),selected=queries||commonQueries(snapshot,{maxQueries});
-  const entries=[],known=new Set();let queryCount=0;
+  const entries=[],known=new Set(),rows=new Map(),pages=new Map();let queryCount=0;
   for(const query of selected){
-    // The budget is checked between complete queries. Every emitted query has
-    // all three independently computed category scopes and exact full totals.
-    if(queryCount>0&&Date.now()-started>=maxBuildMs)break;
+    if(queryCount>0&&Date.now()-started>=maxBuildMs)throw Error('Search build time budget exceeded; refusing to reduce common-query coverage');
     const normalized=keyFor(query);if(known.has(normalized))continue;known.add(normalized);
-    const scopes=engine.precompute(query,maxResults);
+    // Compute exact complete scopes once at build time, never in the Pages isolate.
+    const scopes=engine.precompute(query,Infinity);
     for(const category of ['all','card','box']){
-      const result=scopes[category];
+      const result=scopes[category],pageHashes=[];
+      for(let offset=0;offset<Math.min(result.results.length,maxAcceleratedResults);offset+=maxResults){
+        const publicRows=result.results.slice(offset,offset+maxResults).map(row=>{
+          const id=String(row.id);if(!rows.has(id))rows.set(id,publicRow(row));return rows.get(id);
+        });
+        const encoded=JSON.stringify(publicRows);
+        if(Buffer.byteLength(encoded)>500*1024)throw Error('A search result page exceeds the response byte budget');
+        const hash=sha('page\0'+encoded);pageHashes.push(hash);
+        if(!pages.has(hash))pages.set(hash,{hash,ids:publicRows.map(row=>String(row.id))});
+      }
       const key=keyFor(query,category);
-      entries.push({hash:sha(key),key,total:result.total,rows:result.results.map(publicRow)});
+      // The first-page references also let audits compare the former accelerator byte for byte.
+      entries.push({hash:sha(key),key,total:result.total,pageHashes,rows:result.results.slice(0,maxResults).map(row=>rows.get(String(row.id)))});
     }
     queryCount++;
   }
   if(!queryCount)throw Error('No complete fastpath query');
   const sourceHash=sha(snapshot.sourceHash+'\0'+fs.readFileSync(require.resolve('../assets/card-search-engine.js'))+'\0'+fs.readFileSync(__filename)+'\0'+JSON.stringify(entries.map(entry=>entry.key)));
-  return {schemaVersion:1,sourceHash,catalogueHash:snapshot.sourceHash,rowCount:engine.size,maxResults,queryCount,entries,
-    coverage:{queries:queryCount,scopes:entries.length,requested:selected.length,complete:queryCount===selected.length},buildMs:Date.now()-started};
+  return {schemaVersion:2,sourceHash,catalogueHash:snapshot.sourceHash,rowCount:engine.size,maxResults,maxAcceleratedResults,queryCount,entries,pages,rows,
+    coverage:{queries:queryCount,scopes:entries.length,requested:known.size,complete:true},buildMs:Date.now()-started};
 }
 
 function writeFastpath(compiled,directory,{maxShardBytes=900*1024,targetShardBytes=512*1024,maxFiles=192}={}){
-  fs.mkdirSync(directory,{recursive:true});
-  const shards={},sizes=[],written=new Set(),bodyFor=entries=>{
-    const rows=Object.create(null),queries=Object.create(null);
-    for(const entry of entries){
-      const ids=entry.rows.map(row=>String(row.id));
-      for(const row of entry.rows)rows[String(row.id)]=row;
-      queries[entry.hash]={key:entry.key,total:entry.total,ids};
-    }
-    return JSON.stringify({schemaVersion:1,sourceHash:compiled.sourceHash,rows,queries})+'\n';
+  const headerBytes=Buffer.byteLength(JSON.stringify({schemaVersion:2,sourceHash:compiled.sourceHash,rows:{},queries:{},pages:{}}))+1;
+  const rowBytes=new Map([...compiled.rows].map(([id,row])=>[id,Buffer.byteLength(JSON.stringify(id)+':'+JSON.stringify(row))+1]));
+  const pageBytes=page=>Buffer.byteLength(JSON.stringify(page.hash)+':'+JSON.stringify({ids:page.ids}))+1;
+  const bodyFor=(queries,pages)=>{
+    const rows=Object.create(null),queryMap=Object.create(null),pageMap=Object.create(null);
+    for(const query of queries)queryMap[query.hash]=query.value;
+    for(const page of pages){pageMap[page.hash]={ids:page.ids};for(const id of page.ids)rows[id]=compiled.rows.get(id);}
+    return JSON.stringify({schemaVersion:2,sourceHash:compiled.sourceHash,rows,queries:queryMap,pages:pageMap})+'\n';
   };
-  function write(prefix,entries,lookupPrefixes=[prefix]){
-    const text=bodyFor(entries),bytes=Buffer.byteLength(text);
-    if(bytes>maxShardBytes){
-      if(prefix.length>=16)throw Error('A single fastpath query exceeds its byte budget');
-      const groups=new Map();for(const entry of entries){const key=entry.hash.slice(0,prefix.length+1);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(entry);}
-      for(const [key,group]of groups)write(key,group);return;
+  function plan(limit){
+    const bins=[],rowBins=new Map(),locations=new Map();
+    // Page locations are explicit in descriptors, so exact pages can share
+    // physical row dictionaries instead of being scattered by random hash prefixes.
+    for(const page of compiled.pages.values()){
+      const shares=new Map(),base=pageBytes(page);let full=base;
+      for(const id of page.ids){const bytes=rowBytes.get(id);full+=bytes;for(const bin of rowBins.get(id)||[])shares.set(bin,(shares.get(bin)||0)+bytes);}
+      const candidates=[...shares].sort((a,b)=>b[1]-a[1]||a[0].index-b[0].index);
+      const fits=(bin,shared)=>bin.bytes+full-shared<=limit;
+      let selected=candidates.find(([bin,shared])=>fits(bin,shared))?.[0];
+      if(!selected)selected=bins.filter(bin=>!shares.has(bin)&&fits(bin,0)).sort((a,b)=>b.bytes-a.bytes)[0];
+      if(!selected){selected={index:bins.length,bytes:headerBytes,rowBytes:0,rows:new Set(),pages:[]};bins.push(selected);}
+      const added=full-(shares.get(selected)||0);if(selected.bytes+added>maxShardBytes)throw Error('A single search page exceeds its shard byte budget');
+      selected.bytes+=added;selected.rowBytes+=full-base-(shares.get(selected)||0);selected.pages.push(page);locations.set(page.hash,selected.index);
+      for(const id of page.ids)if(!selected.rows.has(id)){selected.rows.add(id);if(!rowBins.has(id))rowBins.set(id,[]);rowBins.get(id).push(selected);}
     }
-    if(sizes.length>=maxFiles-1)throw Error('Search fastpath exceeds its '+maxFiles+'-file asset budget; reduce --max-queries before publication.');
-    const file='queries-'+prefix+'-'+sha(text).slice(0,20)+'.json';
-    fs.writeFileSync(path.join(directory,file),text);sizes.push(bytes);written.add(file);
-    for(const lookup of lookupPrefixes)shards[lookup]={path:'/data/search-fastpath/'+file,bytes};
+    const records=compiled.entries.map(entry=>({hash:entry.hash,value:{key:entry.key,total:entry.total,pages:entry.pageHashes.map(hash=>[hash,locations.get(hash)])}}));
+    const leaves=[];
+    function split(prefix,items){const bytes=Buffer.byteLength(bodyFor(items,[]));if(bytes<=maxShardBytes){leaves.push({prefix,items,bytes});return;}if(prefix.length>=16)throw Error('A single search descriptor exceeds its byte budget');const groups=new Map();for(const item of items){const key=item.hash.slice(0,prefix.length+1);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item);}for(const [key,group]of groups)split(key,group);}
+    const groups=new Map();for(const item of records){const key=item.hash.slice(0,2);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(item);}for(const [prefix,items]of groups)split(prefix,items);
+    if(leaves.length>1024)throw Error('Search lookup-prefix budget exceeded');
+    const descriptors=[];
+    for(const leaf of leaves.sort((a,b)=>b.bytes-a.bytes||a.prefix.localeCompare(b.prefix))){let bin=descriptors.find(bin=>bin.bytes+leaf.bytes<=limit);if(!bin){bin={bytes:0,leaves:[]};descriptors.push(bin);}bin.bytes+=leaf.bytes;bin.leaves.push(leaf);}
+    return {bins,descriptors};
   }
-  const groups=new Map();for(const entry of compiled.entries){const prefix=entry.hash.slice(0,2);if(!groups.has(prefix))groups.set(prefix,[]);groups.get(prefix).push(entry);}
-  // Adjacent digest prefixes share a physical file. Keep the exact lookup
-  // keys so every compiled query remains reachable; split only oversized pairs.
-  for(let value=0;value<256;value+=2){
-    const prefixes=[value,value+1].map(number=>number.toString(16).padStart(2,'0')).filter(prefix=>groups.has(prefix));
-    if(!prefixes.length)continue;
-    const entries=prefixes.flatMap(prefix=>groups.get(prefix));
-    if(Buffer.byteLength(bodyFor(entries))<=targetShardBytes)write(value.toString(16).padStart(2,'0'),entries,prefixes);
-    else for(const prefix of prefixes)write(prefix,groups.get(prefix));
-  }
-  const manifest={schemaVersion:1,sourceHash:compiled.sourceHash,catalogueHash:compiled.catalogueHash,rowCount:compiled.rowCount,maxResults:compiled.maxResults,queryCount:compiled.queryCount,coverage:compiled.coverage,shards};
+  let planned=plan(Math.min(targetShardBytes,maxShardBytes));
+  if(planned.bins.length+planned.descriptors.length>=maxFiles)planned=plan(maxShardBytes);
+  if(planned.bins.length+planned.descriptors.length>=maxFiles)throw Error('Search fastpath exceeds its '+maxFiles+'-file asset budget ('+planned.bins.length+' page packs + '+planned.descriptors.length+' descriptor packs); common-query coverage was not reduced');
+  const outputs=[],shards={},pageShards=[];
+  function output(text,index){const bytes=Buffer.byteLength(text);if(bytes>maxShardBytes)throw Error('Search shard exceeds byte budget');const file='queries-'+index.toString(16).padStart(2,'0')+'-'+sha(text).slice(0,20)+'.json';outputs.push({file,text,bytes});return {path:'/data/search-fastpath/'+file,bytes};}
+  for(const bin of planned.bins)pageShards.push(output(bodyFor([],bin.pages),outputs.length));
+  for(const bin of planned.descriptors){const entry=output(bodyFor(bin.leaves.flatMap(leaf=>leaf.items),[]),outputs.length);for(const leaf of bin.leaves)shards[leaf.prefix]=entry;}
+  const manifest={schemaVersion:2,sourceHash:compiled.sourceHash,catalogueHash:compiled.catalogueHash,rowCount:compiled.rowCount,maxResults:compiled.maxResults,maxAcceleratedResults:compiled.maxAcceleratedResults,queryCount:compiled.queryCount,coverage:compiled.coverage,shards,pageShards};
   const text=JSON.stringify(manifest)+'\n';if(Buffer.byteLength(text)>128*1024)throw Error('Search fastpath manifest exceeds byte budget');
-  fs.writeFileSync(path.join(directory,'manifest.json'),text);
-  // Remove only obsolete files created by this generator after a valid new
-  // manifest exists. Unknown files in the output directory are preserved.
-  for(const file of fs.readdirSync(directory))if(/^queries-[a-f0-9]{2,16}-[a-f0-9]{20}\.json$/.test(file)&&!written.has(file))fs.unlinkSync(path.join(directory,file));
-  return {queryCount:compiled.queryCount,scopes:compiled.entries.length,shards:sizes.length,totalBytes:sizes.reduce((a,b)=>a+b,Buffer.byteLength(text)),maxShardBytes:Math.max(...sizes),manifestBytes:Buffer.byteLength(text),buildMs:compiled.buildMs,coverage:compiled.coverage};
+  // Validate the complete physical plan before touching the current publication.
+  fs.mkdirSync(directory,{recursive:true});for(const item of outputs)fs.writeFileSync(path.join(directory,item.file),item.text);fs.writeFileSync(path.join(directory,'manifest.json'),text);
+  const written=new Set(outputs.map(item=>item.file));for(const file of fs.readdirSync(directory))if(/^queries-[a-f0-9]{2,16}-[a-f0-9]{20}\.json$/.test(file)&&!written.has(file))fs.unlinkSync(path.join(directory,file));
+  return {queryCount:compiled.queryCount,maxAcceleratedResults:compiled.maxAcceleratedResults,scopes:compiled.entries.length,pages:compiled.pages.size,pagePacks:planned.bins.length,descriptorPacks:planned.descriptors.length,shards:outputs.length,totalBytes:outputs.reduce((a,b)=>a+b.bytes,Buffer.byteLength(text)),maxShardBytes:Math.max(...outputs.map(item=>item.bytes)),manifestBytes:Buffer.byteLength(text),buildMs:compiled.buildMs,coverage:compiled.coverage};
 }
 
 if(require.main===module){
@@ -141,7 +162,7 @@ if(require.main===module){
     const arg=(name,fallback)=>{const at=process.argv.indexOf(name);return at>=0?process.argv[at+1]:fallback;};
     const root=path.resolve(__dirname,'..'),snapshot=readSnapshot(path.resolve(arg('--snapshot',path.join(root,'data/search-index-ja.json'))));
     const out=path.resolve(arg('--out',path.join(root,'data/search-fastpath')));
-    const compiled=compileFastpath(snapshot,{maxQueries:Number(arg('--max-queries',1000)),maxBuildMs:Number(arg('--max-build-ms',110000))});
+    const compiled=compileFastpath(snapshot,{maxQueries:Number(arg('--max-queries',1000)),maxAcceleratedResults:Number(arg('--max-accelerated-results',600)),maxBuildMs:Number(arg('--max-build-ms',DEFAULT_BUILD_MS))});
     if(!compiled.coverage.complete)console.warn('Search fastpath build budget retained '+compiled.coverage.queries+'/'+compiled.coverage.requested+' complete queries; all remaining queries use the complete legacy fallback.');
     console.log(JSON.stringify({output:out,sourceHash:compiled.sourceHash,...writeFastpath(compiled,out)}));
   }catch(error){console.error(error.stack||String(error));process.exitCode=1;}

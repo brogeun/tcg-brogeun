@@ -1,0 +1,89 @@
+name: TCG HUB performance regressions
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'index.html'
+      - 'sw.js'
+      - 'assets/**'
+      - 'functions/api/card-search.js'
+      - 'scripts/test_hub_performance_release.mjs'
+      - 'scripts/test_*'
+      - 'scripts/build_search*'
+      - 'scripts/build_japanese_set_metadata.cjs'
+      - 'scripts/helpers/**'
+      - 'scripts/fixtures/**'
+      - '.github/workflows/hub-performance-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'sw.js'
+      - 'assets/**'
+      - 'functions/api/card-search.js'
+      - 'scripts/test_hub_performance_release.mjs'
+      - 'scripts/test_*'
+      - 'scripts/build_search*'
+      - 'scripts/build_japanese_set_metadata.cjs'
+      - '.github/workflows/hub-performance-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hub-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preserve-app-behavior:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /index.html
+            /sw.js
+            /_headers
+            /assets/
+            /functions/
+            /scripts/
+            /config/
+            /.github/
+            /data/news.json
+            /data/japanese-catalog.json
+            /data/japanese-card-names-ko.json
+            /data/card-catalog-repairs.json
+            /data/cards-meta.json
+            /data/cards-prices.json
+            /data/cards-meta-index.json
+            /data/contained-card-market-links.json
+            /data/price-box-name-overrides.json
+            /data/price-card-name-overrides.json
+            /data/price-pokemon-card.json
+            /data/price-pokemon-box.json
+            /data/price-onepiece-card.json
+            /data/price-onepiece-box.json
+            /data/manual-boxes-pokemon.json
+            /data/manual-boxes-onepiece.json
+            /data/promo-search.json
+            /data/onepiece-official-search.json
+            /data/onepiece-official-manifest.json
+            /data/search-aliases.json
+            /data/futuristic-market.json
+            /data/cards-by-set/
+            /data/english-catalog.json
+            /data/english-card-names-ko.json
+            /data/english-set-images.json
+            /data/english-sets/EN-TCG11803.json
+            /data/anniversary-artwork.json
+            /data/anniversary-market.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify startup, exact search, card identity, menus, owner isolation and caches
+        run: node scripts/test_hub_performance_release.mjs

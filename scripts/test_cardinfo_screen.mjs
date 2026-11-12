@@ -19,11 +19,18 @@ const counts = {};
 for (const brand of ['pokemon','onepiece']) {
   vm.runInContext(`CI_TAB='${brand}'; CI_QUERY=''; renderCardInfo();`,ctx);
   counts[brand] = vm.runInContext(`CARDINFO.${brand}.length`,ctx);
-  assert.equal([...list.innerHTML.matchAll(/class="set-tile"/g)].length, counts[brand]);
+  let rendered='';
+  const pageCount=Math.ceil(counts[brand]/24);
+  for(let page=1;page<=pageCount;page++){
+    vm.runInContext(`CI_SET_PAGE=${page}; renderCardInfo();`,ctx);
+    assert([...list.innerHTML.matchAll(/class="set-tile"/g)].length<=24,'A list page has at most 24 boxes');
+    rendered+=list.innerHTML;
+  }
+  assert.equal([...rendered.matchAll(/class="set-tile"/g)].length, counts[brand]);
   const datedSets = vm.runInContext(`CARDINFO.${brand}.filter(set => set.release).length`,ctx);
-  assert.equal([...list.innerHTML.matchAll(/발매일:/g)].length, datedSets);
-  assert(!list.innerHTML.includes('발매일: undefined'), 'Undated official products must not invent a release date');
-  assert.equal([...list.innerHTML.matchAll(/class="set-tile-name" title=/g)].length, counts[brand]);
+  assert.equal([...rendered.matchAll(/발매일:/g)].length, datedSets);
+  assert(!rendered.includes('발매일: undefined'), 'Undated official products must not invent a release date');
+  assert.equal([...rendered.matchAll(/class="set-tile-name" title=/g)].length, counts[brand]);
 }
 vm.runInContext("CI_TAB='pokemon'; CI_QUERY='무니키스'; renderCardInfo();",ctx);
 assert.match(list.innerHTML, /data-set-code="M3"/);

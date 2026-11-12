@@ -88,7 +88,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.snkrdunk.com" crossorigin> <!-- 시세 카드 이미지 CDN — LCP 단축 -->
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="/assets/fonts/pretendard-subset.css?v=20261113-subset1" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root {
   /* 새 디자인 토큰 (홈 + 점진적 적용용) */
@@ -163,21 +163,53 @@
   });
 </script>
 <script>
-  // 페이지 로드 시 + 동적 콘텐츠 생성 시 자동으로 아이콘 렌더
-  function _initLucide() {
-    if (window.lucide && lucide.createIcons) lucide.createIcons();
+  // The pinned Lucide renderer has no root option. Use its public element
+  // factory for new placeholders, retaining the same SVG tree and attributes.
+  function _renderLucidePlaceholder(element) {
+    const api = window.lucide;
+    if (!api?.createElement || !api.icons || !element?.matches?.('i[data-lucide]') || element.isConnected === false) return;
+    const name = element.getAttribute('data-lucide');
+    const component = name.replace(/(\w)(\w*)(_|-|\s*)/g, (_, first, rest) => first.toUpperCase() + rest.toLowerCase());
+    const icon = api.icons[component];
+    if (!icon) return;
+    const attrs = Object.fromEntries(Array.from(element.attributes, attr => [attr.name, attr.value]));
+    const classes = [...new Set(['lucide', 'lucide-' + name, ...(attrs.class || '').split(' ')].map(value => value.trim()).filter(Boolean))];
+    const svg = api.createElement([icon[0], {...icon[1], 'data-lucide': name, ...attrs, class: classes.join(' ')}, icon[2]]);
+    element.parentNode?.replaceChild(svg, element);
   }
-  document.addEventListener('DOMContentLoaded', _initLucide);
-  // 동적 콘텐츠 (모달, 카드 상세 등) 생성 후에도 자동 적용
+  function _lucidePlaceholders(root) {
+    const nodes = [];
+    if (root?.matches?.('i[data-lucide]')) nodes.push(root);
+    if (root?.querySelectorAll) nodes.push(...root.querySelectorAll('i[data-lucide]'));
+    return nodes;
+  }
+  function _initLucide(root = document) {
+    _lucidePlaceholders(root).forEach(_renderLucidePlaceholder);
+  }
+  const _lucidePending = new Set();
   let _lucideDebounce = null;
-  const _lucideObserver = new MutationObserver(() => {
-    if (_lucideDebounce) clearTimeout(_lucideDebounce);
-    _lucideDebounce = setTimeout(() => {
-      if (document.querySelector('i[data-lucide]')) _initLucide();
-    }, 50);
+  function _flushLucide() {
+    _lucideDebounce = null;
+    const nodes = [..._lucidePending];
+    _lucidePending.clear();
+    nodes.forEach(_renderLucidePlaceholder);
+  }
+  const _lucideObserver = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === 'attributes') {
+        if (record.target?.matches?.('i[data-lucide]')) _lucidePending.add(record.target);
+      } else {
+        for (const node of record.addedNodes || []) {
+          if (node.nodeType === 1) _lucidePlaceholders(node).forEach(icon => _lucidePending.add(icon));
+        }
+      }
+    }
+    // Unrelated DOM changes neither reset the timer nor rescan the document.
+    if (_lucidePending.size && _lucideDebounce === null) _lucideDebounce = setTimeout(_flushLucide, 50);
   });
   document.addEventListener('DOMContentLoaded', () => {
-    _lucideObserver.observe(document.body, { childList: true, subtree: true });
+    _initLucide(document);
+    _lucideObserver.observe(document.body, {childList:true, subtree:true, attributes:true, attributeFilter:['data-lucide']});
   });
 </script>
 <style>
@@ -1861,6 +1893,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
         .ci-panel .set-card-num { padding:16px 4px; font:400 14px/20px Pretendard,sans-serif; color:#888780; background:#fff; overflow-wrap:anywhere; }
         .ci-panel-pages { display:flex; flex-shrink:0; align-items:center; justify-content:center; gap:4px; flex-wrap:wrap; padding:12px 8px max(12px,env(safe-area-inset-bottom)); border-top:1px solid #EDECE8; }
         .ci-panel-pages[hidden] { display:none; }
+        .ci-list-pages { grid-column:1/-1; min-width:0; }
         /* Keep native status/navigation bars outside the card panel controls. */
         .ci-panel-head { padding-top:max(4px,var(--app-safe-top,env(safe-area-inset-top,0px))); }
         html[data-app-platform="android"] .ci-panel-pages { padding-bottom:max(12px,env(safe-area-inset-bottom,0px),48px); }
@@ -2529,8 +2562,6 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 
 <link rel="stylesheet" href="/assets/market-price-index.css?v=20261013-index19-restore1">
 <script src="/assets/market-price-index.js?v=20261103-startup1"></script>
-<link rel="stylesheet" href="/assets/market-references.css?v=20261029-reference1">
-<script src="/assets/market-references.js?v=20261107-unresolved1"></script>
 <link rel="stylesheet" href="/assets/price-expanded.css?v=20261030-sidebar1">
 <script src="/assets/price-product-info.js?v=20260906-meta2"></script>
 <script src="/assets/card-catalog-repairs.js?v=20261108-source-images1"></script>
@@ -2539,21 +2570,19 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <link rel="stylesheet" href="/assets/card-rarity-filters.css?v=20261101-picker1">
 <script src="/assets/card-rarity-filters.js?v=20261104-vintage-neo1"></script>
 <script src="/assets/japanese-set-artwork.js?v=20261106-vintage-contents1"></script>
-<script src="/assets/japanese-catalog.js?v=20261108-image4041"></script>
+<script src="/assets/japanese-catalog.js?v=20261113-setmeta1"></script>
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20261104-modular1"></script>
 <script src="/assets/price-expanded.js?v=20261102-detail-artwork1"></script>
-<script src="/assets/card-favorites.js?v=20261104-modular1"></script>
+<script src="/assets/card-favorites.js?v=20261113-hubperf-r1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
-<link rel="stylesheet" href="/assets/portfolio-screen.css?v=20261030-sidebar1">
-<script src="/assets/portfolio-screen.js?v=20261021-chart3"></script>
 <link rel="stylesheet" href="/assets/card-favorites.css?v=20260907-favorites1">
-<script src="/assets/card-search-client.js?v=20261104-search3"></script>
-<script src="/assets/app-route-loader.js?v=20261112-menu1"></script>
+<script src="/assets/card-search-client.js?v=20261113-search-pages1"></script>
+<script src="/assets/app-route-loader.js?v=20261113-hubperf-r1"></script>
 <script src="/assets/portfolio-summary-client.js?v=20261104-modular1"></script>
-<script src="/assets/card-thumbnails.js?v=20261104-modular1"></script>
+<script src="/assets/card-thumbnails.js?v=20261113-hubperf-r1"></script>
 <script>
 "use strict";
 
@@ -2596,6 +2625,7 @@ function initPriceRoute(route) {
   }).catch(error => console.warn('[route-search]', error));
 }
 function activatePage(page, route) {
+  if (typeof syncVisiblePublicBoards === 'function') syncVisiblePublicBoards();
   if (page === 'home' && typeof initHome2 === 'function') initHome2();
   if (page === 'price') initPriceRoute(route);
   if (page === 'admin') ensureAdminOriginals().then(() => {
@@ -2619,7 +2649,7 @@ let _FEATURE_ROUTE_RUN = 0;
 function preparePage(page, route) {
   const run=++_FEATURE_ROUTE_RUN;
   const current=()=>run===_FEATURE_ROUTE_RUN&&document.body.dataset.page===page;
-  const feature=['admin','centering','cardinfo'].includes(page);
+  const feature=['admin','centering','cardinfo','portfolio'].includes(page);
   if (!feature || !window.AppRouteLoader) return activatePage(page,route);
   const host=document.querySelector(`.page[data-page="${page}"]`);
   let state=host?.querySelector?.('[data-feature-load]');
@@ -2965,7 +2995,7 @@ function renderHomeTop(brand, products) {
          class="card" style="display:block; padding:0; overflow:hidden; text-decoration:none; color:inherit; position:relative; cursor:pointer">
         <div style="position:absolute; top:8px; left:8px; background:${rankColor}; color:${rankTextColor}; font-size:11px; font-weight:800; padding:4px 9px; border-radius:5px; z-index:2; min-width:24px; text-align:center">${i+1}</div>
         <div style="background:linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%); aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; padding:0; overflow:hidden">
-          ${p.image ? `<img src="${p.image}" alt="${p.name}" loading="lazy" referrerpolicy="no-referrer"
+          ${p.image ? `<img ${window.CardThumbnails?.attributes?.(p.image) || `src="${escapeHtml(p.image)}"`} alt="${p.name}" loading="lazy" referrerpolicy="no-referrer"
                           style="width:100%; height:100%; object-fit:contain; transform:scale(1.35)"
                           onerror="this.outerHTML='<span style=\\'font-size:42px;opacity:0.3\\'>🃏</span>'">`
                    : `<span style="font-size:42px; opacity:0.3">🃏</span>`}
@@ -2978,6 +3008,7 @@ function renderHomeTop(brand, products) {
         </div>
       </a>`;
   }).join('');
+  window.CardThumbnails?.apply(list);
 }
 
 function renderHomeTopSkeleton(brand) {
@@ -3109,7 +3140,7 @@ function _homePriceRowHTML(p, i) {
     [...CARDINFO.pokemon, ...CARDINFO.onepiece].find(s => new RegExp(`\\b${s.code.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\-]`, 'i').test(name));
   const setLabel = setInfo ? `${setInfo.name.replace(/\s*\([^)]*\)\s*$/, '').trim()} · ${setInfo.code}` : kindLabel;
   const imgHtml = p.image
-    ? `<img src="${escapeHtml(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
+    ? `<img ${window.CardThumbnails?.attributes?.(p.image) || `src="${escapeHtml(p.image)}"`} alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`
     : '';
   return `<a href="#price/${p.id}" data-price-id="${p.id}" class="price-row kind-${kind}" aria-label="${escapeHtml(mainName)} 시세 보기">
     <span class="price-rank ${rankClass}">${i+1}</span>
@@ -4804,7 +4835,8 @@ function renderPriceSearchAsGrid(results, query, requestedPage = 1, pageData = n
     return;
   }
   if (remote || (rows.some(card => card._catalogue) && window.JapaneseCatalog)) {
-    grid.innerHTML = visible.map(card => `<a class="price-card" href="${escapeHtml(card.href || (window.JapaneseCatalog ? JapaneseCatalog.href(card) : '#price/'+encodeURIComponent(card.id)))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl ? `<img loading="lazy" referrerpolicy="no-referrer" src="${escapeHtml(card.thumbnailUrl)}" alt="${escapeHtml(card.displayName || card.name)}">` : ''}</div><div class="price-card-body" data-live-card-price="${escapeHtml(String(card.id))}"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${remote ? (card.kind==='box'?'박스 시세 · ':'참고 시세 · ') : ''}${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number ? ' · ' + escapeHtml(card.number) : ''}</div><div class="price-card-price" data-card-price-main>${Number(card.minPrice) > 0 ? fmtKrw(card.minPrice,card.currency) : card._catalogue ? '카드 정보' : '시세 없음'}</div><div class="price-card-krw" data-card-price-origin>${card.cardType==='DON'&&Number(card.minPrice)>0 ? fmtOrig(card.minPrice,card.currency) : ''}</div></div></a>`).join('');
+    grid.innerHTML = visible.map(card => `<a class="price-card" href="${escapeHtml(card.href || (window.JapaneseCatalog ? JapaneseCatalog.href(card) : '#price/'+encodeURIComponent(card.id)))}" style="text-decoration:none;color:inherit"><div class="price-card-img">${card.thumbnailUrl ? `<img loading="lazy" referrerpolicy="no-referrer" ${window.CardThumbnails?.attributes?.(card.thumbnailUrl) || `src="${escapeHtml(card.thumbnailUrl)}"`} alt="${escapeHtml(card.displayName || card.name)}">` : ''}</div><div class="price-card-body" data-live-card-price="${escapeHtml(String(card.id))}"><div class="price-card-name">${escapeHtml(card.displayName || card.name)}</div><div class="price-card-tag">${remote ? (card.kind==='box'?'박스 시세 · ':'참고 시세 · ') : ''}${escapeHtml(card.setName || card.boxCode || card.productNumber || '')}${card.number ? ' · ' + escapeHtml(card.number) : ''}</div><div class="price-card-price" data-card-price-main>${Number(card.minPrice) > 0 ? fmtKrw(card.minPrice,card.currency) : card._catalogue ? '카드 정보' : '시세 없음'}</div><div class="price-card-krw" data-card-price-origin>${card.cardType==='DON'&&Number(card.minPrice)>0 ? fmtOrig(card.minPrice,card.currency) : ''}</div></div></a>`).join('');
+    window.CardThumbnails?.apply(grid);
     window.CardCatalogRepairs?.hydratePrices?.(grid,visible,{isCurrent:current,formatKrw:fmtKrw,formatOrig:fmtOrig});
     return;
   }
@@ -5424,7 +5456,7 @@ function renderPriceGrid(products, {localizeNames = true, refreshSearchPrices = 
       <a href="#price/${p.id}" data-price-id="${p.id}" data-price-kind="${PRICE_CAT}" class="price-card" data-slide-panel="1" style="text-decoration:none; color:inherit; cursor:pointer"
          onclick="event.preventDefault(); event.stopPropagation(); openSlidePanel('${p.id}'); return false;">
         <div class="price-card-img">
-          ${p.image ? `<img src="${p.image}" alt="${safeName.replace(/"/g, '&quot;')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="ph" aria-label="이미지 없음"></div>'}
+          ${p.image ? `<img ${window.CardThumbnails?.attributes?.(p.image) || `src="${escapeHtml(p.image)}"`} alt="${safeName.replace(/"/g, '&quot;')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : '<div class="ph" aria-label="이미지 없음"></div>'}
         </div>
         <div class="price-card-body" ${refreshSearchPrices ? `data-live-card-price="${escapeHtml(String(p.id))}"` : ''}>
           ${nameHtml}
@@ -5434,6 +5466,7 @@ function renderPriceGrid(products, {localizeNames = true, refreshSearchPrices = 
         </div>
       </a>`;
   }).join('');
+  window.CardThumbnails?.apply(grid);
   if(refreshSearchPrices)window.CardCatalogRepairs?.hydratePrices?.(grid,products,{isCurrent,formatKrw:fmtKrw,formatOrig:fmtOrig});
 }
 
@@ -6078,15 +6111,41 @@ document.addEventListener('click', e => {
 const HUB_NEWS_PAGE_SIZE = 15;
 let HUB_NEWS_ITEMS = [];
 let HUB_NEWS_PAGE = 1;
+let HUB_NEWS_LOADING = false;
+let HUB_NEWS_ERROR = false;
+
+// Data and home summaries remain available independently of full board markup.
+// Inspect explicit route/panel state instead of forcing a layout measurement.
+function publicBoardVisible(target) {
+  const page = target?.closest?.('.page');
+  if (!page?.classList.contains('active')) return false;
+  const panel = target.closest('[data-hubpanel]');
+  return !panel || panel.style.display !== 'none';
+}
+function visiblePublicBoardTargets(ids) {
+  return ids.map(id => document.getElementById(id)).filter(target => {
+    if (publicBoardVisible(target)) return true;
+    if (target?.childNodes?.length) target.textContent = '';
+    return false;
+  });
+}
+function syncVisiblePublicBoards() {
+  visiblePublicBoardTargets(['newsList','eventList','eventListHub','etcList','etcListHub','cardshowListHub','gradingListHub']);
+  const page = document.body.dataset.page;
+  if (page === 'events') return renderEvents();
+  if (page === 'etc') return renderEtc();
+  if (page !== 'hub') return;
+  const selected = [...document.querySelectorAll('[data-hubpanel]')].find(panel => panel.style.display !== 'none')?.dataset.hubpanel;
+  if (selected === 'news') renderHubNewsPage();
+  else if (selected === 'events') renderEvents();
+  else if (selected === 'etc') renderEtc();
+  else if (selected === 'cardshow') renderCardshows();
+  else if (selected === 'grading') renderGrading();
+}
 async function loadNews() {
-  const list = document.getElementById('newsList');
-  if (!list) return;
-  document.getElementById('newsPagination').hidden = true;
-  list.innerHTML = Array.from({length: 10}, () => `
-    <div class="hub-news-card" aria-hidden="true">
-      <div class="hub-news-placeholder"></div>
-      <div class="hub-news-body"><div style="height:12px;width:48px;background:#EDECE8;border-radius:6px"></div><div style="height:16px;width:82%;margin-top:12px;background:#EDECE8;border-radius:6px"></div><div style="height:12px;width:72px;margin-top:12px;background:#EDECE8;border-radius:6px"></div></div>
-    </div>`).join('');
+  HUB_NEWS_LOADING = true;
+  HUB_NEWS_ERROR = false;
+  renderHubNewsPage();
   try {
     const [adminResult, autoResult] = await Promise.allSettled([
       loadPublicBoardData('news'),
@@ -6130,11 +6189,13 @@ async function loadNews() {
     });
     HUB_NEWS_ITEMS = items;
     HUB_NEWS_PAGE = 1;
+    HUB_NEWS_LOADING = false;
     renderHubNewsPage();
     renderHomeNewsGrid();
   } catch (e) {
-    list.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="circle-alert"></i><div>뉴스를 불러오지 못했습니다</div></div></div>`;
-    if (typeof _initLucide === 'function') _initLucide();
+    HUB_NEWS_LOADING = false;
+    HUB_NEWS_ERROR = true;
+    renderHubNewsPage();
   }
 }
 // Home and news use the same source, poster framing and failure fallback.
@@ -6167,7 +6228,16 @@ function renderNewsMedia(n) {
     : `<div class="hub-news-placeholder">${fallback}</div>`;
 }
 function renderHubNewsPage() {
-    const list = document.getElementById('newsList');
+    const list = visiblePublicBoardTargets(['newsList'])[0];
+    if (!list) return;
+    if (!HUB_NEWS_ITEMS.length && (HUB_NEWS_LOADING || HUB_NEWS_ERROR)) {
+      document.getElementById('newsPagination').hidden = true;
+      list.innerHTML = HUB_NEWS_ERROR
+        ? `<div class="hub-empty-state"><div><i data-lucide="circle-alert"></i><div>뉴스를 불러오지 못했습니다</div></div></div>`
+        : '<p class="hub-empty-state" role="status">뉴스 불러오는 중…</p>';
+      if (typeof _initLucide === 'function') _initLucide();
+      return;
+    }
     const pageCount = Math.max(1, Math.ceil(HUB_NEWS_ITEMS.length / HUB_NEWS_PAGE_SIZE));
     HUB_NEWS_PAGE = Math.max(1, Math.min(HUB_NEWS_PAGE, pageCount));
     const start = (HUB_NEWS_PAGE - 1) * HUB_NEWS_PAGE_SIZE;
@@ -6595,6 +6665,7 @@ function showHubPanel(which) {
   document.querySelectorAll('[data-hubpanel]').forEach(p => {
     p.style.display = p.dataset.hubpanel === which ? '' : 'none';
   });
+  syncVisiblePublicBoards();
 }
 
 function applyHubTab(top) {
@@ -6938,6 +7009,24 @@ CARDINFO.pokemon.sort((a,b)=>String(b.release||'').localeCompare(String(a.releas
 let CI_TAB = 'pokemon';
 let CI_QUERY = '';
 let CI_ONEPIECE_CATEGORY = '';
+const CI_SET_PAGE_SIZE = 24;
+let CI_SET_PAGE = 1;
+let CI_SET_PAGE_KEY = '';
+const CI_NEW_WEBP_CODES = new Set(['S6a','S7D','S7R','S8','S8b','S9','S9a','S10a','S10b','S11','S11a','S12','S12a','SV1S','SV1V','SV1a','SV2D','SV2P','SV2a','SV3','SV3a','SV4K','SV4M','SV4a','SV5K']);
+function cardInfoSetArtwork(set) {
+  const isNew = CI_NEW_WEBP_CODES.has(set.code);
+  const isLegacy = Object.hasOwn(window.JapaneseSetArtwork?.legacy || {}, set.code);
+  const swordShield = /^S[0-9]/.test(set.code) && !set.code.startsWith('SV');
+  const filename = swordShield ? set.code[0].toLowerCase() + set.code.slice(1) : set.code;
+  const fallback = set.image || (isLegacy ? `images/box2/${set.code}.webp` : isNew ? `images/box/${filename}.webp` : `images/sets/${set.code}.jpg`);
+  const reviewed = window.JapaneseSetArtwork?.image(set, fallback) || fallback;
+  return {
+    src:set.imageVersion ? `${reviewed}?v=${set.imageVersion}` : reviewed,
+    className:isNew || isLegacy ? 'set-tile-img is-webp' : 'set-tile-img',
+    style:set.imageScale ? `style="transform:scale(${set.imageScale})"` : '',
+    caption:window.JapaneseSetArtwork?.kind(set) === 'pack' ? ' · 팩 소개 이미지' : '',
+  };
+}
 
 
 function renderCardInfo() {
@@ -6948,7 +7037,7 @@ function renderCardInfo() {
   if(CI_TAB==='onepiece'){
     const choices=[['','전체'],...Object.entries(window.OnePieceCatalog?.labels||{})];
     categoryBar.innerHTML=choices.filter(([key])=>!key||CARDINFO.onepiece.some(s=>s.category===key)).map(([key,label])=>`<button type="button" data-op-category="${key}" aria-pressed="${CI_ONEPIECE_CATEGORY===key}">${label}</button>`).join('');
-    categoryBar.onclick=e=>{const button=e.target.closest('[data-op-category]');if(button){CI_ONEPIECE_CATEGORY=button.dataset.opCategory;renderCardInfo();}};
+    categoryBar.onclick=e=>{const button=e.target.closest('[data-op-category]');if(button){window._CI_USER_INTENT=(window._CI_USER_INTENT||0)+1;window.flushCardInfoSearch?.({render:false});CI_ONEPIECE_CATEGORY=button.dataset.opCategory;CI_SET_PAGE=1;renderCardInfo();}};
   }
   const q = CI_QUERY.trim().toLowerCase();
   const foldSetQuery = value => String(value || '').normalize('NFKC').toLowerCase().replace(/([가-힣])의(?=[\s가-힣])/g, '$1').replace(/[\s\p{P}\p{S}]+/gu, '');
@@ -6959,6 +7048,10 @@ function renderCardInfo() {
         return terms.length > 0 && terms.every(term => text.includes(term));
       })
     : allList;
+  const pageKey = JSON.stringify([CI_TAB,q,CI_ONEPIECE_CATEGORY]);
+  if (pageKey !== CI_SET_PAGE_KEY) { CI_SET_PAGE = 1; CI_SET_PAGE_KEY = pageKey; }
+  const pageCount = Math.max(1, Math.ceil(list.length / CI_SET_PAGE_SIZE));
+  CI_SET_PAGE = Math.max(1, Math.min(pageCount, CI_SET_PAGE));
   // 출처 표시 제거 — 자체 데이터로 호스팅
   const listEl = document.getElementById('cardInfoList');
   if (q && list.length === 0) {
@@ -6968,26 +7061,10 @@ function renderCardInfo() {
     </div>`;
     return;
   }
-  listEl.innerHTML = list.map(s => {
+  listEl.innerHTML = list.slice((CI_SET_PAGE-1)*CI_SET_PAGE_SIZE,CI_SET_PAGE*CI_SET_PAGE_SIZE).map(s => {
     const isNolink = !!s.nolink;
     const safeName = escapeHtml(s.name || '');
-    // 박스 이미지 — 새로 받은 webp 23개는 webp 우선 + is-webp 클래스 (cover/padding 0)
-    //   기존 박스 (M*, SV5M~SV11W, OP*, EB*) 는 jpg + contain (그대로)
-    //   121 옛 박스 (S6a 이전, SNKRDUNK 출처) 는 images/box2/{code}.webp
-    const NEW_WEBP_CODES = new Set(['S6a','S7D','S7R','S8','S8b','S9','S9a','S10a','S10b','S11','S11a','S12','S12a','SV1S','SV1V','SV1a','SV2D','SV2P','SV2a','SV3','SV3a','SV4K','SV4M','SV4a','SV5K']);
-    const isNewWebp = NEW_WEBP_CODES.has(s.code);
-    const isLegacyBox2 = Object.hasOwn(window.JapaneseSetArtwork?.legacy || {}, s.code);
-    // S 시리즈 webp 는 소문자 파일명 (s12a.webp), SV 시리즈는 대문자 그대로
-    const isSwordShield = /^S[0-9]/.test(s.code) && !s.code.startsWith('SV');
-    const webpName = isSwordShield ? s.code[0].toLowerCase() + s.code.slice(1) : s.code;
-    const imgSrcBase = s.image || (isLegacyBox2
-      ? `images/box2/${s.code}.webp`
-      : isNewWebp ? `images/box/${webpName}.webp` : `images/sets/${s.code}.jpg`);
-    const reviewedImgSrc = window.JapaneseSetArtwork?.image(s, imgSrcBase) || imgSrcBase;
-    const imgSrc = s.imageVersion ? `${reviewedImgSrc}?v=${s.imageVersion}` : reviewedImgSrc;
-    const packageCaption = window.JapaneseSetArtwork?.kind(s) === 'pack' ? ' · 팩 소개 이미지' : '';
-    const imgClass = (isNewWebp || isLegacyBox2) ? 'set-tile-img is-webp' : 'set-tile-img';
-    const imgStyle = s.imageScale ? `style="transform:scale(${s.imageScale})"` : '';
+    const {src:imgSrc,className:imgClass,style:imgStyle,caption:packageCaption} = cardInfoSetArtwork(s);
     // onerror: 회색 background + 조용히 hide
     const onerrorAttr = `onerror="this.onerror=null;this.style.opacity='0'"`;
     if (isNolink) {
@@ -7014,7 +7091,7 @@ function renderCardInfo() {
           <div class="set-tile-meta">${s.release ? `발매일: ${escapeHtml(s.release)}` : s.officialCardCount ? `수록 카드 ${Number(s.officialCardCount).toLocaleString()}종` : '발매일 정보 확인 중'}${packageCaption}</div>
         </div>
       </div>`;
-  }).join('');
+  }).join('') + (pageCount > 1 ? `<nav class="ci-panel-pages ci-list-pages" aria-label="박스 목록 페이지"><button type="button" data-ci-list-page="${CI_SET_PAGE-1}" ${CI_SET_PAGE===1?'disabled':''} aria-label="이전 페이지">‹</button><span role="status">${CI_SET_PAGE} / ${pageCount} · 총 ${list.length}개 박스</span><button type="button" data-ci-list-page="${CI_SET_PAGE+1}" ${CI_SET_PAGE===pageCount?'disabled':''} aria-label="다음 페이지">›</button></nav>` : '');
 }
 
 /* ─────────── 세트 카드 그리드 모달 ─────────── */
@@ -7026,7 +7103,7 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
   const brand = CARDINFO.onepiece.some(s => s.code === setCode) ? 'onepiece' : 'pokemon';
   const set = CARDINFO[brand].find(s => s.code === setCode);
   const sourceImageElement = [...document.querySelectorAll('.set-tile[data-set-code]')].find(el => el.dataset.setCode === setCode)?.querySelector('img');
-  const sourceImage = window.CardThumbnails?.original(sourceImageElement) || sourceImageElement?.getAttribute('src');
+  const sourceImage = window.CardThumbnails?.original(sourceImageElement) || sourceImageElement?.getAttribute('src') || (typeof cardInfoSetArtwork==='function' && set ? cardInfoSetArtwork(set).src : set?.image);
   const opener = document.activeElement;
   openAnyModal(`
     <div class="ci-panel-head">
@@ -7113,23 +7190,10 @@ window.openSetGrid = async function(setCode, setName, externalUrl, viewState = {
     }
     // Count/pages are computed after exact source metadata and rarity filtering.
     if (brand === 'pokemon') {
-      await Promise.all([window.JapaneseCardNames?.ensureData(),window.JapaneseCatalog?.ensureData()]);
-      const catalogueBySource = new Map();
-      for (const reference of window.JapaneseCatalog?.getSearchRows() || []) {
-        if (!reference._catalogue || reference.kind!=='card' || String(reference.boxCode || reference.setCode || '').toUpperCase()!==setCode.toUpperCase()) continue;
-        const source=String(reference.sourceUrl || reference.url || '');
-        if (source) catalogueBySource.set(source,catalogueBySource.has(source)?null:reference);
-      }
-      cards=cards.map(card=>{
-        const reference=catalogueBySource.get(String(card.url || card.sourceUrl || ''));
-        if (!reference) return card;
-        // Only this unambiguous exact source URL may provide missing metadata.
-        // Never infer rarity from a name, price, number or parallel suffix.
-        const enriched = {...card};
-        if ((!enriched.rarity || !String(enriched.rarity).trim()) && typeof reference.rarity === 'string') enriched.rarity = reference.rarity;
-        if (reference.unprintedNumber) { enriched.unprintedNumber = true; enriched.inventoryNumber = reference.inventoryNumber; }
-        return enriched;
-      });
+      const [,setMetadata] = await Promise.all([window.JapaneseCardNames?.ensureData(),window.JapaneseCatalog?.ensureSetMetadata(setCode)]);
+      // The compact projection preserves exact-source ambiguity and only fills
+      // missing rarity / numberless-card metadata. Images and prices stay intact.
+      cards=window.JapaneseCatalog?.enrichSetCards(cards,setMetadata) || cards;
     }
     if (request !== CI_PANEL_REQUEST || !modal.classList.contains('open')) return;
     cards = await window.CardRarityFilters?.enrich(cards,{brand,setCode}) || cards;
@@ -7475,7 +7539,9 @@ document.addEventListener('click', e => {
   tab.classList.add('active');
   tab.setAttribute('aria-pressed', 'true');
   window._CI_USER_INTENT=(window._CI_USER_INTENT||0)+1;
+  window.flushCardInfoSearch?.({render:false});
   CI_TAB = tab.dataset.ci;
+  CI_SET_PAGE = 1;
   renderCardInfo();
 });
 
@@ -7524,22 +7590,56 @@ document.addEventListener('click', e => {
   const input = document.getElementById('cardInfoSearchInput');
   const clear = document.getElementById('cardInfoSearchClear');
   if (!input || !clear) return;
-  input.addEventListener('input', () => {
-    CI_QUERY = input.value || '';
-    clear.style.display = CI_QUERY ? 'inline-block' : 'none';
-    renderCardInfo();
+  let timer=null,composing=false;
+  const cancel=()=>{if(timer!==null)clearTimeout(timer);timer=null;};
+  const commit=({render=true}={})=>{
+    cancel();
+    if(composing)return;
+    CI_QUERY=input.value||'';
+    CI_SET_PAGE=1;
+    clear.style.display=CI_QUERY?'inline-block':'none';
+    if(render)renderCardInfo();
+  };
+  window.flushCardInfoSearch=commit;
+  const schedule=event=>{
+    cancel();
+    clear.style.display=input.value?'inline-block':'none';
+    if(composing||event?.isComposing)return;
+    const run=_FEATURE_ROUTE_RUN,value=input.value;
+    timer=setTimeout(()=>{
+      timer=null;
+      if(document.body.dataset.page!=='cardinfo'||run!==_FEATURE_ROUTE_RUN||input.value!==value||composing)return;
+      commit();
+    },180);
+  };
+  input.addEventListener('compositionstart',()=>{composing=true;cancel();});
+  input.addEventListener('compositionend',event=>{composing=false;schedule(event);});
+  input.addEventListener('input', event => {
+    window._CI_USER_INTENT=(window._CI_USER_INTENT||0)+1;
+    schedule(event);
   });
   clear.addEventListener('click', () => {
+    window._CI_USER_INTENT=(window._CI_USER_INTENT||0)+1;
+    composing=false;
     input.value = '';
-    CI_QUERY = '';
-    clear.style.display = 'none';
-    renderCardInfo();
+    commit();
     input.focus();
+  });
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('[data-ci-list-page]');
+    if(!button||button.disabled||document.body.dataset.page!=='cardinfo')return;
+    window._CI_USER_INTENT=(window._CI_USER_INTENT||0)+1;
+    CI_SET_PAGE=Number(button.dataset.ciListPage)||1;
+    renderCardInfo();
+    const list=document.getElementById('cardInfoList');
+    list.querySelector('.set-tile[role="button"]')?.focus({preventScroll:true});
+    list.scrollIntoView({block:'start',behavior:'auto'});
   });
 })();
 
 let _CARDINFO_SETUP_STARTED=false;
 function initCardInfoScreen() {
+window.flushCardInfoSearch?.({render:false});
 renderCardInfo();
 if(_CARDINFO_SETUP_STARTED)return;
 _CARDINFO_SETUP_STARTED=true;
@@ -8452,7 +8552,8 @@ function toggleHubCard(id, event) {
 }
 
 function renderEvents() {
-  const targets = [document.getElementById('eventList'), document.getElementById('eventListHub')].filter(Boolean);
+  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
+  const targets = visiblePublicBoardTargets(['eventList','eventListHub']);
   if (!targets.length) return;
   let html;
   if (!EVENTS.length) {
@@ -8462,13 +8563,14 @@ function renderEvents() {
     html = EVENTS.map(e => _hubRowCard(e, { bg:'#fef3c7', color:'#92400e', icon:'✨' }, 'event')).join('');
   }
   targets.forEach(el => el.innerHTML = html);
-  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
 }
 // 사용자 요청 (B 방식) — 정보허브 뉴스/카드쇼/그레이딩/기타 카드 이미지는 잘림 없이 전체 보이게 (contain)
 let _HUBCARD_OPTS = {};
 function renderEtc() {
   renderHomeRecommendations();
-  const targets = [document.getElementById('etcList'), document.getElementById('etcListHub')].filter(Boolean);
+  if (typeof renderHomeEtcCarousel === 'function') { renderHomeEtcCarousel(); _etcCarouselRestart(); }
+  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
+  const targets = visiblePublicBoardTargets(['etcList','etcListHub']);
   if (!targets.length) return;
   let html;
   if (!ETC_LIST.length) {
@@ -8478,11 +8580,9 @@ function renderEtc() {
     html = ETC_LIST.map(e => _hubRowCard(e, { bg:'#f3f4f6', color:'#374151', icon:'📦' }, 'etc')).join('');
   }
   targets.forEach(el => el.innerHTML = html);
-  if (typeof renderHomeEtcCarousel === 'function') { renderHomeEtcCarousel(); _etcCarouselRestart(); }
-  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
 }
 function renderCardshows() {
-  const target = document.getElementById('cardshowListHub');
+  const target = visiblePublicBoardTargets(['cardshowListHub'])[0];
   if (!target) return;
   if (!CARDSHOWS.length) {
     target.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="store"></i><div>등록된 카드쇼가 없습니다</div></div></div>`;
@@ -8586,15 +8686,15 @@ function _gradingRow(e) {
 }
 
 function renderGrading() {
-  const target = document.getElementById('gradingListHub');
+  if (typeof renderHomeEtcCarousel === 'function') { renderHomeEtcCarousel(); _etcCarouselRestart(); }
+  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
+  const target = visiblePublicBoardTargets(['gradingListHub'])[0];
   if (!target) return;
   if (!GRADING_LIST.length) {
     target.innerHTML = `<div class="hub-empty-state"><div><i data-lucide="medal"></i><div>등록된 그레이딩 정보가 없습니다</div></div></div>`;
     return;
   }
   target.innerHTML = GRADING_LIST.map(e => _hubRowCard(e, { bg:'#dcfce7', color:'#15803d', icon:'🏆' }, 'grading')).join('');
-  if (typeof renderHomeEtcCarousel === 'function') { renderHomeEtcCarousel(); _etcCarouselRestart(); }
-  if (typeof renderHomeEventsCarousel === 'function') { renderHomeEventsCarousel(); _eventsCarouselRestart(); }
 }
 
 // API 에서 데이터 로드 후 렌더
@@ -8604,7 +8704,7 @@ loadAllAdminData().then(() => {
   renderEtc();
   renderCardshows();
   renderGrading();
-  renderAdminList();
+  if (document.body.dataset.page === 'admin' && isAdminAccount()) renderAdminList();
   // 홈의 소식 그리드도 NEWS_LIST 로드 후 즉시 재렌더 (홈 진입 시 빈 상태 방지)
   if (typeof renderHomeNewsGrid === 'function') renderHomeNewsGrid();
 });
@@ -9433,7 +9533,7 @@ async function fetchCardMeta(cardId) {
     },
   };
   // Reuse the price screen's existing Korean-name and catalog-ID lookups.
-  if (window.PortfolioScreen && window.PriceProductInfo) {
+  if (window.PriceProductInfo) {
     try {
       const product = { ...meta, ...detailProduct, id: String(cardId), name: result.name };
       const box = meta?.kind === 'box' || BOX_ID_SET?.has(String(cardId));
@@ -9468,6 +9568,18 @@ function syncPortfolioOwner() {
 }
 function refreshPortfolio({force = false} = {}) {
   syncPortfolioOwner();
+  // Auth/hash notifications can arrive before the route's shared screen load.
+  if (document.body.dataset.page === 'portfolio' && window.AppRouteLoader &&
+      (typeof window.PortfolioScreen?.status !== 'function' || !document.getElementById('pfxStatus'))) {
+    const owner = CURRENT_USER;
+    const current = () => document.body.dataset.page === 'portfolio' && CURRENT_USER === owner;
+    const coreReady = document.readyState === 'loading'
+      ? new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, {once:true})) : Promise.resolve();
+    return coreReady.then(() => window.AppRouteLoader.ensure('portfolio', {isCurrent:current}))
+      .then(result => { if (result.ready && current()) return refreshPortfolio({force}); })
+      // Route preparation owns the visible retry/reload controls.
+      .catch(() => {});
+  }
   const userAtStart = CURRENT_USER;
   const gate = document.getElementById('pfLoginGate');
   const main = document.getElementById('pfMain');
@@ -11301,7 +11413,7 @@ if(window.CardThumbnails){
 
 // </script>
 <script src="/assets/promo-search.js?v=20261013-promo1"></script>
-<script src="/assets/search-modal.js?v=20261104-modular1"></script>
+<script src="/assets/search-modal.js?v=20261113-hubperf-r1"></script>
 
 <!-- TCGHUB_CHIIKAWA_START -->
 <!-- TCGHUB_CHIIKAWA_END -->

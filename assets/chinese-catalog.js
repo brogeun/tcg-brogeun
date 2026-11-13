@@ -1,7 +1,7 @@
 /* Mainland Chinese boosters and cards retain their own printed identities. */
 (() => {
   'use strict';
-  const VERSION='20261012-cn-names1', PAGE_SIZE=24, CARDS_PER_PAGE=18;
+  const VERSION='20261113-cn-new-boxes2', PAGE_SIZE=24, CARDS_PER_PAGE=18;
   let catalog, ready, searchReady, page=1, lastQuery='', renderRequest=0, request=0;
   let active, currentCard, opener, cardPage=1, cardQuery='', cardRarities=[], cardScroll=0, linkNotice='';
   const cardCache=new Map();
@@ -27,6 +27,7 @@
       codes.add(set.code);
       set.searchText=normalize([set.name,set.originalName,set.code,set.release,set.series,...(set.aliases||[])].join(' '));
     }
+    if(data.searchSetCodes!==undefined&&(!Array.isArray(data.searchSetCodes)||new Set(data.searchSetCodes).size!==data.searchSetCodes.length||data.searchSetCodes.some(code=>!codes.has(code))))throw Error('Invalid Chinese search sets');
     return data;
   }
   function ensureData(){
@@ -115,7 +116,15 @@
     cardCache.set(code,pending);return pending;
   }
   function ensureSearch(){
-    if(!searchReady)searchReady=fetch('/data/chinese-search.json?v='+VERSION).then(r=>{if(!r.ok)throw Error();return r.json();}).then(data=>{if(data?.schemaVersion!==1||data.language!=='zh-CN'||!Array.isArray(data.cards))throw Error('Invalid Chinese search');return data;}).catch(e=>{searchReady=null;throw e;});
+    if(!searchReady)searchReady=ensureData().then(async catalog=>{
+      const [data,...sets]=await Promise.all([
+        fetch('/data/chinese-search.json?v='+VERSION).then(r=>{if(!r.ok)throw Error();return r.json();}),
+        ...(catalog.searchSetCodes||[]).map(ensureCards)
+      ]);
+      if(data?.schemaVersion!==1||data.language!=='zh-CN'||!Array.isArray(data.cards))throw Error('Invalid Chinese search');
+      const supplemental=new Set(catalog.searchSetCodes||[]);
+      return {...data,cards:[...sets.flatMap(set=>set.cards.map(card=>({...card,setCode:set.code}))),...data.cards.filter(card=>!supplemental.has(card.setCode))]};
+    }).catch(e=>{searchReady=null;throw e;});
     return searchReady;
   }
   function matching(sets,query){

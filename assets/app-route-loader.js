@@ -24,7 +24,7 @@
     cardinfoStyle: {href:local('tcg-card-info.css','20261113-mobile-captions1')},
     collectionsStyle: {href:local('collections.css','20261030-collections1')},
     koreanStyle: {href:local('korean-promos.css','20261101-responsive-image1')},
-    chinese: {src:local('chinese-catalog.js','20261112-roster-size1'),ready:()=>!!root.ChineseCatalog},
+    chinese: {src:local('chinese-catalog.js','20261113-cn-new-boxes2'),ready:()=>!!root.ChineseCatalog},
     english: {src:local('english-catalog.js','20261113-hubperf-r1'),ready:()=>typeof root.EnglishCatalog?.ensureData==='function'},
     englishSearch: {src:local('english-search.js','20260908-search1'),ready:()=>!!root.EnglishSearch},
     riftbound: {src:local('riftbound-catalog.js','20261030-rarity1'),ready:()=>!!root.RiftboundCatalog},

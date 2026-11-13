@@ -59,7 +59,7 @@ function deferred() {
   const promise = new Promise((ok, fail) => {resolve = ok; reject = fail;});
   return {promise, resolve, reject};
 }
-function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGate, market = null, marketGate, marketError = false, fx = null, fxReady, english = false, actualRenderer = false, search = '', rarity = null} = {}) {
+function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGate, market = null, marketGate, marketError = false, fx = null, fxReady, english = false, actualRenderer = false, search = '', rarity = null, searchData} = {}) {
   const nodes = new Map(), handlers = [], inputHandlers = [], windowHandlers = new Map(), fetched = [], opened = [], shared = [];
   function node(id) {
     if (!nodes.has(id)) {
@@ -132,6 +132,7 @@ function harness({data = fixture, cards = cardSets, cardGates = {}, cnGate, enGa
         return {ok:true,json:async()=>clone(cards[code])};
       }
       if(url.startsWith('/data/chinese-search.json')) {
+        if(searchData)return {ok:true,json:async()=>clone(searchData)};
         return {ok:true,json:async()=>({schemaVersion:1,language:'zh-CN',cards:Object.entries(cards).flatMap(([code,set])=>set.cards.map(card=>({...card,setCode:code,kind:'card',language:'zh-CN'}))),sets:data.sets.map(set=>({...clone(set),cards:clone(cards[set.code]?.cards||[])}))})};
       }
       if(url.startsWith('/data/english-catalog.json')) {
@@ -594,6 +595,22 @@ async function test(name, run) {
     await shared.api.open('CN-TEST','NOT-IN-THIS-SET');assert.match(shared.modal.innerHTML,/공유된 카드를 찾지 못했습니다/);
     assert.match(shared.node('cnCardGrid').innerHTML,/data-cn-card="CARD-01"/);
   });
+  await test('supplemental sets are searchable without replacing the base index, deduplicate and reuse card downloads', async () => {
+    const data={...clone(fixture),searchSetCodes:['CN-TEST']};
+    const base={schemaVersion:1,language:'zh-CN',cards:cardRows.map(card=>({...card,setCode:'CN-SECOND'}))};
+    const h=harness({data,searchData:base});
+    assert.equal((await h.api.search('CN-TEST','card')).length,22);
+    assert.equal((await h.api.search('CN-SECOND','card')).length,22);
+    await h.api.open('CN-TEST');
+    assert.equal(h.fetched.filter(url=>url.startsWith('/data/chinese-sets/CN-TEST.json')).length,1);
+    const repeated={...base,cards:[...base.cards,...cardRows.map(card=>({...card,setCode:'CN-TEST'}))]};
+    assert.equal((await harness({data,searchData:repeated}).api.search('CN-TEST','card')).length,22);
+    const missing={},retry=harness({data,cards:missing,searchData:base});
+    await assert.rejects(()=>retry.api.search('CN-TEST','card'));
+    missing['CN-TEST']=cardData;
+    assert.equal((await retry.api.search('CN-TEST','card')).length,22);
+    for(const searchSetCodes of [['CN-MISSING'],['CN-TEST','CN-TEST'],'CN-TEST'])assert.throws(()=>h.api.prepare({...clone(fixture),searchSetCodes}));
+  });
   await test('late card-set responses cannot replace a newer set, language or a closed dialog', async () => {
     const gate=deferred(),h=harness({cardGates:{'CN-TEST':gate}}),old=h.api.open('CN-TEST');await tick();
     await h.api.open('CN-SECOND');assert.match(h.modal.innerHTML,/두 번째 세트/);gate.resolve();await old;
@@ -687,7 +704,20 @@ async function test(name, run) {
   const actualPath = path.join(root, 'data/chinese-catalog.json');
   if(fs.existsSync(actualPath))await test('actual Chinese catalog passes product validation', () => {
     const actual = harness().api.prepare(JSON.parse(fs.readFileSync(actualPath, 'utf8')));
-    assert.equal(actual.sets.length,48);
+    assert.equal(actual.sets.length,51);
+    for(const [code,cardCount,printedCardCount] of [['CN-CSV10-5',334,174],['CN-CSV10-6',334,174],['CN-CBB7',196,196]]) {
+      const set=actual.sets.find(s=>s.code===code);
+      assert(set,code+' is visible in the Chinese booster list');
+      assert.equal(set.release,'2026-11-06');
+      assert.equal(set.cardCount,cardCount);
+      assert.equal(set.printedCardCount,printedCardCount);
+      const cards=JSON.parse(fs.readFileSync(path.join(root,'data/chinese-sets',code+'.json'),'utf8')).cards;
+      assert(cards.every(c=>c.nameKo&&c.sourceSetCode===code.slice(3).replace('-','.').toLowerCase()+'c'),code+' has Korean labels and exact Chinese source identities');
+      if(code!=='CN-CBB7') {
+        assert.equal(cards.filter(c=>c.rarity==='BWR').length,1,code+' retains its Black & White Rare');
+        assert.equal(cards.filter(c=>c.variant==='masterball').length,80,code+' retains all Master Ball variants');
+      }
+    }
     const excluded=['CN-30TH-FUTURE-BOX','CN-30TH-PARTNER-1','CN-30TH-PARTNER-2','CN-30TH-PARTNER-3','CN-151-FIGURE','CN-151-STARTER-SQUIRTLE','CN-151-STARTER-CHARMANDER','CN-151-STARTER-BULBASAUR'];
     assert(!actual.sets.some(set=>excluded.includes(set.code)),'Gift/figure products are excluded from booster catalog');
     console.log('  Validated ' + actual.sets.length + ' actual Chinese products');
@@ -716,7 +746,7 @@ async function test(name, run) {
     console.log('  Verified ' + actual.sets.length + '/' + actual.sets.length + ' local product images and file signatures');
   });
   else console.log('SKIP: actual Chinese catalog is still being prepared; fixture checks ran');
-  if(fs.existsSync(actualPath))await test('all 48 booster files contain complete card lists with safe images and unique variant IDs', () => {
+  if(fs.existsSync(actualPath))await test('all booster files contain complete card lists with safe images and unique variant IDs', () => {
     const actual=JSON.parse(fs.readFileSync(actualPath,'utf8')),api=harness().api,expectedCards=new Map();let count=0;
     for(const set of actual.sets) {
       const file=path.join(root,'data','chinese-sets',set.code+'.json');assert(fs.existsSync(file),set.code+' has its full card file');
@@ -739,6 +769,8 @@ async function test(name, run) {
     }
     const searchFile=path.join(root,'data','chinese-search.json');assert(fs.existsSync(searchFile),'Chinese card search index exists');
     const index=JSON.parse(fs.readFileSync(searchFile,'utf8'));assert.equal(index.schemaVersion,1);assert.equal(index.language,'zh-CN');
+    const supplemental=new Set(actual.searchSetCodes||[]);
+    index.cards=[...(actual.searchSetCodes||[]).flatMap(code=>JSON.parse(fs.readFileSync(path.join(root,'data/chinese-sets',code+'.json'),'utf8')).cards),...index.cards.filter(card=>!supplemental.has(card.setCode))];
     assert.equal(index.cards.length,count,'Search index covers every booster card variant');
     assert.equal(new Set(index.cards.map(card=>card.setCode+':'+String(card.id||card.sourceId))).size,count,'Search IDs are unique within each set');
     for(const row of index.cards) {

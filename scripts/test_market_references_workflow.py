@@ -248,7 +248,9 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertNotIn("actions/cache", self.jobs["snkrdunk"])
 
     def test_source_budgets_allow_checkpoint_cleanup(self):
-        self.assertIn("--max-sets-per-game 45 --max-requests 250 --workers 2 --requests-per-second 0.5 --resume-hours 20", self.jobs["yuyutei"])
+        self.assertIn('python scripts/yuyutei_observations.py import', self.jobs['yuyutei'])
+        self.assertIn('source_mode=awaiting-original-observations', self.jobs['yuyutei'])
+        self.assertNotRegex(self.jobs['yuyutei'], r'python[^\n]*collect_yuyutei_market\.py')
         self.assertIn("--max-items 20 --timeout 20", self.jobs["mercari"])
         self.assertIn("--grade-limit=1500 --history-limit=500 --max-seconds=7200 --delay=0.25", self.jobs["snkrdunk"])
         self.assertEqual(re.findall(r"--grade-limit(?:=|\s+)(\d+)", self.jobs["snkrdunk"]), ["1500"])
@@ -295,6 +297,8 @@ class ActualOutcomeFunctionTests(unittest.TestCase):
 
     def test_yuyutei_cooldown_is_deferred_and_failed_attempts_stay_failed(self):
         classify = self.function("yuyutei")
+        self.assertEqual(classify('success', {'status': 'partial'}, 'awaiting-original-observations'), 'deferred')
+        self.assertEqual(classify('failure', {'status': 'partial'}, 'awaiting-original-observations'), 'failure')
         self.assertEqual(classify("success", {"status": "partial", "cooldown": {"nextEligibleAt": "2099-01-01T00:00:00Z"}}), "deferred")
         all_failed = {"status": "partial", "requestsThisRun": 5, "games": [{"coverage": {"setsAttemptedThisRun": 5, "failedSets": 5, "recordsFetchedThisRun": 0}}]}
         self.assertEqual(classify("success", all_failed), "failure")

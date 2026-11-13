@@ -169,7 +169,7 @@ jobs:
           python-version: '3.11'
       # Published data/yuyutei-market* is the canonical resume/cooldown state.
       # Restoring an older cache over tracked shards would regress observations.
-      - name: Import current original Yuyutei observations or collect eligible sets
+      - name: Import original Yuyutei prices from the fixed source intake
         id: collect
         continue-on-error: true
         timeout-minutes: 30
@@ -181,7 +181,10 @@ jobs:
               exit 0
             fi
           fi
-          python -u scripts/collect_yuyutei_market.py --max-sets-per-game 45 --max-requests 250 --workers 2 --requests-per-second 0.5 --resume-hours 20
+          # Hosted direct access was denied. Wait for a new dated receipt from
+          # the fixed owner computer; never create another provider-wide 403.
+          echo "source_mode=awaiting-original-observations" >> "$GITHUB_OUTPUT"
+          echo "Original intake pending; last verified selling prices retained."
       - name: Record true Yuyutei refresh outcome
         id: assess
         if: always()
@@ -196,6 +199,8 @@ jobs:
           def classify(outcome, record, source_mode=None):
               if outcome != 'success' or record.get('status') == 'failed':
                   return 'failure'
+              if source_mode == 'awaiting-original-observations':
+                  return 'deferred'
               if source_mode == 'original-observations' and record.get('lastImport', {}).get('observationsApplied', 0) > 0:
                   return 'success' if record.get('status') == 'ok' else 'partial'
               cooldown = record.get('cooldown') or {}

@@ -1,0 +1,158 @@
+name: Check published mobile card layout
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/verify-published-mobile-layout.yml'
+permissions: {}
+jobs:
+  live-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - name: Install isolated browser driver
+        run: |
+          npm install --no-save --ignore-scripts puppeteer-core@24.31.0
+          echo "CHROME_BIN=$(command -v google-chrome || command -v chromium)" >> "$GITHUB_ENV"
+      - name: Check published assets and live card pages at four mobile widths
+        run: |
+          node <<'LIVE_MOBILE'
+          const puppeteer = require('puppeteer-core');
+          const assert = require('node:assert/strict');
+          const crypto = require('node:crypto');
+          const origin = 'https://tcghub.kr';
+          const agent = 'TCGHUB-Verification/1.0';
+          const widths = [320, 360, 390, 430];
+          
+          async function publicResource(path, type) {
+            const res = await fetch(origin + path, {headers: {'User-Agent':agent, 'Cache-Control':'no-cache'}});
+            assert.equal(res.status, 200, path+' HTTP '+res.status+' Retry-After '+res.headers.get('retry-after'));
+            assert.match(res.headers.get('content-type') || '', type, path);
+            return Buffer.from(await res.arrayBuffer());
+          }
+          function gitBlob(raw) {
+            return crypto.createHash('sha1').update('blob '+raw.length+'\0').update(raw).digest('hex');
+          }
+          async function setWidth(page, width) {
+            await page.setViewport({width, height:820, isMobile:true, hasTouch:true, deviceScaleFactor:2});
+            await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+          }
+          function observe(selector, pictures, names) {
+            const entries = [...document.querySelectorAll(selector)];
+            let clipped=0, overlaps=0, shown=0;
+            const faults=[];
+            for (const item of entries) {
+              const frame=item.querySelector(pictures), name=item.querySelector(names);
+              if (!frame || !name) throw Error('Missing layout element in '+selector+' '+item.outerHTML.slice(0,150));
+              const art=frame.getBoundingClientRect(), box=name.getBoundingClientRect();
+              const range=document.createRange();
+              range.selectNodeContents(name);
+              const lines=[...range.getClientRects()].filter(r=>r.width>.5 && r.height>.5);
+              const truncated=lines.some(r=>r.right>box.right+1 || r.left<box.left-1 || r.bottom>box.bottom+1 || r.top<box.top-1);
+              const contact=lines.some(r=>Math.min(r.bottom,art.bottom)-Math.max(r.top,art.top)>1 && Math.min(r.right,art.right)-Math.max(r.left,art.left)>1);
+              if (truncated || contact) faults.push(name.textContent.trim().slice(0,80));
+              if (truncated) clipped++;
+              if (contact) overlaps++;
+              if (lines.length && lines.every(r=>r.top>=art.bottom-1)) shown++;
+            }
+            return {items:entries.length,shown,clipped,overlaps,faults:faults.slice(0,3)};
+          }
+          async function main() {
+            const html=(await publicResource('/',/text\/html/)).toString();
+            const loaderUrl=html.match(/<script[^>]+src="([^"]*\/assets\/app-route-loader\.js[^"]*)"/)?.[1];
+            assert.ok(loaderUrl,'route loader referenced by live homepage');
+            const loader=(await publicResource(loaderUrl,/javascript/)).toString();
+            const version=loader.match(/cardinfoStyle:\s*\{href:local\('tcg-card-info\.css','([^']+)'/)?.[1];
+            assert.ok(version,'CSS declared by active loader');
+            const raw=await publicResource('/assets/tcg-card-info.css?v='+encodeURIComponent(version),/text\/css/);
+            const css=raw.toString(), hash=gitBlob(raw);
+            assert.match(css,/#anyModal \.ci-card-detail > img\s*\{\s*max-width:min\(100%,280px\)/);
+            assert.match(css,/#cardInfoList \.set-tile-name,\s*\.ci-panel \.tci-card-open > strong/);
+            console.log('PUBLIC_CSS',version,hash,'published fix blob',hash==='faaa2f6139bc0e53f7401e533ddeaea2bd2b04e6');
+            const reg=JSON.parse(await publicResource('/data/tcg-card-info.json',/json/));
+            assert.equal(reg.games.length,6);
+            const browser=await puppeteer.launch({executablePath:process.env.CHROME_BIN,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const denied=new Map();
+            async function open(url) {
+              const p=await browser.newPage();
+              await setWidth(p,320);
+              await p.setUserAgent(agent);
+              await p.setBypassServiceWorker(true);
+              await p.setRequestInterception(true);
+              p.on('request', r=>{
+                const u=new URL(r.url());
+                if (denied.has(u.href) || /(?:^|\.)(?:googletagmanager\.com|google-analytics\.com|doubleclick\.net|cloudflareinsights\.com)$/.test(u.hostname)) return void r.abort().catch(()=>{});
+                return void r.continue().catch(()=>{});
+              });
+              p.on('response',r=>{if ([401,403,429].includes(r.status())) denied.set(r.url(),[r.status(),r.headers()['retry-after']||null]);});
+              await p.goto(origin+'/'+url+'#cardinfo',{waitUntil:'domcontentloaded',timeout:90000});
+              return p;
+            }
+            let tested=0;
+            try {
+              const examples=[
+                ['pokemon-ja','?set=Neo1','#setGridContent [data-card-index]','.set-card-img','.set-card-name'],
+                ['onepiece','?set=EB05','#setGridContent [data-card-index]','.set-card-img','.set-card-name'],
+                ['pokemon-en','?set=EN-TCG111','#encCardGrid [data-enc-card]','.set-card-img','.set-card-num strong'],
+                ['pokemon-zh','?set=CN-CSV1','#cnCardGrid [data-cn-card]','.set-card-img','.set-card-name'],
+                ['riftbound','?brand=riftbound&set=RB-EN-OGN','#rfCardGrid [data-rf-card]','.set-card-img','.set-card-name'],
+                ['chiikawa','?brand=chiikawa&set=CIKW%2F02B','#ckCardGrid [data-ck-card]','.ck-art','.ck-card-copy strong']
+              ];
+              for (const g of reg.games) {
+                const box=g.boxes.find(b=>b.setIds?.length && b.cardCount>25 && b.coverage!=='official-not-published');
+                assert.ok(box,g.id);
+                examples.push([g.id,'?brand='+g.id+'&set='+encodeURIComponent(box.id),'#tciCardGrid [data-tci-card]','.tci-art','.tci-card-open > strong']);
+              }
+              const assertLayout = (v,k) => {
+                assert.ok(v.items && v.shown===v.items && !v.clipped && !v.overlaps,k+' '+JSON.stringify(v));
+              };
+              for (const [game,url,items,art,names] of examples) {
+                const p=await open(url);
+                try {
+                  await p.waitForSelector(items,{timeout:60000});
+                  const resolvedLabel=await p.$eval(items,(el,sel)=>{
+                    if (el.querySelector(sel)) return sel;
+                    for(const s of ['.set-card-name','.set-card-num strong','.set-card-num','.rf-name','strong']) if(el.querySelector(s))return s;
+                    throw Error('No caption selector '+el.outerHTML.slice(0,550));
+                  },names);
+                  for (const w of widths) {
+                    await setWidth(p,w);
+                    const result=await p.evaluate(observe,items,art,resolvedLabel);
+                    assertLayout(result,game+' roster '+w);
+                    tested++;
+                  }
+                  if (game==='dragon_ball_fusion_world') {
+                    await p.evaluate(()=>document.querySelector('[data-tci-close]').click());
+                    await p.waitForSelector('#cardInfoList .tci-set');
+                    const titles=await p.$$eval('#cardInfoList .set-tile-name',xs=>xs.map(e=>e.textContent.trim()).filter(t=>/BRIGHTNESS OF HOPE|STORY BOOSTER/i.test(t)).slice(0,3));
+                    for (const w of widths) {
+                      await setWidth(p,w);
+                      const result=await p.evaluate(observe,'#cardInfoList .tci-set','.tci-cover','.set-tile-name');
+                      assertLayout(result,game+' boxes '+w);
+                    }
+                    console.log('DRAGON_BOX_NAMES',JSON.stringify(titles));
+                  }
+                  console.log('ROSTER_OK',game,widths.join(','));
+                } finally {await p.close();}
+              }
+              const p=await open('?set=SV4a');
+              const tile='#setGridContent [data-card-index]';
+              await p.waitForSelector(tile,{timeout:65000});
+              await p.$eval(tile,e=>e.click());
+              const detail='#anyModal.open .ci-card-detail > img';
+              await p.waitForSelector(detail,{timeout:85000});
+              await p.$eval(detail,async img=>await img.decode());
+              for (const w of widths) {
+                await setWidth(p,w);
+                const q=await p.$eval(detail,img=>{
+                  const panel=img.parentElement, s=getComputedStyle(panel), outer=panel.getBoundingClientRect(), art=img.getBoundingClientRect(), label=img.nextElementSibling.getBoundingClientRect();
+                  return {card:img.alt,art:img.naturalWidth,overflow:panel.scrollWidth-panel.clientWidth,exceeds:Math.max(0,art.right-outer.right+parseFloat(s.paddingRight),outer.left+parseFloat(s.paddingLeft)-art.left),gap:label.top-art.bottom};
+                });
+                assert.ok(/184\/190/.test(q.card) && q.art>0 && q.overflow===0 && q.exceeds<.5 && q.gap>=1,JSON.stringify(q));
+                console.log('DETAIL_OK',w,JSON.stringify(q));
+              }
+              await p.close();
+              console.log('LIVE_MOBILE_PASS',tested,'roster/width combinations plus Dragon Ball directory and Beach Court popup',JSON.stringify([...denied].map(([u,v])=>[new URL(u).hostname,...v]).slice(0,8)));
+            } finally {await browser.close();}
+          }
+          main().catch(e=>{console.error(e);process.exitCode=1;});
+          LIVE_MOBILE

@@ -58,9 +58,28 @@ def live_manifest():
     return doc
 
 
+def disproved_provider_hold(block, published, denied_urls):
+    # Two listing denials can open a local circuit. An authenticated import of
+    # later original listings is positive evidence that the whole site is up.
+    latest = published.get('lastImport') or {}
+    return (block.get('scope') == 'provider' and block.get('httpStatus') == 403
+            and block.get('retryAfterPolicy') == 'conservative_default'
+            and block.get('sourceUrl') in denied_urls
+            and bool(block.get('observedAt'))
+            and latest.get('source') == 'original_yuyutei_set_listings'
+            and latest.get('outcome') == 'imported'
+            and latest.get('observationsApplied', 0) > 0
+            and latest.get('sourceAsOf', '') > block['observedAt'])
+
+
 def inherit_waits(local, published):
+    listings = local.get('listingCooldowns', []) + published.get('listingCooldowns', [])
+    denied_urls = {v['sourceUrl'] for v in listings
+                   if market.RateLimiter.listing_only(v)}
     for key in ('cooldown', 'discoveryCooldown'):
         waits = [v for v in (local.get(key), published.get(key)) if v]
+        if key == 'cooldown':
+            waits = [v for v in waits if not disproved_provider_hold(v, published, denied_urls)]
         local[key] = max(waits, key=lambda v: v['nextEligibleAt']) if waits else None
     waits = {}
     for row in local.get('listingCooldowns', []) + published.get('listingCooldowns', []):

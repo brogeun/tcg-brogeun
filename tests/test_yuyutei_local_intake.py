@@ -49,6 +49,23 @@ class LocalIntakeTests(unittest.TestCase):
         self.assertEqual(local_doc['cooldown'], old)
         self.assertEqual(local_doc['listingCooldowns'], [old])
 
+    def test_later_source_success_reconciles_only_inferred_provider_denial(self):
+        listing = dict(httpStatus=403, sourceUrl='https://yuyu-tei.jp/sell/poc/s/bkr',
+                       retryAfterPolicy='conservative_default', observedAt='2025-11-13T18:00:00Z',
+                       nextEligibleAt='2025-11-14T18:00:00Z')
+        block = dict(listing, scope='provider')
+        success = dict(source='original_yuyutei_set_listings', outcome='imported',
+                       observationsApplied=804, sourceAsOf=self.now)
+        published = dict(cooldown=block, listingCooldowns=[listing], lastImport=success)
+        for changes, expected in [({}, None), ({'httpStatus': 429}, 429),
+                                  ({'retryAfterPolicy': 'original_retry_after_header'}, 403),
+                                  ({'observedAt': self.now}, 403)]:
+            with self.subTest(changes=changes):
+                local_doc = dict(cooldown=dict(block, **changes))
+                local.inherit_waits(local_doc, published)
+                self.assertEqual((local_doc['cooldown'] or {}).get('httpStatus'), expected)
+                self.assertEqual(local_doc['listingCooldowns'], [listing])
+
     def test_fresh_receipt_can_resume_without_any_collection_or_rewrite(self):
         with patch.object(local.market, 'main') as collect, \
              patch.object(local.market, 'validate_output', return_value=([], 1)), \

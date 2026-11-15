@@ -1,0 +1,19 @@
+#home-magazine{font-family:Pretendard,"Noto Sans KR",sans-serif}
+#home-magazine .maghead{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+#home-magazine h2{margin:0;font:690 26px/1.3 Pretendard,sans-serif;letter-spacing:-.8px}
+#home-magazine a{color:inherit;text-decoration:none}
+#home-magazine .maghead a{font-size:13px;font-weight:520;color:#666561}
+#home-magazine .mag-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+#home-magazine .magcard{border:1px solid #dedbd6;border-radius:14px;background:white;overflow:hidden}
+#home-magazine .cover{position:relative;isolation:isolate;display:block;overflow:hidden;height:clamp(225px,20vw,320px);background:#242321}
+#home-magazine .cover::before{content:"";position:absolute;inset:-22px;z-index:-1;opacity:.58;filter:blur(28px);background:var(--pic) center/cover}
+#home-magazine .cover img{display:block;width:100%;height:100%;object-fit:contain}
+#home-magazine .details{display:flex;justify-content:space-between;align-items:center;padding:5px 10px 5px 15px}
+#home-magazine .details>span{font-size:13px;font-weight:550;color:#4f4f4f}
+#home-magazine .channels{display:flex;gap:2px;align-items:center}
+#home-magazine .channels a{width:34px;height:34px;display:grid;place-items:center;border-radius:6px}
+#home-magazine .channels a:hover,#home-magazine .channels a:focus-visible{background:#f5f4f2}
+#home-magazine .channels .insta{color:#cb347d}
+#home-magazine .channels svg{width:17px;height:17px}
+#home-magazine .channels .yt svg{width:19px;height:19px}
+@media(max-width:760px){#home-magazine .mag-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;padding-bottom:4px}#home-magazine .magcard{flex:0 0 82%;scroll-snap-align:start}#home-magazine .cover{height:clamp(200px,63vw,320px)}#home-magazine h2{font-size:22px}#home-magazine .channels a{width:40px;height:40px}}

@@ -346,6 +346,7 @@ jobs:
           # admin
           [ -f functions/api/admin.js ] && cp functions/api/admin.js _deploy/functions/api/admin.js && echo "✓ admin"
           cp functions/api/admin-media.js _deploy/functions/api/admin-media.js
+          cp functions/api/magazine.js _deploy/functions/api/magazine.js
           cp functions/api/card-search.js _deploy/functions/api/card-search.js
           cp functions/api/portfolio/summary.js _deploy/functions/api/portfolio/summary.js
           # Preserve the existing card API routes in the operating site.

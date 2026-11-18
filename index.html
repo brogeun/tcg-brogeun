@@ -9460,7 +9460,8 @@ async function fetchCardMeta(cardId) {
   // 2순위: history 파일 — 백필된 6,600+ 카드 모두
   let history = null;
   try {
-    history = await window.loadMarketHistory(cardId);
+    const r = await fetch(`/data/history/${cardId}.json?t=${Math.floor(Date.now()/3600000)}`, {signal: AbortSignal.timeout?.(15000)});
+    if (r.ok) history = await r.json();
   } catch {}
 
   const points = history?.history || [];

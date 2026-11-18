@@ -19,6 +19,8 @@ import tempfile
 ALLOWED = {'data/market-price-index.json', 'data/market-price-index-model-state.json',
            'data/market-price-index-validation.json', 'data/market-price-index-independent-verification.json',
            'data/chinese-market.json'}
+INDEX_FILES = ALLOWED - {'data/chinese-market.json'}
+DAILY_GRADE_FILES = {f'data/card-grade-days/{n:02}.json' for n in range(32)}
 DAILY_NEW_FILES = {'data/update-health.json', 'data/all-cards.json', 'data/cards-meta.json',
     'data/onepiece-official-source.json', 'data/onepiece-official-manifest.json',
     'data/onepiece-official-search.json', 'data/onepiece-official-refresh.json',
@@ -280,8 +282,8 @@ def publish(root, base, files, message, attempts=3, temp_parent=None, daily=Fals
     if vintage and (len(files) != len(set(files)) or set(files) != set(vintage_release_files(root, base))):
         raise PublicationError('Vintage artwork output selection changed before publication')
     if not daily and not references and not official and not vintage and not catalog_only and not korean_only and (len(files) != len(set(files))
-            or set(files) not in (ALLOWED - {'data/chinese-market.json'}, {'data/chinese-market.json'})):
-        raise PublicationError('Publish the complete four-file verified index set or the single Chinese market snapshot')
+            or set(files) not in (INDEX_FILES, INDEX_FILES | DAILY_GRADE_FILES, {'data/chinese-market.json'})):
+        raise PublicationError('Publish the verified index with all or no daily grade buckets, or the single Chinese market snapshot')
     if (daily or references or official or vintage) and not files:
         return {'status': 'unchanged', 'collectionCommit': base, 'files': []}
     git(root, 'cat-file', '-e', base + '^{commit}')

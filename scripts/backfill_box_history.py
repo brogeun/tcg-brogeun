@@ -20,6 +20,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from snkrdunk_sale_day import JST, sale_day
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -28,7 +29,6 @@ HIST.mkdir(exist_ok=True)
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-JST = timezone(timedelta(hours=9))  # SNKRDUNK 표시 날짜 기준 (한국/일본 동일 UTC+9)
 
 # Windows 작업 스케줄러/PowerShell의 기본 CP949에서도 한글·기호 로그로 중단되지 않게 함.
 if hasattr(sys.stdout, "reconfigure"):
@@ -101,21 +101,17 @@ def fetch_volume_box(cid, days_limit=None, max_pages=9999):
         except Exception as exc:
             print(f"      sales-history page {page} 실패: {exc}")
             return {}, {}, False
-        items = d.get("history") or []
+        items = d.get("history") if isinstance(d, dict) else None
+        if not isinstance(items, list):
+            return {}, {}, False
         if not items:
             completed = True
             break
         for it in items:
-            date_str = (it.get("date") or "").strip()
-            m = _re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
-            if m:
-                d2 = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-            else:
-                m2 = _re.match(r"(\d+)\s*(日|時間|分|秒|hour|day|min)", date_str)
-                if m2 and m2.group(2) in ("日", "day"):
-                    d2 = (today - timedelta(days=int(m2.group(1)))).strftime("%Y-%m-%d")
-                else:
-                    d2 = today.strftime("%Y-%m-%d")
+            try:
+                d2 = sale_day(it.get('date'), today)
+            except (AttributeError, ValueError, OverflowError):
+                return {}, {}, False
             if d2 < cutoff:
                 stopped_early = True
                 continue
@@ -353,7 +349,7 @@ def main():
             ),
             key=lambda h: h.get("date", ""),
         )
-        out = {
+        out = {**existing,
             "id": cid,
             "updatedAt": fetched_at,
             "source": f"box backfill (range={args.range}, days={args.days or 'all'})",

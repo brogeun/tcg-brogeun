@@ -59,6 +59,10 @@ jobs:
         id: refresh
         timeout-minutes: 305
         run: |
+          if [[ "$GITHUB_EVENT_NAME" == push ]] && python -B scripts/export_daily_card_charts.py --has-current-source; then
+            echo 'Reusing the verified current market day for publication.'
+            exit 0
+          fi
           recovery_args=()
           if [[ "$INDEX_RECOVER" == 'true' ]]; then recovery_args+=(--resume-recent); fi
           timeout --signal=TERM --kill-after=30s "${INDEX_MAX_MINUTES}m" python -B scripts/update_dynamic_card_index.py --workers 4 "${recovery_args[@]}"
@@ -69,12 +73,18 @@ jobs:
           OPENBLAS_NUM_THREADS: '1'
           OMP_NUM_THREADS: '1'
 
+      - name: Export the latest checked grades for each product from the bound archive
+        run: |
+          python -B -m unittest discover -s scripts -p test_daily_card_charts.py
+          python -B scripts/export_daily_card_charts.py
+
       - name: Publish only verified outputs while preserving disjoint newer commits
         run: >-
           python -B scripts/publish_data_snapshot.py
           --message 'data: refresh independently verified home card index'
           --files data/market-price-index.json data/market-price-index-model-state.json
           data/market-price-index-validation.json data/market-price-index-independent-verification.json
+          data/card-grade-days/??.json
 
       - name: Keep only the source pair bound to the committed index
         run: python -B scripts/update_dynamic_card_index.py --prune-source-cache

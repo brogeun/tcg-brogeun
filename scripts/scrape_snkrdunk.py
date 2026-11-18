@@ -911,6 +911,7 @@ def refresh_cards_detail(card_ids, box_ids, fetched_at, usd_jpy, fetcher=None):
     if set(cards) <= expected:
         payload['fetchedAt'] = fetched_at
     atomic_json(path, payload)
+    return set(checked_ids)
 
 
 def main():
@@ -971,18 +972,29 @@ def main():
     print(f"  전체 추적 ID: {len(all_ids)}개  /  박스 제외 카드만: {len(card_ids)}개")
     total += 1
     try:
-        refresh_cards_detail(card_ids, box_ids, fetched_at, usd_jpy)
+        checked_cards = refresh_cards_detail(card_ids, box_ids, fetched_at, usd_jpy)
         print('  → 저장: data/cards-detail.json')
     except Exception as error:
+        checked_cards = set()
         fail_count += 1
         print('  카드 등급 수집 미완료; 기존 파일 보존: ' + str(error))
 
-    # ─────────── Phase A — history 누적 (sales-chart 기반) ───────────
+    fail_count += refresh_histories(all_ids, box_ids, checked_cards)
+    total += len(all_ids)
+    print(f"\n완료. 실패 {fail_count}/{total}")
+    if fail_count:
+        print("Collection incomplete -> exit 1 (failed snapshots retained)")
+        sys.exit(1)
+
+
+def refresh_histories(all_ids, box_ids, checked_cards):
+    """Refresh only the requested products using their verified classification."""
     # 백필과 동일한 데이터 소스 사용 (실거래가) → line 끊김 없음
     # 각 카드별로 sales-chart oneMonth 받아서 history 에 merge.
     # 같은 날짜 있으면 최신값으로 갱신, 없으면 추가.
     print("\n[Phase A] 가격 history 누적 (sales-chart 기반)")
     history_dir = DATA_DIR / "history"
+    from snkrdunk_sale_day import JST, sale_day
     history_dir.mkdir(exist_ok=True)
 
     GRADE_OPTION_IDS_HIST = {"psa10": 22, "psa9": 23, "raw": 18}
@@ -1027,11 +1039,10 @@ def main():
         return by_date
 
     appended = 0
+    fail_count = 0
     fetched_at = datetime.now(timezone.utc).isoformat()
-    all_ids = collect_card_ids()
     print(f"  대상 ID: {len(all_ids)} 개")
     for cid in sorted(all_ids):
-        total += 1
         hist_path = history_dir / f"{cid}.json"
         existing = {"history": []}
         if hist_path.exists():
@@ -1043,7 +1054,8 @@ def main():
                 print(f'  {cid}: 기존 history 읽기 오류; 원본 보존: {error}')
                 continue
         by_date = {h["date"]: dict(h) for h in existing.get("history", []) if h.get("date")}
-        history_timezone = timezone(timedelta(hours=9)) if existing.get('historyTimezone') == 'Asia/Tokyo' else timezone.utc
+        local_chart = existing.get('historyTimezone') == 'Asia/Tokyo' or not existing.get('history')
+        history_timezone = JST if local_chart else timezone.utc
 
         # 박스/카드 분기 — 이름에 [세트코드 번호] 있으면 카드, 없으면 박스
         # 정확한 분류는 product 페이지에서 확인할 수도 있지만, 기존 데이터 키로 추정
@@ -1052,19 +1064,22 @@ def main():
         # 데이터가 아예 없으면 둘 다 시도
         if not is_card and not is_box:
             is_card = True
-            is_box = True
+            is_box = str(cid) not in checked_cards
         if str(cid) in box_ids:
             is_card, is_box = False, True
 
         any_new = False
         history_error = False
         history_limited = False
+        repeated_page = False
         if is_box:
             # 박스: sales-history 페이지네이션 (size==1 거래만)
             from collections import defaultdict as _dd
-            from datetime import datetime as _dt, timedelta as _td
             box_prices = _dd(list)
             box_vols = _dd(int)
+            observed_at = datetime.now(JST)
+            previous_day = None
+            page_fingerprints = set()
             for page in range(1, 5):
                 url = f"https://snkrdunk.com/v1/apparels/{cid}/sales-history?page={page}&per_page=20"
                 try:
@@ -1080,19 +1095,20 @@ def main():
                     history_error = True
                     break
                 if not items: break
-                today_now = _dt.now(history_timezone)
+                fingerprint = json.dumps(items, sort_keys=True, ensure_ascii=False)
+                if fingerprint in page_fingerprints:
+                    repeated_page = True
+                    break
+                page_fingerprints.add(fingerprint)
                 for it in items:
-                    date_str = (it.get("date") or "").strip()
-                    m = re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
-                    if m: dt_str = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-                    else:
-                        m2 = re.fullmatch(r"(\d+)\s*(日|時間|分|秒|days?|hours?|minutes?|mins?|seconds?)(?:前|\s+ago)?", date_str, re.I)
-                        if not m2:
-                            history_error = True
-                            break
-                        amount, unit = int(m2.group(1)), m2.group(2).lower()
-                        field = 'days' if unit == '日' or unit.startswith('day') else 'hours' if unit == '時間' or unit.startswith('hour') else 'minutes' if unit == '分' or unit.startswith('min') else 'seconds'
-                        dt_str = (today_now - _td(**{field: amount})).strftime('%Y-%m-%d')
+                    try:
+                        dt_str = sale_day(it.get('date'), observed_at)
+                        if previous_day and dt_str > previous_day:
+                            raise ValueError('Out-of-order sales history')
+                    except (AttributeError, ValueError, OverflowError):
+                        history_error = True
+                        break
+                    previous_day = dt_str
                     pr = it.get("price")
                     if isinstance(pr, str):
                         pm = re.search(r"([\d,]+)", pr.replace("¥", ""))
@@ -1120,13 +1136,15 @@ def main():
                     if sz_val != 1: continue
                     box_prices[dt_str].append(pr)
                     box_vols[dt_str] += 1
-                if history_error or len(items) < 20: break
+                if history_error: break
                 time.sleep(0.2)
             else:
                 # The page budget cannot prove a complete final-day volume.
                 history_limited = True
             # median — 같은 날 거래 list 중앙값. outlier 영향 0
             for date, prs in box_prices.items():
+                if history_limited and (date == previous_day or by_date.get(date, {}).get('box_vol') is not None):
+                    continue  # Keep incomplete boundary days and existing full-volume observations.
                 sorted_prs = sorted(prs)
                 med = sorted_prs[len(sorted_prs) // 2]
                 if date not in by_date:
@@ -1135,8 +1153,8 @@ def main():
                 by_date[date]["box_vol"] = box_vols[date]
                 any_new = True
 
-        if history_limited:
-            print(f'::warning::{cid}: bounded box history page limit reached; previous file and timestamp retained. Full-history workflow handles deeper pages.')
+        if repeated_page:
+            print(f'::warning::{cid}: repeated box history page; existing history and dates retained.')
             continue
 
         if is_card:
@@ -1158,16 +1176,19 @@ def main():
         if history_error:
             fail_count += 1
             continue
-        if not any_new:
+        observed_box_sale = max(box_prices, default=None) if is_box else None
+        if not any_new and not observed_box_sale:
             continue
 
         new_history = sorted(by_date.values(), key=lambda h: h.get("date", ""))
-        payload = {**existing,
-            "id": str(cid),
-            "updatedAt": fetched_at,
-            "source": "daily (sales-history 1ea)",
-            "history": new_history,
-        }
+        payload = {**existing, "id": str(cid), "history": new_history}
+        if any_new:
+            payload.update(updatedAt=fetched_at, source="daily (sales-history 1ea)")
+            if local_chart and is_card:
+                payload['historyTimezone'] = 'Asia/Tokyo'
+        if observed_box_sale:
+            payload.update(lastSingleBoxSaleDay=observed_box_sale,
+                           singleBoxSalesCheckedAt=observed_at.isoformat())
         try:
             atomic_json(hist_path, payload)
         except Exception as error:
@@ -1177,10 +1198,7 @@ def main():
         appended += 1
 
     print(f"  → history 갱신: {appended} 카드/박스")
-    print(f"\n완료. 실패 {fail_count}/{total}")
-    if fail_count:
-        print("Collection incomplete -> exit 1 (failed snapshots retained)")
-        sys.exit(1)
+    return fail_count
 
 
 if __name__ == "__main__":

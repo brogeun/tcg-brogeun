@@ -190,6 +190,42 @@ class DailySnapshotSafetyTests(unittest.TestCase):
                 target.main()
             self.assertEqual((data / 'history/1.json').read_bytes(), old)
 
+    def test_full_box_pages_keep_the_oldest_day_and_save_verified_newer_days(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data, _ = self.fixture(folder)
+            path = data / 'history/1.json'
+            path.write_text(json.dumps({'id': '1', 'history': [
+                {'date': '2026-10-19', 'box_vol': 99, 'box_price': 12}]}))
+            def source(request, **kwargs):
+                if '/sales-history?' in request.full_url:
+                    page = int(request.full_url.split('page=')[1].split('&')[0])
+                    day = '2026/10/20' if page == 1 else '2026/10/19'
+                    return Response(json.dumps({'history': [
+                        {'date': day, 'price': 100 + page, 'size': 1}] * 20}).encode())
+                return Response(b'{"conditionId":18,"usedMinPrice":20}{"conditionId":22,"usedMinPrice":100}{"conditionId":23,"usedMinPrice":50}')
+            with self.main_patches(data, products(10), source):
+                target.main()
+            result = json.loads(path.read_bytes())
+            self.assertEqual(result['lastSingleBoxSaleDay'], '2026-10-20')
+            self.assertEqual(result['history'][0]['box_vol'], 99)
+            self.assertEqual(result['history'][1], {'date':'2026-10-20', 'box_vol':20, 'box_price':101})
+
+    def test_verified_new_single_uses_local_grade_charts_without_draining_box_sales(self):
+        with tempfile.TemporaryDirectory() as folder:
+            data, _ = self.fixture(folder)
+            path = data / 'history/1.json'
+            path.unlink()
+            def source(request, **kwargs):
+                self.assertNotIn('/sales-history?', request.full_url)
+                if '/sales-chart/' in request.full_url:
+                    return Response(b'{"points":[[1794927600000,1000]]}')
+                return Response(b'{"conditionId":18,"usedMinPrice":20}{"conditionId":22,"usedMinPrice":100}{"conditionId":23,"usedMinPrice":50}')
+            with self.main_patches(data, products(10), source):
+                target.main()
+            result = json.loads(path.read_bytes())
+            self.assertEqual(result['historyTimezone'], 'Asia/Tokyo')
+            self.assertEqual(result['history'][0]['date'], '2026-11-18')
+
     def test_box_http_failure_is_failed_collection_not_a_normal_budget_skip(self):
         with tempfile.TemporaryDirectory() as folder:
             data, _ = self.fixture(folder)

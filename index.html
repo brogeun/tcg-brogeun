@@ -2568,7 +2568,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); }
 <script src="/assets/home-market.js?v=20260916-1"></script>
 <script src="/assets/anniversary-market.js?v=20261012-direct-detail1"></script>
 <script src="/assets/card-artwork.js?v=20261104-modular1"></script>
-<script src="/assets/price-expanded.js?v=20261102-detail-artwork1"></script>
+<script src="/assets/price-expanded.js?v=20261118-market-day1"></script>
 <script src="/assets/card-favorites.js?v=20261113-hubperf-r1"></script>
 <link rel="stylesheet" href="/assets/news-detail.css?v=20260907-news1">
 <script src="/assets/news-detail.js?v=20260908-links1"></script>
@@ -4266,9 +4266,8 @@ async function renderGradesPanel(productId, product) {
     const needsPsaData = ['psa10','psa9','raw'].some(k => !liveNoListingGrades.has(k) && (!grades[k] || Object.keys(grades[k]).length === 0));
     if (needsPsaData) {
       try {
-        const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
-        if (r.ok) {
-          const hist = await r.json();
+        const hist = await window.loadMarketHistory(productId);
+        if (hist) {
           const points = hist.history || [];
           // 최신 일자부터 역순으로 보면서 각 등급 첫 가격 채택
           const latest = { psa10: null, psa9: null, raw: null };
@@ -4295,9 +4294,8 @@ async function renderGradesPanel(productId, product) {
     const hasBgsData = ['bgs10_bl','bgs10_gl','bgs95'].some(k => grades[k] && Object.keys(grades[k]).length > 0);
     if (!hasBgsData) {
       try {
-        const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
-        if (r.ok) {
-          const hist = await r.json();
+        const hist = await window.loadMarketHistory(productId);
+        if (hist) {
           const points = hist.history || [];
           const bgsLatest = { bgs10_bl: null, bgs10_gl: null, bgs95: null };
           for (let i = points.length - 1; i >= 0; i--) {
@@ -5039,11 +5037,7 @@ async function renderHistoryChart(productId, product) {
   // 히스토리 fetch
   let history = [];
   try {
-    const r = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
-    if (r.ok) {
-      const d = await r.json();
-      history = d.history || [];
-    }
+    history = (await window.loadMarketHistory(productId))?.history || [];
   } catch {}
 
   const empty = document.getElementById(`histEmpty-${productId}`);
@@ -5593,11 +5587,7 @@ async function renderSlidePanel(productId, request = ++SLIDE_PANEL_REQUEST, card
   // 2. history 받기 — 등급별 가격
   let history = null;
   try {
-    const r2 = await fetch(`/data/history/${productId}.json?t=${Math.floor(Date.now()/3600000)}`);
-    if (r2.ok) {
-      const d2 = await r2.json();
-      history = d2 && d2.history;
-    }
+    history = (await window.loadMarketHistory(productId))?.history;
   } catch (e) {}
 
   const name = ((product && (product.nameKo || product.name)) || `카드 #${productId}`)

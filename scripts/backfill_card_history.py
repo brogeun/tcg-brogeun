@@ -31,6 +31,7 @@ from urllib.parse import urlsplit
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from snkrdunk_sale_day import JST, sale_day
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
@@ -76,7 +77,7 @@ def source_json(url):
     return payload
 
 
-def fetch_chart_grade(cid, opt_id):
+def fetch_chart_grade(cid, opt_id, chart_timezone=timezone.utc):
     """sales-chart/used + 옵션 ID → {date: price} (일별 단가, SNKRDUNK 자체 산출)"""
     if type(opt_id) is not int or opt_id not in GRADE_OPTION_LABELS:
         raise CollectionError('Unsupported requested grade option for ' + str(cid))
@@ -109,8 +110,7 @@ def fetch_chart_grade(cid, opt_id):
         if int(price) <= 0:
             raise CollectionError('Chart price is below the saved JPY precision for ' + str(cid))
         try:
-            # Keep the legacy UTC contract used by downstream archive normalization.
-            day = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            day = datetime.fromtimestamp(ts_ms / 1000, tz=chart_timezone).strftime("%Y-%m-%d")
         except (ValueError, OSError, OverflowError) as error:
             raise CollectionError('Invalid chart timestamp for ' + str(cid)) from error
         by_date[day] = int(price)
@@ -122,7 +122,7 @@ def fetch_volume(cid, days_limit=None, max_pages=9999):
     return: (counts dict, prices dict)"""
     counts = defaultdict(int)
     prices = defaultdict(list)
-    today = datetime.now()
+    today = datetime.now(JST)
     cutoff = (today - timedelta(days=days_limit)).strftime("%Y-%m-%d") if days_limit else "0000-00-00"
     previous_day = None
     cutoff_page = None
@@ -144,21 +144,10 @@ def fetch_volume(cid, days_limit=None, max_pages=9999):
         for it in items:
             if not isinstance(it, dict) or not isinstance(it.get('date'), str):
                 raise CollectionError('Malformed sales-history row for ' + str(cid))
-            date_str = (it.get("date") or "").strip()
-            m = re.match(r"(\d{4})[/-](\d{2})[/-](\d{2})", date_str)
-            if m:
-                d2 = f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
-                try:
-                    datetime.strptime(d2, '%Y-%m-%d')
-                except ValueError as error:
-                    raise CollectionError('Invalid sales-history date for ' + str(cid)) from error
-            else:
-                m2 = re.fullmatch(r"(\d+)\s*(日|時間|分|秒|days?|hours?|minutes?|mins?|seconds?)(?:前|\s+ago)?", date_str, re.I)
-                if not m2:
-                    raise CollectionError('Unrecognized sales-history date for ' + str(cid))
-                amount, unit = int(m2.group(1)), m2.group(2).lower()
-                field = 'days' if unit == '日' or unit.startswith('day') else 'hours' if unit == '時間' or unit.startswith('hour') else 'minutes' if unit == '分' or unit.startswith('min') else 'seconds'
-                d2 = (today - timedelta(**{field: amount})).strftime('%Y-%m-%d')
+            try:
+                d2 = sale_day(it['date'], today)
+            except (ValueError, OverflowError) as error:
+                raise CollectionError('Invalid sales-history date for ' + str(cid)) from error
             if previous_day is not None and d2 > previous_day:
                 raise CollectionError('Sales-history dates increased within/across pages for ' + str(cid) + ' page ' + str(page))
             previous_day = d2
@@ -457,7 +446,8 @@ def main():
             # Every grade and the complete requested sales range must succeed.
             # In-memory partial results are discarded on any failure below.
             for grade, opt_id in GRADE_OPTION_IDS.items():
-                chart = fetch_chart_grade(cid, opt_id)
+                chart = (fetch_chart_grade(cid, opt_id, JST) if existing.get('historyTimezone') == 'Asia/Tokyo'
+                         else fetch_chart_grade(cid, opt_id))
                 grade_counts[grade] = len(chart)
                 for date, price in chart.items():
                     if date not in by_date:

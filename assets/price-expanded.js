@@ -15,6 +15,74 @@
     return {value:Number(value),currency:grade.currency || (grade.avg_jpy ? 'JPY' : 'USD'),source:grade.lowest_ask != null ? '현재 출품 최저가' : '최근 거래가'};
   }
   function sortedHistory(history) { return (Array.isArray(history)?history:[]).filter(r=>r && /^\d{4}-\d{2}-\d{2}$/.test(r.date)).slice().sort((a,b)=>a.date.localeCompare(b.date)); }
+  const dailyBuckets = new Map();
+  function marketHistory(archive, daily) {
+    const legacyGrades = (!archive?.historyTimezone || archive.historyTimezone === 'UTC') &&
+      ['daily (sales-history 1ea)', 'backfill v2 (sales-chart/used per grade + sales-history vol)'].includes(archive?.source);
+    const rows = new Map();
+    function row(day) {
+      if (!rows.has(day)) rows.set(day, {date: day});
+      return rows.get(day);
+    }
+    for (const entry of sortedHistory(archive?.history)) {
+      const fields = {...entry};
+      delete fields.date;
+      if (legacyGrades) {
+        // These two writers saved JST midnight grade points as the previous UTC day.
+        // The tape's volume and box fields already carry their own transaction day.
+        const next = new Date(entry.date + 'T00:00:00Z');
+        next.setUTCDate(next.getUTCDate() + 1);
+        if (Number.isFinite(next.getTime())) for (const [grade] of grades) {
+          const key = grade + '_price';
+          if (key in fields) {
+            row(next.toISOString().slice(0, 10))[key] = fields[key];
+            delete fields[key];
+          }
+        }
+      }
+      if (Object.keys(fields).length) Object.assign(row(entry.date), fields);
+    }
+    let checkedAt = null;
+    const archivedAt = Date.parse(archive?.updatedAt);
+    for (const grade of ['raw','psa10']) {
+      const checked = daily?.[grade];
+      if (!Array.isArray(checked) || !Number.isSafeInteger(checked[0]) || checked[0] <= 0) continue;
+      const time = checked[0] * 1000;
+      checkedAt = Math.max(checkedAt || 0, time);
+      const point = checked[1];
+      if (!Array.isArray(point) || !/^\d{4}-\d{2}-\d{2}$/.test(point[0]) || !positive(point[1])) continue;
+      const target = row(point[0]), key = grade + '_price';
+      if (!positive(target[key]) || !Number.isFinite(archivedAt) || time > archivedAt) target[key] = point[1];
+    }
+    return {...archive, history: sortedHistory([...rows.values()]), dailyGradeCheckedAt: checkedAt};
+  }
+  async function loadMarketHistory(id) {
+    if (!/^[1-9]\d{0,19}$/.test(String(id))) return null;
+    const bucket = String(Number(BigInt(id) % 32n)).padStart(2, '0');
+    const day = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+    const saved = dailyBuckets.get(bucket);
+    if (saved?.day !== day || Date.now() >= saved.expires) {
+      const hour = Math.floor(Date.now() / 3600000);
+      const promise = json('/data/card-grade-days/' + bucket + '.json?t=' + hour);
+      dailyBuckets.set(bucket, {day, promise, expires: (hour + 1) * 3600000});
+      promise.then(value => {
+        if (value?.version !== 1 && dailyBuckets.get(bucket)?.promise === promise) dailyBuckets.delete(bucket);
+      });
+    }
+    const [archive, bundle] = await Promise.all([
+      json('/data/history/' + id + '.json?t=' + Math.floor(Date.now() / 3600000)),
+      dailyBuckets.get(bucket).promise
+    ]);
+    const verified = bundle?.version === 1 && bundle.bucket === Number(bucket) ? bundle.products?.[id] : null;
+    if (!archive && !verified) return null;
+    return marketHistory(archive, verified);
+  }
+  window.loadMarketHistory = loadMarketHistory;
+  function koreanTime(value) {
+    if (!value) return null;
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) ? new Date(time + 9 * 3600000).toISOString().slice(0, 16).replace('T', ' ') : null;
+  }
   function latest(history,key) { return history.slice().reverse().find(r=>positive(r[key]))?.[key] ?? null; }
   // Seven calendar days, not eight rows (sparse history may skip dates).
   function change7(history,key) {
@@ -83,11 +151,16 @@
       return;
     }
     const product=await window.CardCatalogRepairs?.quoteProduct?.({...original}) || {...original};
-    const [histData,detail,,localizeNames]=await Promise.all([json(`/data/history/${encodeURIComponent(id)}.json`),loadCardsDetail(),enrichPriceProductMetadata([product],'box'),window.JapaneseCardNames?.ensureDisplayData?.()]);
+    const [histData,detail,,localizeNames]=await Promise.all([loadMarketHistory(id),loadCardsDetail(),enrichPriceProductMetadata([product],'box'),window.JapaneseCardNames?.ensureDisplayData?.()]);
     if (!current()) return;
     product.image=window.CardArtwork?.source(product)||product.image||product.thumbnailUrl||'';
     const history=sortedHistory(histData?.history);
     const box=isBox(product,history);
+    const lastChartDay = history.filter(r => [...grades.map(([g])=>g+'_price'),'box_price','box_vol','total_vol','total_price'].some(key=>positive(r[key]))).at(-1)?.date;
+    const lastSale = [lastChartDay, box && histData?.lastSingleBoxSaleDay].filter(Boolean).sort().at(-1);
+    const gradeCheck = box ? null : koreanTime(histData?.dailyGradeCheckedAt);
+    const archiveTime = koreanTime(histData?.updatedAt);
+    const saleCheck = box ? koreanTime(histData?.singleBoxSalesCheckedAt) : null;
     const brand=product._brand || product.brand || 'pokemon';
     const catalogInfo=await PriceProductInfo.get(product,brand,box);
     if (!current()) return;
@@ -135,7 +208,10 @@
         <tr><td>타입</td><td>${box?'박스':'카드'}</td></tr>
         ${!box?`<tr><td>희귀도</td><td>${escapeHtml(product.rarity || originalName.match(/\b(SAR|SR|SSR|AR|UR|MA|L|SEC|R|C)\b/)?.[1] || '—')}</td></tr>`:''}
         <tr><td>확장팩</td><td>${escapeHtml(pack || '카드정보에 확장팩 미등록')}</td></tr><tr><td>발매일</td><td>${escapeHtml(release)}</td></tr>
-        <tr><td>데이터 출처</td><td>SNKRDUNK · 일일 자동 갱신</td></tr><tr><td>최근 거래 데이터</td><td>${escapeHtml(history.at(-1)?.date || '—')}</td></tr></tbody></table>
+        <tr><td>데이터 출처</td><td>SNKRDUNK</td></tr><tr><td>최근 확인된 거래일</td><td>${escapeHtml(lastSale || '확인된 기록 없음')}</td></tr>
+        ${archiveTime ? `<tr><td>차트 갱신 (한국시간)</td><td>${archiveTime}</td></tr>` : ''}
+        ${gradeCheck ? `<tr><td>A급·PSA 10 원본 확인 (한국시간)</td><td>${gradeCheck}</td></tr>` : ''}
+        ${saleCheck ? `<tr><td>1박스 거래 확인 (한국시간)</td><td>${saleCheck}</td></tr>` : ''}</tbody></table>
         ${!box && sets.length?`<div class="px-related">${sets.map(s=>`<button type="button" class="px-btn" data-px-set="${escapeHtml(s.code)}">${escapeHtml(PriceProductInfo.label(s))} 카드정보</button>`).join('')}</div>`:''}
       </section></div></article>`;
     panel.querySelector('[data-px-back]').onclick=back;
@@ -208,5 +284,5 @@
     const bars=volumes.map((v,i)=>`<rect x="${x(i)-barWidth/2}" y="${bottom-v/maxV*56}" width="${barWidth}" height="${v/maxV*56}" fill="#066666" opacity=".12"/>`).join('');
     target.innerHTML=`<svg viewBox="0 0 ${width} 204" role="img" aria-label="${escapeHtml(grade)} 거래가 및 거래량, ${rows[0].date}부터 ${rows.at(-1).date}"><title>선택한 등급의 실제 거래 이력</title>${guides}${bars}<polygon points="${left},${bottom} ${points} ${x(rows.length-1)},${bottom}" fill="#19DFDF" opacity=".08"/><polyline points="${points}" fill="none" stroke="#066666" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>${vals.map((v,i)=>`<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="#066666" opacity=".01"><title>${rows[i].date} · ${money(v)} · 거래량 ${volumes[i]}</title></circle>`).join('')}<circle cx="${x(rows.length-1)}" cy="${y(vals.at(-1))}" r="3" fill="#066666"/>${[0,Math.floor((rows.length-1)/2),rows.length-1].map((i,n)=>`<text x="${n===0?left:n===2?width-right:width/2}" y="196" text-anchor="${n===0?'start':n===2?'end':'middle'}" fill="#888780" font-size="10">${rows[i].date.slice(0,7).replace('-','.')}</text>`).join('')}</svg>`;
   }
-  window.PriceExpandedTest={quote,change7,isBox,sortedHistory};
+  window.PriceExpandedTest={quote,change7,isBox,sortedHistory,marketHistory};
 })();

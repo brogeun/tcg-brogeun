@@ -42,5 +42,7 @@ jobs:
           node-version: '22'
       - name: Install locked build dependencies
         run: npm ci --include=dev --no-audit --no-fund
+      - name: Verify the complete downloadable Johto pack
+        run: node games/kanto151/scripts/build-johto-pack.mjs --check
       - name: Verify gameplay, capture and save compatibility
         run: node --test scripts/test_kanto*.mjs games/kanto151/scripts/*.test.mjs

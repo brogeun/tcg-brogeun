@@ -260,6 +260,50 @@ class SafetyTests(unittest.TestCase):
             auditor.verify_discovery(universe['discovery'],
                                      {row['id']: row for row in universe['products']})
 
+    def test_incompatible_discovery_contract_stops_before_bulk_charts_and_retains_sources(self):
+        def listing(url):
+            query = parse_qs(urlsplit(url).query)
+            rows = [{'id': '1' if query['brandId'][0] == 'pokemon' else '101', 'kind': 'card'}]
+            return {'tradingCards': rows if query['page'] == ['1'] else []}, 'fixture-sha'
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'data').mkdir()
+            (root / 'data/cards-meta.json').write_text('{"cards":[]}', encoding='utf-8')
+            active = root / 'data/market-price-index.json'
+            active.write_bytes(b'previous-verified-index')
+            # A future collector change must not spend hours on prices before
+            # discovering that its declared streams fail the publication audit.
+            with patch.object(source, 'DISCOVERY_ORDERS', ('new', 'new')), \
+                 patch.object(source, 'listing_request', listing), \
+                 patch.object(source, 'fetch_chart', side_effect=AssertionError('Bulk chart should not be requested')) as charts, \
+                 patch('sys.argv', ['refresh', '--root', str(root), '--workers', '1']), redirect_stdout(io.StringIO()):
+                result = source.main()
+            charts.assert_not_called()
+            self.assertEqual(result, 2)
+            universe_path = root / 'data/card-index-platform-universe.json'
+            universe = json.loads(universe_path.read_bytes())
+            history = json.loads((root / 'data/card-index-platform-history.json').read_bytes())
+            self.assertTrue(universe['discovery']['pageTraversalComplete'])
+            self.assertFalse(universe['discovery']['complete'])
+            self.assertEqual(universe['discovery']['status'], 'audit-failed')
+            self.assertIn('unsupported listing-order contract', universe['discovery']['auditError'])
+            self.assertEqual(len(universe['products']), 2)
+            self.assertEqual(history['universeFingerprint'], hashlib.sha256(universe_path.read_bytes()).hexdigest())
+            self.assertFalse(history['scopeSummary']['complete'])
+            self.assertEqual(history['scopeSummary']['attemptedConditions'], 0)
+            self.assertEqual(active.read_bytes(), b'previous-verified-index')
+            # Correcting the contract can reuse the retained pair and finish.
+            def chart(cid, brand, grade, *args):
+                return {'id': cid, 'brand': brand, 'grade': grade, 'conditionCode': source.GRADES[grade],
+                        'status': 'ok', 'history': [], 'fetchedAt': source.now()}
+            with patch.object(source, 'listing_request', listing), patch.object(source, 'fetch_chart', chart), \
+                 patch('sys.argv', ['refresh', '--root', str(root), '--workers', '1', '--resume']), redirect_stdout(io.StringIO()):
+                self.assertEqual(source.main(), 0)
+            resumed = json.loads((root / 'data/card-index-platform-history.json').read_bytes())
+            self.assertTrue(resumed['scopeSummary']['complete'])
+            self.assertEqual(resumed['scopeSummary']['attemptedConditions'], 4)
+            self.assertEqual(active.read_bytes(), b'previous-verified-index')
+
     def test_persistent_repeated_listing_fails_before_bulk_chart_collection(self):
         calls = []
         charts = []

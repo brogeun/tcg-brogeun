@@ -11,6 +11,7 @@ from pathlib import Path
 import requests
 from build_market_price_index import extract,foreign
 from refresh_market_price_index_source import wait_backoff,pause_for
+from verify_dynamic_card_price_index import verify_discovery
 ROOT=Path(__file__).resolve().parents[1];JST=timezone(timedelta(hours=9));BRANDS=('pokemon','onepiece');GRADES={'raw':18,'psa10':22};SINGLE={'card','single','single-card','single_card','single card'}
 HTTP_LIMIT=threading.Semaphore(8);PRICE_LIMIT=threading.Semaphore(7);HTTP_STATS=Counter();RATE_LOCK=threading.Lock();RATE_NEXT=0.0;LOCK=threading.RLock();LOG_LOCK=threading.Lock();LOCAL=threading.local()
 MAX_REQUESTS_PER_SECOND=8;MAX_DISCOVERY_PAGES=600
@@ -312,6 +313,15 @@ def main():
   publish_history();emit({'type':'discovery-incomplete','discovery':discovery,'retainedConditions':len(records)});log.close()
   print(json.dumps({'status':'discovery-incomplete','retainedConditions':len(records),'streams':discovery['streams'],'universe':str(universe_path),'history':str(history_path)},ensure_ascii=False),flush=True)
   return 2
+ # Reconcile the real discovery output with the independent publication audit
+ # before the bulk chart sweep. Keep the final full audit after model building.
+ try:verify_discovery(discovery,products)
+ except AssertionError as exc:
+  discovery['complete']=False;discovery['status']='audit-failed';discovery['auditError']=str(exc)
+  publish_history();emit({'type':'discovery-audit-failed','error':str(exc),'retainedConditions':len(records)});log.close()
+  print(json.dumps({'status':'discovery-audit-failed','error':str(exc),'retainedConditions':len(records),'universe':str(universe_path),'history':str(history_path)},ensure_ascii=False),flush=True)
+  return 2
+ emit({'type':'discovery-audit-passed','streams':len(discovery['streams']),'products':len(products)})
  initial=dict(products);start=time.monotonic()
  def priority(cid):return (0 if cid=='146897' else 1 if foreign(initial[cid]) else 2,int(cid))
  def collect(tasks):
